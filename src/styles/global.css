@@ -329,7 +329,7 @@ button {
 .hero-copy h1 {
   padding-left: clamp(18px, 3vw, 34px);
   border-left: 5px solid var(--primary);
-  font-size: clamp(3.3rem, 8.4vw, 7.8rem);
+  font-size: clamp(3rem, 5.6vw, 5.6rem);
 }
 
 .hero-copy h1 span {
@@ -344,10 +344,10 @@ button {
 }
 
 .hero-summary {
-  max-width: 760px;
-  margin: 30px 0 0;
+  max-width: 720px;
+  margin: 26px 0 0;
   color: var(--muted);
-  font-size: clamp(1.3rem, 2.5vw, 2.25rem);
+  font-size: clamp(1.15rem, 1.8vw, 1.55rem);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -1157,11 +1157,11 @@ textarea:focus {
   }
 
   .hero-copy h1 {
-    font-size: clamp(2.9rem, 15vw, 4.7rem);
+    font-size: clamp(2.4rem, 10.8vw, 3.5rem);
   }
 
   .hero-summary {
-    font-size: clamp(1.15rem, 6vw, 1.65rem);
+    font-size: clamp(1.05rem, 5vw, 1.4rem);
   }
 
   .hero-body {
