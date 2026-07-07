@@ -1,25 +1,24 @@
 ---
-import { ArrowRight, Download, MapPin, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
+import { ArrowRight, Download, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
 import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { highlights, profile, projects, skills } from "@data/profile";
 
 const featuredProjects = projects.slice(0, 3);
+const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docker"];
 ---
 
 <BaseLayout active="home">
   <section class="hero-section">
-    <div class="hero-bg" aria-hidden="true"></div>
     <div class="container hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">Full-stack product engineering</p>
-        <h1>{profile.name}</h1>
-        <p class="hero-title">{profile.title}</p>
+        <p class="eyebrow">Systems architecture & engineering</p>
+        <h1>
+          <span>{profile.name}</span>
+          <span>{profile.title}</span>
+        </h1>
         <p class="hero-summary">{profile.tagline}</p>
-        <div class="hero-meta">
-          <span><MapPin size={18} aria-hidden="true" />{profile.location}</span>
-          <span><ShieldCheck size={18} aria-hidden="true" />{profile.availability}</span>
-        </div>
+        <p class="hero-body">{profile.intro}</p>
         <div class="button-row">
           <a class="button primary" href="/projects/">
             View work
@@ -30,20 +29,11 @@ const featuredProjects = projects.slice(0, 3);
             <Download size={18} aria-hidden="true" />
           </a>
         </div>
-      </div>
-      <div class="identity-panel">
-        <img src="https://avatars.githubusercontent.com/u/2317379?v=4" alt="Austin Garrod" width="192" height="192" />
-        <div class="identity-copy">
-          <p class="eyebrow">Current signal</p>
-          <p>Building practical software systems with senior full-stack range: product UI, APIs, databases, native-adjacent tooling, and deployment workflows.</p>
-        </div>
-        <div class="terminal-panel" aria-label="Technical focus">
-          <div class="terminal-bar"><span></span><span></span><span></span></div>
-          <code>
-            <span>focus: maintainability</span>
-            <span>stack: typescript + react + node</span>
-            <span>scope: product, data, native, ops</span>
-          </code>
+        <div class="hero-tech" aria-label="Core technologies">
+          <span>Core tech</span>
+          <div class="tag-list">
+            {coreTech.map((item) => <span>{item}</span>)}
+          </div>
         </div>
       </div>
     </div>

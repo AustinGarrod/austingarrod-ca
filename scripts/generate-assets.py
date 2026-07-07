@@ -36,37 +36,40 @@ def draw_wrapped(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int], font
 
 
 def generate_og_image():
-    img = Image.new("RGB", (1200, 630), "#08100f")
+    img = Image.new("RGB", (1200, 630), "#f8f9ff")
     draw = ImageDraw.Draw(img)
     title_font = font("arialbd.ttf", 78)
     subtitle_font = font("arial.ttf", 34)
     mono_font = font("consola.ttf", 24)
 
-    for x in range(0, 1200, 52):
-        draw.line((x, 0, x, 630), fill="#14211f")
-    for y in range(0, 630, 52):
-        draw.line((0, y, 1200, y), fill="#14211f")
+    for x in range(0, 1200, 100):
+        draw.line((x, 0, x, 630), fill="#e5e8f0")
+    for y in range(0, 630, 100):
+        draw.line((0, y, 1200, y), fill="#e5e8f0")
 
-    draw.rectangle((72, 72, 1128, 558), outline="#30413d", width=2)
-    draw.rectangle((96, 96, 232, 232), fill="#4edea3")
-    draw.text((126, 130), "AG", font=title_font, fill="#03110c")
-    draw.text((96, 286), "Austin Garrod", font=title_font, fill="#ecf7f3")
-    draw.text((100, 380), "Senior Full Stack Developer", font=subtitle_font, fill="#4edea3")
+    draw.rectangle((72, 72, 1128, 558), outline="#c6c6cd", width=2)
+    draw.rectangle((96, 112, 104, 326), fill="#000000")
+    draw.text((128, 104), "Austin Garrod", font=title_font, fill="#0b1c30")
+    draw.text((132, 202), "Senior Full Stack Developer", font=subtitle_font, fill="#006a61")
     draw_wrapped(
         draw,
-        "Maintainable full-stack products across React, native surfaces, APIs, data systems, and deployment workflows.",
-        (100, 444),
+        "Building resilient, scalable web applications from database architecture to frontend UI.",
+        (132, 286),
         mono_font,
-        "#a8bbb4",
-        72,
+        "#45464d",
+        68,
         34,
     )
-    draw.rectangle((840, 120, 1060, 382), outline="#45645b", width=2)
-    for i, color in enumerate(["#ff9c8d", "#dbc89a", "#4edea3"]):
-        draw.ellipse((870 + i * 34, 148, 888 + i * 34, 166), fill=color)
-    for i, w in enumerate([154, 118, 174, 96, 140]):
-        y = 206 + i * 34
-        draw.rounded_rectangle((872, y, 872 + w, y + 12), radius=6, fill="#30413d")
+    draw.rectangle((830, 118, 1068, 420), outline="#0b1c30", width=2)
+    draw.rectangle((858, 150, 868, 160), fill="#c6c6cd")
+    draw.rectangle((888, 150, 898, 160), fill="#d3e4fe")
+    draw.rectangle((918, 150, 928, 160), fill="#006a61")
+    for i, w in enumerate([152, 110, 174, 92, 136]):
+        y = 208 + i * 36
+        color = "#006a61" if i == 1 else "#dce9ff"
+        draw.rectangle((862, y, 862 + w, y + 12), fill=color)
+    draw.rectangle((96, 456, 360, 502), fill="#000000")
+    draw.text((122, 468), "SELECTED WORKS", font=mono_font, fill="#ffffff")
     img.save(PUBLIC / "og-image.png", quality=92)
 
 
@@ -94,7 +97,7 @@ def generate_resume():
                 fontName="Helvetica-Bold",
                 fontSize=22,
                 leading=25,
-                textColor=colors.HexColor("#08100f"),
+                textColor=colors.HexColor("#0b1c30"),
                 spaceAfter=2,
             )
         )
@@ -105,7 +108,7 @@ def generate_resume():
                 fontName="Helvetica-Bold",
                 fontSize=10,
                 leading=12,
-                textColor=colors.HexColor("#006c49"),
+                textColor=colors.HexColor("#006a61"),
                 spaceBefore=7,
                 spaceAfter=3,
             )
@@ -117,7 +120,7 @@ def generate_resume():
                 fontName="Helvetica",
                 fontSize=7.7,
                 leading=9.25,
-                textColor=colors.HexColor("#24312e"),
+                textColor=colors.HexColor("#45464d"),
                 spaceAfter=2,
             )
         )
@@ -128,7 +131,7 @@ def generate_resume():
                 fontName="Helvetica-Bold",
                 fontSize=8.4,
                 leading=9.8,
-                textColor=colors.HexColor("#08100f"),
+                textColor=colors.HexColor("#0b1c30"),
                 spaceAfter=1,
             )
         )
@@ -164,7 +167,7 @@ def generate_resume():
             TableStyle(
                 [
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LINEBELOW", (0, 0), (-1, -2), 0.35, colors.HexColor("#d8e2dd")),
+                    ("LINEBELOW", (0, 0), (-1, -2), 0.35, colors.HexColor("#c6c6cd")),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
                     ("TOPPADDING", (0, 0), (-1, -1), 2),
                 ]

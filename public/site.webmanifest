@@ -3,8 +3,8 @@
   "short_name": "Austin Garrod",
   "start_url": "/",
   "display": "minimal-ui",
-  "background_color": "#08100f",
-  "theme_color": "#08100f",
+  "background_color": "#f8f9ff",
+  "theme_color": "#f8f9ff",
   "icons": [
     {
       "src": "/favicon.svg",

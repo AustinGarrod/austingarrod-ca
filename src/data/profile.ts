@@ -21,7 +21,7 @@ export const profile = {
   resume: "/austin-garrod-resume.pdf",
   availability: "Open to thoughtful engineering conversations",
   tagline:
-    "I build durable full-stack products across React, native app surfaces, APIs, data systems, and deployment workflows.",
+    "Building resilient, scalable web applications from database architecture to frontend UI.",
   intro:
     "Senior full-stack developer with a background that spans product engineering, technical education, project management, civic technology, and practical home-lab systems. I like software that is clear to operate, easy to reason about, and calm under pressure.",
   seoDescription:
