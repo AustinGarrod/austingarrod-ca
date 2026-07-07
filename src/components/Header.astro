@@ -1,0 +1,67 @@
+---
+import { BriefcaseBusiness, CodeXml, Download, Menu, X } from "@lucide/astro";
+import { profile, siteNav } from "@data/profile";
+
+interface Props {
+  active: "home" | "about" | "projects" | "contact";
+}
+
+const { active } = Astro.props;
+const activePath = active === "home" ? "/" : `/${active}/`;
+---
+
+<header class="site-header">
+  <div class="nav-shell">
+    <a class="brand" href="/" aria-label="Austin Garrod home">
+      <span class="brand-mark">AG</span>
+      <span class="brand-name">Austin Garrod</span>
+    </a>
+
+    <nav class="desktop-nav" aria-label="Primary navigation">
+      {siteNav.map((item) => (
+        <a class:list={["nav-link", item.href === activePath && "active"]} href={item.href}>
+          {item.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="nav-actions">
+      <a class="icon-button" href={profile.github} aria-label="GitHub profile" rel="noreferrer" target="_blank">
+        <CodeXml size={19} aria-hidden="true" />
+      </a>
+      <a class="icon-button" href={profile.linkedin} aria-label="LinkedIn profile" rel="noreferrer" target="_blank">
+        <BriefcaseBusiness size={19} aria-hidden="true" />
+      </a>
+      <a class="button compact" href={profile.resume}>
+        <Download size={17} aria-hidden="true" />
+        <span>Resume</span>
+      </a>
+      <button class="icon-button menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false">
+        <Menu class="menu-open" size={22} aria-hidden="true" />
+        <X class="menu-close" size={22} aria-hidden="true" />
+        <span class="sr-only">Toggle navigation</span>
+      </button>
+    </div>
+  </div>
+
+  <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile navigation" hidden>
+    {siteNav.map((item) => (
+      <a class:list={["mobile-link", item.href === activePath && "active"]} href={item.href}>
+        {item.label}
+      </a>
+    ))}
+  </nav>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
+  const mobileNav = document.querySelector<HTMLElement>("#mobile-nav");
+
+  toggle?.addEventListener("click", () => {
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    if (mobileNav) {
+      mobileNav.hidden = expanded;
+    }
+  });
+</script>

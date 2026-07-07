@@ -1,0 +1,29 @@
+---
+import { ArrowRight } from "@lucide/astro";
+import { experience } from "@data/profile";
+---
+
+<div class="timeline">
+  {experience.map((item) => (
+    <article class="timeline-item">
+      <div class="timeline-meta">
+        <span>{item.dates}</span>
+        <small>{item.location}</small>
+      </div>
+      <div class="timeline-node" aria-hidden="true"></div>
+      <div class="timeline-content">
+        <p class="eyebrow">{item.organization}</p>
+        <h3>{item.role}</h3>
+        <p>{item.summary}</p>
+        <ul>
+          {item.bullets.map((bullet) => (
+            <li>
+              <ArrowRight size={16} aria-hidden="true" />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </article>
+  ))}
+</div>

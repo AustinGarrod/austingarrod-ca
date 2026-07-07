@@ -1,0 +1,67 @@
+---
+import { Download } from "@lucide/astro";
+import ExperienceTimeline from "@components/ExperienceTimeline.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile, skills } from "@data/profile";
+---
+
+<BaseLayout
+  active="about"
+  title={`About ${profile.name} | ${profile.title}`}
+  description="Professional experience, technical focus, education, and project-management background for Austin Garrod."
+>
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">About</p>
+      <h1>Full-stack engineering with a teacher's eye for clarity.</h1>
+      <p>
+        My career has moved through research, freelance delivery, post-secondary teaching, lead development, and senior product engineering. The common thread is practical software built with enough structure that someone else can understand it later.
+      </p>
+      <a class="button secondary" href={profile.resume}>
+        Download resume
+        <Download size={18} aria-hidden="true" />
+      </a>
+    </div>
+  </section>
+
+  <section class="container content-section">
+    <div class="section-heading">
+      <p class="eyebrow">Experience</p>
+      <h2>Professional timeline</h2>
+    </div>
+    <ExperienceTimeline />
+  </section>
+
+  <section class="section-band">
+    <div class="container content-section tight">
+      <div class="section-heading">
+        <p class="eyebrow">Technical range</p>
+        <h2>Enough breadth to connect the system, enough discipline to keep it simple.</h2>
+      </div>
+      <div class="skills-grid">
+        {skills.map((skill) => (
+          <article class="skill-panel">
+            <h3>{skill.title}</h3>
+            <p>{skill.summary}</p>
+            <div class="tag-list">
+              {skill.items.map((item) => <span>{item}</span>)}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="container content-section two-column">
+    <div>
+      <p class="eyebrow">Education</p>
+      <h2>Durham College</h2>
+      <p>Diploma, Computer Programming/Programmer, General. The later teaching role at Durham College kept the fundamentals close: problem decomposition, debugging, communication, and software lifecycle thinking.</p>
+    </div>
+    <div>
+      <p class="eyebrow">Credential note</p>
+      <h2>CAPM</h2>
+      <p>LinkedIn lists PMI Certified Associate in Project Management (CAPM), issued Apr 2018 with expiry Apr 2026. This site avoids presenting the credential as currently active unless renewed.</p>
+    </div>
+  </section>
+</BaseLayout>

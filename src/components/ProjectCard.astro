@@ -1,0 +1,45 @@
+---
+import { ArrowRight, ExternalLink, LockKeyhole } from "@lucide/astro";
+import ProjectVisual from "@components/ProjectVisual.astro";
+import type { Project } from "@data/profile";
+
+interface Props {
+  project: Project;
+  featured?: boolean;
+}
+
+const { project, featured = false } = Astro.props;
+---
+
+<article class:list={["project-card", featured && "featured"]}>
+  <ProjectVisual project={project} />
+  <div class="project-content">
+    <div class="project-meta">
+      <span>{project.status}</span>
+      {project.status === "Private case study" && <LockKeyhole size={15} aria-label="Private case study" />}
+    </div>
+    <h3>{project.title}</h3>
+    <p class="project-label">{project.label}</p>
+    <p>{project.summary}</p>
+    <ul class="project-detail-list">
+      {project.details.map((detail) => <li>{detail}</li>)}
+    </ul>
+    <div class="tag-list" aria-label={`${project.title} technology stack`}>
+      {project.stack.map((item) => <span>{item}</span>)}
+    </div>
+    <div class="project-actions">
+      {project.href && (
+        <a class="text-link" href={project.href} rel="noreferrer" target="_blank">
+          Visit project
+          <ExternalLink size={16} aria-hidden="true" />
+        </a>
+      )}
+      {project.source && (
+        <a class="text-link" href={project.source} rel="noreferrer" target="_blank">
+          Source
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+      )}
+    </div>
+  </div>
+</article>

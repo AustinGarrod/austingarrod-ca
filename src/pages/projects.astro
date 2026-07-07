@@ -1,0 +1,27 @@
+---
+import ProjectCard from "@components/ProjectCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile, projects } from "@data/profile";
+---
+
+<BaseLayout
+  active="projects"
+  title={`Projects | ${profile.name}`}
+  description="Sanitized project case studies from Austin Garrod's public and private GitHub work, covering web, mobile, data, civic, and local systems."
+>
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">Projects</p>
+      <h1>Selected work, with private details kept private.</h1>
+      <p>
+        These cards use public repository information where available and sanitized summaries for private projects. They focus on shape, stack, and engineering concerns instead of exposing private links, credentials, or household/client details.
+      </p>
+    </div>
+  </section>
+
+  <section class="container content-section">
+    <div class="project-grid all-projects">
+      {projects.map((project, index) => <ProjectCard project={project} featured={index === 0} />)}
+    </div>
+  </section>
+</BaseLayout>

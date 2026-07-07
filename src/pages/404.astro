@@ -1,0 +1,18 @@
+---
+import { ArrowLeft } from "@lucide/astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+---
+
+<BaseLayout active="home" title="Page not found | Austin Garrod" noIndex>
+  <section class="page-hero error-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">404</p>
+      <h1>That route is not part of the build.</h1>
+      <p>The page might have moved, or the URL may have been typed by hand. The current site is intentionally small: home, about, projects, and contact.</p>
+      <a class="button primary" href="/">
+        <ArrowLeft size={18} aria-hidden="true" />
+        Back home
+      </a>
+    </div>
+  </section>
+</BaseLayout>

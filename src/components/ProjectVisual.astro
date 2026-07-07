@@ -1,0 +1,44 @@
+---
+import { Blocks, Cpu, Database, Globe, Layers, MapPinned, Radio } from "@lucide/astro";
+import type { Project } from "@data/profile";
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const iconMap = {
+  blocks: Blocks,
+  radio: Radio,
+  database: Database,
+  cpu: Cpu,
+  map: MapPinned,
+  globe: Globe,
+  layers: Layers
+};
+const Icon = iconMap[project.icon];
+---
+
+<div class:list={["project-visual", `visual-${project.visual}`]} aria-hidden="true">
+  <div class="visual-header">
+    <div class="visual-leds">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <Icon size={22} />
+  </div>
+  <div class="visual-stage">
+    <div class="visual-line wide"></div>
+    <div class="visual-line medium"></div>
+    <div class="visual-line short"></div>
+    <div class="visual-grid">
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</div>

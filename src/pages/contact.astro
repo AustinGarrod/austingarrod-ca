@@ -1,0 +1,90 @@
+---
+import { BriefcaseBusiness, CodeXml, Mail, Send } from "@lucide/astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile } from "@data/profile";
+---
+
+<BaseLayout
+  active="contact"
+  title={`Contact | ${profile.name}`}
+  description="Contact Austin Garrod for professional engineering conversations."
+>
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">Contact</p>
+      <h1>Start with the shape of the problem.</h1>
+      <p>
+        For project inquiries, engineering conversations, or professional follow-up, send a concise note with context, constraints, and what would make the conversation useful.
+      </p>
+    </div>
+  </section>
+
+  <section class="container contact-layout">
+    <form class="contact-form" action="/contact.php" method="post" novalidate>
+      <div class="form-status success" data-status="sent" hidden>
+        Thanks. Your message was sent.
+      </div>
+      <div class="form-status error" data-status="error" hidden>
+        Something was missing or the message could not be sent. Please try again or use email directly.
+      </div>
+      <div class="form-status error" data-status="invalid" hidden>
+        Please check the form fields and try again.
+      </div>
+
+      <div class="field-grid">
+        <label>
+          <span>Name</span>
+          <input name="name" type="text" autocomplete="name" required maxlength="120" />
+        </label>
+        <label>
+          <span>Email</span>
+          <input name="email" type="email" autocomplete="email" required maxlength="160" />
+        </label>
+      </div>
+      <label>
+        <span>Company or context</span>
+        <input name="company" type="text" autocomplete="organization" maxlength="160" />
+      </label>
+      <label>
+        <span>Subject</span>
+        <input name="subject" type="text" required maxlength="160" />
+      </label>
+      <label class="honeypot" aria-hidden="true" tabindex="-1">
+        <span>Website</span>
+        <input name="website" type="text" autocomplete="off" tabindex="-1" />
+      </label>
+      <label>
+        <span>Message</span>
+        <textarea name="message" required minlength="20" maxlength="4000" rows="8"></textarea>
+      </label>
+      <button class="button primary" type="submit">
+        Send message
+        <Send size={18} aria-hidden="true" />
+      </button>
+    </form>
+
+    <aside class="contact-aside">
+      <div>
+        <p class="eyebrow">Direct</p>
+        <a href={`mailto:${profile.email}`}><Mail size={18} aria-hidden="true" />{profile.email}</a>
+      </div>
+      <div>
+        <p class="eyebrow">Profiles</p>
+        <a href={profile.github} rel="noreferrer" target="_blank"><CodeXml size={18} aria-hidden="true" />GitHub</a>
+        <a href={profile.linkedin} rel="noreferrer" target="_blank"><BriefcaseBusiness size={18} aria-hidden="true" />LinkedIn</a>
+      </div>
+      <div>
+        <p class="eyebrow">Location</p>
+        <p>{profile.location}</p>
+      </div>
+    </aside>
+  </section>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    if (status) {
+      document.querySelector<HTMLElement>(`[data-status="${status}"]`)?.removeAttribute("hidden");
+    }
+  </script>
+</BaseLayout>

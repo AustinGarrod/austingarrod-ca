@@ -1,0 +1,117 @@
+---
+import { ArrowRight, Download, MapPin, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
+import ProjectCard from "@components/ProjectCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { highlights, profile, projects, skills } from "@data/profile";
+
+const featuredProjects = projects.slice(0, 3);
+---
+
+<BaseLayout active="home">
+  <section class="hero-section">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Full-stack product engineering</p>
+        <h1>{profile.name}</h1>
+        <p class="hero-title">{profile.title}</p>
+        <p class="hero-summary">{profile.tagline}</p>
+        <div class="hero-meta">
+          <span><MapPin size={18} aria-hidden="true" />{profile.location}</span>
+          <span><ShieldCheck size={18} aria-hidden="true" />{profile.availability}</span>
+        </div>
+        <div class="button-row">
+          <a class="button primary" href="/projects/">
+            View work
+            <ArrowRight size={18} aria-hidden="true" />
+          </a>
+          <a class="button secondary" href={profile.resume}>
+            Download resume
+            <Download size={18} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+      <div class="identity-panel">
+        <img src="https://avatars.githubusercontent.com/u/2317379?v=4" alt="Austin Garrod" width="192" height="192" />
+        <div class="identity-copy">
+          <p class="eyebrow">Current signal</p>
+          <p>Building practical software systems with senior full-stack range: product UI, APIs, databases, native-adjacent tooling, and deployment workflows.</p>
+        </div>
+        <div class="terminal-panel" aria-label="Technical focus">
+          <div class="terminal-bar"><span></span><span></span><span></span></div>
+          <code>
+            <span>focus: maintainability</span>
+            <span>stack: typescript + react + node</span>
+            <span>scope: product, data, native, ops</span>
+          </code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-band">
+    <div class="container metrics-grid">
+      {highlights.map((item) => (
+        <article class="metric">
+          <strong>{item.value}</strong>
+          <span>{item.label}</span>
+          <p>{item.description}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="container content-section">
+    <div class="section-heading">
+      <p class="eyebrow">Engineering profile</p>
+      <h2>Calm systems, clear interfaces, practical delivery.</h2>
+      <p>{profile.intro}</p>
+    </div>
+    <div class="skills-grid">
+      {skills.map((skill, index) => {
+        const icons = [MonitorSmartphone, SquareTerminal, ShieldCheck, ArrowRight];
+        const Icon = icons[index] ?? ArrowRight;
+        return (
+          <article class="skill-panel">
+            <Icon size={24} aria-hidden="true" />
+            <h3>{skill.title}</h3>
+            <p>{skill.summary}</p>
+            <div class="tag-list">
+              {skill.items.map((item) => <span>{item}</span>)}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="container content-section">
+    <div class="section-heading split">
+      <div>
+        <p class="eyebrow">Selected work</p>
+        <h2>Sanitized case studies from public and private projects.</h2>
+      </div>
+      <a class="button secondary" href="/projects/">
+        All projects
+        <ArrowRight size={18} aria-hidden="true" />
+      </a>
+    </div>
+    <div class="project-grid">
+      {featuredProjects.map((project, index) => <ProjectCard project={project} featured={index === 0} />)}
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="container cta-inner">
+      <div>
+        <p class="eyebrow">Next conversation</p>
+        <h2>Good software is easier to trust when its structure is visible.</h2>
+        <p>That is the through-line here: a preference for systems that are understandable, observable, and built for the people who need to keep using them.</p>
+      </div>
+      <a class="button primary" href="/contact/">
+        Contact Austin
+        <ArrowRight size={18} aria-hidden="true" />
+      </a>
+    </div>
+  </section>
+</BaseLayout>
