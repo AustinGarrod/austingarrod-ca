@@ -48,12 +48,14 @@ jobs:
 
       - name: Upload dist to HostPapa
         if: steps.deploy-secrets.outputs.ready == 'true'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ env.FTP_HOST }}
           username: ${{ env.FTP_USER }}
           password: ${{ env.FTP_PASSWORD }}
+          port: 21
           protocol: ftps
+          security: loose
           local-dir: ./dist/
           server-dir: ${{ env.FTP_REMOTE_DIR }}
 
