@@ -74,6 +74,6 @@ $headers = [
     'X-Mailer: PHP/' . phpversion()
 ];
 
-$sent = mail($recipient, $safeSubject, $body, implode("\r\n", $headers));
+$sent = @mail($recipient, $safeSubject, $body, implode("\r\n", $headers));
 
 redirect_with_status($sent ? 'sent' : 'error');
