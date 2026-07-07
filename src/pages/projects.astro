@@ -2,19 +2,26 @@
 import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { profile, projects } from "@data/profile";
+import { createProjectsStructuredData, PROJECTS_ITEM_LIST_ID } from "@data/seo";
+
+const projectsStructuredData = createProjectsStructuredData();
 ---
 
 <BaseLayout
   active="projects"
   title={`Projects | ${profile.name}`}
-  description="Sanitized project case studies from Austin Garrod's public and private GitHub work, covering web, mobile, data, civic, and local systems."
+  description="Full-stack engineering projects by Austin Garrod in Ontario, covering Astro, React, TypeScript, Node.js, mobile apps, data pipelines, and local systems."
+  schemaType="CollectionPage"
+  breadcrumbLabel="Projects"
+  mainEntityId={PROJECTS_ITEM_LIST_ID}
+  structuredData={projectsStructuredData}
 >
   <section class="page-hero">
     <div class="container page-hero-inner">
-      <p class="eyebrow">Selected works</p>
-      <h1>Selected work.</h1>
+      <p class="eyebrow">Case studies</p>
+      <h1>Full-stack engineering projects</h1>
       <p>
-        These cards use public repository information where available and sanitized summaries for private projects. They focus on shape, stack, and engineering concerns instead of exposing private links, credentials, or household/client details.
+        A practical cross-section of production work, private builds, teaching-adjacent systems, and local tools. Private projects are summarized at the architecture level so the engineering shape is visible without exposing sensitive links, credentials, or client details.
       </p>
     </div>
   </section>

@@ -143,24 +143,24 @@ def generate_resume():
         story.append(Paragraph("Austin Garrod", styles["ResumeTitle"]))
         story.append(
             paragraph(
-                "Senior Full Stack Developer | Port Perry, Ontario, Canada | austin.r.garrod@gmail.com | github.com/AustinGarrod | linkedin.com/in/austingarrod",
+                "Senior Full Stack Developer | Ontario, Canada | austin.r.garrod@gmail.com | github.com/AustinGarrod | linkedin.com/in/austingarrod",
                 body,
             )
         )
         story.append(Spacer(1, 4))
         story.append(
             paragraph(
-                "Senior full-stack developer building maintainable product software across React, Next.js, React Native, Node.js, APIs, databases, native-adjacent tooling, and deployment workflows. Background includes technical education, project leadership, research systems, civic software, and practical local systems.",
+                "Senior full-stack developer building maintainable software across React, Next.js, React Native, Node.js, APIs, databases, native-adjacent tooling, and deployment workflows. Background includes technical education, project leadership, research systems, civic software, practical local systems, and pragmatic AI-assisted development practices.",
                 body,
             )
         )
 
         story.append(Paragraph("Core Skills", section))
         skills = [
-            ["Frontend", "React, Next.js, TypeScript, React Native, Redux, Tailwind CSS"],
-            ["Backend", "Node.js, Express, API development, MongoDB, SQL, Socket.IO, BullMQ"],
+            ["Frontend", "React, Next.js, TypeScript, React Native, Redux, accessibility"],
+            ["Backend", "Node.js, Express, API development, MongoDB, SQL, Redis, REST APIs"],
             ["Platform", "Kotlin Multiplatform, Android, C#/.NET, Python, Docker, MQTT"],
-            ["Leadership", "Agile and waterfall methods, SDLC, mentoring, estimates, troubleshooting"],
+            ["Practice", "AI-assisted workflows, code review, CI/CD, SDLC, mentoring, documentation"],
         ]
         table = Table([[paragraph(a, role), paragraph(b, body)] for a, b in skills], colWidths=[1.18 * inch, 5.6 * inch])
         table.setStyle(
@@ -181,7 +181,7 @@ def generate_resume():
                 "Senior Full Stack Developer - Epilogue",
                 "Aug 2021 - Present | Toronto, Ontario, Canada - Remote",
                 [
-                    "Senior product engineering work across modern full-stack surfaces, with React and Next.js highlighted on LinkedIn.",
+                    "Senior full-stack work across production web application surfaces with React, Next.js, APIs, and databases.",
                     "Apply TypeScript, React, Next.js, API development, and database experience to practical product work.",
                 ],
             ),
@@ -226,18 +226,17 @@ def generate_resume():
 
         story.append(Paragraph("Selected Projects", section))
         project_text = [
-            "Open Design - public TypeScript-heavy agentic design workspace with web, desktop, plugin, and export surfaces.",
+            "AustinGarrod.ca - static Astro portfolio for cPanel hosting with typed content data, generated assets, PHP contact handling, and GitHub Actions checks.",
             "Cadence - private Kotlin Multiplatform podcast app with local-first state, opt-out diagnostics, and Pocket Casts import support.",
             "Spools - local web app for 3D printer filament tracking with Bambu Lab AMS sync over MQTT.",
-            "Charity Data Scraper - queue-based Canadian charity data scraper with Redis/BullMQ, MongoDB, WebSocket progress, and Docker deployment.",
+            "Charity Data Scraper - queue-based Canadian charity data scraper with Redis-backed job state, MongoDB storage, live progress, and Docker deployment.",
             "Kids TV Controller - household NFC media controller concept with React dashboard, Express API, Plex/Chromecast integration, and ESP32 hardware planning.",
         ]
         for item in project_text:
             story.append(paragraph("- " + item, body))
 
-        story.append(Paragraph("Education and Certifications", section))
-        story.append(paragraph("Durham College - Diploma, Computer Programming/Programmer, General, 2016 - 2017.", body))
-        story.append(paragraph("PMI Certified Associate in Project Management (CAPM), issued Apr 2018. LinkedIn lists expiry Apr 2026; renewal status not claimed on this resume.", body))
+        story.append(Paragraph("Education", section))
+        story.append(paragraph("Durham College - Diploma, Computer Programming/Programmer, General, 2016 - 2017. Foundation in programming logic, object-oriented development, databases, networking, web development, testing, systems development, and technical communication.", body))
 
         doc.build(story)
 

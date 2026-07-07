@@ -54,12 +54,136 @@ const activePath = active === "home" ? "/" : `/${active}/`;
 <script>
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const mobileNav = document.querySelector<HTMLElement>("#mobile-nav");
+  const pageChrome = [
+    document.querySelector<HTMLElement>(".skip-link"),
+    document.querySelector<HTMLElement>("main"),
+    document.querySelector<HTMLElement>("footer")
+  ].filter((element): element is HTMLElement => Boolean(element));
+  const desktopQuery = window.matchMedia("(min-width: 1101px)");
+  const focusableSelector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])"
+  ].join(",");
+
+  const getMenuFocusables = () => {
+    if (!toggle || !mobileNav) {
+      return [];
+    }
+
+    return [
+      toggle,
+      ...Array.from(mobileNav.querySelectorAll<HTMLElement>(focusableSelector))
+    ].filter((element) => {
+      const style = window.getComputedStyle(element);
+      return !element.hasAttribute("disabled") && style.visibility !== "hidden" && element.getClientRects().length > 0;
+    });
+  };
+
+  const setPageInert = (isInert: boolean) => {
+    pageChrome.forEach((element) => {
+      if (isInert) {
+        element.setAttribute("inert", "");
+        element.setAttribute("aria-hidden", "true");
+      } else {
+        element.removeAttribute("inert");
+        element.removeAttribute("aria-hidden");
+      }
+    });
+  };
+
+  const closeMenu = ({ restoreFocus = true } = {}) => {
+    if (!toggle || !mobileNav) {
+      return;
+    }
+
+    toggle.setAttribute("aria-expanded", "false");
+    mobileNav.hidden = true;
+    document.body.classList.remove("mobile-nav-open");
+    setPageInert(false);
+
+    if (restoreFocus) {
+      toggle.focus();
+    }
+  };
+
+  const openMenu = () => {
+    if (!toggle || !mobileNav) {
+      return;
+    }
+
+    toggle.setAttribute("aria-expanded", "true");
+    mobileNav.hidden = false;
+    document.body.classList.add("mobile-nav-open");
+    setPageInert(true);
+  };
 
   toggle?.addEventListener("click", () => {
     const expanded = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!expanded));
-    if (mobileNav) {
-      mobileNav.hidden = expanded;
+
+    if (expanded) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  mobileNav?.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest("a")) {
+      closeMenu({ restoreFocus: false });
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!toggle || !mobileNav || toggle.getAttribute("aria-expanded") !== "true") {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusables = getMenuFocusables();
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (!first || !last) {
+      event.preventDefault();
+      return;
+    }
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  document.addEventListener("focusin", () => {
+    if (!toggle || toggle.getAttribute("aria-expanded") !== "true") {
+      return;
+    }
+
+    const focusables = getMenuFocusables();
+    if (!focusables.includes(document.activeElement as HTMLElement)) {
+      toggle.focus();
+    }
+  });
+
+  desktopQuery.addEventListener("change", (event) => {
+    if (event.matches) {
+      closeMenu({ restoreFocus: false });
     }
   });
 </script>

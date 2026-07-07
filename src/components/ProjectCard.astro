@@ -2,6 +2,7 @@
 import { ArrowRight, ExternalLink, LockKeyhole } from "@lucide/astro";
 import ProjectVisual from "@components/ProjectVisual.astro";
 import type { Project } from "@data/profile";
+import { getProjectPath } from "@data/seo";
 
 interface Props {
   project: Project;
@@ -9,16 +10,17 @@ interface Props {
 }
 
 const { project, featured = false } = Astro.props;
+const projectPath = getProjectPath(project);
 ---
 
-<article class:list={["project-card", featured && "featured"]}>
+<article id={project.slug} class:list={["project-card", featured && "featured"]}>
   <ProjectVisual project={project} />
   <div class="project-content">
     <div class="project-meta">
       <span>{project.status}</span>
       {project.status === "Private case study" && <LockKeyhole size={15} aria-label="Private case study" />}
     </div>
-    <h3>{project.title}</h3>
+    <h3><a href={projectPath}>{project.title}</a></h3>
     <p class="project-label">{project.label}</p>
     <p>{project.summary}</p>
     <ul class="project-detail-list">
@@ -28,6 +30,10 @@ const { project, featured = false } = Astro.props;
       {project.stack.map((item) => <span>{item}</span>)}
     </div>
     <div class="project-actions">
+      <a class="text-link" href={projectPath}>
+        View case study
+        <ArrowRight size={16} aria-hidden="true" />
+      </a>
       {project.href && (
         <a class="text-link" href={project.href} rel="noreferrer" target="_blank">
           Visit project
@@ -37,7 +43,7 @@ const { project, featured = false } = Astro.props;
       {project.source && (
         <a class="text-link" href={project.source} rel="noreferrer" target="_blank">
           Source
-          <ArrowRight size={16} aria-hidden="true" />
+          <ExternalLink size={16} aria-hidden="true" />
         </a>
       )}
     </div>

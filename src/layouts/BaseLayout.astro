@@ -3,23 +3,49 @@ import Header from "@components/Header.astro";
 import Footer from "@components/Footer.astro";
 import "@styles/global.css";
 import { profile } from "@data/profile";
+import { createBaseJsonLdGraph, type JsonLd, type SchemaPageType } from "@data/seo";
 
 interface Props {
   title?: string;
   description?: string;
   active?: "home" | "about" | "projects" | "contact";
   noIndex?: boolean;
+  schemaType?: SchemaPageType;
+  breadcrumbLabel?: string;
+  mainEntityId?: string;
+  structuredData?: JsonLd | JsonLd[];
 }
 
+const defaultSchemaType: SchemaPageType = Astro.url.pathname === "/" ? "ProfilePage" : "WebPage";
 const {
   title = `${profile.name} | ${profile.title}`,
   description = profile.seoDescription,
   active = "home",
-  noIndex = false
+  noIndex = false,
+  schemaType = defaultSchemaType,
+  breadcrumbLabel,
+  mainEntityId,
+  structuredData
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, "https://austingarrod.ca").toString();
 const ogImage = new URL("/og-image.png", "https://austingarrod.ca").toString();
+const structuredDataItems = structuredData ? (Array.isArray(structuredData) ? structuredData : [structuredData]) : [];
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    ...createBaseJsonLdGraph({
+      canonical,
+      pathname: Astro.url.pathname,
+      title,
+      description,
+      schemaType,
+      breadcrumbLabel,
+      mainEntityId
+    }),
+    ...structuredDataItems
+  ]
+}).replace(/</g, "\\u003c");
 ---
 
 <!doctype html>
@@ -43,6 +69,7 @@ const ogImage = new URL("/og-image.png", "https://austingarrod.ca").toString();
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <script type="application/ld+json" set:html={jsonLd} is:inline></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

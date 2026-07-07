@@ -1,0 +1,96 @@
+---
+import { ArrowLeft, ArrowRight, ExternalLink } from "@lucide/astro";
+import ProjectVisual from "@components/ProjectVisual.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile, projects, type Project } from "@data/profile";
+import {
+  createProjectCreativeWorkSchema,
+  getProjectAnchor,
+  getProjectDescription,
+  getProjectSchemaId
+} from "@data/seo";
+
+interface Props {
+  project: Project;
+}
+
+export function getStaticPaths() {
+  return projects.map((project) => ({
+    params: {
+      slug: project.slug
+    },
+    props: {
+      project
+    }
+  }));
+}
+
+const { project } = Astro.props;
+const projectStructuredData = createProjectCreativeWorkSchema(project);
+---
+
+<BaseLayout
+  active="projects"
+  title={`${project.title} | Project by ${profile.name}`}
+  description={getProjectDescription(project)}
+  schemaType="WebPage"
+  breadcrumbLabel={project.title}
+  mainEntityId={getProjectSchemaId(project)}
+  structuredData={projectStructuredData}
+>
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">Project case study</p>
+      <h1>{project.title}</h1>
+      <p>{project.summary}</p>
+      <div class="button-row">
+        <a class="button secondary" href={getProjectAnchor(project)}>
+          <ArrowLeft size={18} aria-hidden="true" />
+          All projects
+        </a>
+        {project.href && (
+          <a class="button primary" href={project.href} rel="noreferrer" target="_blank">
+            Visit project
+            <ExternalLink size={18} aria-hidden="true" />
+          </a>
+        )}
+        {project.source && (
+          <a class="button secondary" href={project.source} rel="noreferrer" target="_blank">
+            Source
+            <ExternalLink size={18} aria-hidden="true" />
+          </a>
+        )}
+      </div>
+    </div>
+  </section>
+
+  <section class="container content-section project-detail-layout">
+    <div class="project-detail-main">
+      <ProjectVisual project={project} />
+      <div>
+        <p class="eyebrow">Architecture notes</p>
+        <h2>{project.label}</h2>
+        <ul class="project-detail-list">
+          {project.details.map((detail) => <li>{detail}</li>)}
+        </ul>
+      </div>
+    </div>
+
+    <aside class="project-detail-aside" aria-label={`${project.title} project details`}>
+      <div>
+        <p class="eyebrow">Status</p>
+        <p>{project.status}</p>
+      </div>
+      <div>
+        <p class="eyebrow">Stack</p>
+        <div class="tag-list">
+          {project.stack.map((item) => <span>{item}</span>)}
+        </div>
+      </div>
+      <a class="text-link" href="/projects/">
+        Browse all case studies
+        <ArrowRight size={16} aria-hidden="true" />
+      </a>
+    </aside>
+  </section>
+</BaseLayout>

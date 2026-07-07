@@ -7,29 +7,32 @@ import { profile } from "@data/profile";
 <BaseLayout
   active="contact"
   title={`Contact | ${profile.name}`}
-  description="Contact Austin Garrod for professional engineering conversations."
+  description="Contact Austin Garrod, a senior full-stack developer in Ontario, for thoughtful engineering roles, collaborations, and technical conversations."
+  schemaType="ContactPage"
+  breadcrumbLabel="Contact Austin Garrod"
 >
   <section class="page-hero">
     <div class="container page-hero-inner">
-      <p class="eyebrow">Contact</p>
-      <h1>Contact.</h1>
+      <p class="eyebrow">Start a thread</p>
+      <h1>Contact Austin Garrod</h1>
       <p>
-        For project inquiries, engineering conversations, or professional follow-up, send a concise note with context, constraints, and what would make the conversation useful.
+        If you have a role, collaboration, technical problem, or thoughtful question in mind, send the useful context and I will reply directly. A clear note is enough; no formal brief required.
       </p>
     </div>
   </section>
 
   <section class="container contact-layout">
-    <form class="contact-form" action="/contact.php" method="post" novalidate>
-      <div class="form-status success" data-status="sent" hidden>
+    <form class="contact-form" action="/contact.php" method="post" aria-describedby="required-note">
+      <div class="form-status success" data-status="sent" role="status" aria-live="polite" aria-atomic="true" hidden>
         Thanks. Your message was sent.
       </div>
-      <div class="form-status error" data-status="error" hidden>
+      <div class="form-status error" data-status="error" role="alert" aria-live="assertive" aria-atomic="true" hidden>
         Something was missing or the message could not be sent. Please try again or use email directly.
       </div>
-      <div class="form-status error" data-status="invalid" hidden>
+      <div class="form-status error" data-status="invalid" role="alert" aria-live="assertive" aria-atomic="true" hidden>
         Please check the form fields and try again.
       </div>
+      <p id="required-note" class="form-note">All fields are required.</p>
 
       <div class="field-grid">
         <label>
@@ -41,10 +44,6 @@ import { profile } from "@data/profile";
           <input name="email" type="email" autocomplete="email" required maxlength="160" />
         </label>
       </div>
-      <label>
-        <span>Company or context</span>
-        <input name="company" type="text" autocomplete="organization" maxlength="160" />
-      </label>
       <label>
         <span>Subject</span>
         <input name="subject" type="text" required maxlength="160" />

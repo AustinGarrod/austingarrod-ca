@@ -1,11 +1,12 @@
 export type Project = {
+  slug: string;
   title: string;
   label: string;
   summary: string;
   details: string[];
   stack: string[];
   status: "Public" | "Private case study" | "Archived public";
-  visual: "open-design" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign";
+  visual: "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign";
   icon: "blocks" | "radio" | "database" | "cpu" | "map" | "globe" | "layers";
   href?: string;
   source?: string;
@@ -14,7 +15,7 @@ export type Project = {
 export const profile = {
   name: "Austin Garrod",
   title: "Senior Full Stack Developer",
-  location: "Port Perry, Ontario, Canada",
+  location: "Ontario, Canada",
   email: "austin.r.garrod@gmail.com",
   github: "https://github.com/AustinGarrod",
   linkedin: "https://www.linkedin.com/in/austingarrod",
@@ -23,9 +24,9 @@ export const profile = {
   tagline:
     "Building resilient, scalable web applications from database architecture to frontend UI.",
   intro:
-    "Senior full-stack developer with a background that spans product engineering, technical education, project management, civic technology, and practical home-lab systems. I like software that is clear to operate, easy to reason about, and calm under pressure.",
+    "Senior full-stack developer with a background that spans production software, technical education, project management, civic technology, and practical home-lab systems. I like modern development practices that make software easier to change: typed interfaces, useful tests, observable systems, clear documentation, and pragmatic AI-assisted workflows that keep the reasoning visible.",
   seoDescription:
-    "Austin Garrod is a senior full-stack developer in Ontario building maintainable web, mobile, API, and data systems with React, Next.js, TypeScript, Node.js, Kotlin Multiplatform, and modern databases."
+    "Austin Garrod is a senior full-stack developer in Ontario building maintainable React, Next.js, TypeScript, Node.js, mobile, API, and data systems."
 };
 
 export const highlights = [
@@ -45,9 +46,9 @@ export const highlights = [
     description: "Express, databases, queues, realtime updates, and integrations."
   },
   {
-    value: "CAPM",
-    label: "PMI credential",
-    description: "Issued Apr 2018; LinkedIn lists expiry Apr 2026."
+    value: "AI",
+    label: "Modern practice",
+    description: "Pragmatic AI-assisted workflows, typed systems, tests, and clear documentation."
   }
 ];
 
@@ -56,13 +57,13 @@ export const skills = [
     title: "Frontend engineering",
     summary:
       "React, Next.js, TypeScript, state management, accessible interfaces, and component systems that stay maintainable as product scope grows.",
-    items: ["React", "Next.js", "TypeScript", "React Native", "Redux", "Tailwind CSS"]
+    items: ["React", "Next.js", "TypeScript", "React Native", "Redux", "Accessibility"]
   },
   {
     title: "Backend and data",
     summary:
-      "API systems with relational and document databases, queues, realtime dashboards, rate-limited workers, and service integrations.",
-    items: ["Node.js", "Express", "MongoDB", "SQL", "Socket.IO", "BullMQ"]
+      "API systems with relational and document databases, background processing, live progress surfaces, rate-limited workers, and service integrations.",
+    items: ["Node.js", "Express", "MongoDB", "SQL", "Redis", "REST APIs"]
   },
   {
     title: "Native and platform work",
@@ -71,10 +72,10 @@ export const skills = [
     items: ["Kotlin", "Android", "C#/.NET", "Python", "Docker", "MQTT"]
   },
   {
-    title: "Project leadership",
+    title: "Engineering practice",
     summary:
-      "A blend of agile delivery, traditional project management, SDLC teaching experience, mentoring, estimates, and legacy-system stewardship.",
-    items: ["Agile", "SDLC", "Mentorship", "Project estimates", "Documentation", "Troubleshooting"]
+      "A practical blend of AI-assisted development, code review, CI/CD, SDLC teaching experience, mentoring, estimates, and legacy-system stewardship.",
+    items: ["AI workflows", "Code review", "CI/CD", "SDLC", "Documentation", "Mentorship"]
   }
 ];
 
@@ -85,10 +86,10 @@ export const experience = [
     dates: "Aug 2021 - Present",
     location: "Toronto, Ontario, Canada - Remote",
     summary:
-      "Senior product engineering work across modern full-stack surfaces, with React and Next.js highlighted on LinkedIn.",
+      "Senior full-stack work across production web application surfaces with React, Next.js, APIs, and databases.",
     bullets: [
       "Build and maintain production web application features across front-end and API boundaries.",
-      "Work remotely with product and engineering teams on maintainable, user-facing software.",
+      "Work remotely with teammates and stakeholders on maintainable, user-facing software.",
       "Apply TypeScript, React, Next.js, API development, and database experience to practical product work."
     ]
   },
@@ -148,22 +149,23 @@ export const experience = [
 
 export const projects: Project[] = [
   {
-    title: "Open Design",
-    label: "Agentic design workspace",
+    slug: "austingarrod-ca",
+    title: "AustinGarrod.ca",
+    label: "Static portfolio and deployment system",
     summary:
-      "A public TypeScript-heavy codebase for an agent-native design workspace with desktop, web, plugin, and export surfaces.",
+      "A static Astro portfolio built for cPanel hosting, with typed content data, generated resume and social assets, and a PHP contact endpoint.",
     details: [
-      "Positioned around local-first design generation, agent integrations, plugin workflows, and multi-format artifact export.",
-      "Useful public proof of comfort in a large TypeScript application with web, desktop, automation, and documentation surfaces."
+      "Keeps the public site portable: static pages, no server-side Node dependency, and a contact path that still works on basic shared hosting.",
+      "Uses a strict design system, asset generation scripts, GitHub Actions checks, and deployment notes for a low-maintenance professional site."
     ],
-    stack: ["TypeScript", "Next.js", "Electron", "Node", "CSS", "Python"],
+    stack: ["Astro", "TypeScript", "PHP", "Python", "GitHub Actions", "Static hosting"],
     status: "Public",
-    visual: "open-design",
-    icon: "blocks",
-    href: "https://open-design.ai",
-    source: "https://github.com/AustinGarrod/open-design"
+    visual: "portfolio",
+    icon: "globe",
+    href: "https://austingarrod.ca"
   },
   {
+    slug: "cadence",
     title: "Cadence",
     label: "Minimalist podcast player",
     summary:
@@ -178,6 +180,7 @@ export const projects: Project[] = [
     icon: "radio"
   },
   {
+    slug: "spools",
     title: "Spools",
     label: "Filament inventory with AMS integration",
     summary:
@@ -192,13 +195,14 @@ export const projects: Project[] = [
     icon: "layers"
   },
   {
+    slug: "charity-data-scraper",
     title: "Charity Data Scraper",
     label: "Resumable Canadian charity data pipeline",
     summary:
       "A full-stack scraper for charitydata.ca with queue-based processing, live progress, retries, and MongoDB storage.",
     details: [
-      "Uses BullMQ and Redis for pause/resume control, retry handling, and rate-limited scraping.",
-      "Includes a WebSocket dashboard, raw JSON storage, processed MongoDB records, and search views."
+      "Uses Redis-backed job state for pause/resume control, retry handling, and rate-limited scraping.",
+      "Includes a live progress dashboard, raw JSON storage, processed MongoDB records, and search views."
     ],
     stack: ["Node.js", "TypeScript", "React", "MongoDB", "Redis", "Docker"],
     status: "Private case study",
@@ -206,6 +210,7 @@ export const projects: Project[] = [
     icon: "database"
   },
   {
+    slug: "kids-tv-controller",
     title: "Kids TV Controller",
     label: "NFC household media controller",
     summary:
@@ -220,6 +225,7 @@ export const projects: Project[] = [
     icon: "cpu"
   },
   {
+    slug: "honour-our-veterans-banner-platform",
     title: "Honour Our Veterans Banner Platform",
     label: "Civic web, API, and mobile apps",
     summary:
@@ -235,6 +241,7 @@ export const projects: Project[] = [
     source: "https://github.com/AustinGarrod/Banner-Map-Web"
   },
   {
+    slug: "campaign-static-site",
     title: "Campaign Static Site",
     label: "Astro site for municipal campaign content",
     summary:

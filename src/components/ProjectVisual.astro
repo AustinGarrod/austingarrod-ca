@@ -29,16 +29,137 @@ const Icon = iconMap[project.icon];
     <Icon size={22} />
   </div>
   <div class="visual-stage">
-    <div class="visual-line wide"></div>
-    <div class="visual-line medium"></div>
-    <div class="visual-line short"></div>
-    <div class="visual-grid">
-      <span></span>
-      <span></span>
-      <span></span>
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
+    {project.visual === "portfolio" && (
+      <div class="visual-workspace">
+        <div class="visual-toolrail">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-canvas">
+          <span class="visual-frame large"></span>
+          <span class="visual-frame small"></span>
+          <span class="visual-handle top"></span>
+          <span class="visual-handle bottom"></span>
+        </div>
+        <div class="visual-inspector">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "cadence" && (
+      <div class="visual-audio">
+        <div class="visual-disc"></div>
+        <div class="visual-waveform">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-queue">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "spools" && (
+      <div class="visual-spool-inventory">
+        <div class="visual-spool-stack">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-materials">
+          <span class="material teal"></span>
+          <span class="material ink"></span>
+          <span class="material blue"></span>
+          <span class="material pale"></span>
+        </div>
+        <div class="visual-weight-bars">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "charity" && (
+      <div class="visual-pipeline">
+        <div class="visual-pipeline-rail">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-table">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "nfc" && (
+      <div class="visual-nfc-flow">
+        <div class="visual-card-stack">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-reader">
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-screen">
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "civic" && (
+      <div class="visual-map-panel">
+        <div class="visual-map">
+          <span class="route"></span>
+          <span class="pin one"></span>
+          <span class="pin two"></span>
+          <span class="pin three"></span>
+        </div>
+        <div class="visual-map-list">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
+
+    {project.visual === "campaign" && (
+      <div class="visual-page-system">
+        <div class="visual-page primary">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-page secondary">
+          <span></span>
+          <span></span>
+        </div>
+        <div class="visual-page form">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    )}
   </div>
 </div>

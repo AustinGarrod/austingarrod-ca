@@ -1,12 +1,13 @@
-const site = "https://austingarrod.ca";
-const pages = ["/", "/about/", "/projects/", "/contact/"];
+import { projects } from "@data/profile";
+import { getAbsoluteUrl, getProjectPath, pageLastModified } from "@data/seo";
+
+const pages = ["/", "/about/", "/projects/", "/contact/", ...projects.map(getProjectPath)];
 
 export function GET() {
-  const updated = new Date().toISOString();
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
     .map(
       (path) =>
-        `  <url><loc>${site}${path}</loc><lastmod>${updated}</lastmod><changefreq>monthly</changefreq></url>`
+        `  <url><loc>${getAbsoluteUrl(path)}</loc><lastmod>${pageLastModified[path]}</lastmod><changefreq>monthly</changefreq></url>`
     )
     .join("\n")}\n</urlset>\n`;
 

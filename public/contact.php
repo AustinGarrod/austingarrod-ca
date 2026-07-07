@@ -39,7 +39,6 @@ if ($honeypot !== '') {
 
 $name = clean_text((string)($_POST['name'] ?? ''), 120);
 $email = clean_text((string)($_POST['email'] ?? ''), 160);
-$company = clean_text((string)($_POST['company'] ?? ''), 160);
 $subject = clean_text((string)($_POST['subject'] ?? ''), 160);
 $message = clean_message((string)($_POST['message'] ?? ''), 4000);
 
@@ -59,7 +58,6 @@ $safeSubject = '[' . $siteName . '] ' . $subject;
 $bodyLines = [
     'Name: ' . $name,
     'Email: ' . $email,
-    'Company/context: ' . ($company !== '' ? $company : 'Not provided'),
     '',
     'Message:',
     $message,
