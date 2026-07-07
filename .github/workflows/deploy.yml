@@ -9,6 +9,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FTP_HOST: ${{ secrets.HOSTPAPA_FTP_HOST }}
+      FTP_USER: ${{ secrets.HOSTPAPA_FTP_USER }}
+      FTP_PASSWORD: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
+      FTP_REMOTE_DIR: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,12 +36,27 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check deployment secrets
+        id: deploy-secrets
+        shell: bash
+        run: |
+          if [[ -n "$FTP_HOST" && -n "$FTP_USER" && -n "$FTP_PASSWORD" && -n "$FTP_REMOTE_DIR" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload dist to HostPapa
+        if: steps.deploy-secrets.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.HOSTPAPA_FTP_HOST }}
-          username: ${{ secrets.HOSTPAPA_FTP_USER }}
-          password: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
+          server: ${{ env.FTP_HOST }}
+          username: ${{ env.FTP_USER }}
+          password: ${{ env.FTP_PASSWORD }}
           protocol: ftps
           local-dir: ./dist/
-          server-dir: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
+          server-dir: ${{ env.FTP_REMOTE_DIR }}
+
+      - name: Skip deploy notice
+        if: steps.deploy-secrets.outputs.ready != 'true'
+        run: echo "Skipping HostPapa deploy because required repository secrets are not configured."
