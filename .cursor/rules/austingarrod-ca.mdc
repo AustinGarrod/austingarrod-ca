@@ -1,0 +1,10 @@
+---
+description: AustinGarrod.ca project and design rules
+alwaysApply: true
+---
+
+Read `AGENTS.md` first. `DESIGN.md` is the proper Stitch design source for this site.
+
+Use the light "International Precision" design direction: strict grid, sharp corners, black primary actions, teal accents, Inter, JetBrains Mono labels, and no shadows.
+
+Do not use the older dark "Kinetic Engineering" direction. Do not copy placeholder content from Stitch-generated HTML. Real profile and project content lives in `src/data/profile.ts`.

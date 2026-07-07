@@ -6,9 +6,17 @@ Personal and professional portfolio site for Austin Garrod. Built as a static As
 
 - Astro static output
 - TypeScript content/data files
-- CSS with the dark Kinetic Engineering visual direction from Stitch
+- CSS with the light International Precision visual direction from the proper Stitch export
 - PHP contact handler for cPanel shared hosting
 - GitHub Actions for CI and FTPS deployment
+
+## Design Source
+
+`DESIGN.md` is copied from the proper Stitch export sent for this project:
+
+`C:\Users\Austin\Downloads\stitch_austin_garrod_developer_portfolio.zip` -> `personal_site/DESIGN.md`
+
+The current visual system is light, precise, and Swiss/corporate: sharp corners, 1px borders, black primary actions, teal accents, Inter, JetBrains Mono labels, no shadows, and no placeholder Stitch copy. See `AGENTS.md` for implementation guidance for AI agents.
 
 ## Local Development
 
