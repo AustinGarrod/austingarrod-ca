@@ -69,16 +69,18 @@ Otherwise, smoke test the form after upload on HostPapa.
 
 ## GitHub Actions Deployment
 
-CI runs on every push and pull request. Deployment runs on pushes to `main` after the build passes.
+CI runs on every push and pull request. Deployment runs automatically on every push to `main`: GitHub Actions installs dependencies, regenerates assets, builds `dist/`, and uploads the contents of `dist/` to HostPapa over explicit FTPS.
 
-Create these repository secrets before relying on deploy:
+The deploy workflow can also be started manually from the GitHub Actions tab via `workflow_dispatch`.
+
+Required repository secrets:
 
 - `HOSTPAPA_FTP_HOST`
 - `HOSTPAPA_FTP_USER`
 - `HOSTPAPA_FTP_PASSWORD`
 - `HOSTPAPA_REMOTE_DIR`
 
-`HOSTPAPA_REMOTE_DIR` is usually something like `/public_html/`, but confirm the exact path in HostPapa/cPanel.
+For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the account lands directly in `public_html`. If the FTP user changes later, confirm the login directory before changing this value.
 
 The deployment uploads the contents of `dist/`, including static pages, `.htaccess`, `contact.php`, the resume PDF, and generated images. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
 

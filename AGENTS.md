@@ -66,7 +66,8 @@ Production is static files plus PHP. HostPapa does not build Node code.
 GitHub Actions:
 
 - `.github/workflows/ci.yml` runs build checks.
-- `.github/workflows/deploy.yml` builds `dist/` and uploads over FTPS only when all HostPapa secrets are present.
+- `.github/workflows/deploy.yml` runs automatically on every push to `main`, builds `dist/`, and uploads the contents of `dist/` over explicit FTPS when all HostPapa secrets are present.
+- The deploy workflow can also be run manually from GitHub Actions via `workflow_dispatch`.
 
 Required repository secrets:
 
@@ -75,7 +76,7 @@ Required repository secrets:
 - `HOSTPAPA_FTP_PASSWORD`
 - `HOSTPAPA_REMOTE_DIR`
 
-If these are absent, the deploy workflow succeeds but skips upload.
+For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the login root is already `public_html`. If these secrets are absent, the deploy workflow succeeds but skips upload.
 
 ## Verification Checklist
 
