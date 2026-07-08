@@ -1,4 +1,4 @@
-import { profile, projects, type Project } from "@data/profile";
+import { pageMetadata, profile, projects, type Project } from "@data/profile";
 
 export type JsonLd = Record<string, unknown>;
 export type SchemaPageType = "ProfilePage" | "CollectionPage" | "ContactPage" | "WebPage";
@@ -9,14 +9,9 @@ export const PERSON_ID = `${HOME_URL}#person`;
 export const WEBSITE_ID = `${HOME_URL}#website`;
 export const PROJECTS_ITEM_LIST_ID = `${SITE_URL}/projects/#itemlist`;
 
-const defaultLastModified = "2026-07-07";
-
 export const pageLastModified: Record<string, string> = {
-  "/": defaultLastModified,
-  "/about/": defaultLastModified,
-  "/projects/": defaultLastModified,
-  "/contact/": defaultLastModified,
-  ...Object.fromEntries(projects.map((project) => [getProjectPath(project), defaultLastModified]))
+  ...Object.fromEntries(Object.entries(pageMetadata).map(([path, metadata]) => [path, metadata.lastModified])),
+  ...Object.fromEntries(projects.map((project) => [getProjectPath(project), project.lastModified]))
 };
 
 const breadcrumbLabels: Record<string, string> = {
@@ -222,6 +217,9 @@ export function createBaseJsonLdGraph({
 
 export function createProjectCreativeWorkSchema(project: Project): JsonLd {
   const sameAs = [project.href, project.source].filter((url): url is string => Boolean(url));
+  const abstract = project.caseStudySections
+    .map((section) => `${section.title}: ${section.points.join(" ")}`)
+    .join(" ");
 
   return {
     "@type": "CreativeWork",
@@ -229,7 +227,7 @@ export function createProjectCreativeWorkSchema(project: Project): JsonLd {
     name: project.title,
     alternateName: project.label,
     description: project.summary,
-    abstract: project.details.join(" "),
+    abstract,
     url: getProjectUrl(project),
     creator: {
       "@id": PERSON_ID

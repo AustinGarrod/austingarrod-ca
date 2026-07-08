@@ -68,11 +68,18 @@ const projectStructuredData = createProjectCreativeWorkSchema(project);
     <div class="project-detail-main">
       <ProjectVisual project={project} />
       <div>
-        <p class="eyebrow">Architecture notes</p>
+        <p class="eyebrow">Case study</p>
         <h2>{project.label}</h2>
-        <ul class="project-detail-list">
-          {project.details.map((detail) => <li>{detail}</li>)}
-        </ul>
+        <div class="case-study-grid">
+          {project.caseStudySections.map((section) => (
+            <section class="case-study-section">
+              <h3>{section.title}</h3>
+              <ul class="project-detail-list">
+                {section.points.map((point) => <li>{point}</li>)}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
     </div>
 
@@ -80,6 +87,10 @@ const projectStructuredData = createProjectCreativeWorkSchema(project);
       <div>
         <p class="eyebrow">Status</p>
         <p>{project.status}</p>
+      </div>
+      <div>
+        <p class="eyebrow">Updated</p>
+        <p>{project.lastModified}</p>
       </div>
       <div>
         <p class="eyebrow">Stack</p>

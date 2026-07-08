@@ -18,7 +18,11 @@ const activePath = active === "home" ? "/" : `/${active}/`;
 
     <nav class="desktop-nav" aria-label="Primary navigation">
       {siteNav.map((item) => (
-        <a class:list={["nav-link", item.href === activePath && "active"]} href={item.href}>
+        <a
+          class:list={["nav-link", item.href === activePath && "active"]}
+          href={item.href}
+          aria-current={item.href === activePath ? "page" : undefined}
+        >
           {item.label}
         </a>
       ))}
@@ -40,7 +44,11 @@ const activePath = active === "home" ? "/" : `/${active}/`;
   <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile navigation" hidden>
     <p class="mobile-nav-label">Navigation</p>
     {siteNav.map((item) => (
-      <a class:list={["mobile-link", item.href === activePath && "active"]} href={item.href}>
+      <a
+        class:list={["mobile-link", item.href === activePath && "active"]}
+        href={item.href}
+        aria-current={item.href === activePath ? "page" : undefined}
+      >
         {item.label}
       </a>
     ))}

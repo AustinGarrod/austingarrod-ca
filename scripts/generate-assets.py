@@ -1,5 +1,6 @@
+import json
 from pathlib import Path
-from textwrap import wrap
+from xml.sax.saxutils import escape
 
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib import colors
@@ -11,9 +12,15 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 OUTPUT = ROOT / "output" / "pdf"
+PROFILE_JSON = ROOT / "src" / "data" / "profile.json"
 
 PUBLIC.mkdir(exist_ok=True)
 OUTPUT.mkdir(parents=True, exist_ok=True)
+
+
+def load_profile_data():
+    with PROFILE_JSON.open(encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def font(name: str, size: int):
@@ -27,15 +34,48 @@ def font(name: str, size: int):
     return ImageFont.load_default()
 
 
-def draw_wrapped(draw: ImageDraw.ImageDraw, text: str, xy: tuple[int, int], font_obj, fill, width: int, line_height: int):
+def text_width(draw: ImageDraw.ImageDraw, text: str, font_obj) -> int:
+    bbox = draw.textbbox((0, 0), text, font=font_obj)
+    return bbox[2] - bbox[0]
+
+
+def wrap_by_pixels(draw: ImageDraw.ImageDraw, text: str, font_obj, max_width: int):
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and text_width(draw, candidate, font_obj) > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+
+    if current:
+        lines.append(current)
+
+    return lines
+
+
+def draw_wrapped(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    xy: tuple[int, int],
+    font_obj,
+    fill,
+    max_width: int,
+    line_height: int,
+):
     x, y = xy
-    for line in wrap(text, width=width):
+    for line in wrap_by_pixels(draw, text, font_obj, max_width):
         draw.text((x, y), line, font=font_obj, fill=fill)
         y += line_height
     return y
 
 
-def generate_og_image():
+def generate_og_image(data):
+    profile = data["profile"]
     img = Image.new("RGB", (1200, 630), "#f8f9ff")
     draw = ImageDraw.Draw(img)
     title_font = font("arialbd.ttf", 78)
@@ -49,35 +89,50 @@ def generate_og_image():
 
     draw.rectangle((72, 72, 1128, 558), outline="#c6c6cd", width=2)
     draw.rectangle((96, 112, 104, 326), fill="#000000")
-    draw.text((128, 104), "Austin Garrod", font=title_font, fill="#0b1c30")
-    draw.text((132, 202), "Senior Full Stack Developer", font=subtitle_font, fill="#006a61")
+    draw.text((128, 104), profile["name"], font=title_font, fill="#0b1c30")
+    draw.text((132, 202), profile["title"], font=subtitle_font, fill="#006a61")
     draw_wrapped(
         draw,
-        "Building resilient, scalable web applications from database architecture to frontend UI.",
+        profile["tagline"],
         (132, 286),
         mono_font,
         "#45464d",
-        68,
+        640,
         34,
     )
     draw.rectangle((830, 118, 1068, 420), outline="#0b1c30", width=2)
     draw.rectangle((858, 150, 868, 160), fill="#c6c6cd")
     draw.rectangle((888, 150, 898, 160), fill="#d3e4fe")
     draw.rectangle((918, 150, 928, 160), fill="#006a61")
-    for i, w in enumerate([152, 110, 174, 92, 136]):
+    for i, width in enumerate([152, 110, 174, 92, 136]):
         y = 208 + i * 36
         color = "#006a61" if i == 1 else "#dce9ff"
-        draw.rectangle((862, y, 862 + w, y + 12), fill=color)
+        draw.rectangle((862, y, 862 + width, y + 12), fill=color)
     draw.rectangle((96, 456, 360, 502), fill="#000000")
     draw.text((122, 468), "SELECTED WORKS", font=mono_font, fill="#ffffff")
     img.save(PUBLIC / "og-image.png", quality=92)
 
 
 def paragraph(text: str, style: ParagraphStyle):
-    return Paragraph(text.replace("&", "&amp;"), style)
+    return Paragraph(escape(text), style)
 
 
-def generate_resume():
+def resume_skill_label(title: str) -> str:
+    labels = {
+        "Frontend engineering": "Frontend",
+        "Backend and data": "Backend",
+        "Native and platform work": "Platform",
+        "Engineering practice": "Practice",
+    }
+    return labels.get(title, title)
+
+
+def generate_resume(data):
+    profile = data["profile"]
+    skills = data["skills"]
+    experience = data["experience"]
+    projects = data["projects"]
+
     for path in [PUBLIC / "austin-garrod-resume.pdf", OUTPUT / "austin-garrod-resume.pdf"]:
         doc = SimpleDocTemplate(
             str(path),
@@ -86,8 +141,8 @@ def generate_resume():
             leftMargin=0.46 * inch,
             topMargin=0.42 * inch,
             bottomMargin=0.42 * inch,
-            title="Austin Garrod Resume",
-            author="Austin Garrod",
+            title=f"{profile['name']} Resume",
+            author=profile["name"],
         )
         styles = getSampleStyleSheet()
         styles.add(
@@ -140,29 +195,26 @@ def generate_resume():
         role = styles["Role"]
         section = styles["Section"]
         story = []
-        story.append(Paragraph("Austin Garrod", styles["ResumeTitle"]))
+        story.append(Paragraph(escape(profile["name"]), styles["ResumeTitle"]))
         story.append(
             paragraph(
-                "Senior Full Stack Developer | Ontario, Canada | austin.r.garrod@gmail.com | github.com/AustinGarrod | linkedin.com/in/austingarrod",
+                (
+                    f"{profile['title']} | {profile['location']} | {profile['email']} | "
+                    f"{profile['github'].replace('https://', '')} | "
+                    f"{profile['linkedin'].replace('https://www.', '')}"
+                ),
                 body,
             )
         )
         story.append(Spacer(1, 4))
-        story.append(
-            paragraph(
-                "Senior full-stack developer building maintainable software across React, Next.js, React Native, Node.js, APIs, databases, native-adjacent tooling, and deployment workflows. Background includes technical education, project leadership, research systems, civic software, practical local systems, and pragmatic AI-assisted development practices.",
-                body,
-            )
-        )
+        story.append(paragraph(profile["intro"], body))
 
         story.append(Paragraph("Core Skills", section))
-        skills = [
-            ["Frontend", "React, Next.js, TypeScript, React Native, Redux, accessibility"],
-            ["Backend", "Node.js, Express, API development, MongoDB, SQL, Redis, REST APIs"],
-            ["Platform", "Kotlin Multiplatform, Android, C#/.NET, Python, Docker, MQTT"],
-            ["Practice", "AI-assisted workflows, code review, CI/CD, SDLC, mentoring, documentation"],
+        skill_rows = [
+            [paragraph(resume_skill_label(skill["title"]), role), paragraph(", ".join(skill["items"]), body)]
+            for skill in skills
         ]
-        table = Table([[paragraph(a, role), paragraph(b, body)] for a, b in skills], colWidths=[1.18 * inch, 5.6 * inch])
+        table = Table(skill_rows, colWidths=[1.18 * inch, 5.6 * inch])
         table.setStyle(
             TableStyle(
                 [
@@ -176,72 +228,30 @@ def generate_resume():
         story.append(table)
 
         story.append(Paragraph("Experience", section))
-        jobs = [
-            (
-                "Senior Full Stack Developer - Epilogue",
-                "Aug 2021 - Present | Toronto, Ontario, Canada - Remote",
-                [
-                    "Senior full-stack work across production web application surfaces with React, Next.js, APIs, and databases.",
-                    "Apply TypeScript, React, Next.js, API development, and database experience to practical product work.",
-                ],
-            ),
-            (
-                "Lead Full-stack Developer - Tidal",
-                "Apr 2021 - Jul 2021 | Richmond Hill, Ontario, Canada",
-                [
-                    "Led front-end development, upkeep, and management of corporate web applications across multiple industries.",
-                    "Worked with major retail brands on worldwide Shopify stores across front-end and back-end maintenance.",
-                ],
-            ),
-            (
-                "Professor, Computer Programming and Project Management - Durham College",
-                "May 2018 - Apr 2021 | Oshawa, Ontario, Canada",
-                [
-                    "Developed and taught web development, Windows application development, modern JavaScript, and project management courses.",
-                    "Mentored students and alumni on software development choices for early-stage businesses.",
-                ],
-            ),
-            (
-                "Freelancer - Austin Garrod",
-                "May 2017 - Apr 2021 | Ontario, Canada",
-                [
-                    "Designed branded web presences, CMS implementations, and social media presences for organizations.",
-                    "Built web experiences with React, Meteor, and established web standards.",
-                ],
-            ),
-            (
-                "Research Specialist - Durham College, ORSIE",
-                "Aug 2016 - Apr 2017 | Oshawa, Ontario, Canada",
-                [
-                    "Worked on applied research systems including React/Node vehicle analytics, iOS item tracking, and responsive Meteor applications.",
-                    "Reworked a Meteor web app to improve accessibility across devices for senior users.",
-                ],
-            ),
-        ]
-        for title, meta, bullets in jobs:
-            story.append(paragraph(title, role))
-            story.append(paragraph(meta, body))
-            for bullet in bullets:
+        for job in experience:
+            story.append(paragraph(f"{job['role']} - {job['organization']}", role))
+            story.append(paragraph(f"{job['dates']} | {job['location']}", body))
+            for bullet in job["bullets"][:2]:
                 story.append(paragraph("- " + bullet, body))
 
         story.append(Paragraph("Selected Projects", section))
-        project_text = [
-            "AustinGarrod.ca - public Astro portfolio repository with typed content data, generated assets, PHP contact handling, and GitHub Actions checks.",
-            "Cadence - private Kotlin Multiplatform podcast app with local-first state, opt-out diagnostics, and Pocket Casts import support.",
-            "Spools - local web app for 3D printer filament tracking with Bambu Lab AMS sync over MQTT.",
-            "Charity Data Scraper - queue-based Canadian charity records pipeline with Redis-backed job state, MongoDB storage, live progress, and Docker deployment.",
-            "Kids TV Controller - household NFC media controller concept with React dashboard, Express API, Plex/Chromecast integration, and ESP32 hardware planning.",
-        ]
-        for item in project_text:
-            story.append(paragraph("- " + item, body))
+        for project in projects[:5]:
+            highlight = project["cardHighlights"][0] if project["cardHighlights"] else project["summary"]
+            story.append(paragraph(f"- {project['title']} - {highlight}", body))
 
         story.append(Paragraph("Education", section))
-        story.append(paragraph("Durham College - Diploma, Computer Programming/Programmer, General, 2016 - 2017. Foundation in programming logic, object-oriented development, databases, networking, web development, testing, systems development, and technical communication.", body))
+        story.append(
+            paragraph(
+                "Durham College - Diploma, Computer Programming/Programmer, General, 2016 - 2017. Foundation in programming logic, object-oriented development, databases, networking, web development, testing, systems development, and technical communication.",
+                body,
+            )
+        )
 
         doc.build(story)
 
 
 if __name__ == "__main__":
-    generate_og_image()
-    generate_resume()
+    profile_data = load_profile_data()
+    generate_og_image(profile_data)
+    generate_resume(profile_data)
     print("Generated public/og-image.png and public/austin-garrod-resume.pdf")
