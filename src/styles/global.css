@@ -1,4 +1,18 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap");
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/inter-latin.var.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-latin.var.woff2") format("woff2");
+}
 
 :root {
   color-scheme: light;
@@ -445,6 +459,10 @@ button {
 
 .content-section.tight {
   padding-block: clamp(56px, 8vw, 88px);
+}
+
+.projects-list-section {
+  padding-top: clamp(40px, 6vw, 72px);
 }
 
 .section-heading {
@@ -1172,6 +1190,8 @@ button {
 .project-card h3,
 .project-label,
 .project-card p,
+.project-card-highlights,
+.project-card-highlights li,
 .project-detail-list,
 .project-detail-list li,
 .project-detail-main h2,
@@ -1196,6 +1216,20 @@ button {
 .project-label {
   color: var(--ink) !important;
   font-weight: 800;
+}
+
+.project-card-highlights {
+  display: grid;
+  gap: 9px;
+  padding: 0;
+  margin: 0;
+  color: var(--muted);
+  list-style: none;
+}
+
+.project-card-highlights li {
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
 }
 
 .project-detail-list {
@@ -1313,6 +1347,10 @@ button {
     linear-gradient(90deg, rgb(198 198 205 / 34%) 1px, transparent 1px) 0 0 / calc(100% / 12) 100%,
     var(--bg);
   border-bottom: 1px solid var(--line);
+}
+
+.page-hero-compact {
+  padding-block: clamp(58px, 8vw, 104px) clamp(38px, 5vw, 64px);
 }
 
 .page-hero-inner {
@@ -1573,6 +1611,29 @@ textarea:focus {
   letter-spacing: 0;
 }
 
+.case-study-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.case-study-section {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.case-study-section h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
 .project-detail-aside {
   display: grid;
   gap: 24px;
@@ -1786,5 +1847,17 @@ textarea:focus {
   .project-content,
   .contact-form {
     padding: 18px;
+  }
+
+  .page-hero-compact {
+    padding-block: 54px 42px;
+  }
+
+  .projects-list-section {
+    padding-top: 36px;
+  }
+
+  .case-study-grid {
+    grid-template-columns: 1fr;
   }
 }

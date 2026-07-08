@@ -16,7 +16,7 @@ const projectsStructuredData = createProjectsStructuredData();
   mainEntityId={PROJECTS_ITEM_LIST_ID}
   structuredData={projectsStructuredData}
 >
-  <section class="page-hero">
+  <section class="page-hero page-hero-compact">
     <div class="container page-hero-inner">
       <p class="eyebrow">Case studies</p>
       <h1>Full-stack engineering projects</h1>
@@ -26,7 +26,7 @@ const projectsStructuredData = createProjectsStructuredData();
     </div>
   </section>
 
-  <section class="container content-section">
+  <section class="container content-section projects-list-section">
     <div class="project-grid all-projects">
       {projects.map((project, index) => <ProjectCard project={project} featured={index === 0} />)}
     </div>

@@ -23,8 +23,8 @@ const projectPath = getProjectPath(project);
     <h3><a href={projectPath}>{project.title}</a></h3>
     <p class="project-label">{project.label}</p>
     <p>{project.summary}</p>
-    <ul class="project-detail-list">
-      {project.details.map((detail) => <li>{detail}</li>)}
+    <ul class="project-card-highlights">
+      {project.cardHighlights.map((highlight) => <li>{highlight}</li>)}
     </ul>
     <div class="tag-list" aria-label={`${project.title} technology stack`}>
       {project.stack.map((item) => <span>{item}</span>)}
