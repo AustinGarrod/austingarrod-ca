@@ -226,10 +226,10 @@ def generate_resume():
 
         story.append(Paragraph("Selected Projects", section))
         project_text = [
-            "AustinGarrod.ca - static Astro portfolio for cPanel hosting with typed content data, generated assets, PHP contact handling, and GitHub Actions checks.",
+            "AustinGarrod.ca - public Astro portfolio repository with typed content data, generated assets, PHP contact handling, and GitHub Actions checks.",
             "Cadence - private Kotlin Multiplatform podcast app with local-first state, opt-out diagnostics, and Pocket Casts import support.",
             "Spools - local web app for 3D printer filament tracking with Bambu Lab AMS sync over MQTT.",
-            "Charity Data Scraper - queue-based Canadian charity data scraper with Redis-backed job state, MongoDB storage, live progress, and Docker deployment.",
+            "Charity Data Scraper - queue-based Canadian charity records pipeline with Redis-backed job state, MongoDB storage, live progress, and Docker deployment.",
             "Kids TV Controller - household NFC media controller concept with React dashboard, Express API, Plex/Chromecast integration, and ESP32 hardware planning.",
         ]
         for item in project_text:

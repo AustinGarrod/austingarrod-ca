@@ -156,13 +156,15 @@ export const projects: Project[] = [
       "A static Astro portfolio built for cPanel hosting, with typed content data, generated resume and social assets, and a PHP contact endpoint.",
     details: [
       "Keeps the public site portable: static pages, no server-side Node dependency, and a contact path that still works on basic shared hosting.",
-      "Uses a strict design system, asset generation scripts, GitHub Actions checks, and deployment notes for a low-maintenance professional site."
+      "Centralizes profile, navigation, skills, experience, and project copy in typed data so public pages, SEO metadata, and case studies stay consistent.",
+      "Generates the Open Graph image and resume PDF from source-controlled scripts, reducing manual asset drift when project or experience copy changes.",
+      "Uses a strict design system, GitHub Actions checks, and deployment notes for a low-maintenance professional site that can be rebuilt locally or in CI."
     ],
     stack: ["Astro", "TypeScript", "PHP", "Python", "GitHub Actions", "Static hosting"],
     status: "Public",
     visual: "portfolio",
     icon: "globe",
-    href: "https://austingarrod.ca"
+    href: "https://github.com/AustinGarrod/austingarrod-ca"
   },
   {
     slug: "cadence",
@@ -172,7 +174,9 @@ export const projects: Project[] = [
       "A private Kotlin Multiplatform podcast app with local-first state, opt-out diagnostics, and Pocket Casts import support.",
     details: [
       "Designed around no accounts, no first-party backend, and on-device application state.",
-      "Includes Android build/test guidance, privacy documentation, Sentry diagnostics, and idempotent import behavior."
+      "Models subscriptions, episodes, playback state, and import history in a way that keeps the app useful offline and recoverable after interrupted imports.",
+      "Treats diagnostics as an explicit opt-out surface, with privacy documentation and Sentry configuration kept visible in the project structure.",
+      "Includes Android build/test guidance, device-harness workflows, and idempotent Pocket Casts import behavior for repeatable local validation."
     ],
     stack: ["Kotlin Multiplatform", "Android", "Swift", "Sentry", "PowerShell"],
     status: "Private case study",
@@ -187,7 +191,9 @@ export const projects: Project[] = [
       "A local web app for tracking 3D printer filament inventory with Bambu Lab AMS data sync over local MQTT.",
     details: [
       "Tracks spool material, color, weight, RFID tags, and manual entries for non-Bambu filament.",
-      "Ships as a Docker-friendly TypeScript app with SQLite persistence and a React/Vite client."
+      "Separates machine-synced AMS state from manually curated inventory so automatic updates do not overwrite real-world corrections.",
+      "Provides dashboard views for remaining material, loaded trays, spool metadata, and operational checks before long prints.",
+      "Ships as a Docker-friendly TypeScript app with SQLite persistence, an Express API, and a React/Vite client designed for local network use."
     ],
     stack: ["React", "TypeScript", "Express", "SQLite", "MQTT", "Docker"],
     status: "Private case study",
@@ -199,10 +205,12 @@ export const projects: Project[] = [
     title: "Charity Data Scraper",
     label: "Resumable Canadian charity data pipeline",
     summary:
-      "A full-stack scraper for charitydata.ca with queue-based processing, live progress, retries, and MongoDB storage.",
+      "A full-stack scraper for public Canadian charity records with queue-based processing, live progress, retries, and MongoDB storage.",
     details: [
-      "Uses Redis-backed job state for pause/resume control, retry handling, and rate-limited scraping.",
-      "Includes a live progress dashboard, raw JSON storage, processed MongoDB records, and search views."
+      "Uses Redis-backed job state for pause/resume control, retry handling, and rate-limited collection across a large public-record dataset.",
+      "Stores raw JSON responses separately from processed MongoDB records so parsing logic can be rerun without re-fetching every source record.",
+      "Includes a live progress dashboard, queue visibility, search views, and operational controls for long-running scrape sessions.",
+      "Keeps the case study intentionally generic, focusing on pipeline architecture without naming the source site or exposing brittle scraping details."
     ],
     stack: ["Node.js", "TypeScript", "React", "MongoDB", "Redis", "Docker"],
     status: "Private case study",
@@ -217,7 +225,9 @@ export const projects: Project[] = [
       "A private household system for letting kids select shows by tapping NFC cards, with parental controls and a programming dashboard.",
     details: [
       "Combines an Express API, React/MUI dashboard, Plex library logic, Chromecast control, and TV power control concepts.",
-      "Includes hardware planning for ESP32, PN532 NFC reader, NTAG215 cards, buttons, LEDs, and a printed enclosure."
+      "Maps physical cards to approved media choices so the interaction can stay simple for children while configuration remains controlled by adults.",
+      "Plans for device states such as idle, card detected, casting, blocked, and error feedback through buttons, LEDs, and dashboard status.",
+      "Includes hardware planning for ESP32, PN532 NFC reader, NTAG215 cards, physical controls, and a printed enclosure."
     ],
     stack: ["React", "TypeScript", "Express", "MUI", "ESP32", "NFC"],
     status: "Private case study",
@@ -231,8 +241,10 @@ export const projects: Project[] = [
     summary:
       "Archived public React, Express, and React Native applications supporting the Uxbridge Honour Our Veterans Banner Program.",
     details: [
-      "Built around public banner map experiences and program administration needs.",
-      "Reflects a mix of web, API, mobile, and community-oriented software work."
+      "Built around public banner map experiences, searchable veteran records, and program administration needs for a community initiative.",
+      "Connected web, API, and mobile surfaces so public browsing and internal maintenance could share one underlying project model.",
+      "Represents earlier full-stack civic work with React, Express, TypeScript/JavaScript, and React Native across multiple deployable apps.",
+      "Kept as an archived public reference to show the engineering shape while avoiding claims that the original program infrastructure is currently maintained."
     ],
     stack: ["React", "React Native", "Express", "TypeScript", "JavaScript"],
     status: "Archived public",
@@ -245,12 +257,14 @@ export const projects: Project[] = [
     title: "Campaign Static Site",
     label: "Astro site for municipal campaign content",
     summary:
-      "A private Astro campaign site with static pages, React islands, design system work, and cPanel-friendly production concerns.",
+      "A private Astro campaign site deployed to Netlify, with static pages, React islands, design system work, and form-friendly production concerns.",
     details: [
       "Uses Astro for zero-JS static output by default and React where interactive components are useful.",
-      "Organizes page copy, forms, theme definitions, and deployment notes for a content-heavy civic site."
+      "Deploys through Netlify with a production path aligned around static hosting, deploy previews, and environment-managed form handling.",
+      "Organizes page copy, forms, theme definitions, metadata, and reusable content sections for a content-heavy civic site.",
+      "Balances campaign-specific messaging with reusable implementation patterns so pages can be revised quickly without reworking the layout system."
     ],
-    stack: ["Astro", "React", "TypeScript", "MUI", "Static hosting"],
+    stack: ["Astro", "React", "TypeScript", "MUI", "Netlify"],
     status: "Private case study",
     visual: "campaign",
     icon: "globe"

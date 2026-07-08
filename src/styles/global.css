@@ -549,6 +549,7 @@ button {
 .project-card {
   display: grid;
   grid-template-rows: auto 1fr;
+  min-width: 0;
   scroll-margin-top: 110px;
   overflow: hidden;
   background: var(--surface);
@@ -1151,6 +1152,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  min-width: 0;
   padding: clamp(22px, 3vw, 34px);
 }
 
@@ -1164,6 +1166,23 @@ button {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.project-meta,
+.project-card h3,
+.project-label,
+.project-card p,
+.project-detail-list,
+.project-detail-list li,
+.project-detail-main h2,
+.project-detail-aside,
+.page-hero-inner,
+.page-hero-inner h1,
+.page-hero-inner p,
+.tag-list,
+.tag-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .project-card h3 {
@@ -1536,6 +1555,7 @@ textarea:focus {
 .project-detail-main {
   display: grid;
   gap: 28px;
+  min-width: 0;
 }
 
 .project-detail-main .project-visual {
