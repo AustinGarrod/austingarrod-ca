@@ -61,6 +61,7 @@ The contact page posts to `public/contact.php`, which Astro copies to `dist/cont
 - email validation
 - length limits
 - header-injection protection by stripping line breaks from header fields
+- an existing domain mailbox as both the visible and envelope sender for SPF/DKIM alignment
 - server error logging when the local mail system does not accept a message
 
 Local PHP CLI is optional. If PHP is installed, check syntax with:
