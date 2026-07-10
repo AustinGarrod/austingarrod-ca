@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $recipient = 'austin.r.garrod@gmail.com';
+$sender = 'austin@austingarrod.ca';
 $siteName = 'AustinGarrod.ca';
 $redirectBase = '/contact/';
 
@@ -123,14 +124,14 @@ $bodyLines = [
 $body = implode("\n", $bodyLines);
 
 $headers = [
-    'From: ' . $siteName . ' <no-reply@austingarrod.ca>',
+    'From: ' . $siteName . ' <' . $sender . '>',
     'Reply-To: ' . $name . ' <' . $email . '>',
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     'X-Mailer: PHP/' . phpversion()
 ];
 
-$sent = @mail($recipient, $safeSubject, $body, implode("\r\n", $headers));
+$sent = @mail($recipient, $safeSubject, $body, implode("\r\n", $headers), '-f' . $sender);
 
 if (!$sent) {
     error_log('AustinGarrod.ca contact mail() call was not accepted by the local mail system.');

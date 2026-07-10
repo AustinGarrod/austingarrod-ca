@@ -213,7 +213,14 @@ contact_path = DIST / "contact.php"
 check(contact_path.is_file(), "Missing contact.php")
 if contact_path.is_file():
     contact = contact_path.read_text(encoding="utf-8")
-    for behavior in ["rate_limit_exceeded", "FILTER_VALIDATE_EMAIL", "flock", "mail("]:
+    for behavior in [
+        "rate_limit_exceeded",
+        "FILTER_VALIDATE_EMAIL",
+        "flock",
+        "$sender = 'austin@austingarrod.ca'",
+        "'-f' . $sender",
+        "mail(",
+    ]:
         check(behavior in contact, f"contact.php is missing expected behavior: {behavior}")
 
 og_path = DIST / "og-image.png"
