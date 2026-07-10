@@ -8,6 +8,8 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import NameObject, TextStringObject
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
@@ -109,12 +111,37 @@ def generate_og_image(data):
         color = "#006a61" if i == 1 else "#dce9ff"
         draw.rectangle((862, y, 862 + width, y + 12), fill=color)
     draw.rectangle((96, 456, 360, 502), fill="#000000")
-    draw.text((122, 468), "SELECTED WORKS", font=mono_font, fill="#ffffff")
+    draw.text((122, 468), "SELECTED WORK", font=mono_font, fill="#ffffff")
     img.save(PUBLIC / "og-image.png", quality=92)
 
 
 def paragraph(text: str, style: ParagraphStyle):
     return Paragraph(escape(text), style)
+
+
+def resume_link(label: str, url: str) -> str:
+    return f'<link href="{escape(url)}" color="#006a61">{escape(label)}</link>'
+
+
+def enrich_resume_pdf(path: Path, profile):
+    reader = PdfReader(str(path))
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    writer.add_metadata(
+        {
+            "/Title": f"{profile['name']} Resume",
+            "/Author": profile["name"],
+            "/Subject": f"Resume for {profile['name']}, {profile['title']}",
+            "/Keywords": "senior full-stack developer, React, Next.js, TypeScript, Node.js, APIs, databases",
+            "/Creator": "AustinGarrod.ca asset generator",
+        }
+    )
+    writer._root_object.update({NameObject("/Lang"): TextStringObject("en-CA")})
+
+    temporary = path.with_suffix(".tmp.pdf")
+    with temporary.open("wb") as handle:
+        writer.write(handle)
+    temporary.replace(path)
 
 
 def resume_skill_label(title: str) -> str:
@@ -132,6 +159,18 @@ def generate_resume(data):
     skills = data["skills"]
     experience = data["experience"]
     projects = data["projects"]
+    project_by_slug = {project["slug"]: project for project in projects}
+    selected_projects = [
+        project_by_slug[slug]
+        for slug in [
+            "honour-our-veterans-banner-platform",
+            "cadence",
+            "spools",
+            "charity-data-scraper",
+            "austingarrod-ca",
+        ]
+        if slug in project_by_slug
+    ]
 
     for path in [PUBLIC / "austin-garrod-resume.pdf", OUTPUT / "austin-garrod-resume.pdf"]:
         doc = SimpleDocTemplate(
@@ -161,8 +200,8 @@ def generate_resume(data):
                 name="Section",
                 parent=styles["Heading2"],
                 fontName="Helvetica-Bold",
-                fontSize=10,
-                leading=12,
+                fontSize=10.5,
+                leading=12.5,
                 textColor=colors.HexColor("#006a61"),
                 spaceBefore=7,
                 spaceAfter=3,
@@ -173,8 +212,8 @@ def generate_resume(data):
                 name="BodySmall",
                 parent=styles["BodyText"],
                 fontName="Helvetica",
-                fontSize=7.7,
-                leading=9.25,
+                fontSize=8.5,
+                leading=10.2,
                 textColor=colors.HexColor("#45464d"),
                 spaceAfter=2,
             )
@@ -184,8 +223,8 @@ def generate_resume(data):
                 name="Role",
                 parent=styles["BodyText"],
                 fontName="Helvetica-Bold",
-                fontSize=8.4,
-                leading=9.8,
+                fontSize=9,
+                leading=10.5,
                 textColor=colors.HexColor("#0b1c30"),
                 spaceAfter=1,
             )
@@ -196,16 +235,17 @@ def generate_resume(data):
         section = styles["Section"]
         story = []
         story.append(Paragraph(escape(profile["name"]), styles["ResumeTitle"]))
-        story.append(
-            paragraph(
-                (
-                    f"{profile['title']} | {profile['location']} | {profile['email']} | "
-                    f"{profile['github'].replace('https://', '')} | "
-                    f"{profile['linkedin'].replace('https://www.', '')}"
-                ),
-                body,
-            )
+        contact_line = " | ".join(
+            [
+                escape(profile["title"]),
+                escape(profile["location"]),
+                resume_link(profile["email"], f"mailto:{profile['email']}"),
+                resume_link("austingarrod.ca", "https://austingarrod.ca/"),
+                resume_link("GitHub", profile["github"]),
+                resume_link("LinkedIn", profile["linkedin"]),
+            ]
         )
+        story.append(Paragraph(contact_line, body))
         story.append(Spacer(1, 4))
         story.append(paragraph(profile["intro"], body))
 
@@ -235,7 +275,7 @@ def generate_resume(data):
                 story.append(paragraph("- " + bullet, body))
 
         story.append(Paragraph("Selected Projects", section))
-        for project in projects[:5]:
+        for project in selected_projects:
             highlight = project["cardHighlights"][0] if project["cardHighlights"] else project["summary"]
             story.append(paragraph(f"- {project['title']} - {highlight}", body))
 
@@ -248,6 +288,7 @@ def generate_resume(data):
         )
 
         doc.build(story)
+        enrich_resume_pdf(path, profile)
 
 
 if __name__ == "__main__":
