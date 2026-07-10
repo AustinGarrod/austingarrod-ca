@@ -20,11 +20,25 @@ import { profile, skills } from "@data/profile";
         My career has moved through research, freelance delivery, post-secondary teaching, lead development, and senior full-stack engineering. The common thread is practical software built with enough structure that someone else can understand it later.
       </p>
       <div class="button-row">
-        <a class="button secondary" href={profile.resume} rel="noreferrer" target="_blank">
+        <a
+          class="button secondary"
+          href={profile.resume}
+          rel="noreferrer"
+          target="_blank"
+          data-umami-event="resume-view"
+          data-umami-event-placement="about-hero"
+        >
           View resume
           <ExternalLink size={18} aria-hidden="true" />
         </a>
-        <a class="text-link resume-download-link" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+        <a
+          class="text-link resume-download-link"
+          href={profile.resume}
+          download="Austin-Garrod-Resume.pdf"
+          data-umami-event="file-download"
+          data-umami-event-file="austin-garrod-resume.pdf"
+          data-umami-event-placement="about-hero"
+        >
           Download PDF
           <Download size={16} aria-hidden="true" />
         </a>

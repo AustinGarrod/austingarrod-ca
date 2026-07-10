@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 PROFILE_PATH = ROOT / "src" / "data" / "profile.json"
 PRODUCTION_ORIGIN = "https://austingarrod.ca"
+ANALYTICS_SCRIPT = "https://analytics.garrod.house/script.js"
 
 failures: list[str] = []
 
@@ -112,6 +113,13 @@ for route in routes:
     if canonical_match:
         check(canonical_match.group(1) == expected_canonical, f"{route} has the wrong canonical URL")
     check(len(ids) == len(set(ids)), f"{route} contains duplicate ids")
+    check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
+    check(
+        'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
+        f"{route} must restrict Umami to production domains",
+    )
+    check('data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
+    check('data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
     check("recorder.js" not in markup, f"{route} still loads session replay")
     check(json_ld_match is not None, f"{route} is missing JSON-LD")
     if json_ld_match:
@@ -123,6 +131,33 @@ for route in routes:
             failures.append(f"{route} contains invalid JSON-LD")
 
 combined_html = "\n".join(all_html)
+untracked_external_links = re.findall(
+    r'<a\b(?=[^>]*\btarget="_blank")(?![^>]*\bdata-umami-event=)[^>]*>',
+    combined_html,
+)
+untracked_download_links = re.findall(
+    r'<a\b(?=[^>]*\bdownload(?:=|\s|>))(?![^>]*\bdata-umami-event="file-download")[^>]*>',
+    combined_html,
+)
+check(not untracked_external_links, "Built HTML contains untracked external links")
+check(not untracked_download_links, "Built HTML contains untracked file downloads")
+
+for required_event in [
+    "contact-form-",
+    "contact-form-submit",
+    "contact-link-click",
+    "cta-click",
+    "file-download",
+    "mobile-menu-toggle",
+    "outbound-link-click",
+    "project-case-study-view",
+    "resume-view",
+]:
+    check(
+        f'data-umami-event="{required_event}"' in combined_html or required_event in combined_html,
+        f"Built HTML is missing Umami event coverage: {required_event}",
+    )
+
 for stale_phrase in [
     "5+",
     "Years at Epilogue",
@@ -152,7 +187,7 @@ check(
 )
 
 projects_markup = route_file("/projects/").read_text(encoding="utf-8")
-project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/">', projects_markup)
+project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
 check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
 check("Private prototype" in projects_markup, "Projects index must label the NFC project as a prototype")
 
@@ -173,6 +208,10 @@ if not_found_path.is_file():
     check('name="robots" content="noindex"' in not_found, "404 page must be noindex")
     check('aria-current="page"' not in not_found, "404 page must not mark a navigation item current")
     check("Browse projects" in not_found, "404 page must include a Projects action")
+    check(
+        'data-umami-event="404-recovery-click"' in not_found,
+        "404 page must track recovery actions",
+    )
 
 sitemap_path = DIST / "sitemap.xml"
 check(sitemap_path.is_file(), "Missing sitemap.xml")

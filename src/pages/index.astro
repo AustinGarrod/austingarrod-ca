@@ -24,15 +24,35 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
         <p class="hero-summary">{profile.tagline}</p>
         <p class="hero-body">{profile.intro}</p>
         <div class="button-row">
-          <a class="button primary" href="/projects/">
+          <a
+            class="button primary"
+            href="/projects/"
+            data-umami-event="cta-click"
+            data-umami-event-action="view-projects"
+            data-umami-event-placement="home-hero"
+          >
             View work
             <ArrowRight size={18} aria-hidden="true" />
           </a>
-          <a class="button secondary" href={profile.resume} rel="noreferrer" target="_blank">
+          <a
+            class="button secondary"
+            href={profile.resume}
+            rel="noreferrer"
+            target="_blank"
+            data-umami-event="resume-view"
+            data-umami-event-placement="home-hero"
+          >
             View resume
             <Download size={18} aria-hidden="true" />
           </a>
-          <a class="text-link resume-download-link" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+          <a
+            class="text-link resume-download-link"
+            href={profile.resume}
+            download="Austin-Garrod-Resume.pdf"
+            data-umami-event="file-download"
+            data-umami-event-file="austin-garrod-resume.pdf"
+            data-umami-event-placement="home-hero"
+          >
             Download PDF
             <Download size={16} aria-hidden="true" />
           </a>
@@ -89,7 +109,13 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
         <p class="eyebrow">Selected work</p>
         <h2>Public evidence and sanitized private case studies.</h2>
       </div>
-      <a class="button secondary" href="/projects/">
+      <a
+        class="button secondary"
+        href="/projects/"
+        data-umami-event="cta-click"
+        data-umami-event-action="view-projects"
+        data-umami-event-placement="selected-work"
+      >
         All projects
         <ArrowRight size={18} aria-hidden="true" />
       </a>
@@ -106,7 +132,13 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
         <h2>Hiring for a senior full-stack role?</h2>
         <p>{profile.availability}. I am interested in product engineering across React, Next.js, TypeScript, Node.js, APIs, and data systems.</p>
       </div>
-      <a class="button primary" href="/contact/">
+      <a
+        class="button primary"
+        href="/contact/"
+        data-umami-event="cta-click"
+        data-umami-event-action="contact"
+        data-umami-event-placement="home-footer-cta"
+      >
         Start a conversation
         <ArrowRight size={18} aria-hidden="true" />
       </a>

@@ -65,12 +65,33 @@ import { profile } from "@data/profile";
     <aside class="contact-aside">
       <div>
         <p class="eyebrow">Direct</p>
-        <a href={`mailto:${profile.email}`}><Mail size={18} aria-hidden="true" />{profile.email}</a>
+        <a
+          href={`mailto:${profile.email}`}
+          data-umami-event="contact-link-click"
+          data-umami-event-method="email"
+          data-umami-event-placement="contact-page"
+        ><Mail size={18} aria-hidden="true" />{profile.email}</a>
       </div>
       <div>
         <p class="eyebrow">Profiles</p>
-        <a href={profile.github} rel="noreferrer" target="_blank"><CodeXml size={18} aria-hidden="true" />GitHub</a>
-        <a href={profile.linkedin} rel="noreferrer" target="_blank"><BriefcaseBusiness size={18} aria-hidden="true" />LinkedIn</a>
+        <a
+          href={profile.github}
+          rel="noreferrer"
+          target="_blank"
+          data-umami-event="outbound-link-click"
+          data-umami-event-destination="github"
+          data-umami-event-placement="contact-page"
+          data-umami-event-url={profile.github}
+        ><CodeXml size={18} aria-hidden="true" />GitHub</a>
+        <a
+          href={profile.linkedin}
+          rel="noreferrer"
+          target="_blank"
+          data-umami-event="outbound-link-click"
+          data-umami-event-destination="linkedin"
+          data-umami-event-placement="contact-page"
+          data-umami-event-url={profile.linkedin}
+        ><BriefcaseBusiness size={18} aria-hidden="true" />LinkedIn</a>
       </div>
       <div>
         <p class="eyebrow">Location</p>
@@ -85,6 +106,17 @@ import { profile } from "@data/profile";
     const allowedStatuses = new Set(["sent", "error", "invalid"]);
     if (status && allowedStatuses.has(status)) {
       document.querySelector<HTMLElement>(`[data-status="${status}"]`)?.removeAttribute("hidden");
+
+      const trackResult = () => window.umami?.track(`contact-form-${status}`, { form: "contact" });
+      if (document.readyState === "complete") {
+        trackResult();
+      } else {
+        window.addEventListener("load", trackResult, { once: true });
+      }
     }
+
+    document.querySelector<HTMLFormElement>(".contact-form")?.addEventListener("submit", () => {
+      window.umami?.track("contact-form-submit", { form: "contact" });
+    });
   </script>
 </BaseLayout>

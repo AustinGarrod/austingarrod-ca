@@ -29,11 +29,24 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
     </nav>
 
     <div class="nav-actions">
-      <a class="button compact" href={profile.resume} rel="noreferrer" target="_blank">
+      <a
+        class="button compact"
+        href={profile.resume}
+        rel="noreferrer"
+        target="_blank"
+        data-umami-event="resume-view"
+        data-umami-event-placement="header-desktop"
+      >
         <Download size={17} aria-hidden="true" />
         <span>View resume</span>
       </a>
-      <button class="icon-button menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false">
+      <button
+        class="icon-button menu-toggle"
+        type="button"
+        aria-controls="mobile-nav"
+        aria-expanded="false"
+        data-umami-event="mobile-menu-toggle"
+      >
         <Menu class="menu-open" size={22} aria-hidden="true" />
         <X class="menu-close" size={22} aria-hidden="true" />
         <span class="sr-only">Toggle navigation</span>
@@ -52,11 +65,25 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
         {item.label}
       </a>
     ))}
-    <a class="button primary mobile-resume" href={profile.resume} rel="noreferrer" target="_blank">
+    <a
+      class="button primary mobile-resume"
+      href={profile.resume}
+      rel="noreferrer"
+      target="_blank"
+      data-umami-event="resume-view"
+      data-umami-event-placement="header-mobile"
+    >
       <Download size={17} aria-hidden="true" />
       View resume
     </a>
-    <a class="text-link mobile-resume-download" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+    <a
+      class="text-link mobile-resume-download"
+      href={profile.resume}
+      download="Austin-Garrod-Resume.pdf"
+      data-umami-event="file-download"
+      data-umami-event-file="austin-garrod-resume.pdf"
+      data-umami-event-placement="header-mobile"
+    >
       Download PDF
       <Download size={16} aria-hidden="true" />
     </a>

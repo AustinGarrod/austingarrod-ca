@@ -21,7 +21,29 @@ const projectPath = getProjectPath(project);
       <span>{project.status}</span>
       {project.status.startsWith("Private") && <LockKeyhole size={15} aria-hidden="true" />}
     </div>
-    {headingLevel === 2 ? <h2><a href={projectPath}>{project.title}</a></h2> : <h3><a href={projectPath}>{project.title}</a></h3>}
+    {headingLevel === 2 ? (
+      <h2>
+        <a
+          href={projectPath}
+          data-umami-event="project-case-study-view"
+          data-umami-event-project={project.slug}
+          data-umami-event-placement="card-heading"
+        >
+          {project.title}
+        </a>
+      </h2>
+    ) : (
+      <h3>
+        <a
+          href={projectPath}
+          data-umami-event="project-case-study-view"
+          data-umami-event-project={project.slug}
+          data-umami-event-placement="card-heading"
+        >
+          {project.title}
+        </a>
+      </h3>
+    )}
     <p class="project-label">{project.label}</p>
     <p>{project.summary}</p>
     <ul class="project-card-highlights">
@@ -31,18 +53,44 @@ const projectPath = getProjectPath(project);
       {project.stack.map((item) => <span>{item}</span>)}
     </div>
     <div class="project-actions">
-      <a class="text-link" href={projectPath}>
+      <a
+        class="text-link"
+        href={projectPath}
+        data-umami-event="project-case-study-view"
+        data-umami-event-project={project.slug}
+        data-umami-event-placement="card-action"
+      >
         View case study
         <ArrowRight size={16} aria-hidden="true" />
       </a>
       {project.href && (
-        <a class="text-link" href={project.href} rel="noreferrer" target="_blank">
+        <a
+          class="text-link"
+          href={project.href}
+          rel="noreferrer"
+          target="_blank"
+          data-umami-event="outbound-link-click"
+          data-umami-event-destination="project"
+          data-umami-event-project={project.slug}
+          data-umami-event-placement="project-card"
+          data-umami-event-url={project.href}
+        >
           Visit project
           <ExternalLink size={16} aria-hidden="true" />
         </a>
       )}
       {project.source && (
-        <a class="text-link" href={project.source} rel="noreferrer" target="_blank">
+        <a
+          class="text-link"
+          href={project.source}
+          rel="noreferrer"
+          target="_blank"
+          data-umami-event="outbound-link-click"
+          data-umami-event-destination="source"
+          data-umami-event-project={project.slug}
+          data-umami-event-placement="project-card"
+          data-umami-event-url={project.source}
+        >
           Source
           <ExternalLink size={16} aria-hidden="true" />
         </a>

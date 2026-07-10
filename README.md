@@ -72,6 +72,21 @@ php -l public/contact.php
 
 Otherwise, smoke test the form after upload on HostPapa.
 
+## Analytics
+
+Umami is compiled into production builds only and is additionally restricted to `austingarrod.ca` and `www.austingarrod.ca`, so local development and localhost previews cannot report traffic. The tracker respects the browser's Do Not Track preference.
+
+Production analytics include:
+
+- automatic pageviews, referrers, and UTM campaign parameters
+- Core Web Vitals through Umami performance tracking
+- resume views and file downloads
+- project case-study views and public project/source link clicks
+- major CTA, outbound profile, email, mobile menu, and 404 recovery events
+- valid contact-form submissions plus separate `contact-form-sent`, `contact-form-error`, and `contact-form-invalid` outcomes, without sending field values
+
+The deployment verifier checks this configuration on every production build. Session replay, heatmaps, visitor identification, and form-content tracking remain intentionally disabled for privacy. In Umami, useful conversion goals include `contact-form-sent`, `file-download`, and `resume-view`; funnels can combine homepage or contact pageviews with those events.
+
 ## GitHub Actions Deployment
 
 CI runs on every push and pull request. Deployment runs automatically on every push to `main`: GitHub Actions installs dependencies, regenerates assets, builds `dist/`, and uploads the contents of `dist/` to HostPapa over explicit FTPS.

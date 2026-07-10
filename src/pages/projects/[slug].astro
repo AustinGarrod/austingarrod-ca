@@ -49,13 +49,33 @@ const projectStructuredData = createProjectCreativeWorkSchema(project);
           All projects
         </a>
         {project.href && (
-          <a class="button primary" href={project.href} rel="noreferrer" target="_blank">
+          <a
+            class="button primary"
+            href={project.href}
+            rel="noreferrer"
+            target="_blank"
+            data-umami-event="outbound-link-click"
+            data-umami-event-destination="project"
+            data-umami-event-project={project.slug}
+            data-umami-event-placement="project-detail"
+            data-umami-event-url={project.href}
+          >
             Visit project
             <ExternalLink size={18} aria-hidden="true" />
           </a>
         )}
         {project.source && (
-          <a class="button secondary" href={project.source} rel="noreferrer" target="_blank">
+          <a
+            class="button secondary"
+            href={project.source}
+            rel="noreferrer"
+            target="_blank"
+            data-umami-event="outbound-link-click"
+            data-umami-event-destination="source"
+            data-umami-event-project={project.slug}
+            data-umami-event-placement="project-detail"
+            data-umami-event-url={project.source}
+          >
             Source
             <ExternalLink size={18} aria-hidden="true" />
           </a>

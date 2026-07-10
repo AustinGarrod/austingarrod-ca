@@ -10,11 +10,21 @@ import BaseLayout from "@layouts/BaseLayout.astro";
       <h1>We could not find that page.</h1>
       <p>The page may have moved or the URL may be incorrect. Return home or browse Austin's projects.</p>
       <div class="button-row">
-        <a class="button primary" href="/">
+        <a
+          class="button primary"
+          href="/"
+          data-umami-event="404-recovery-click"
+          data-umami-event-destination="home"
+        >
           <ArrowLeft size={18} aria-hidden="true" />
           Back home
         </a>
-        <a class="button secondary" href="/projects/">
+        <a
+          class="button secondary"
+          href="/projects/"
+          data-umami-event="404-recovery-click"
+          data-umami-event-destination="projects"
+        >
           Browse projects
           <ArrowRight size={18} aria-hidden="true" />
         </a>
