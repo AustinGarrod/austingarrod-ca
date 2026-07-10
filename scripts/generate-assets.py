@@ -1,4 +1,5 @@
 import json
+from functools import partial
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -7,6 +8,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import NameObject, TextStringObject
@@ -127,6 +129,10 @@ def enrich_resume_pdf(path: Path, profile):
     reader = PdfReader(str(path))
     writer = PdfWriter()
     writer.clone_document_from_reader(reader)
+    metadata = writer._info.get_object()
+    metadata.pop(NameObject("/CreationDate"), None)
+    metadata.pop(NameObject("/ModDate"), None)
+    writer._ID = None
     writer.add_metadata(
         {
             "/Title": f"{profile['name']} Resume",
@@ -287,7 +293,7 @@ def generate_resume(data):
             )
         )
 
-        doc.build(story)
+        doc.build(story, canvasmaker=partial(canvas.Canvas, invariant=1))
         enrich_resume_pdf(path, profile)
 
 
