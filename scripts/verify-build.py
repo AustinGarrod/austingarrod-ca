@@ -213,6 +213,27 @@ if resume_path.is_file():
     metadata = reader.metadata or {}
     check(metadata.get("/Title") == "Austin Garrod Resume", "Resume PDF title metadata is incorrect")
     check(bool(metadata.get("/Subject")), "Resume PDF subject metadata is missing")
+    font_resources = reader.pages[0]["/Resources"].get("/Font", {})
+    embedded_font_names = []
+    unembedded_font_names = []
+    for font_reference in font_resources.values():
+        font = font_reference.get_object()
+        candidates = [font]
+        candidates.extend(reference.get_object() for reference in font.get("/DescendantFonts", []))
+        embedded = False
+        for candidate in candidates:
+            descriptor_reference = candidate.get("/FontDescriptor")
+            if not descriptor_reference:
+                continue
+            descriptor = descriptor_reference.get_object()
+            if any(key in descriptor for key in ["/FontFile", "/FontFile2", "/FontFile3"]):
+                embedded = True
+                break
+        font_name = str(font.get("/BaseFont", "unknown"))
+        (embedded_font_names if embedded else unembedded_font_names).append(font_name)
+    check(any("Inter-Regular" in name for name in embedded_font_names), "Resume PDF must embed Inter Regular")
+    check(any("Inter-Bold" in name for name in embedded_font_names), "Resume PDF must embed Inter Bold")
+    check(not unembedded_font_names, f"Resume PDF contains unembedded fonts: {unembedded_font_names}")
     resume_links = set()
     for page in reader.pages:
         for annotation_reference in page.get("/Annots", []):

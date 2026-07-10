@@ -1,22 +1,28 @@
 import json
+import re
 from functools import partial
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 from PIL import Image, ImageDraw, ImageFont
+from fontTools.ttLib import TTFont as FontToolsTTFont
+from fontTools.varLib.instancer import instantiateVariableFont
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont as ReportLabTTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import NameObject, TextStringObject
+from pypdf.generic import DecodedStreamObject, NameObject, TextStringObject
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 OUTPUT = ROOT / "output" / "pdf"
 PROFILE_JSON = ROOT / "src" / "data" / "profile.json"
+INTER_WOFF2 = PUBLIC / "fonts" / "inter-latin.var.woff2"
 
 PUBLIC.mkdir(exist_ok=True)
 OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -133,6 +139,24 @@ def enrich_resume_pdf(path: Path, profile):
     metadata.pop(NameObject("/CreationDate"), None)
     metadata.pop(NameObject("/ModDate"), None)
     writer._ID = None
+
+    for page in writer.pages:
+        contents = page.get_contents()
+        if contents is None:
+            continue
+        content_data, replacements = re.subn(
+            rb"\s*BT\s+/F1\s+\d+(?:\.\d+)?\s+Tf\s+\d+(?:\.\d+)?\s+TL\s+ET",
+            b"",
+            contents.get_data(),
+        )
+        if replacements:
+            content_stream = DecodedStreamObject()
+            content_stream.set_data(content_data)
+            page[NameObject("/Contents")] = writer._add_object(content_stream)
+        fonts = page["/Resources"]["/Font"]
+        if NameObject("/F1") in fonts and b"/F1 " not in content_data:
+            del fonts[NameObject("/F1")]
+
     writer.add_metadata(
         {
             "/Title": f"{profile['name']} Resume",
@@ -160,6 +184,41 @@ def resume_skill_label(title: str) -> str:
     return labels.get(title, title)
 
 
+def prepare_resume_fonts():
+    font_directory = OUTPUT / "fonts"
+    font_directory.mkdir(parents=True, exist_ok=True)
+
+    for name, weight in [("ResumeInter", 400), ("ResumeInter-Bold", 700)]:
+        target = font_directory / f"{name.lower()}.ttf"
+        variable_font = FontToolsTTFont(INTER_WOFF2)
+        static_font = instantiateVariableFont(variable_font, {"wght": weight}, inplace=False)
+        style = "Bold" if weight >= 700 else "Regular"
+        font_names = {
+            1: "Inter",
+            2: style,
+            4: f"Inter {style}",
+            6: f"Inter-{style}",
+            17: "Inter",
+        }
+        for record in static_font["name"].names:
+            if record.nameID in font_names:
+                record.string = font_names[record.nameID].encode(record.getEncoding(), errors="replace")
+        static_font["OS/2"].usWeightClass = weight
+        if weight >= 700:
+            static_font["OS/2"].fsSelection = (static_font["OS/2"].fsSelection | (1 << 5)) & ~(1 << 6)
+            static_font["head"].macStyle |= 1
+        else:
+            static_font["OS/2"].fsSelection = (static_font["OS/2"].fsSelection | (1 << 6)) & ~(1 << 5)
+            static_font["head"].macStyle &= ~1
+        static_font.recalcTimestamp = False
+        static_font["head"].modified = static_font["head"].created
+        static_font.flavor = None
+        static_font.save(target)
+        static_font.close()
+        variable_font.close()
+        pdfmetrics.registerFont(ReportLabTTFont(name, str(target)))
+
+
 def generate_resume(data):
     profile = data["profile"]
     skills = data["skills"]
@@ -177,6 +236,7 @@ def generate_resume(data):
         ]
         if slug in project_by_slug
     ]
+    prepare_resume_fonts()
 
     for path in [PUBLIC / "austin-garrod-resume.pdf", OUTPUT / "austin-garrod-resume.pdf"]:
         doc = SimpleDocTemplate(
@@ -194,7 +254,7 @@ def generate_resume(data):
             ParagraphStyle(
                 name="ResumeTitle",
                 parent=styles["Title"],
-                fontName="Helvetica-Bold",
+                fontName="ResumeInter-Bold",
                 fontSize=22,
                 leading=25,
                 textColor=colors.HexColor("#0b1c30"),
@@ -205,7 +265,7 @@ def generate_resume(data):
             ParagraphStyle(
                 name="Section",
                 parent=styles["Heading2"],
-                fontName="Helvetica-Bold",
+                fontName="ResumeInter-Bold",
                 fontSize=10.5,
                 leading=12.5,
                 textColor=colors.HexColor("#006a61"),
@@ -217,7 +277,7 @@ def generate_resume(data):
             ParagraphStyle(
                 name="BodySmall",
                 parent=styles["BodyText"],
-                fontName="Helvetica",
+                fontName="ResumeInter",
                 fontSize=8.5,
                 leading=10.2,
                 textColor=colors.HexColor("#45464d"),
@@ -228,7 +288,7 @@ def generate_resume(data):
             ParagraphStyle(
                 name="Role",
                 parent=styles["BodyText"],
-                fontName="Helvetica-Bold",
+                fontName="ResumeInter-Bold",
                 fontSize=9,
                 leading=10.5,
                 textColor=colors.HexColor("#0b1c30"),
@@ -294,7 +354,15 @@ def generate_resume(data):
             )
         )
 
-        doc.build(story, canvasmaker=partial(canvas.Canvas, invariant=1))
+        doc.build(
+            story,
+            canvasmaker=partial(
+                canvas.Canvas,
+                invariant=1,
+                initialFontName="ResumeInter",
+                initialFontSize=8.5,
+            ),
+        )
         enrich_resume_pdf(path, profile)
 
 
