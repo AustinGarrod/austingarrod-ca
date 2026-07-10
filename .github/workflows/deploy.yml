@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify deployment output
+        run: npm run verify:dist
+
       - name: Check deployment secrets
         id: deploy-secrets
         shell: bash

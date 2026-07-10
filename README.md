@@ -5,7 +5,7 @@ Personal and professional portfolio site for Austin Garrod. Built as a static As
 ## Stack
 
 - Astro static output
-- TypeScript content/data files
+- JSON content data with TypeScript validation
 - CSS with the light International Precision visual direction from the proper Stitch export
 - PHP contact handler for cPanel shared hosting
 - GitHub Actions for CI and FTPS deployment
@@ -30,8 +30,10 @@ npm run dev
 Build the production site:
 
 ```powershell
-npm run build
+npm run build:deploy
 ```
+
+`build:deploy` regenerates the resume and social image, builds Astro, and runs the deployment verifier across every route and generated artifact.
 
 Preview the built output:
 
@@ -41,7 +43,7 @@ npm run preview
 
 ## Content
 
-Profile and project data live in `src/data/profile.ts`. Private project material is intentionally sanitized: the public site can describe the work, stack, and engineering shape without publishing private repository URLs or sensitive household/client details.
+Profile and project data live in `src/data/profile.json`; `src/data/profile.ts` supplies the TypeScript contract used by Astro. The Python asset generator reads the same JSON file so site copy, the resume, social artwork, and sitemap metadata cannot drift independently. Private project material is intentionally sanitized: the public site can describe the work, stack, and engineering shape without publishing private repository URLs or sensitive household/client details.
 
 The generated resume lives at `public/austin-garrod-resume.pdf`. Regenerate it with:
 
@@ -54,10 +56,12 @@ npm run generate:assets
 The contact page posts to `public/contact.php`, which Astro copies to `dist/contact.php`. It sends mail to `austin.r.garrod@gmail.com` with:
 
 - honeypot spam field
+- per-client rate limiting with hashed identifiers stored in the server temp directory
 - required field checks
 - email validation
 - length limits
 - header-injection protection by stripping line breaks from header fields
+- server error logging when the local mail system does not accept a message
 
 Local PHP CLI is optional. If PHP is installed, check syntax with:
 
@@ -87,3 +91,14 @@ The deployment uploads the contents of `dist/`, including static pages, `.htacce
 ## HostPapa Notes
 
 This project avoids server-side Node in production. HostPapa only needs to serve static files and execute PHP for the contact form. If cPanel Git deployment is used later, keep the Git checkout separate from `public_html` and deploy only the built files.
+
+`public/.htaccess` defines canonical HTTPS/apex redirects, HSTS, security headers, the custom 404, asset caching, and the web-manifest MIME type. HostPapa places nginx in front of the document root on some plans, so `.htaccess` alone is not proof that redirects or headers are active. After each deployment, verify the public response and configure the equivalent canonical redirect in cPanel or through HostPapa support if nginx serves the request before Apache.
+
+Post-deploy checks should confirm:
+
+- `http://austingarrod.ca/` redirects permanently to `https://austingarrod.ca/`
+- `https://www.austingarrod.ca/` redirects permanently to the HTTPS apex
+- explicit `index.html` URLs redirect to their trailing-slash routes
+- HTTPS responses include HSTS and the expected security headers
+- the resume has a one-hour revalidation cache, not a one-month immutable cache
+- the contact form reaches the expected mailbox

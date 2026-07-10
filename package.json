@@ -9,7 +9,8 @@
     "check": "astro check",
     "preview": "astro preview --host 0.0.0.0",
     "generate:assets": "python scripts/generate-assets.py",
-    "build:deploy": "npm run generate:assets && npm run build"
+    "verify:dist": "python scripts/verify-build.py",
+    "build:deploy": "npm run generate:assets && npm run build && npm run verify:dist"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
