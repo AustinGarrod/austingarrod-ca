@@ -33,7 +33,7 @@ Build the production site:
 npm run build:deploy
 ```
 
-`build:deploy` regenerates the resume and social image, builds Astro, and runs the deployment verifier across every route and generated artifact.
+`build:deploy` regenerates the resume and social image, builds Astro, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact.
 
 Preview the built output:
 
@@ -86,7 +86,7 @@ Required repository secrets:
 
 For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the account lands directly in `public_html`. If the FTP user changes later, confirm the login directory before changing this value.
 
-The deployment uploads the contents of `dist/`, including static pages, `.htaccess`, `contact.php`, the resume PDF, and generated images. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
+The deployment uploads the contents of `dist/`, including static pages, `.htaccess`, `contact.php`, the resume PDF, generated images, and `deployment-manifest.json`. The manifest records the exact Git commit plus the SHA-256 hash and byte size of every other deployed file. After deployment, compare the public manifest at `https://austingarrod.ca/deployment-manifest.json` with the workflow commit and public asset hashes. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
 
 ## HostPapa Notes
 

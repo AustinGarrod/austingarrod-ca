@@ -15,6 +15,7 @@ ErrorDocument 404 /404.html
 
 <IfModule mod_mime.c>
   AddType application/manifest+json .webmanifest
+  AddType application/json .json
 </IfModule>
 
 <IfModule mod_headers.c>
@@ -27,6 +28,10 @@ ErrorDocument 404 /404.html
 
   <Files "austin-garrod-resume.pdf">
     Header set Cache-Control "public, max-age=3600, must-revalidate"
+  </Files>
+
+  <Files "deployment-manifest.json">
+    Header set Cache-Control "no-store"
   </Files>
 
   <FilesMatch "^_astro/.*\.(css|js)$">

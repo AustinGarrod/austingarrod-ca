@@ -1,5 +1,8 @@
+import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -27,8 +30,58 @@ def route_file(route: str) -> Path:
     return DIST / route.strip("/") / "index.html"
 
 
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def git_output(*args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 with PROFILE_PATH.open(encoding="utf-8") as handle:
     data = json.load(handle)
+
+with (ROOT / "package.json").open(encoding="utf-8") as handle:
+    package_data = json.load(handle)
+
+deployment_manifest_path = DIST / "deployment-manifest.json"
+check(deployment_manifest_path.is_file(), "Missing deployment-manifest.json")
+if deployment_manifest_path.is_file():
+    deployment_manifest = json.loads(deployment_manifest_path.read_text(encoding="utf-8"))
+    expected_commit = (os.environ.get("GITHUB_SHA", "").strip() or git_output("rev-parse", "HEAD")).lower()
+    check(deployment_manifest.get("schemaVersion") == 1, "Deployment manifest schema is incorrect")
+    check(
+        re.fullmatch(r"[0-9a-f]{40}", str(deployment_manifest.get("commit", ""))) is not None,
+        "Deployment manifest commit is invalid",
+    )
+    check(deployment_manifest.get("commit") == expected_commit, "Deployment manifest commit does not match the build")
+    check(bool(deployment_manifest.get("commitDate")), "Deployment manifest commit date is missing")
+    check(
+        deployment_manifest.get("packageVersion") == package_data["version"],
+        "Deployment manifest package version is incorrect",
+    )
+    recorded_files = deployment_manifest.get("files", {})
+    actual_files = {
+        path.relative_to(DIST).as_posix(): path
+        for path in DIST.rglob("*")
+        if path.is_file() and path != deployment_manifest_path
+    }
+    check(set(recorded_files) == set(actual_files), "Deployment manifest file set does not match dist/")
+    for relative, path in actual_files.items():
+        recorded = recorded_files.get(relative, {})
+        check(recorded.get("bytes") == path.stat().st_size, f"Deployment manifest size mismatch: {relative}")
+        check(recorded.get("sha256") == sha256(path), f"Deployment manifest hash mismatch: {relative}")
 
 projects = data["projects"]
 routes = ["/", "/about/", "/projects/", "/contact/"] + [
@@ -131,7 +184,10 @@ if htaccess_path.is_file():
         "https://austingarrod.ca%{REQUEST_URI}",
         "Strict-Transport-Security",
         "application/manifest+json",
+        "application/json",
         "max-age=3600, must-revalidate",
+        "deployment-manifest.json",
+        "no-store",
     ]:
         check(directive in htaccess, f".htaccess is missing required deployment directive: {directive}")
 
@@ -188,6 +244,6 @@ if failures:
     sys.exit(1)
 
 print(
-    f"Verified {len(routes)} routes, {len(projects)} projects, deployment headers, "
+    f"Verified {len(routes)} routes, {len(projects)} projects, the deployment manifest and headers, "
     "Open Graph artwork, and the linked one-page resume."
 )
