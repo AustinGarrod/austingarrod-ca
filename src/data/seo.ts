@@ -35,7 +35,9 @@ const knowsAbout = [
   "SQL",
   "Docker",
   "Static site deployment",
-  "AI-assisted software development"
+  "Software testing",
+  "CI/CD",
+  "Technical documentation"
 ];
 
 export function getAbsoluteUrl(path: string) {
@@ -250,12 +252,12 @@ export function createProjectCreativeWorkSchema(project: Project): JsonLd {
   };
 }
 
-export function createProjectsItemListSchema(): JsonLd {
+export function createProjectsItemListSchema(selectedProjects: Project[] = projects): JsonLd {
   return {
     "@type": "ItemList",
     "@id": PROJECTS_ITEM_LIST_ID,
     name: `${profile.name} full-stack engineering projects`,
-    itemListElement: projects.map((project, index) => ({
+    itemListElement: selectedProjects.map((project, index) => ({
       "@type": "ListItem",
       position: index + 1,
       url: getProjectUrl(project),
@@ -267,6 +269,6 @@ export function createProjectsItemListSchema(): JsonLd {
   };
 }
 
-export function createProjectsStructuredData() {
-  return [createProjectsItemListSchema(), ...projects.map(createProjectCreativeWorkSchema)];
+export function createProjectsStructuredData(selectedProjects: Project[] = projects) {
+  return [createProjectsItemListSchema(selectedProjects), ...selectedProjects.map(createProjectCreativeWorkSchema)];
 }

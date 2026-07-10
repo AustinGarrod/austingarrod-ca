@@ -1,18 +1,24 @@
 ---
-import { ArrowLeft } from "@lucide/astro";
+import { ArrowLeft, ArrowRight } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 ---
 
-<BaseLayout active="home" title="Page not found | Austin Garrod" noIndex>
+<BaseLayout title="Page not found | Austin Garrod" noIndex>
   <section class="page-hero error-hero">
     <div class="container page-hero-inner">
       <p class="eyebrow">404</p>
-      <h1>That route is not part of the build.</h1>
-      <p>The page might have moved, or the URL may have been typed by hand. The current site is intentionally small: home, about, projects, and contact.</p>
-      <a class="button primary" href="/">
-        <ArrowLeft size={18} aria-hidden="true" />
-        Back home
-      </a>
+      <h1>We could not find that page.</h1>
+      <p>The page may have moved or the URL may be incorrect. Return home or browse Austin's projects.</p>
+      <div class="button-row">
+        <a class="button primary" href="/">
+          <ArrowLeft size={18} aria-hidden="true" />
+          Back home
+        </a>
+        <a class="button secondary" href="/projects/">
+          Browse projects
+          <ArrowRight size={18} aria-hidden="true" />
+        </a>
+      </div>
     </div>
   </section>
 </BaseLayout>

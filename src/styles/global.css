@@ -27,6 +27,7 @@
   --muted: #45464d;
   --subtle: #6b6c73;
   --line: #c6c6cd;
+  --control-line: #76777d;
   --line-strong: #0b1c30;
   --primary: #000000;
   --primary-container: #131b2e;
@@ -46,13 +47,11 @@
 }
 
 html {
-  min-width: 320px;
   background: var(--bg);
   scroll-behavior: smooth;
 }
 
 body {
-  min-width: 320px;
   margin: 0;
   color: var(--text);
   background: var(--bg);
@@ -262,6 +261,11 @@ button {
   margin-top: 12px;
 }
 
+.mobile-resume-download {
+  justify-content: center;
+  min-height: 44px;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -401,6 +405,11 @@ button {
   margin-top: 36px;
 }
 
+.resume-download-link {
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
 .eyebrow {
   margin: 0 0 14px;
   color: var(--secondary);
@@ -514,6 +523,7 @@ button {
 }
 
 .skill-panel h3,
+.project-card h2,
 .project-card h3,
 .timeline-content h3,
 .contact-aside h3 {
@@ -1187,6 +1197,7 @@ button {
 }
 
 .project-meta,
+.project-card h2,
 .project-card h3,
 .project-label,
 .project-card p,
@@ -1205,10 +1216,18 @@ button {
   overflow-wrap: anywhere;
 }
 
+.project-card h2,
 .project-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Inter", Arial, sans-serif;
   font-size: clamp(1.8rem, 3.4vw, 3.1rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
 }
 
+.project-card h2 a:hover,
 .project-card h3 a:hover {
   color: var(--secondary);
 }
@@ -1334,6 +1353,7 @@ button {
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
+  min-height: 44px;
 }
 
 .footer-links a:hover,
@@ -1539,17 +1559,33 @@ textarea {
   padding: 13px 14px;
   color: var(--ink);
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-line);
 }
 
 textarea {
   resize: vertical;
 }
 
-input:focus,
-textarea:focus {
+input:focus-visible,
+textarea:focus-visible {
   border-color: var(--accent);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 .honeypot {

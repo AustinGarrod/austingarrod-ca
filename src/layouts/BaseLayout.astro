@@ -20,7 +20,7 @@ const defaultSchemaType: SchemaPageType = Astro.url.pathname === "/" ? "ProfileP
 const {
   title = `${profile.name} | ${profile.title}`,
   description = profile.seoDescription,
-  active = "home",
+  active,
   noIndex = false,
   schemaType = defaultSchemaType,
   breadcrumbLabel,
@@ -65,24 +65,21 @@ const jsonLd = JSON.stringify({
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:alt" content={`${profile.name} - ${profile.title}`} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:site_name" content={profile.name} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={`${profile.name} - ${profile.title}`} />
     <script type="application/ld+json" set:html={jsonLd} is:inline></script>
     <script
       defer
       src="https://analytics.garrod.house/script.js"
       data-website-id="bad8bf39-f9e4-4e54-865c-f3438804a9b5"
-      is:inline
-    ></script>
-    <script
-      defer
-      src="https://analytics.garrod.house/recorder.js"
-      data-website-id="bad8bf39-f9e4-4e54-865c-f3438804a9b5"
-      data-sample-rate="0.15"
-      data-mask-level="moderate"
-      data-max-duration="300000"
       is:inline
     ></script>
   </head>

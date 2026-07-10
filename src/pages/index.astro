@@ -4,7 +4,10 @@ import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { highlights, profile, projects, skills } from "@data/profile";
 
-const featuredProjects = projects.slice(0, 3);
+const featuredProjectSlugs = ["honour-our-veterans-banner-platform", "cadence", "spools"];
+const featuredProjects = featuredProjectSlugs
+  .map((slug) => projects.find((project) => project.slug === slug))
+  .filter((project): project is (typeof projects)[number] => Boolean(project));
 const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docker"];
 ---
 
@@ -12,7 +15,7 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
   <section class="hero-section">
     <div class="container hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">Systems architecture & engineering</p>
+        <p class="eyebrow">Senior full-stack engineering</p>
         <h1>
           <span>{profile.name}</span>
           {" "}
@@ -25,9 +28,13 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
             View work
             <ArrowRight size={18} aria-hidden="true" />
           </a>
-          <a class="button secondary" href={profile.resume}>
-            Download resume
+          <a class="button secondary" href={profile.resume} rel="noreferrer" target="_blank">
+            View resume
             <Download size={18} aria-hidden="true" />
+          </a>
+          <a class="text-link resume-download-link" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+            Download PDF
+            <Download size={16} aria-hidden="true" />
           </a>
         </div>
         <div class="hero-tech" aria-label="Core technologies">
@@ -55,8 +62,8 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
   <section class="container content-section home-profile-section">
     <div class="section-heading">
       <p class="eyebrow">Engineering profile</p>
-      <h2>Calm systems, clear interfaces, practical delivery.</h2>
-      <p>{profile.intro}</p>
+      <h2>Full-stack product work across interfaces, APIs, data, and delivery.</h2>
+      <p>At Epilogue, I build and maintain production features across React and Next.js front ends, APIs, and databases. My broader experience includes leading developers, teaching software development and project management, and building mobile, civic, and local tools.</p>
     </div>
     <div class="skills-grid">
       {skills.map((skill, index) => {
@@ -80,7 +87,7 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
     <div class="section-heading split">
       <div>
         <p class="eyebrow">Selected work</p>
-        <h2>Sanitized case studies from public and private projects.</h2>
+        <h2>Public evidence and sanitized private case studies.</h2>
       </div>
       <a class="button secondary" href="/projects/">
         All projects
@@ -95,12 +102,12 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
   <section class="cta-band">
     <div class="container cta-inner">
       <div>
-        <p class="eyebrow">Engineering stance</p>
-        <h2>Good software is easier to trust when its structure is visible.</h2>
-        <p>I care about systems that are understandable, observable, and built for the people who need to keep using them after the first release.</p>
+        <p class="eyebrow">Engineering opportunities</p>
+        <h2>Hiring for a senior full-stack role?</h2>
+        <p>{profile.availability}. I am interested in product engineering across React, Next.js, TypeScript, Node.js, APIs, and data systems.</p>
       </div>
       <a class="button primary" href="/contact/">
-        Contact Austin
+        Start a conversation
         <ArrowRight size={18} aria-hidden="true" />
       </a>
     </div>

@@ -13,10 +13,10 @@ import { profile } from "@data/profile";
 >
   <section class="page-hero">
     <div class="container page-hero-inner">
-      <p class="eyebrow">Start a thread</p>
-      <h1>Contact Austin Garrod</h1>
+      <p class="eyebrow">Engineering opportunities</p>
+      <h1>Hiring a senior full-stack engineer?</h1>
       <p>
-        If you have a role, collaboration, technical problem, or thoughtful question in mind, send the useful context and I will reply directly. A clear note is enough; no formal brief required.
+        Send the role, team context, location or remote expectations, and the problem you need the engineer to own. I will reply directly. For other thoughtful engineering conversations, email works too.
       </p>
     </div>
   </section>
@@ -32,7 +32,7 @@ import { profile } from "@data/profile";
       <div class="form-status error" data-status="invalid" role="alert" aria-live="assertive" aria-atomic="true" hidden>
         Please check the form fields and try again.
       </div>
-      <p id="required-note" class="form-note">All fields are required.</p>
+      <p id="required-note" class="form-note">All fields are required; messages must be at least 20 characters.</p>
 
       <div class="field-grid">
         <label>
@@ -82,7 +82,8 @@ import { profile } from "@data/profile";
   <script>
     const params = new URLSearchParams(window.location.search);
     const status = params.get("status");
-    if (status) {
+    const allowedStatuses = new Set(["sent", "error", "invalid"]);
+    if (status && allowedStatuses.has(status)) {
       document.querySelector<HTMLElement>(`[data-status="${status}"]`)?.removeAttribute("hidden");
     }
   </script>
