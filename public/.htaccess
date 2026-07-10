@@ -1,11 +1,33 @@
 ErrorDocument 404 /404.html
 
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Collapse explicit index.html URLs directly to the canonical HTTPS route.
+  RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html(?:[?\s]) [NC]
+  RewriteRule ^(.*/)?index\.html$ https://austingarrod.ca/$1 [R=301,L,NE]
+
+  # Serve one origin so contact submissions and canonical signals always use HTTPS.
+  RewriteCond %{HTTPS} !=on [OR]
+  RewriteCond %{HTTP_HOST} !^austingarrod\.ca$ [NC]
+  RewriteRule ^ https://austingarrod.ca%{REQUEST_URI} [R=301,L,NE]
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
   Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
+
+  <Files "austin-garrod-resume.pdf">
+    Header set Cache-Control "public, max-age=3600, must-revalidate"
+  </Files>
 
   <FilesMatch "^_astro/.*\.(css|js)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
@@ -18,6 +40,6 @@ ErrorDocument 404 /404.html
   ExpiresByType application/javascript "access plus 1 month"
   ExpiresByType image/svg+xml "access plus 1 month"
   ExpiresByType image/png "access plus 1 month"
-  ExpiresByType application/pdf "access plus 1 month"
+  ExpiresByType application/pdf "access plus 1 hour"
   ExpiresByType font/woff2 "access plus 1 year"
 </IfModule>
