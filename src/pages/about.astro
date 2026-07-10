@@ -1,5 +1,5 @@
 ---
-import { Download } from "@lucide/astro";
+import { Download, ExternalLink } from "@lucide/astro";
 import ExperienceTimeline from "@components/ExperienceTimeline.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { profile, skills } from "@data/profile";
@@ -19,10 +19,16 @@ import { profile, skills } from "@data/profile";
       <p>
         My career has moved through research, freelance delivery, post-secondary teaching, lead development, and senior full-stack engineering. The common thread is practical software built with enough structure that someone else can understand it later.
       </p>
-      <a class="button secondary" href={profile.resume}>
-        Download resume
-        <Download size={18} aria-hidden="true" />
-      </a>
+      <div class="button-row">
+        <a class="button secondary" href={profile.resume} rel="noreferrer" target="_blank">
+          View resume
+          <ExternalLink size={18} aria-hidden="true" />
+        </a>
+        <a class="text-link resume-download-link" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+          Download PDF
+          <Download size={16} aria-hidden="true" />
+        </a>
+      </div>
     </div>
   </section>
 
@@ -62,7 +68,7 @@ import { profile, skills } from "@data/profile";
     </div>
     <div>
       <p class="eyebrow">Teaching foundation</p>
-      <h2>Back in the classroom</h2>
+      <h2>Teaching software development</h2>
       <p>Returning to Durham as a professor kept those fundamentals close: problem decomposition, debugging, JavaScript and web standards, Windows application development, project planning, SDLC habits, and the kind of plain-language explanation that makes technical work easier to share.</p>
     </div>
   </section>

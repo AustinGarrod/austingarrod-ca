@@ -4,7 +4,19 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { profile, projects } from "@data/profile";
 import { createProjectsStructuredData, PROJECTS_ITEM_LIST_ID } from "@data/seo";
 
-const projectsStructuredData = createProjectsStructuredData();
+const projectOrder = new Map([
+  ["honour-our-veterans-banner-platform", 0],
+  ["cadence", 1],
+  ["spools", 2],
+  ["charity-data-scraper", 3],
+  ["austingarrod-ca", 4],
+  ["campaign-static-site", 5],
+  ["kids-tv-controller", 6]
+]);
+const orderedProjects = [...projects].sort(
+  (a, b) => (projectOrder.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (projectOrder.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
+);
+const projectsStructuredData = createProjectsStructuredData(orderedProjects);
 ---
 
 <BaseLayout
@@ -21,14 +33,14 @@ const projectsStructuredData = createProjectsStructuredData();
       <p class="eyebrow">Case studies</p>
       <h1>Full-stack engineering projects</h1>
       <p>
-        A practical cross-section of production work, private builds, teaching-adjacent systems, and local tools. Private projects are summarized at the architecture level so the engineering shape is visible without exposing sensitive links, credentials, or client details.
+        A cross-section of public, private, civic, and local systems. Private work is described at the architecture level so technical decisions are visible without exposing links, credentials, client details, or private data.
       </p>
     </div>
   </section>
 
   <section class="container content-section projects-list-section">
     <div class="project-grid all-projects">
-      {projects.map((project, index) => <ProjectCard project={project} featured={index === 0} />)}
+      {orderedProjects.map((project, index) => <ProjectCard project={project} featured={index === 0} headingLevel={2} />)}
     </div>
   </section>
 </BaseLayout>

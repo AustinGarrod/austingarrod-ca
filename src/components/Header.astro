@@ -3,11 +3,11 @@ import { Download, Menu, X } from "@lucide/astro";
 import { profile, siteNav } from "@data/profile";
 
 interface Props {
-  active: "home" | "about" | "projects" | "contact";
+  active?: "home" | "about" | "projects" | "contact";
 }
 
 const { active } = Astro.props;
-const activePath = active === "home" ? "/" : `/${active}/`;
+const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefined;
 ---
 
 <header class="site-header">
@@ -29,9 +29,9 @@ const activePath = active === "home" ? "/" : `/${active}/`;
     </nav>
 
     <div class="nav-actions">
-      <a class="button compact" href={profile.resume}>
+      <a class="button compact" href={profile.resume} rel="noreferrer" target="_blank">
         <Download size={17} aria-hidden="true" />
-        <span>Download resume</span>
+        <span>View resume</span>
       </a>
       <button class="icon-button menu-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false">
         <Menu class="menu-open" size={22} aria-hidden="true" />
@@ -52,9 +52,13 @@ const activePath = active === "home" ? "/" : `/${active}/`;
         {item.label}
       </a>
     ))}
-    <a class="button primary mobile-resume" href={profile.resume}>
+    <a class="button primary mobile-resume" href={profile.resume} rel="noreferrer" target="_blank">
       <Download size={17} aria-hidden="true" />
-      Download resume
+      View resume
+    </a>
+    <a class="text-link mobile-resume-download" href={profile.resume} download="Austin-Garrod-Resume.pdf">
+      Download PDF
+      <Download size={16} aria-hidden="true" />
     </a>
   </nav>
 </header>
@@ -63,6 +67,7 @@ const activePath = active === "home" ? "/" : `/${active}/`;
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const mobileNav = document.querySelector<HTMLElement>("#mobile-nav");
   const pageChrome = [
+    document.querySelector<HTMLElement>(".brand"),
     document.querySelector<HTMLElement>(".skip-link"),
     document.querySelector<HTMLElement>("main"),
     document.querySelector<HTMLElement>("footer")

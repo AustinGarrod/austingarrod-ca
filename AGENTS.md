@@ -9,13 +9,13 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 - The copied `DESIGN.md` hash was `78694FAE07A7160A214A5A1738CFDBC13319E60D7D5C70F69FA7AD8BA5484F5B`.
 - Use the "International Precision" design direction: light surfaces, strict grid, black primary actions, teal accents, sharp 0px corners, Inter, JetBrains Mono labels, 1px borders, no shadows.
 - Do not revive the older dark "Kinetic Engineering" direction. That was based on stale design context.
-- The Stitch HTML/screenshot exports are visual references only. Some generated copy, locations, and project examples in those files are placeholders or stale. Real site content lives in `src/data/profile.ts`.
+- The Stitch HTML/screenshot exports are visual references only. Some generated copy, locations, and project examples in those files are placeholders or stale. Real site content lives in `src/data/profile.json`.
 
 ## Project Shape
 
 - `src/pages/` contains Astro routes for Home, About, Projects, Contact, 404, sitemap, and robots.
 - `src/components/` contains reusable layout and content components.
-- `src/data/profile.ts` is the main content source for profile, navigation, skills, experience, and project cards.
+- `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
 - `src/styles/global.css` contains the visual system and responsive layout.
 - `scripts/generate-assets.py` generates `public/og-image.png` and `public/austin-garrod-resume.pdf`.
 - `public/contact.php` is the HostPapa/cPanel contact handler and must continue to work without Node on the server.
@@ -45,7 +45,7 @@ PHP CLI is not required for local Astro work; the contact form still needs a Hos
 
 - Position Austin as a senior full-stack engineer, not as a consulting-heavy lead-generation brand.
 - Keep private project case studies sanitized. Do not add private repo links, credentials, household details, client-sensitive details, or invented metrics.
-- Feature Open Design publicly when relevant.
+- Do not associate Austin with Open Design; he has no role or contributions to that project.
 - Do not present CAPM as currently active unless renewed after the listed April 2026 expiry.
 - Avoid fake companies, fake locations, fake testimonials, fake screenshots, and fake stock imagery.
 

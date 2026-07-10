@@ -7,9 +7,10 @@ import { getProjectPath } from "@data/seo";
 interface Props {
   project: Project;
   featured?: boolean;
+  headingLevel?: 2 | 3;
 }
 
-const { project, featured = false } = Astro.props;
+const { project, featured = false, headingLevel = 3 } = Astro.props;
 const projectPath = getProjectPath(project);
 ---
 
@@ -18,9 +19,9 @@ const projectPath = getProjectPath(project);
   <div class="project-content">
     <div class="project-meta">
       <span>{project.status}</span>
-      {project.status === "Private case study" && <LockKeyhole size={15} aria-label="Private case study" />}
+      {project.status.startsWith("Private") && <LockKeyhole size={15} aria-hidden="true" />}
     </div>
-    <h3><a href={projectPath}>{project.title}</a></h3>
+    {headingLevel === 2 ? <h2><a href={projectPath}>{project.title}</a></h2> : <h3><a href={projectPath}>{project.title}</a></h3>}
     <p class="project-label">{project.label}</p>
     <p>{project.summary}</p>
     <ul class="project-card-highlights">
