@@ -73,6 +73,13 @@ combined_html = "\n".join(all_html)
 for stale_phrase in ["5+", "Years at Epilogue", "at-risk people", "major retail brands", "worldwide Shopify"]:
     check(stale_phrase not in combined_html, f"Built HTML still contains stale or risky copy: {stale_phrase}")
 
+about_markup = route_file("/about/").read_text(encoding="utf-8")
+check("Permanent full-time" in about_markup, "About must clarify permanent employment where verified")
+check(
+    "Freelance; concurrent with teaching from May 2018" in about_markup,
+    "About must clarify the verified freelance and teaching overlap",
+)
+
 projects_markup = route_file("/projects/").read_text(encoding="utf-8")
 project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/">', projects_markup)
 check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
@@ -168,6 +175,11 @@ if resume_path.is_file():
     for stale_phrase in ["at-risk people", "major retail brands", "worldwide Shopify", "Kids TV Controller"]:
         check(stale_phrase not in resume_text, f"Resume PDF still contains stale or risky copy: {stale_phrase}")
     check("Honour Our Veterans Banner Platform" in resume_text, "Resume PDF must feature public civic work")
+    check("Permanent full-time" in resume_text, "Resume PDF must clarify verified permanent employment")
+    check(
+        "Freelance; concurrent with teaching from May 2018" in resume_text,
+        "Resume PDF must clarify the verified freelance and teaching overlap",
+    )
 
 if failures:
     print("Deployment verification failed:")

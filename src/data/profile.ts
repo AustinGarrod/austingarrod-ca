@@ -39,6 +39,7 @@ export type Experience = {
   organization: string;
   dates: string;
   location: string;
+  employmentType?: string;
   summary: string;
   bullets: string[];
 };

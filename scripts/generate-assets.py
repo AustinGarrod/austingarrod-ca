@@ -276,7 +276,8 @@ def generate_resume(data):
         story.append(Paragraph("Experience", section))
         for job in experience:
             story.append(paragraph(f"{job['role']} - {job['organization']}", role))
-            story.append(paragraph(f"{job['dates']} | {job['location']}", body))
+            job_meta = [job["dates"], job.get("employmentType"), job["location"]]
+            story.append(paragraph(" | ".join(value for value in job_meta if value), body))
             for bullet in job["bullets"][:2]:
                 story.append(paragraph("- " + bullet, body))
 

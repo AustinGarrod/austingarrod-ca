@@ -76,6 +76,7 @@
       "organization": "Epilogue",
       "dates": "Aug 2021 - Present",
       "location": "Remote - Ontario, Canada",
+      "employmentType": "Permanent full-time",
       "summary": "Senior full-stack work across production web application surfaces with React, Next.js, APIs, and databases.",
       "bullets": [
         "Build and maintain production features across React and Next.js interfaces, APIs, and databases.",
@@ -88,6 +89,7 @@
       "organization": "Tidal",
       "dates": "Apr 2021 - Jul 2021",
       "location": "Richmond Hill, Ontario, Canada",
+      "employmentType": "Permanent full-time",
       "summary": "Led front-end development, upkeep, and management of corporate web applications across multiple industries.",
       "bullets": [
         "Maintained Shopify storefronts for retail clients across front-end and back-end work.",
@@ -112,6 +114,7 @@
       "organization": "Austin Garrod",
       "dates": "May 2017 - Apr 2021",
       "location": "Ontario, Canada",
+      "employmentType": "Freelance; concurrent with teaching from May 2018",
       "summary": "Designed and created branded web presences, CMS implementations, and social media presences for organizations.",
       "bullets": [
         "Built web experiences with React, Meteor, and established web standards.",

@@ -9,6 +9,7 @@ import { experience } from "@data/profile";
       <div class="timeline-meta">
         <span>{item.dates}</span>
         <small>{item.location}</small>
+        {item.employmentType && <small>{item.employmentType}</small>}
       </div>
       <div class="timeline-node" aria-hidden="true"></div>
       <div class="timeline-content">
