@@ -45,7 +45,7 @@ PHP CLI is not required for local Astro work; the contact form still needs a Hos
 
 - Position Austin as a senior full-stack engineer, not as a consulting-heavy lead-generation brand.
 - Keep private project case studies sanitized. Do not add private repo links, credentials, household details, client-sensitive details, or invented metrics.
-- Feature Open Design publicly when relevant.
+- Do not associate Austin with Open Design; he has no role or contributions to that project.
 - Do not present CAPM as currently active unless renewed after the listed April 2026 expiry.
 - Avoid fake companies, fake locations, fake testimonials, fake screenshots, and fake stock imagery.
 

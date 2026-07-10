@@ -14,10 +14,10 @@
   },
   "pageMetadata": {
     "/": {
-      "lastModified": "2026-07-09"
+      "lastModified": "2026-07-10"
     },
     "/about/": {
-      "lastModified": "2026-07-09"
+      "lastModified": "2026-07-10"
     },
     "/projects/": {
       "lastModified": "2026-07-09"
@@ -30,7 +30,7 @@
     {
       "value": "Since 2021",
       "label": "At Epilogue",
-      "description": "Senior full-stack product work across React and Next.js interfaces, APIs, and databases."
+      "description": "Owns charity-partner product and data systems across interfaces, APIs, analytics, and AWS reporting."
     },
     {
       "value": "Full stack",
@@ -77,11 +77,11 @@
       "dates": "Aug 2021 - Present",
       "location": "Remote - Ontario, Canada",
       "employmentType": "Permanent full-time",
-      "summary": "Senior full-stack work across production web application surfaces with React, Next.js, APIs, and databases.",
+      "summary": "Owns charity-partner systems and data workflows across React and TypeScript interfaces, Node.js and Express services, MongoDB-backed APIs, analytics, and scheduled AWS reporting.",
       "bullets": [
-        "Build and maintain production features across React and Next.js interfaces, APIs, and databases.",
-        "Collaborate with teammates and stakeholders to shape and deliver maintainable user-facing software.",
-        "Maintain and extend existing systems across front-end and back-end boundaries."
+        "Own charity-partner product surfaces across React and TypeScript frontends, Node.js and Express services, and MongoDB data models, making large operational datasets usable for partner teams and internal staff.",
+        "Design access boundaries and scheduled AWS reporting and analytics workflows, keeping partner data appropriately scoped while serving charity and leadership reporting needs.",
+        "Collaborate directly with company leadership to shape and deliver product and data capabilities in a small team."
       ]
     },
     {

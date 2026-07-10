@@ -123,10 +123,28 @@ for route in routes:
             failures.append(f"{route} contains invalid JSON-LD")
 
 combined_html = "\n".join(all_html)
-for stale_phrase in ["5+", "Years at Epilogue", "at-risk people", "major retail brands", "worldwide Shopify"]:
+for stale_phrase in [
+    "5+",
+    "Years at Epilogue",
+    "at-risk people",
+    "major retail brands",
+    "worldwide Shopify",
+    "Build and maintain production features across React and Next.js interfaces",
+    "Open Design",
+]:
     check(stale_phrase not in combined_html, f"Built HTML still contains stale or risky copy: {stale_phrase}")
 
 about_markup = route_file("/about/").read_text(encoding="utf-8")
+for required_experience_phrase in [
+    "charity-partner systems",
+    "scheduled AWS reporting",
+    "Design access boundaries",
+    "company leadership",
+]:
+    check(
+        required_experience_phrase in about_markup,
+        f"About is missing verified Epilogue evidence: {required_experience_phrase}",
+    )
 check("Permanent full-time" in about_markup, "About must clarify permanent employment where verified")
 check(
     "Freelance; concurrent with teaching from May 2018" in about_markup,
