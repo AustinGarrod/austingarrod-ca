@@ -14,13 +14,13 @@
   },
   "pageMetadata": {
     "/": {
-      "lastModified": "2026-07-10"
+      "lastModified": "2026-07-14"
     },
     "/about/": {
       "lastModified": "2026-07-10"
     },
     "/projects/": {
-      "lastModified": "2026-07-09"
+      "lastModified": "2026-07-14"
     },
     "/contact/": {
       "lastModified": "2026-07-09"
@@ -193,53 +193,54 @@
       "slug": "cadence",
       "title": "Cadence",
       "label": "Minimalist podcast player",
-      "summary": "A private Kotlin Multiplatform podcast app with local-first state, opt-out diagnostics, and Pocket Casts import support.",
-      "role": "Developer across shared application state, imports, diagnostics, and Android validation",
+      "summary": "An independent, account-free podcast player for Android, built with Kotlin Multiplatform around local-first libraries, flexible playback, offline listening, and portable backups.",
+      "role": "Independent product engineer across Kotlin Multiplatform architecture, playback, imports, diagnostics, Android release validation, and the public product site",
       "details": [
-        "Designed around no accounts, no first-party backend, and on-device application state.",
-        "Models subscriptions, episodes, playback state, and import history in a way that keeps the app useful offline and recoverable after interrupted imports.",
-        "Treats diagnostics as an explicit opt-out surface, with privacy documentation and Sentry configuration kept visible in the project structure.",
-        "Includes Android build/test guidance, device-harness workflows, and idempotent Pocket Casts import behavior for repeatable local validation."
+        "Built Cadence as an account-free Android podcast player, with subscriptions, playback state, playlists, bookmarks, history, and preferences kept on the device.",
+        "Supports public-directory search, direct RSS entry, offline downloads, adjustable playback, chapters and transcripts, OPML, Pocket Casts imports, and Cadence backup and restore.",
+        "Keeps crash reporting and sanitized diagnostics transparent and user-disableable, with exact app and website data boundaries documented publicly.",
+        "Pairs repeatable Android build, test, device, Android Auto, and release workflows with a public React and TypeScript product site for launch, privacy, and support."
       ],
       "cardHighlights": [
-        "Local-first state keeps subscriptions, episodes, playback, and import history useful without accounts.",
-        "Pocket Casts import and visible diagnostics choices make the private app easier to validate and trust."
+        "Account-free, local-first listening covers queues, playlists, bookmarks, history, downloads, and flexible playback.",
+        "Public RSS support, portable imports and backups, and user-disableable diagnostics keep listeners in control."
       ],
       "caseStudySections": [
         {
           "title": "Problem",
           "points": [
-            "The app needed a podcast experience that avoided accounts and first-party backend dependency.",
-            "Imported podcast state had to remain recoverable after interrupted imports or offline use."
+            "Podcast apps often tie core listening to accounts, cloud services, advertising, or busy discovery surfaces.",
+            "The product needed imports, downloads, and playback state to remain reliable through offline use and interrupted operations."
           ]
         },
         {
           "title": "Approach",
           "points": [
-            "Center the product around local application state and explicit user control instead of remote synchronization.",
-            "Treat diagnostics as a visible product surface, with privacy documentation and opt-out behavior kept close to the implementation."
+            "Center the product around local application state and explicit user control instead of accounts or remote synchronization.",
+            "Build broad listening features behind a quiet interface, then make diagnostics and data handling visible, documented, and user-disableable."
           ]
         },
         {
           "title": "System Shape",
           "points": [
-            "Kotlin Multiplatform models subscriptions, episodes, playback state, and import history across the app.",
-            "Android build/test guidance and device-harness workflows support repeatable local validation."
+            "Kotlin Multiplatform models subscriptions, episodes, playback state, queues, playlists, bookmarks, history, and import state across the app.",
+            "Native Android media integration, device-harness workflows, Android Auto checks, and release builds support repeatable validation."
           ]
         },
         {
           "title": "Current State",
           "points": [
-            "The private app is actively versioned and validated across shared code and Android release surfaces; public notes focus on architecture and validation practices.",
-            "Pocket Casts import behavior is described at the product level without exposing private repository details."
+            "The public product site, privacy policy, and support documentation are live at cadenceplayer.com, with the Android store release being prepared.",
+            "The app is actively versioned and validated across shared code, Android devices, Android Auto, and release builds."
           ]
         }
       ],
-      "stack": ["Kotlin Multiplatform", "Android", "Swift", "Sentry", "PowerShell"],
-      "status": "Private case study",
+      "stack": ["Kotlin Multiplatform", "Android", "Swift", "React", "TypeScript", "Vinext", "Cloudflare", "Sentry", "PowerShell"],
+      "status": "Public preview",
       "visual": "cadence",
       "icon": "radio",
-      "lastModified": "2026-07-09"
+      "href": "https://cadenceplayer.com/",
+      "lastModified": "2026-07-14"
     },
     {
       "slug": "spools",

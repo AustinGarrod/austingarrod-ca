@@ -1,6 +1,6 @@
 import profileData from "./profile.json";
 
-export type ProjectStatus = "Public" | "Private case study" | "Private prototype" | "Archived public";
+export type ProjectStatus = "Public" | "Public preview" | "Private case study" | "Private prototype" | "Archived public";
 export type ProjectVisual = "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign";
 export type ProjectIcon = "blocks" | "radio" | "database" | "cpu" | "map" | "globe" | "layers";
 
