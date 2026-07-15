@@ -443,7 +443,7 @@ button {
   display: block;
   margin-bottom: 8px;
   color: var(--ink);
-  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  font-size: clamp(2.4rem, 3.1vw, 3.6rem);
   font-weight: 800;
   line-height: 1;
 }
