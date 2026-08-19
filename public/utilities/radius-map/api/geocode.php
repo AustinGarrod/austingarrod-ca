@@ -44,7 +44,7 @@ if (!is_dir($cacheDirectory) && !mkdir($cacheDirectory, 0700, true) && !is_dir($
     json_response(['error' => 'Location search is temporarily unavailable.'], 503, ['Cache-Control' => 'no-store']);
 }
 
-$cacheKey = hash('sha256', strtolower($query) . '|' . strtolower($acceptLanguage));
+$cacheKey = hash('sha256', 'v2|' . strtolower($query) . '|' . strtolower($acceptLanguage));
 $cacheFile = $cacheDirectory . DIRECTORY_SEPARATOR . $cacheKey . '.json';
 
 function read_cached_results(string $path): ?array
@@ -172,8 +172,8 @@ foreach ($rows as $row) {
     $results[] = [
         'id' => isset($row['place_id']) ? (string) $row['place_id'] : $latitude . ',' . $longitude,
         'label' => $label,
-        'lat' => $latitude,
-        'lng' => $longitude,
+        'lat' => round($latitude, 7),
+        'lng' => round($longitude, 7),
     ];
     if (count($results) === 5) {
         break;

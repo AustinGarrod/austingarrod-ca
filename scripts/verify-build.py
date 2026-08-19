@@ -330,6 +330,7 @@ if geocode_path.is_file():
         "hash('sha256'",
         "User-Agent: AustinGarrodRadiusMap",
         "count($results) === 5",
+        "round($latitude, 7)",
     ]:
         check(behavior in geocode, f"Radius Map geocoder is missing expected behavior: {behavior}")
     check("respond(" not in geocode, "Radius Map geocoder contains an undefined response helper")
