@@ -13,6 +13,7 @@ body.radius-map-page {
   --accent-soft: #e5eeff;
   --danger: #b42318;
   --shadow: none;
+  --utility-app-header-height: 64px;
 }
 
 * {
@@ -1204,8 +1205,8 @@ button {
 
 .centre-chip {
   top: 24px;
-  right: 24px;
-  max-width: min(310px, calc(100vw - 440px));
+  right: 72px;
+  max-width: min(310px, calc(100vw - 488px));
   padding: 10px 13px;
   border-radius: 13px;
   font-size: 0.72rem;
@@ -1461,8 +1462,10 @@ input:focus-visible {
 
   .centre-chip {
     top: max(10px, env(safe-area-inset-top));
-    right: 10px;
-    max-width: calc(100vw - 20px);
+    right: auto;
+    left: 50%;
+    max-width: calc(100vw - 116px);
+    transform: translateX(-50%);
   }
 
   .centre-chip:not([hidden]) + * {
@@ -1528,11 +1531,20 @@ input:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  min-height: 64px;
+  min-height: var(--utility-app-header-height);
   padding: 0 24px;
   background: rgba(248, 249, 255, 0.97);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(12px);
+}
+
+body.radius-map-page .map-hint,
+body.radius-map-page .centre-chip {
+  top: calc(var(--utility-app-header-height) + 12px);
+}
+
+body.radius-map-page .leaflet-top {
+  top: var(--utility-app-header-height);
 }
 
 .utility-app-brand {
@@ -1657,9 +1669,12 @@ body.radius-map-page :where(button, input, a):focus-visible {
 }
 
 @media (max-width: 860px) {
+  body.radius-map-page {
+    --utility-app-header-height: 56px;
+  }
+
   .utility-app-header {
     grid-template-columns: 1fr auto;
-    min-height: 56px;
     padding: 0 14px;
   }
 
