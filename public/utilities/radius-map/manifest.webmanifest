@@ -1,0 +1,33 @@
+{
+  "id": "/utilities/radius-map/",
+  "name": "Radius Map",
+  "short_name": "Radius Map",
+  "description": "Draw, save, compare, and triangulate radius or diameter measurements anywhere on the map.",
+  "start_url": "/utilities/radius-map/",
+  "scope": "/utilities/radius-map/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8f9ff",
+  "theme_color": "#f8f9ff",
+  "categories": ["navigation", "utilities"],
+  "icons": [
+    {
+      "src": "/utilities/radius-map/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/utilities/radius-map/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/utilities/radius-map/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

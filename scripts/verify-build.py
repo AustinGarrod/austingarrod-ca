@@ -85,9 +85,10 @@ if deployment_manifest_path.is_file():
         check(recorded.get("sha256") == sha256(path), f"Deployment manifest hash mismatch: {relative}")
 
 projects = data["projects"]
-routes = ["/", "/about/", "/projects/", "/contact/"] + [
+utilities = data["utilities"]
+routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
-]
+] + [f"/utilities/{utility['slug']}/" for utility in utilities]
 
 all_html: list[str] = []
 for route in routes:
@@ -151,6 +152,10 @@ for required_event in [
     "mobile-menu-toggle",
     "outbound-link-click",
     "project-case-study-view",
+    "utility-open",
+    "utility-navigation",
+    "radius-map-search",
+    "radius-map-save",
     "resume-view",
 ]:
     check(
@@ -190,6 +195,27 @@ projects_markup = route_file("/projects/").read_text(encoding="utf-8")
 project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
 check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
 check("Private prototype" in projects_markup, "Projects index must label the NFC project as a prototype")
+
+utilities_markup = route_file("/utilities/").read_text(encoding="utf-8")
+utility_heading_links = re.findall(r'<h2><a href="/utilities/[^\"]+/"[^>]*>', utilities_markup)
+check(len(utility_heading_links) == len(utilities), "Utilities index must use one h2 per utility card")
+check('href="/utilities/radius-map/"' in utilities_markup, "Utilities index must link to Radius Map")
+
+radius_map_markup = route_file("/utilities/radius-map/").read_text(encoding="utf-8")
+for required_radius_map_behavior in [
+    'id="map"',
+    'id="location-form"',
+    'id="locate-button"',
+    'id="save-measurement-button"',
+    'id="saved-panel"',
+    'id="triangulate-button"',
+    '/utilities/radius-map/manifest.webmanifest',
+    '/utilities/radius-map/icons/icon-192.png',
+    'Saved on this device',
+]:
+    check(required_radius_map_behavior in radius_map_markup, f"Radius Map is missing: {required_radius_map_behavior}")
+for retired_radius_map_behavior in ["signin-with-chatgpt", "signout-with-chatgpt", "/api/session", "/api/measurements"]:
+    check(retired_radius_map_behavior not in radius_map_markup, f"Radius Map still contains Sites account behavior: {retired_radius_map_behavior}")
 
 featured_paths = [
     "/projects/honour-our-veterans-banner-platform/",
@@ -232,6 +258,39 @@ if manifest_path.is_file():
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     check(manifest.get("icons", [{}])[0].get("sizes") == "any", "SVG manifest icon must use sizes=any")
 
+radius_manifest_path = DIST / "utilities" / "radius-map" / "manifest.webmanifest"
+check(radius_manifest_path.is_file(), "Missing Radius Map manifest")
+if radius_manifest_path.is_file():
+    radius_manifest = json.loads(radius_manifest_path.read_text(encoding="utf-8"))
+    for field in ["id", "start_url", "scope"]:
+        check(radius_manifest.get(field) == "/utilities/radius-map/", f"Radius Map manifest has the wrong {field}")
+    check(radius_manifest.get("display") == "standalone", "Radius Map manifest must be installable")
+
+radius_worker_path = DIST / "utilities" / "radius-map" / "sw.js"
+check(radius_worker_path.is_file(), "Missing Radius Map service worker")
+if radius_worker_path.is_file():
+    radius_worker = radius_worker_path.read_text(encoding="utf-8")
+    for behavior in [
+        'const APP_PATH = "/utilities/radius-map/"',
+        'url.origin !== self.location.origin',
+        'url.pathname.startsWith(APP_PATH + "api/")',
+        'caches.match(APP_PATH)',
+    ]:
+        check(behavior in radius_worker, f"Radius Map service worker is missing behavior: {behavior}")
+
+radius_icon_directory = DIST / "utilities" / "radius-map" / "icons"
+for filename, size in [
+    ("icon-192.png", (192, 192)),
+    ("icon-512.png", (512, 512)),
+    ("icon-maskable-512.png", (512, 512)),
+    ("apple-touch-icon.png", (180, 180)),
+]:
+    icon_path = radius_icon_directory / filename
+    check(icon_path.is_file(), f"Missing Radius Map icon: {filename}")
+    if icon_path.is_file():
+        with Image.open(icon_path) as image:
+            check(image.size == size, f"Radius Map icon has the wrong size: {filename}")
+
 htaccess_path = DIST / ".htaccess"
 check(htaccess_path.is_file(), "Missing .htaccess")
 if htaccess_path.is_file():
@@ -247,6 +306,33 @@ if htaccess_path.is_file():
         "no-store",
     ]:
         check(directive in htaccess, f".htaccess is missing required deployment directive: {directive}")
+
+radius_htaccess_path = DIST / "utilities" / "radius-map" / ".htaccess"
+check(radius_htaccess_path.is_file(), "Missing Radius Map .htaccess")
+if radius_htaccess_path.is_file():
+    radius_htaccess = radius_htaccess_path.read_text(encoding="utf-8")
+    for directive in [
+        "geolocation=(self)",
+        "https://tile.openstreetmap.org",
+        "Service-Worker-Allowed",
+        "/utilities/radius-map/",
+    ]:
+        check(directive in radius_htaccess, f"Radius Map .htaccess is missing: {directive}")
+
+geocode_path = DIST / "utilities" / "radius-map" / "api" / "geocode.php"
+check(geocode_path.is_file(), "Missing Radius Map PHP geocoder")
+if geocode_path.is_file():
+    geocode = geocode_path.read_text(encoding="utf-8")
+    for behavior in [
+        "NOMINATIM_SEARCH_URL",
+        "MIN_UPSTREAM_INTERVAL_MICROSECONDS",
+        "flock",
+        "hash('sha256'",
+        "User-Agent: AustinGarrodRadiusMap",
+        "count($results) === 5",
+    ]:
+        check(behavior in geocode, f"Radius Map geocoder is missing expected behavior: {behavior}")
+    check("respond(" not in geocode, "Radius Map geocoder contains an undefined response helper")
 
 contact_path = DIST / "contact.php"
 check(contact_path.is_file(), "Missing contact.php")
@@ -267,6 +353,12 @@ check(og_path.is_file(), "Missing og-image.png")
 if og_path.is_file():
     with Image.open(og_path) as image:
         check(image.size == (1200, 630), "Open Graph image must be 1200x630")
+
+radius_og_path = DIST / "utilities" / "radius-map" / "og.png"
+check(radius_og_path.is_file(), "Missing Radius Map Open Graph image")
+if radius_og_path.is_file():
+    with Image.open(radius_og_path) as image:
+        check(image.size == (1731, 909), "Radius Map Open Graph image must be 1731x909")
 
 resume_path = DIST / "austin-garrod-resume.pdf"
 check(resume_path.is_file(), "Missing resume PDF")

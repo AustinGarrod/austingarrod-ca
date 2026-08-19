@@ -1,6 +1,6 @@
 # AustinGarrod.ca Agent Guide
 
-This repo is Austin Garrod's personal/professional portfolio site. It is a static Astro + TypeScript build for basic HostPapa/cPanel hosting, with one PHP contact endpoint copied into `dist/`.
+This repo is Austin Garrod's personal/professional portfolio site. It is a static Astro + TypeScript build for basic HostPapa/cPanel hosting, with narrowly scoped PHP endpoints copied into `dist/`.
 
 ## Read First
 
@@ -13,12 +13,14 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 
 ## Project Shape
 
-- `src/pages/` contains Astro routes for Home, About, Projects, Contact, 404, sitemap, and robots.
+- `src/pages/` contains Astro routes for Home, About, Projects, Utilities, Contact, 404, sitemap, and robots.
 - `src/components/` contains reusable layout and content components.
-- `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
+- `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, utility cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
+- `src/utilities/` contains browser utility logic. Radius Map measurements are device-local and its service worker must remain scoped to `/utilities/radius-map/`.
 - `src/styles/global.css` contains the visual system and responsive layout.
 - `scripts/generate-assets.py` generates `public/og-image.png` and `public/austin-garrod-resume.pdf`.
 - `public/contact.php` is the HostPapa/cPanel contact handler and must continue to work without Node on the server.
+- `public/utilities/radius-map/api/geocode.php` is the HostPapa geocoding proxy. Preserve its submit-only search, hashed cache keys, upstream rate limit, and absence of raw-query logging.
 - `dist/`, `output/`, `tmp/`, `.astro/`, and `node_modules/` are generated/local artifacts and should not be committed.
 
 ## Commands
@@ -27,16 +29,18 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 npm install
 python -m pip install -r requirements.txt
 npm run generate:assets
+npm test
 npm run build
 npm run preview
 ```
 
-Use `npm run build` as the main verification command. It runs `astro check` and `astro build`.
+Use `npm run build` as the main verification command. It runs `astro check`, `astro build`, and generates the scoped Radius Map service worker.
 
 If PHP is available locally, also run:
 
 ```powershell
 php -l public/contact.php
+php -l public/utilities/radius-map/api/geocode.php
 ```
 
 PHP CLI is not required for local Astro work; the contact form still needs a HostPapa-side smoke test after deployment.
@@ -58,6 +62,8 @@ PHP CLI is not required for local Astro work; the contact form still needs a Hos
 - Keep the homepage hero headline restrained. It was intentionally reduced after review; avoid increasing it back to the original oversized scale without explicit direction.
 - Use lucide icons through `@lucide/astro` when an icon is needed.
 - Preserve responsive behavior for desktop, mobile, and the full mobile navigation panel.
+- Keep utility controls readable over their primary workspace. Radius Map uses a compact utility header and a map-first layout rather than the full portfolio header/footer.
+- Do not add account, D1, OpenAI Sites, or cross-device synchronization code to Radius Map; saved measurements remain local to the browser.
 
 ## Deployment
 
@@ -82,6 +88,7 @@ For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the log
 
 - Run `npm run generate:assets` after changing the asset generator, resume content, or OG image.
 - Run `npm run build` before committing.
-- For visual changes, preview locally and check Home, About, Projects, Contact, 404, and the mobile menu.
+- For visual changes, preview locally and check Home, About, Projects, Utilities, Radius Map, Contact, 404, and the mobile menu.
+- For Radius Map changes, exercise search, coordinates, on-demand geolocation, map placement, measurement conversion, device-local CRUD, visibility, triangulation, installability, and offline-shell behavior without caching map tiles.
 - Check for horizontal overflow, cramped buttons/inputs, broken links, resume download, image loading, and contact form markup.
 - After HostPapa deployment, verify `https://austingarrod.ca`, HTTPS, resume download, contact form delivery, and that old content is replaced.

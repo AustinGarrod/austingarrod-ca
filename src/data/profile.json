@@ -22,6 +22,9 @@
     "/projects/": {
       "lastModified": "2026-07-14"
     },
+    "/utilities/": {
+      "lastModified": "2026-08-19"
+    },
     "/contact/": {
       "lastModified": "2026-07-09"
     }
@@ -133,6 +136,24 @@
         "Designed and helped develop an iOS application for item-tracking workflows.",
         "Reworked a Meteor web app to improve accessibility across devices for senior users."
       ]
+    }
+  ],
+  "utilities": [
+    {
+      "slug": "radius-map",
+      "title": "Radius Map",
+      "label": "Geographic distance utility",
+      "summary": "Draw, save, and compare radius or diameter measurements around a searched place, coordinates, your current location, or a pin on the map.",
+      "capabilities": [
+        "Search for places or enter decimal coordinates",
+        "Switch between radius, diameter, kilometres, and miles",
+        "Save measurements on this device and compare several circles",
+        "Calculate a best-fit point from three or more visible circles"
+      ],
+      "stack": ["Astro", "TypeScript", "Leaflet", "PHP", "OpenStreetMap"],
+      "status": "Available",
+      "icon": "map-pinned",
+      "lastModified": "2026-08-19"
     }
   ],
   "projects": [
@@ -516,6 +537,10 @@
     {
       "href": "/projects/",
       "label": "Projects"
+    },
+    {
+      "href": "/utilities/",
+      "label": "Utilities"
     },
     {
       "href": "/contact/",

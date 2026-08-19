@@ -26,6 +26,9 @@ jobs:
       - name: Generate assets
         run: npm run generate:assets
 
+      - name: Test utilities
+        run: npm test
+
       - name: Build
         run: npm run build
 

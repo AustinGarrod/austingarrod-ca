@@ -1,4 +1,4 @@
-import { pageMetadata, profile, projects, type Project } from "@data/profile";
+import { pageMetadata, profile, projects, utilities, type Project, type Utility } from "@data/profile";
 
 export type JsonLd = Record<string, unknown>;
 export type SchemaPageType = "ProfilePage" | "CollectionPage" | "ContactPage" | "WebPage";
@@ -8,15 +8,18 @@ export const HOME_URL = `${SITE_URL}/`;
 export const PERSON_ID = `${HOME_URL}#person`;
 export const WEBSITE_ID = `${HOME_URL}#website`;
 export const PROJECTS_ITEM_LIST_ID = `${SITE_URL}/projects/#itemlist`;
+export const UTILITIES_ITEM_LIST_ID = `${SITE_URL}/utilities/#itemlist`;
 
 export const pageLastModified: Record<string, string> = {
   ...Object.fromEntries(Object.entries(pageMetadata).map(([path, metadata]) => [path, metadata.lastModified])),
-  ...Object.fromEntries(projects.map((project) => [getProjectPath(project), project.lastModified]))
+  ...Object.fromEntries(projects.map((project) => [getProjectPath(project), project.lastModified])),
+  ...Object.fromEntries(utilities.map((utility) => [getUtilityPath(utility), utility.lastModified]))
 };
 
 const breadcrumbLabels: Record<string, string> = {
   about: "About Austin Garrod",
   projects: "Projects",
+  utilities: "Utilities",
   contact: "Contact Austin Garrod"
 };
 
@@ -54,6 +57,14 @@ export function getProjectUrl(project: Project) {
 
 export function getProjectAnchor(project: Project) {
   return `/projects/#${project.slug}`;
+}
+
+export function getUtilityPath(utility: Utility) {
+  return `/utilities/${utility.slug}/`;
+}
+
+export function getUtilityUrl(utility: Utility) {
+  return getAbsoluteUrl(getUtilityPath(utility));
 }
 
 export function getPageSchemaId(canonical: string) {
@@ -271,4 +282,45 @@ export function createProjectsItemListSchema(selectedProjects: Project[] = proje
 
 export function createProjectsStructuredData(selectedProjects: Project[] = projects) {
   return [createProjectsItemListSchema(selectedProjects), ...selectedProjects.map(createProjectCreativeWorkSchema)];
+}
+
+export function createUtilityApplicationSchema(utility: Utility): JsonLd {
+  return {
+    "@type": "WebApplication",
+    "@id": `${getUtilityUrl(utility)}#application`,
+    name: utility.title,
+    alternateName: utility.label,
+    description: utility.summary,
+    url: getUtilityUrl(utility),
+    applicationCategory: "UtilitiesApplication",
+    operatingSystem: "Any modern web browser",
+    browserRequirements: "Requires JavaScript; location access is optional",
+    creator: {
+      "@id": PERSON_ID
+    },
+    isPartOf: {
+      "@id": WEBSITE_ID
+    }
+  };
+}
+
+export function createUtilitiesItemListSchema(selectedUtilities: Utility[] = utilities): JsonLd {
+  return {
+    "@type": "ItemList",
+    "@id": UTILITIES_ITEM_LIST_ID,
+    name: `${profile.name} web utilities`,
+    itemListElement: selectedUtilities.map((utility, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: getUtilityUrl(utility),
+      item: {
+        "@id": `${getUtilityUrl(utility)}#application`,
+        name: utility.title
+      }
+    }))
+  };
+}
+
+export function createUtilitiesStructuredData(selectedUtilities: Utility[] = utilities) {
+  return [createUtilitiesItemListSchema(selectedUtilities), ...selectedUtilities.map(createUtilityApplicationSchema)];
 }

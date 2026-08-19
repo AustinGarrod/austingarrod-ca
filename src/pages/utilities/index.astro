@@ -1,0 +1,34 @@
+---
+import UtilityCard from "@components/UtilityCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile, utilities } from "@data/profile";
+import { createUtilitiesStructuredData, UTILITIES_ITEM_LIST_ID } from "@data/seo";
+
+const utilitiesStructuredData = createUtilitiesStructuredData(utilities);
+---
+
+<BaseLayout
+  active="utilities"
+  title={`Utilities | ${profile.name}`}
+  description="Focused browser utilities by Austin Garrod, built to solve practical problems without accounts or unnecessary setup."
+  schemaType="CollectionPage"
+  breadcrumbLabel="Utilities"
+  mainEntityId={UTILITIES_ITEM_LIST_ID}
+  structuredData={utilitiesStructuredData}
+>
+  <section class="page-hero page-hero-compact">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">Practical tools</p>
+      <h1>Utilities</h1>
+      <p>
+        Focused browser tools for practical jobs. Each utility is designed to work directly, explain its data boundaries, and stay useful across desktop and mobile screens.
+      </p>
+    </div>
+  </section>
+
+  <section class="container content-section utilities-list-section">
+    <div class="utilities-grid">
+      {utilities.map((utility) => <UtilityCard utility={utility} />)}
+    </div>
+  </section>
+</BaseLayout>

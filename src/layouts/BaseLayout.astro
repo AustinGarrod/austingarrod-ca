@@ -8,12 +8,20 @@ import { createBaseJsonLdGraph, type JsonLd, type SchemaPageType } from "@data/s
 interface Props {
   title?: string;
   description?: string;
-  active?: "home" | "about" | "projects" | "contact";
+  active?: "home" | "about" | "projects" | "utilities" | "contact";
   noIndex?: boolean;
   schemaType?: SchemaPageType;
   breadcrumbLabel?: string;
   mainEntityId?: string;
   structuredData?: JsonLd | JsonLd[];
+  shell?: "site" | "utility";
+  manifestPath?: string;
+  themeColor?: string;
+  ogImagePath?: string;
+  ogImageAlt?: string;
+  ogImageWidth?: number;
+  ogImageHeight?: number;
+  bodyClass?: string;
 }
 
 const defaultSchemaType: SchemaPageType = Astro.url.pathname === "/" ? "ProfilePage" : "WebPage";
@@ -25,11 +33,19 @@ const {
   schemaType = defaultSchemaType,
   breadcrumbLabel,
   mainEntityId,
-  structuredData
+  structuredData,
+  shell = "site",
+  manifestPath = "/site.webmanifest",
+  themeColor = "#f8f9ff",
+  ogImagePath = "/og-image.png",
+  ogImageAlt = `${profile.name} - ${profile.title}`,
+  ogImageWidth = 1200,
+  ogImageHeight = 630,
+  bodyClass
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, "https://austingarrod.ca").toString();
-const ogImage = new URL("/og-image.png", "https://austingarrod.ca").toString();
+const ogImage = new URL(ogImagePath, "https://austingarrod.ca").toString();
 const structuredDataItems = structuredData ? (Array.isArray(structuredData) ? structuredData : [structuredData]) : [];
 const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
@@ -59,24 +75,25 @@ const analyticsEnabled = import.meta.env.PROD;
     {noIndex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#f8f9ff" />
+    <link rel="manifest" href={manifestPath} />
+    <meta name="theme-color" content={themeColor} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
-    <meta property="og:image:alt" content={`${profile.name} - ${profile.title}`} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={ogImageAlt} />
+    <meta property="og:image:width" content={String(ogImageWidth)} />
+    <meta property="og:image:height" content={String(ogImageHeight)} />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:site_name" content={profile.name} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
-    <meta name="twitter:image:alt" content={`${profile.name} - ${profile.title}`} />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
     <script type="application/ld+json" set:html={jsonLd} is:inline></script>
+    <slot name="head" />
     {analyticsEnabled && (
       <script
         defer
@@ -89,12 +106,12 @@ const analyticsEnabled = import.meta.env.PROD;
       ></script>
     )}
   </head>
-  <body>
+  <body class={bodyClass}>
     <a class="skip-link" href="#main">Skip to content</a>
-    <Header active={active} />
+    {shell === "site" && <Header active={active} />}
     <main id="main">
       <slot />
     </main>
-    <Footer />
+    {shell === "site" && <Footer />}
   </body>
 </html>

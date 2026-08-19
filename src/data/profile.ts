@@ -3,6 +3,8 @@ import profileData from "./profile.json";
 export type ProjectStatus = "Public" | "Public preview" | "Private case study" | "Private prototype" | "Archived public";
 export type ProjectVisual = "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign";
 export type ProjectIcon = "blocks" | "radio" | "database" | "cpu" | "map" | "globe" | "layers";
+export type UtilityStatus = "Available";
+export type UtilityIcon = "map-pinned";
 
 export type Profile = {
   name: string;
@@ -67,6 +69,18 @@ export type Project = {
   lastModified: string;
 };
 
+export type Utility = {
+  slug: string;
+  title: string;
+  label: string;
+  summary: string;
+  capabilities: string[];
+  stack: string[];
+  status: UtilityStatus;
+  icon: UtilityIcon;
+  lastModified: string;
+};
+
 export type SiteNavItem = {
   href: string;
   label: string;
@@ -78,9 +92,10 @@ export type ProfileData = {
   highlights: Highlight[];
   skills: Skill[];
   experience: Experience[];
+  utilities: Utility[];
   projects: Project[];
   siteNav: SiteNavItem[];
 };
 
 export const data = profileData as ProfileData;
-export const { profile, pageMetadata, highlights, skills, experience, projects, siteNav } = data;
+export const { profile, pageMetadata, highlights, skills, experience, utilities, projects, siteNav } = data;

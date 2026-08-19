@@ -1,13 +1,13 @@
 # AustinGarrod.ca
 
-Personal and professional portfolio site for Austin Garrod. Built as a static Astro site for basic HostPapa/cPanel hosting, with one PHP contact endpoint copied into the production output.
+Personal and professional portfolio site for Austin Garrod. Built as a static Astro site for basic HostPapa/cPanel hosting, with narrowly scoped PHP endpoints copied into the production output.
 
 ## Stack
 
 - Astro static output
 - JSON content data with TypeScript validation
 - CSS with the light International Precision visual direction from the proper Stitch export
-- PHP contact handler for cPanel shared hosting
+- PHP contact and utility handlers for cPanel shared hosting
 - GitHub Actions for CI and FTPS deployment
 
 ## Design Source
@@ -24,6 +24,7 @@ The current visual system is light, precise, and Swiss/corporate: sharp corners,
 npm install
 python -m pip install -r requirements.txt
 npm run generate:assets
+npm test
 npm run dev
 ```
 
@@ -33,7 +34,7 @@ Build the production site:
 npm run build:deploy
 ```
 
-`build:deploy` regenerates the resume and social image, builds Astro, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact.
+`build:deploy` regenerates the resume and social image, builds Astro and the Radius Map offline shell, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact.
 
 Preview the built output:
 
@@ -50,6 +51,14 @@ The generated resume lives at `public/austin-garrod-resume.pdf`. Regenerate it w
 ```powershell
 npm run generate:assets
 ```
+
+## Utilities
+
+`/utilities/` is the catalog for focused browser tools. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
+
+Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.
+
+Place searches use `public/utilities/radius-map/api/geocode.php`, a same-origin HostPapa proxy with submit-only search, input validation, a one-request-per-second upstream limit, and temporary hash-keyed response caching. The cache does not store raw search terms or associate searches with saved measurements.
 
 ## Contact Form
 
@@ -68,6 +77,7 @@ Local PHP CLI is optional. If PHP is installed, check syntax with:
 
 ```powershell
 php -l public/contact.php
+php -l public/utilities/radius-map/api/geocode.php
 ```
 
 Otherwise, smoke test the form after upload on HostPapa.
@@ -83,6 +93,7 @@ Production analytics include:
 - resume views and file downloads
 - project case-study views and public project/source link clicks
 - major CTA, outbound profile, email, mobile menu, and 404 recovery events
+- utility opens and privacy-safe Radius Map actions without search terms, coordinates, or measurement names
 - valid contact-form submissions plus separate `contact-form-sent`, `contact-form-error`, and `contact-form-invalid` outcomes, without sending field values
 
 The deployment verifier checks this configuration on every production build. Session replay, heatmaps, visitor identification, and form-content tracking remain intentionally disabled for privacy. In Umami, useful conversion goals include `contact-form-sent`, `file-download`, and `resume-view`; funnels can combine homepage or contact pageviews with those events.
@@ -102,7 +113,7 @@ Required repository secrets:
 
 For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the account lands directly in `public_html`. If the FTP user changes later, confirm the login directory before changing this value.
 
-The deployment uploads the contents of `dist/`, including static pages, `.htaccess`, `contact.php`, the resume PDF, generated images, and `deployment-manifest.json`. The manifest records the exact Git commit plus the SHA-256 hash and byte size of every other deployed file. After deployment, compare the public manifest at `https://austingarrod.ca/deployment-manifest.json` with the workflow commit and public asset hashes. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
+The deployment uploads the contents of `dist/`, including static pages, scoped `.htaccess` files, PHP endpoints, the resume PDF, utility PWA assets, generated images, and `deployment-manifest.json`. The manifest records the exact Git commit plus the SHA-256 hash and byte size of every other deployed file. After deployment, compare the public manifest at `https://austingarrod.ca/deployment-manifest.json` with the workflow commit and public asset hashes. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
 
 ## HostPapa Notes
 

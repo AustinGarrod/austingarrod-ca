@@ -1,0 +1,328 @@
+---
+import "leaflet/dist/leaflet.css";
+import "../../styles/radius-map.css";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { utilities } from "@data/profile";
+import { createUtilityApplicationSchema } from "@data/seo";
+
+const utility = utilities.find((item) => item.slug === "radius-map");
+if (!utility) throw new Error("Radius Map utility metadata is missing.");
+
+const title = "Radius Map — Draw a radius anywhere";
+const description = "Draw, save, and compare radius or diameter measurements, then calculate a best-fit point from visible circles.";
+---
+
+<BaseLayout
+  shell="utility"
+  title={title}
+  description={description}
+  breadcrumbLabel="Radius Map"
+  structuredData={createUtilityApplicationSchema(utility)}
+  manifestPath="/utilities/radius-map/manifest.webmanifest"
+  themeColor="#f8f9ff"
+  ogImagePath="/utilities/radius-map/og.png"
+  ogImageAlt="Radius Map — Draw a radius anywhere"
+  ogImageWidth={1731}
+  ogImageHeight={909}
+  bodyClass="radius-map-page"
+>
+  <Fragment slot="head">
+    <meta name="application-name" content="Radius Map" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Radius Map" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/utilities/radius-map/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/utilities/radius-map/icons/apple-touch-icon.png" />
+  </Fragment>
+
+  <div class="app-shell">
+    <header class="utility-app-header">
+      <a
+        class="utility-app-brand"
+        href="/"
+        aria-label="Austin Garrod home"
+        data-umami-event="utility-navigation"
+        data-umami-event-destination="home"
+      >Austin Garrod</a>
+      <nav aria-label="Utility breadcrumb">
+        <a
+          href="/utilities/"
+          data-umami-event="utility-navigation"
+          data-umami-event-destination="utilities"
+        >Utilities</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Radius Map</span>
+      </nav>
+      <p>Saved on this device</p>
+    </header>
+
+    <div id="map" class="map-canvas" role="region" aria-label="Interactive radius map"></div>
+    <div class="map-wash" aria-hidden="true"></div>
+
+    <section class="control-panel" aria-labelledby="app-title">
+      <header class="brand-header">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <div class="brand-copy">
+          <p class="eyebrow">Measure anywhere</p>
+          <h1 id="app-title">Radius Map</h1>
+        </div>
+        <button
+          id="panel-toggle"
+          class="panel-toggle"
+          type="button"
+          aria-expanded="true"
+          aria-controls="panel-content"
+        >
+          <span class="panel-toggle-label">Hide controls</span>
+          <span class="panel-toggle-icon" aria-hidden="true"></span>
+        </button>
+      </header>
+
+      <div id="panel-content" class="panel-content">
+        <div class="workspace-tabs" role="tablist" aria-label="Radius Map workspace">
+          <button
+            id="create-tab"
+            class="workspace-tab is-active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="create-panel"
+          >Create</button>
+          <button
+            id="saved-tab"
+            class="workspace-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="saved-panel"
+          >Saved <span id="saved-count" class="tab-count">0</span></button>
+        </div>
+
+        <aside id="install-app-card" class="install-app-card" aria-label="Install Radius Map" hidden>
+          <img src="/utilities/radius-map/icons/icon-192.png" width="44" height="44" alt="" />
+          <div>
+            <strong>Install Radius Map</strong>
+            <span>Keep it one tap away on this device.</span>
+          </div>
+          <button id="install-app-button" type="button" data-umami-event="radius-map-install">Install</button>
+        </aside>
+
+        <div id="create-panel" role="tabpanel" aria-labelledby="create-tab">
+          <section class="control-section location-section" aria-labelledby="location-heading">
+            <div class="section-heading">
+              <div>
+                <p class="step-label">01</p>
+                <h2 id="location-heading">Choose a centre</h2>
+              </div>
+              <p>Search, locate, or tap the map</p>
+            </div>
+
+            <form id="location-form" class="search-form" novalidate>
+              <label for="location-search" class="sr-only">Search for a place or enter latitude and longitude</label>
+              <div class="search-field-wrap">
+                <span class="search-symbol" aria-hidden="true"></span>
+                <input
+                  id="location-search"
+                  name="location"
+                  type="search"
+                  placeholder="City, address, or 43.65, -79.38"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button id="search-button" class="search-button" type="submit" data-umami-event="radius-map-search">Find</button>
+              </div>
+            </form>
+
+            <ul id="search-results" class="search-results" aria-label="Location search results" hidden></ul>
+
+            <button id="locate-button" class="location-button" type="button" data-umami-event="radius-map-geolocation">
+              <span class="locate-symbol" aria-hidden="true"></span>
+              <span>Use my location</span>
+            </button>
+          </section>
+
+          <section class="control-section measurement-section" aria-labelledby="measurement-heading">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="step-label">02</p>
+                <h2 id="measurement-heading">Set the distance</h2>
+              </div>
+            </div>
+
+            <fieldset class="segment-group" aria-label="Measurement type">
+              <legend class="sr-only">Measurement type</legend>
+              <input id="kind-radius" type="radio" name="measurement-kind" value="radius" checked />
+              <label for="kind-radius">Radius</label>
+              <input id="kind-diameter" type="radio" name="measurement-kind" value="diameter" />
+              <label for="kind-diameter">Diameter</label>
+            </fieldset>
+
+            <div class="measurement-row">
+              <div class="value-field">
+                <label id="measurement-label" for="measurement-value">Radius</label>
+                <input
+                  id="measurement-value"
+                  type="number"
+                  value="10"
+                  min="0"
+                  step="any"
+                  inputmode="decimal"
+                  aria-describedby="measurement-error"
+                />
+              </div>
+
+              <fieldset class="unit-group" aria-label="Distance unit">
+                <legend>Unit</legend>
+                <div class="unit-options">
+                  <input id="unit-km" type="radio" name="distance-unit" value="km" checked />
+                  <label for="unit-km">km</label>
+                  <input id="unit-mi" type="radio" name="distance-unit" value="mi" />
+                  <label for="unit-mi">mi</label>
+                </div>
+              </fieldset>
+            </div>
+            <p id="measurement-error" class="field-error" role="alert" hidden></p>
+          </section>
+
+          <div class="measurement-summary" aria-live="polite">
+            <span class="summary-ring" aria-hidden="true"></span>
+            <div>
+              <p id="summary-value">10 km radius</p>
+              <span id="summary-centre">Choose a centre to draw the circle</span>
+            </div>
+          </div>
+
+          <div class="save-actions">
+            <button
+              id="save-measurement-button"
+              class="primary-action"
+              type="button"
+              disabled
+              data-umami-event="radius-map-save"
+            >Save measurement</button>
+            <button id="cancel-edit-button" class="text-action" type="button" hidden>Cancel editing</button>
+          </div>
+
+          <p id="app-status" class="app-status" role="status" aria-live="polite">
+            Tap anywhere on the map to get started.
+          </p>
+        </div>
+
+        <div id="saved-panel" role="tabpanel" aria-labelledby="saved-tab" hidden>
+          <section class="saved-section" aria-labelledby="saved-heading">
+            <div class="saved-heading-row">
+              <div>
+                <p class="step-label">This browser</p>
+                <h2 id="saved-heading">Saved measurements</h2>
+              </div>
+              <button id="refresh-library-button" class="icon-action" type="button" aria-label="Refresh saved measurements">↻</button>
+            </div>
+
+            <p class="local-storage-note">Measurements stay on this device and are not synced to an account.</p>
+            <label class="library-search" for="library-search">
+              <span class="search-symbol" aria-hidden="true"></span>
+              <input id="library-search" type="search" placeholder="Search saved measurements" autocomplete="off" />
+            </label>
+
+            <div id="library-loading" class="library-message" hidden>Loading your measurements…</div>
+            <div id="library-empty" class="library-message" hidden>
+              <strong>No saved measurements yet</strong>
+              <span>Create a circle, then save it here for later.</span>
+            </div>
+            <div id="library-no-results" class="library-message" hidden>No measurements match that search.</div>
+            <div id="saved-list" class="saved-list" aria-live="polite"></div>
+            <p id="library-status" class="app-status library-status" role="status" aria-live="polite"></p>
+          </section>
+
+          <section class="triangulation-section" aria-labelledby="triangulation-heading">
+            <div class="triangulation-copy">
+              <span class="triangulation-mark" aria-hidden="true">△</span>
+              <div>
+                <h2 id="triangulation-heading">Find the best-fit point</h2>
+                <p id="triangulation-hint">Show at least 3 circles to calculate a centre.</p>
+              </div>
+            </div>
+            <button
+              id="triangulate-button"
+              class="primary-action"
+              type="button"
+              disabled
+              data-umami-event="radius-map-triangulate"
+            >Find best-fit point</button>
+
+            <div id="triangulation-result" class="triangulation-result" aria-live="polite" hidden>
+              <div class="result-heading">
+                <span class="result-symbol" aria-hidden="true"></span>
+                <div>
+                  <strong>Estimated point</strong>
+                  <span id="result-coordinates"></span>
+                </div>
+              </div>
+              <div class="result-stats">
+                <span><strong id="result-input-count">0</strong> circles</span>
+                <span><strong id="result-error">—</strong> average error</span>
+              </div>
+              <button id="use-result-button" class="secondary-action" type="button">Use as centre</button>
+            </div>
+            <p id="triangulation-status" class="field-error" role="alert" hidden></p>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <div id="map-hint" class="map-hint">
+      <span class="hint-pin" aria-hidden="true"></span>
+      <span>Tap the map to place your centre</span>
+    </div>
+
+    <div id="centre-chip" class="centre-chip" hidden>
+      <span aria-hidden="true"></span>
+      <strong id="centre-chip-label">Selected centre</strong>
+    </div>
+  </div>
+
+  <dialog id="save-dialog" class="action-dialog" aria-labelledby="save-dialog-title">
+    <form id="save-form" method="dialog">
+      <div class="dialog-heading">
+        <span class="dialog-mark" aria-hidden="true"></span>
+        <div>
+          <p class="step-label">Device library</p>
+          <h2 id="save-dialog-title">Save measurement</h2>
+        </div>
+      </div>
+      <label for="measurement-name">Name</label>
+      <input id="measurement-name" name="name" type="text" maxlength="80" autocomplete="off" required />
+      <p id="save-dialog-summary" class="dialog-summary"></p>
+      <p id="save-dialog-error" class="field-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="save-dialog-cancel" class="secondary-action" type="button">Cancel</button>
+        <button id="save-dialog-submit" class="primary-action" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="delete-dialog" class="action-dialog" aria-labelledby="delete-dialog-title">
+    <form id="delete-form" method="dialog">
+      <div class="dialog-heading danger-heading">
+        <span class="dialog-mark" aria-hidden="true"></span>
+        <div>
+          <p class="step-label">Remove measurement</p>
+          <h2 id="delete-dialog-title">Delete this measurement?</h2>
+        </div>
+      </div>
+      <p id="delete-dialog-copy" class="dialog-summary"></p>
+      <p id="delete-dialog-error" class="field-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="delete-dialog-cancel" class="secondary-action" type="button">Cancel</button>
+        <button id="delete-dialog-submit" class="danger-action" type="submit">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    import { initializeRadiusMap } from "../../utilities/radius-map/scripts/map-app";
+    import { initializePwa } from "../../utilities/radius-map/scripts/pwa";
+    initializeRadiusMap();
+    initializePwa();
+  </script>
+</BaseLayout>
