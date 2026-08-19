@@ -1,0 +1,284 @@
+---
+import { Calculator, RotateCcw } from "@lucide/astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import "../../styles/screen-cut-calculator.css";
+
+const title = "Window Screen Frame Cut Calculator | Austin Garrod";
+const description = "Calculate aluminum window screen frame cut lengths from a measured opening, fitting clearance, and corner connector allowance.";
+---
+
+<BaseLayout
+  shell="utility"
+  title={title}
+  description={description}
+  noIndex
+  breadcrumbLabel="Screen Cut Calculator"
+  bodyClass="screen-cut-page"
+>
+  <header class="screen-cut-header">
+    <a class="screen-cut-brand" href="/" aria-label="Austin Garrod home">Austin Garrod</a>
+    <nav aria-label="Utility breadcrumb">
+      <a href="/utilities/">Utilities</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">Screen Cut Calculator</span>
+    </nav>
+    <p>Unlisted utility</p>
+  </header>
+
+  <div class="screen-cut-container">
+    <section class="screen-cut-intro" aria-labelledby="calculator-title">
+      <p class="eyebrow">Measure once. Cut clearly.</p>
+      <h1 id="calculator-title">Window Screen Frame Cut Calculator</h1>
+      <p>
+        Enter the measured window opening. The calculator subtracts total fitting clearance first,
+        then subtracts the corner-connector allowance to produce the extrusion cut lengths.
+      </p>
+    </section>
+
+    <div class="calculator-workspace">
+      <form id="screen-cut-form" class="calculator-panel" novalidate>
+        <div class="panel-heading">
+          <div>
+            <p class="step-label">01 / Opening</p>
+            <h2>Window opening</h2>
+          </div>
+          <span>Measured size</span>
+        </div>
+
+        <div class="dimension-grid">
+          <label class="field" for="opening-width">
+            <span>Opening width</span>
+            <div class="input-with-unit">
+              <input
+                id="opening-width"
+                name="openingWidth"
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="817"
+                aria-describedby="opening-width-error"
+              />
+              <span class="input-unit" data-opening-unit>mm</span>
+            </div>
+            <small id="opening-width-error" class="field-error" role="alert" hidden></small>
+          </label>
+
+          <label class="field" for="opening-height">
+            <span>Opening height</span>
+            <div class="input-with-unit">
+              <input
+                id="opening-height"
+                name="openingHeight"
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="840"
+                aria-describedby="opening-height-error"
+              />
+              <span class="input-unit" data-opening-unit>mm</span>
+            </div>
+            <small id="opening-height-error" class="field-error" role="alert" hidden></small>
+          </label>
+        </div>
+
+        <fieldset class="unit-fieldset">
+          <legend>Opening units</legend>
+          <div class="unit-switch">
+            <input id="opening-unit-mm" type="radio" name="opening-unit" value="mm" checked />
+            <label for="opening-unit-mm">Millimetres</label>
+            <input id="opening-unit-cm" type="radio" name="opening-unit" value="cm" />
+            <label for="opening-unit-cm">Centimetres</label>
+          </div>
+        </fieldset>
+
+        <div class="settings-grid">
+          <label class="field" for="clearance-select">
+            <span>Fit clearance</span>
+            <select id="clearance-select" name="clearance" aria-describedby="clearance-help clearance-error">
+              <option value="0">No clearance</option>
+              <option value="1">1 mm total clearance</option>
+              <option value="2" selected>2 mm total clearance</option>
+              <option value="3">3 mm total clearance</option>
+              <option value="custom">Custom clearance</option>
+            </select>
+            <small id="clearance-help">Total reduction from both width and height, not per side.</small>
+            <small id="clearance-error" class="field-error" role="alert" hidden></small>
+          </label>
+
+          <label class="field" for="rounding-select">
+            <span>Cut rounding</span>
+            <select id="rounding-select" name="rounding" aria-describedby="rounding-error">
+              <option value="0">Exact measurement</option>
+              <option value="1" selected>Nearest 1 mm</option>
+              <option value="0.5">Nearest 0.5 mm</option>
+            </select>
+            <small id="rounding-error" class="field-error" role="alert" hidden></small>
+          </label>
+        </div>
+
+        <label id="custom-clearance-field" class="field" for="custom-clearance" hidden>
+          <span>Custom total clearance</span>
+          <div class="input-with-unit">
+            <input
+              id="custom-clearance"
+              name="customClearance"
+              type="number"
+              min="0"
+              step="any"
+              value="2"
+              inputmode="decimal"
+              autocomplete="off"
+              aria-describedby="clearance-error"
+              disabled
+            />
+            <span class="input-unit">mm</span>
+          </div>
+        </label>
+
+        <details id="advanced-settings" class="advanced-settings">
+          <summary>
+            <span>Advanced</span>
+            <small>Corner connector allowance</small>
+          </summary>
+          <div class="advanced-content">
+            <label class="field" for="corner-extension">
+              <span>Corner extension per end</span>
+              <div class="input-with-unit">
+                <input
+                  id="corner-extension"
+                  name="cornerExtension"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="19.05"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  aria-describedby="corner-help corner-error"
+                />
+                <span class="input-unit">mm</span>
+              </div>
+              <small id="corner-help">
+                Total corner allowance: <strong id="total-corner-allowance">38.1 mm</strong>
+              </small>
+              <small id="corner-error" class="field-error" role="alert" hidden></small>
+            </label>
+          </div>
+        </details>
+
+        <div id="form-error-summary" class="error-summary" role="alert" aria-live="assertive" hidden></div>
+
+        <div class="calculator-actions">
+          <button class="calculate-button" type="submit">
+            <Calculator size={19} aria-hidden="true" />
+            Calculate
+          </button>
+          <button id="reset-calculator" class="reset-button" type="reset">
+            <RotateCcw size={18} aria-hidden="true" />
+            Reset
+          </button>
+        </div>
+      </form>
+
+      <section class="results-panel" aria-labelledby="cut-list-heading">
+        <div id="result-empty" class="result-empty">
+          <p class="step-label">02 / Cut list</p>
+          <h2>Ready for measurements</h2>
+          <p>Enter the opening width and height to calculate two horizontal and two vertical cuts.</p>
+          <div class="formula-order" aria-label="Calculation order">
+            <span>Opening size</span>
+            <span aria-hidden="true">→</span>
+            <span>Finished frame</span>
+            <span aria-hidden="true">→</span>
+            <span>Cut length</span>
+          </div>
+        </div>
+
+        <div id="result-content" class="result-content" hidden>
+          <header class="result-heading">
+            <div>
+              <p class="step-label">02 / Result</p>
+              <h2 id="cut-list-heading" tabindex="-1">Cut list</h2>
+            </div>
+            <span>Quantity included</span>
+          </header>
+
+          <div class="cut-list">
+            <article class="cut-item">
+              <div class="cut-label">
+                <span>Horizontal</span>
+                <strong>Top &amp; Bottom</strong>
+              </div>
+              <p class="cut-value">2 × <strong id="horizontal-cut">—</strong> mm</p>
+              <p id="horizontal-selected-unit" class="selected-unit-value" hidden></p>
+              <p id="horizontal-exact" class="exact-value" hidden></p>
+            </article>
+
+            <article class="cut-item">
+              <div class="cut-label">
+                <span>Vertical</span>
+                <strong>Left &amp; Right</strong>
+              </div>
+              <p class="cut-value">2 × <strong id="vertical-cut">—</strong> mm</p>
+              <p id="vertical-selected-unit" class="selected-unit-value" hidden></p>
+              <p id="vertical-exact" class="exact-value" hidden></p>
+            </article>
+          </div>
+
+          <div class="finished-frame">
+            <span>Finished frame size</span>
+            <strong id="finished-frame-size">—</strong>
+            <small id="finished-frame-selected-unit" hidden></small>
+          </div>
+
+          <details class="calculation-breakdown">
+            <summary>Calculation breakdown</summary>
+            <div class="breakdown-grid">
+              <section aria-labelledby="width-breakdown-heading">
+                <h3 id="width-breakdown-heading">Width → Horizontal</h3>
+                <dl>
+                  <div><dt>Opening width</dt><dd id="breakdown-opening-width">—</dd></div>
+                  <div><dt>Total clearance</dt><dd id="breakdown-width-clearance">—</dd></div>
+                  <div><dt>Finished width</dt><dd id="breakdown-finished-width">—</dd></div>
+                  <div><dt>Corner allowance</dt><dd id="breakdown-width-corner">—</dd></div>
+                  <div><dt>Calculated cut</dt><dd id="breakdown-horizontal-exact">—</dd></div>
+                  <div id="breakdown-horizontal-rounded-row"><dt>Rounded cut</dt><dd id="breakdown-horizontal-rounded">—</dd></div>
+                </dl>
+              </section>
+              <section aria-labelledby="height-breakdown-heading">
+                <h3 id="height-breakdown-heading">Height → Vertical</h3>
+                <dl>
+                  <div><dt>Opening height</dt><dd id="breakdown-opening-height">—</dd></div>
+                  <div><dt>Total clearance</dt><dd id="breakdown-height-clearance">—</dd></div>
+                  <div><dt>Finished height</dt><dd id="breakdown-finished-height">—</dd></div>
+                  <div><dt>Corner allowance</dt><dd id="breakdown-height-corner">—</dd></div>
+                  <div><dt>Calculated cut</dt><dd id="breakdown-vertical-exact">—</dd></div>
+                  <div id="breakdown-vertical-rounded-row"><dt>Rounded cut</dt><dd id="breakdown-vertical-rounded">—</dd></div>
+                </dl>
+              </section>
+            </div>
+          </details>
+        </div>
+        <p id="calculation-status" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+      </section>
+    </div>
+
+    <aside class="terminology-note" aria-labelledby="terminology-heading">
+      <p class="step-label">Terminology</p>
+      <h2 id="terminology-heading">Three measurements, one clear order</h2>
+      <div>
+        <p><strong>Opening size</strong> is what you measure at the window.</p>
+        <p><strong>Finished frame size</strong> is the opening minus total fitting clearance.</p>
+        <p><strong>Cut length</strong> is the finished frame dimension minus the total corner allowance.</p>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    import { initializeScreenCutCalculator } from "../../utilities/screen-cut-calculator/scripts/app";
+    initializeScreenCutCalculator();
+  </script>
+</BaseLayout>

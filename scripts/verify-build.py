@@ -86,9 +86,11 @@ if deployment_manifest_path.is_file():
 
 projects = data["projects"]
 utilities = data["utilities"]
-routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
+public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
+unlisted_routes = ["/utilities/screen-cut-calculator/"]
+routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
 for route in routes:
@@ -200,6 +202,29 @@ utilities_markup = route_file("/utilities/").read_text(encoding="utf-8")
 utility_heading_links = re.findall(r'<h2><a href="/utilities/[^\"]+/"[^>]*>', utilities_markup)
 check(len(utility_heading_links) == len(utilities), "Utilities index must use one h2 per utility card")
 check('href="/utilities/radius-map/"' in utilities_markup, "Utilities index must link to Radius Map")
+check(
+    "/utilities/screen-cut-calculator/" not in utilities_markup,
+    "Utilities index and structured data must not expose the unlisted Screen Cut Calculator",
+)
+
+screen_cut_markup = route_file("/utilities/screen-cut-calculator/").read_text(encoding="utf-8")
+for required_screen_cut_behavior in [
+    '<meta name="robots" content="noindex">',
+    'id="screen-cut-form"',
+    'id="opening-width"',
+    'id="opening-height"',
+    'id="clearance-select"',
+    'id="rounding-select"',
+    'id="corner-extension"',
+    'id="result-content"',
+    "Opening size",
+    "Finished frame size",
+    "Cut length",
+]:
+    check(
+        required_screen_cut_behavior in screen_cut_markup,
+        f"Screen Cut Calculator is missing: {required_screen_cut_behavior}",
+    )
 
 radius_map_markup = route_file("/utilities/radius-map/").read_text(encoding="utf-8")
 for required_radius_map_behavior in [
@@ -249,8 +274,21 @@ if sitemap_path.is_file():
         for element in sitemap.findall("sitemap:url/sitemap:loc", namespace)
         if element.text
     }
-    expected_urls = {f"{PRODUCTION_ORIGIN}{route}" for route in routes}
+    expected_urls = {f"{PRODUCTION_ORIGIN}{route}" for route in public_routes}
     check(sitemap_urls == expected_urls, "Sitemap URLs do not match the complete public route set")
+    check(
+        f"{PRODUCTION_ORIGIN}/utilities/screen-cut-calculator/" not in sitemap_urls,
+        "Sitemap must not expose the unlisted Screen Cut Calculator",
+    )
+
+robots_path = DIST / "robots.txt"
+check(robots_path.is_file(), "Missing robots.txt")
+if robots_path.is_file():
+    robots = robots_path.read_text(encoding="utf-8")
+    check(
+        "screen-cut-calculator" not in robots,
+        "robots.txt must allow crawlers to read the Screen Cut Calculator noindex directive",
+    )
 
 manifest_path = DIST / "site.webmanifest"
 check(manifest_path.is_file(), "Missing site.webmanifest")
