@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+ini_set('serialize_precision', '-1');
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_SECONDS = 86400;
@@ -44,7 +45,7 @@ if (!is_dir($cacheDirectory) && !mkdir($cacheDirectory, 0700, true) && !is_dir($
     json_response(['error' => 'Location search is temporarily unavailable.'], 503, ['Cache-Control' => 'no-store']);
 }
 
-$cacheKey = hash('sha256', 'v2|' . strtolower($query) . '|' . strtolower($acceptLanguage));
+$cacheKey = hash('sha256', 'v3|' . strtolower($query) . '|' . strtolower($acceptLanguage));
 $cacheFile = $cacheDirectory . DIRECTORY_SEPARATOR . $cacheKey . '.json';
 
 function read_cached_results(string $path): ?array

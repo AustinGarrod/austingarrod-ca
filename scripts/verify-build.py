@@ -325,6 +325,7 @@ if geocode_path.is_file():
     geocode = geocode_path.read_text(encoding="utf-8")
     for behavior in [
         "NOMINATIM_SEARCH_URL",
+        "ini_set('serialize_precision', '-1')",
         "MIN_UPSTREAM_INTERVAL_MICROSECONDS",
         "flock",
         "hash('sha256'",
