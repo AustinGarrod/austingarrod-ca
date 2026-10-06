@@ -95,15 +95,43 @@ const analyticsEnabled = import.meta.env.PROD;
     <script type="application/ld+json" set:html={jsonLd} is:inline></script>
     <slot name="head" />
     {analyticsEnabled && (
+      <>
+      <script is:inline>
+        // Umami's embedded heatmap preview must not count as a visitor.
+        window.umamiBeforeSend = (_type, payload) => window.self === window.top ? payload : false;
+      </script>
       <script
+        id="umami-tracker"
         defer
         src="https://analytics.garrod.house/script.js"
         data-website-id="bad8bf39-f9e4-4e54-865c-f3438804a9b5"
         data-domains="austingarrod.ca,www.austingarrod.ca"
         data-performance="true"
         data-do-not-track="true"
+        data-exclude-hash="true"
+        data-before-send="umamiBeforeSend"
         is:inline
       ></script>
+      <script is:inline>
+        // recorder.js does not implement the tracker's domain or opt-out attributes.
+        document.getElementById("umami-tracker").addEventListener("load", () => {
+          const dnt = window.doNotTrack || navigator.doNotTrack || navigator.msDoNotTrack;
+          if (window.self !== window.top
+            || !["austingarrod.ca", "www.austingarrod.ca"].includes(window.location.hostname)
+            || dnt === 1 || dnt === "1" || dnt === "yes") return;
+          try {
+            if (window.localStorage.getItem("umami.disabled")) return;
+          } catch {
+            // Analytics can still work when browser storage is unavailable.
+          }
+          const recorder = document.createElement("script");
+          recorder.src = "https://analytics.garrod.house/recorder.js";
+          recorder.async = true;
+          recorder.dataset.websiteId = "bad8bf39-f9e4-4e54-865c-f3438804a9b5";
+          document.head.appendChild(recorder);
+        }, { once: true });
+      </script>
+      </>
     )}
   </head>
   <body class={bodyClass}>

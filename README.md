@@ -90,13 +90,20 @@ Production analytics include:
 
 - automatic pageviews, referrers, and UTM campaign parameters
 - Core Web Vitals through Umami performance tracking
+- session replays and click/scroll heatmaps through Umami's separate recorder
 - resume views and file downloads
 - project case-study views and public project/source link clicks
 - major CTA, outbound profile, email, mobile menu, and 404 recovery events
 - utility opens and privacy-safe Radius Map actions without search terms, coordinates, or measurement names
 - valid contact-form submissions plus separate `contact-form-sent`, `contact-form-error`, and `contact-form-invalid` outcomes, without sending field values
 
-The deployment verifier checks this configuration on every production build. Session replay, heatmaps, visitor identification, and form-content tracking remain intentionally disabled for privacy. In Umami, useful conversion goals include `contact-form-sent`, `file-download`, and `resume-view`; funnels can combine homepage or contact pageviews with those events.
+The deployment verifier checks this configuration on every production build. Umami website settings enable replays and heatmaps at a sample rate of `1` (100% of eligible sessions), with moderate input masking, a maximum replay duration of 20 minutes per page, and the block selector `[data-analytics-private], .rr-block, iframe`. This configuration lives in Umami, not in recorder script attributes. Existing visits cannot be backfilled.
+
+Contact fields and Radius Map locations, map tiles, saved measurements, names, and results are excluded from replay snapshots with both `data-analytics-private` and rrweb's `rr-block` class. Calculator inputs and results are excluded too. Custom utility events contain only fixed action/outcome categories; they never include input values. Heatmaps collect pixel click positions and scroll depth, including over blocked areas, but no field contents or geographic coordinates. The current utilities do not encode their local data in URLs; keep it that way because the recorder captures page URLs, including queries and fragments. Ordinary tracking retains UTM parameters and excludes URL fragments. Visitor identification remains unused.
+
+The recorder loader applies the same production domains, browser Do Not Track preference, and `umami.disabled` local opt-out as the tracker. Embedded previews do not send pageviews, events, performance data, or recordings. The site's `frame-ancestors` policy permits only this site's origin and `https://analytics.garrod.house`, so Umami can display heatmap overlays.
+
+Saved Umami goals track `contact-form-sent` (Contact message sent), `file-download` (Resume downloaded), and `project-case-study-view` (Project case study opened). The Contact page to sent message funnel follows `/contact/` → `contact-form-submit` → `contact-form-sent` within 60 minutes. These reports are scoped to Austin Garrod's website and retain existing event names.
 
 ## GitHub Actions Deployment
 

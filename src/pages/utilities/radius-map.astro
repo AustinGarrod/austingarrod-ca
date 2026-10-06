@@ -56,7 +56,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
       <p>Saved on this device</p>
     </header>
 
-    <div id="map" class="map-canvas" role="region" aria-label="Interactive radius map"></div>
+    <div id="map" class="map-canvas rr-block" data-analytics-private role="region" aria-label="Interactive radius map"></div>
     <div class="map-wash" aria-hidden="true"></div>
 
     <section class="control-panel" aria-labelledby="app-title">
@@ -123,6 +123,8 @@ const description = "Draw, save, and compare radius or diameter measurements, th
                 <span class="search-symbol" aria-hidden="true"></span>
                 <input
                   id="location-search"
+                  class="rr-block"
+                  data-analytics-private
                   name="location"
                   type="search"
                   placeholder="City, address, or 43.65, -79.38"
@@ -133,7 +135,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
               </div>
             </form>
 
-            <ul id="search-results" class="search-results" aria-label="Location search results" hidden></ul>
+            <ul id="search-results" class="search-results rr-block" data-analytics-private aria-label="Location search results" hidden></ul>
 
             <button id="locate-button" class="location-button" type="button" data-umami-event="radius-map-geolocation">
               <span class="locate-symbol" aria-hidden="true"></span>
@@ -162,6 +164,8 @@ const description = "Draw, save, and compare radius or diameter measurements, th
                 <label id="measurement-label" for="measurement-value">Radius</label>
                 <input
                   id="measurement-value"
+                  class="rr-block"
+                  data-analytics-private
                   type="number"
                   value="10"
                   min="0"
@@ -184,7 +188,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
             <p id="measurement-error" class="field-error" role="alert" hidden></p>
           </section>
 
-          <div class="measurement-summary" aria-live="polite">
+          <div class="measurement-summary rr-block" data-analytics-private aria-live="polite">
             <span class="summary-ring" aria-hidden="true"></span>
             <div>
               <p id="summary-value">10 km radius</p>
@@ -203,7 +207,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
             <button id="cancel-edit-button" class="text-action" type="button" hidden>Cancel editing</button>
           </div>
 
-          <p id="app-status" class="app-status" role="status" aria-live="polite">
+          <p id="app-status" class="app-status rr-block" data-analytics-private role="status" aria-live="polite">
             Tap anywhere on the map to get started.
           </p>
         </div>
@@ -219,7 +223,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
             </div>
 
             <p class="local-storage-note">Measurements stay on this device and are not synced to an account.</p>
-            <label class="library-search" for="library-search">
+            <label class="library-search rr-block" data-analytics-private for="library-search">
               <span class="search-symbol" aria-hidden="true"></span>
               <input id="library-search" type="search" placeholder="Search saved measurements" autocomplete="off" />
             </label>
@@ -230,8 +234,8 @@ const description = "Draw, save, and compare radius or diameter measurements, th
               <span>Create a circle, then save it here for later.</span>
             </div>
             <div id="library-no-results" class="library-message" hidden>No measurements match that search.</div>
-            <div id="saved-list" class="saved-list" aria-live="polite"></div>
-            <p id="library-status" class="app-status library-status" role="status" aria-live="polite"></p>
+            <div id="saved-list" class="saved-list rr-block" data-analytics-private aria-live="polite"></div>
+            <p id="library-status" class="app-status library-status rr-block" data-analytics-private role="status" aria-live="polite"></p>
           </section>
 
           <section class="triangulation-section" aria-labelledby="triangulation-heading">
@@ -250,7 +254,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
               data-umami-event="radius-map-triangulate"
             >Find best-fit point</button>
 
-            <div id="triangulation-result" class="triangulation-result" aria-live="polite" hidden>
+            <div id="triangulation-result" class="triangulation-result rr-block" data-analytics-private aria-live="polite" hidden>
               <div class="result-heading">
                 <span class="result-symbol" aria-hidden="true"></span>
                 <div>
@@ -275,13 +279,13 @@ const description = "Draw, save, and compare radius or diameter measurements, th
       <span>Tap the map to place your centre</span>
     </div>
 
-    <div id="centre-chip" class="centre-chip" hidden>
+    <div id="centre-chip" class="centre-chip rr-block" data-analytics-private hidden>
       <span aria-hidden="true"></span>
       <strong id="centre-chip-label">Selected centre</strong>
     </div>
   </div>
 
-  <dialog id="save-dialog" class="action-dialog" aria-labelledby="save-dialog-title">
+  <dialog id="save-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="save-dialog-title">
     <form id="save-form" method="dialog">
       <div class="dialog-heading">
         <span class="dialog-mark" aria-hidden="true"></span>
@@ -301,7 +305,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
     </form>
   </dialog>
 
-  <dialog id="delete-dialog" class="action-dialog" aria-labelledby="delete-dialog-title">
+  <dialog id="delete-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="delete-dialog-title">
     <form id="delete-form" method="dialog">
       <div class="dialog-heading danger-heading">
         <span class="dialog-mark" aria-hidden="true"></span>

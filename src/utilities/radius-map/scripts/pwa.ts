@@ -37,6 +37,7 @@ export function initializePwa(): void {
     event.preventDefault();
     installPrompt = event as BeforeInstallPromptEvent;
     installCard.hidden = false;
+    window.umami?.track("radius-map-install-available");
   });
 
   installButton.addEventListener("click", () => {
@@ -45,11 +46,19 @@ export function initializePwa(): void {
     const prompt = installPrompt;
     installPrompt = null;
     hideInstallCard();
-    void prompt.prompt().then(() => prompt.userChoice).catch(() => undefined);
+    void prompt.prompt()
+      .then(() => prompt.userChoice)
+      .then(({ outcome }) => {
+        window.umami?.track("radius-map-install-result", { outcome: outcome === "accepted" ? "accepted" : "dismissed" });
+      })
+      .catch(() => {
+        window.umami?.track("radius-map-install-result", { outcome: "error" });
+      });
   });
 
   window.addEventListener("appinstalled", () => {
     installPrompt = null;
     hideInstallCard();
+    window.umami?.track("radius-map-installed");
   });
 }

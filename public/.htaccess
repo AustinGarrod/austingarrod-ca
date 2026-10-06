@@ -21,9 +21,10 @@ ErrorDocument 404 /404.html
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
-  Header set X-Frame-Options "SAMEORIGIN"
+  # Only this site and its private Umami dashboard may embed heatmap previews.
+  Header unset X-Frame-Options
   Header set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
 
   <Files "austin-garrod-resume.pdf">

@@ -347,6 +347,7 @@ export function initializeRadiusMap(): void {
         const point = draftMarker.getLatLng();
         const moved = { lat: point.lat, lng: point.lng };
         setCenter(moved, `Dropped pin · ${readableCoordinates(moved)}`, "Centre moved. The circle has been updated.");
+        window.umami?.track("radius-map-centre-selected", { method: "drag" });
       });
     } else {
       draftMarker.setLatLng(coordinates as LatLngExpression);
@@ -398,6 +399,7 @@ export function initializeRadiusMap(): void {
     }
     fitBounds(layer.circle.getBounds());
     setLibraryStatus(`Showing ${measurement.name}.`);
+    window.umami?.track("radius-map-saved-focus");
   }
 
   function renderSavedLayers(): void {
@@ -530,11 +532,13 @@ export function initializeRadiusMap(): void {
       if (!updated) throw new Error("Measurement not found.");
       replaceSaved(updated);
       setLibraryStatus(`${measurement.name} is now ${visible ? "shown" : "hidden"}.`);
+      window.umami?.track("radius-map-visibility-result", { outcome: "success", visibility: visible ? "shown" : "hidden" });
     } catch (error) {
       measurement.visible = previous;
       renderLibrary();
       renderSavedLayers();
       setLibraryStatus(error instanceof Error ? error.message : "Visibility could not be updated.");
+      window.umami?.track("radius-map-visibility-result", { outcome: "error" });
     }
   }
 
@@ -569,6 +573,7 @@ export function initializeRadiusMap(): void {
     saveMeasurementButton.textContent = "Update measurement";
     cancelEditButton.hidden = false;
     activateTab("create");
+    window.umami?.track("radius-map-edit-start");
   }
 
   function openDialog(dialog: HTMLDialogElement): void {
@@ -606,10 +611,12 @@ export function initializeRadiusMap(): void {
   }
 
   async function submitSaveDialog(): Promise<void> {
+    const operation = saveDialogMode === "rename" ? "rename" : state.editingId ? "update" : "create";
     const name = measurementName.value.trim();
     if (name.length === 0 || name.length > 80) {
       saveDialogError.textContent = "Name the measurement using 80 characters or fewer.";
       saveDialogError.hidden = false;
+      window.umami?.track("radius-map-save-result", { operation, outcome: "invalid" });
       return;
     }
     saveDialogSubmit.disabled = true;
@@ -634,9 +641,15 @@ export function initializeRadiusMap(): void {
         clearDraft(`${saved.name} saved on this device. Choose a centre to add another measurement.`);
       }
       saveDialog.close();
+      window.umami?.track("radius-map-save-result", {
+        operation,
+        outcome: "success",
+        ...(operation === "rename" ? {} : { kind: state.kind, unit: state.unit }),
+      });
     } catch (error) {
       saveDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be saved.";
       saveDialogError.hidden = false;
+      window.umami?.track("radius-map-save-result", { operation, outcome: "error" });
     } finally {
       saveDialogSubmit.disabled = false;
     }
@@ -664,9 +677,11 @@ export function initializeRadiusMap(): void {
       renderSavedLayers();
       setLibraryStatus(`${measurement.name} deleted.`);
       deleteDialog.close();
+      window.umami?.track("radius-map-delete-result", { outcome: "success" });
     } catch (error) {
       deleteDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be deleted.";
       deleteDialogError.hidden = false;
+      window.umami?.track("radius-map-delete-result", { outcome: "error" });
     } finally {
       deleteDialogSubmit.disabled = false;
     }
@@ -706,6 +721,7 @@ export function initializeRadiusMap(): void {
     if (!result) {
       triangulationStatus.textContent = "Use at least 3 circles with different centres to calculate a reliable point.";
       triangulationStatus.hidden = false;
+      window.umami?.track("radius-map-triangulation-result", { outcome: "insufficient-data" });
       return;
     }
     state.result = result;
@@ -722,6 +738,7 @@ export function initializeRadiusMap(): void {
     triangulationResult.hidden = false;
     triangulationStatus.hidden = true;
     fitVisibleCircles();
+    window.umami?.track("radius-map-triangulation-result", { outcome: "success" });
   }
 
   function useBestFitResult(): void {
@@ -730,6 +747,7 @@ export function initializeRadiusMap(): void {
     clearResult();
     activateTab("create");
     setCenter(coordinates, `Best-fit point · ${readableCoordinates(coordinates)}`, "Best-fit point loaded as the current centre.");
+    window.umami?.track("radius-map-centre-selected", { method: "best-fit" });
   }
 
   async function loadLibrary(force = false): Promise<void> {
@@ -746,8 +764,10 @@ export function initializeRadiusMap(): void {
       renderSavedLayers();
       if (state.saved.some((measurement) => measurement.visible)) fitVisibleCircles();
       setLibraryStatus(result.warning ?? (force ? "Saved measurements refreshed from this device." : ""));
+      if (force) window.umami?.track("radius-map-library-refresh-result", { outcome: result.warning ? "warning" : "success" });
     } catch (error) {
       setLibraryStatus(error instanceof Error ? error.message : "Your measurements could not be loaded.");
+      window.umami?.track("radius-map-library-load-error", { source: force ? "refresh" : "initial" });
     } finally {
       libraryLoading.hidden = true;
       refreshLibraryButton.disabled = false;
@@ -781,6 +801,7 @@ export function initializeRadiusMap(): void {
         searchInput.value = shortenLabel(result.label);
         closeSearchResults();
         setCenter({ lat: result.lat, lng: result.lng }, result.label, `Circle centred on ${shortenLabel(result.label)}.`);
+        window.umami?.track("radius-map-centre-selected", { method: "search" });
       });
       item.append(button);
       searchResults.append(item);
@@ -799,8 +820,10 @@ export function initializeRadiusMap(): void {
       const payload = await response.json() as GeocodeResponse;
       if (!response.ok) throw new Error(payload.error ?? "Location search failed.");
       renderSearchResults(payload.results ?? []);
+      window.umami?.track("radius-map-search-result", { outcome: payload.results?.length ? "matches" : "empty" });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Location search is temporarily unavailable.");
+      window.umami?.track("radius-map-search-result", { outcome: "error" });
     } finally {
       searchButton.disabled = false;
       searchButton.textContent = "Find";
@@ -813,12 +836,14 @@ export function initializeRadiusMap(): void {
     if (!query) {
       setStatus("Enter a place, address, postal code, or latitude and longitude.");
       searchInput.focus();
+      window.umami?.track("radius-map-search-result", { outcome: "invalid" });
       return;
     }
     const coordinates = parseCoordinateInput(query);
     if (coordinates) {
       closeSearchResults();
       setCenter(coordinates, `Coordinates · ${readableCoordinates(coordinates)}`, "Circle centred on the entered coordinates.");
+      window.umami?.track("radius-map-centre-selected", { method: "coordinates" });
       return;
     }
     void searchForLocation(query);
@@ -827,6 +852,7 @@ export function initializeRadiusMap(): void {
   locateButton.addEventListener("click", () => {
     if (!navigator.geolocation) {
       setStatus("This browser does not support location access. Search or tap the map instead.");
+      window.umami?.track("radius-map-geolocation-result", { outcome: "unsupported" });
       return;
     }
     locateButton.disabled = true;
@@ -836,6 +862,8 @@ export function initializeRadiusMap(): void {
       (position) => {
         const coordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
         setCenter(coordinates, `Your location · ${readableCoordinates(coordinates)}`, "Circle centred on your current location.");
+        window.umami?.track("radius-map-geolocation-result", { outcome: "success" });
+        window.umami?.track("radius-map-centre-selected", { method: "geolocation" });
         locateButton.disabled = false;
         queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Use my location";
       },
@@ -846,6 +874,8 @@ export function initializeRadiusMap(): void {
           3: "Location lookup timed out. Try again or use the map.",
         };
         setStatus(messages[error.code] ?? "Your location could not be determined.");
+        const outcome = error.code === 1 ? "denied" : error.code === 3 ? "timeout" : "unavailable";
+        window.umami?.track("radius-map-geolocation-result", { outcome });
         locateButton.disabled = false;
         queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Use my location";
       },
@@ -857,13 +887,17 @@ export function initializeRadiusMap(): void {
     const coordinates = { lat: event.latlng.lat, lng: event.latlng.lng };
     closeSearchResults();
     setCenter(coordinates, `Dropped pin · ${readableCoordinates(coordinates)}`, "Circle centred on the dropped pin. Drag it to fine-tune the centre.");
+    window.umami?.track("radius-map-centre-selected", { method: "map" });
   });
 
   measurementInput.addEventListener("input", () => {
     clearResult();
     refreshMeasurement();
   });
-  measurementInput.addEventListener("change", () => refreshMeasurement({ fit: true, announce: true }));
+  measurementInput.addEventListener("change", () => {
+    const valid = refreshMeasurement({ fit: true, announce: true });
+    window.umami?.track("radius-map-measurement-change", { control: "distance", outcome: valid ? "valid" : "invalid" });
+  });
   measurementInput.addEventListener("blur", () => refreshMeasurement({ fit: true }));
   measurementInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -879,6 +913,7 @@ export function initializeRadiusMap(): void {
       state.kind = input.value as MeasurementKind;
       measurementLabel.textContent = state.kind === "radius" ? "Radius" : "Diameter";
       const valid = refreshMeasurement({ fit: true, announce: true });
+      window.umami?.track("radius-map-measurement-change", { control: "kind", kind: state.kind, outcome: valid ? "valid" : "invalid" });
       if (valid) setStatus(state.kind === "radius"
         ? "Using radius. The entered distance runs from the centre to the circle edge."
         : "Using diameter. The entered distance runs across the full circle.");
@@ -895,17 +930,27 @@ export function initializeRadiusMap(): void {
         measurementInput.value = formatMeasurement(convertDisplayedMeasurement(value, state.kind, state.unit, state.kind, nextUnit));
       }
       state.unit = nextUnit;
-      refreshMeasurement({ fit: true, announce: true });
+      const valid = refreshMeasurement({ fit: true, announce: true });
+      window.umami?.track("radius-map-measurement-change", { control: "unit", unit: state.unit, outcome: valid ? "valid" : "invalid" });
     });
   });
 
-  createTab.addEventListener("click", () => activateTab("create"));
-  savedTab.addEventListener("click", () => activateTab("saved"));
+  createTab.addEventListener("click", () => {
+    activateTab("create");
+    window.umami?.track("radius-map-workspace-change", { workspace: "create" });
+  });
+  savedTab.addEventListener("click", () => {
+    activateTab("saved");
+    window.umami?.track("radius-map-workspace-change", { workspace: "saved" });
+  });
   librarySearch.addEventListener("input", renderLibrary);
   refreshLibraryButton.addEventListener("click", () => void loadLibrary(true));
   triangulateButton.addEventListener("click", calculateBestFit);
   useResultButton.addEventListener("click", useBestFitResult);
-  cancelEditButton.addEventListener("click", () => clearDraft("Editing cancelled."));
+  cancelEditButton.addEventListener("click", () => {
+    clearDraft("Editing cancelled.");
+    window.umami?.track("radius-map-edit-cancel");
+  });
   saveMeasurementButton.addEventListener("click", openSaveDialog);
   saveForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -925,7 +970,11 @@ export function initializeRadiusMap(): void {
   });
 
   panelToggle.addEventListener("click", () => {
-    if (isMobileLayout()) setControlsCollapsed(!controlPanel.classList.contains("is-collapsed"));
+    if (isMobileLayout()) {
+      const collapsed = !controlPanel.classList.contains("is-collapsed");
+      setControlsCollapsed(collapsed);
+      window.umami?.track("radius-map-controls-toggle", { state: collapsed ? "collapsed" : "expanded" });
+    }
   });
   controlPanel.addEventListener("transitionend", (event) => {
     if (event.propertyName !== "max-height") return;

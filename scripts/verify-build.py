@@ -16,6 +16,7 @@ DIST = ROOT / "dist"
 PROFILE_PATH = ROOT / "src" / "data" / "profile.json"
 PRODUCTION_ORIGIN = "https://austingarrod.ca"
 ANALYTICS_SCRIPT = "https://analytics.garrod.house/script.js"
+ANALYTICS_RECORDER = "https://analytics.garrod.house/recorder.js"
 
 failures: list[str] = []
 
@@ -123,7 +124,10 @@ for route in routes:
     )
     check('data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
     check('data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
-    check("recorder.js" not in markup, f"{route} still loads session replay")
+    check(markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
+    check('data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
+    check('getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
+    check('data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
     check(json_ld_match is not None, f"{route} is missing JSON-LD")
     if json_ld_match:
         try:
@@ -134,6 +138,36 @@ for route in routes:
             failures.append(f"{route} contains invalid JSON-LD")
 
 combined_html = "\n".join(all_html)
+
+# Input masking alone does not hide derived text, map tile URLs, or saved labels.
+private_regions = {
+    "/contact/": [".contact-form"],
+    "/utilities/radius-map/": [
+        "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
+        "saved-list", "library-status", "app-status", "centre-chip", "triangulation-result",
+        "save-dialog", "delete-dialog", ".library-search",
+    ],
+    "/utilities/screen-cut-calculator/": [
+        "opening-width", "opening-height", "custom-clearance", "corner-extension",
+        "total-corner-allowance", "result-content", "calculation-status",
+    ],
+}
+for route, regions in private_regions.items():
+    markup = route_file(route).read_text(encoding="utf-8")
+    tags = re.findall(r"<[a-z][^>]*>", markup)
+    for region in regions:
+        matches = []
+        for tag in tags:
+            classes = re.search(r'class="([^"]*)"', tag)
+            matches_region = (region[1:] in classes.group(1).split() if classes else False) if region.startswith(".") else f'id="{region}"' in tag
+            if matches_region:
+                matches.append(tag)
+        check(bool(matches), f"Missing private region {region} on {route}")
+        for tag in matches:
+            classes = re.search(r'class="([^"]*)"', tag)
+            check("data-analytics-private" in tag and classes is not None and "rr-block" in classes.group(1).split(),
+                  f"{route} must block private region {region} from replays")
+
 untracked_external_links = re.findall(
     r'<a\b(?=[^>]*\btarget="_blank")(?![^>]*\bdata-umami-event=)[^>]*>',
     combined_html,
@@ -342,6 +376,8 @@ if htaccess_path.is_file():
         "max-age=3600, must-revalidate",
         "deployment-manifest.json",
         "no-store",
+        "frame-ancestors 'self' https://analytics.garrod.house",
+        "Header unset X-Frame-Options",
     ]:
         check(directive in htaccess, f".htaccess is missing required deployment directive: {directive}")
 
@@ -354,6 +390,7 @@ if radius_htaccess_path.is_file():
         "https://tile.openstreetmap.org",
         "Service-Worker-Allowed",
         "/utilities/radius-map/",
+        "frame-ancestors 'self' https://analytics.garrod.house",
     ]:
         check(directive in radius_htaccess, f"Radius Map .htaccess is missing: {directive}")
 

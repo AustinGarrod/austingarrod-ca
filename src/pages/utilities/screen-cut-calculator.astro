@@ -16,9 +16,9 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
   bodyClass="screen-cut-page"
 >
   <header class="screen-cut-header">
-    <a class="screen-cut-brand" href="/" aria-label="Austin Garrod home">Austin Garrod</a>
+    <a class="screen-cut-brand" href="/" aria-label="Austin Garrod home" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
     <nav aria-label="Utility breadcrumb">
-      <a href="/utilities/">Utilities</a>
+      <a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a>
       <span aria-hidden="true">/</span>
       <span aria-current="page">Screen Cut Calculator</span>
     </nav>
@@ -51,6 +51,8 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
             <div class="input-with-unit">
               <input
                 id="opening-width"
+                class="rr-block"
+                data-analytics-private
                 name="openingWidth"
                 type="number"
                 min="0"
@@ -70,6 +72,8 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
             <div class="input-with-unit">
               <input
                 id="opening-height"
+                class="rr-block"
+                data-analytics-private
                 name="openingHeight"
                 type="number"
                 min="0"
@@ -125,6 +129,8 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
           <div class="input-with-unit">
             <input
               id="custom-clearance"
+              class="rr-block"
+              data-analytics-private
               name="customClearance"
               type="number"
               min="0"
@@ -150,6 +156,8 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
               <div class="input-with-unit">
                 <input
                   id="corner-extension"
+                  class="rr-block"
+                  data-analytics-private
                   name="cornerExtension"
                   type="number"
                   min="0"
@@ -162,7 +170,7 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
                 <span class="input-unit">mm</span>
               </div>
               <small id="corner-help">
-                Total corner allowance: <strong id="total-corner-allowance">38.1 mm</strong>
+                Total corner allowance: <strong id="total-corner-allowance" class="rr-block" data-analytics-private>38.1 mm</strong>
               </small>
               <small id="corner-error" class="field-error" role="alert" hidden></small>
             </label>
@@ -197,7 +205,7 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
           </div>
         </div>
 
-        <div id="result-content" class="result-content" hidden>
+        <div id="result-content" class="result-content rr-block" data-analytics-private hidden>
           <header class="result-heading">
             <div>
               <p class="step-label">02 / Result</p>
@@ -262,7 +270,7 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
             </div>
           </details>
         </div>
-        <p id="calculation-status" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+        <p id="calculation-status" class="sr-only rr-block" data-analytics-private aria-live="polite" aria-atomic="true"></p>
       </section>
     </div>
 

@@ -1,5 +1,5 @@
 <IfModule mod_headers.c>
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
   Header set Permissions-Policy "camera=(), geolocation=(self), microphone=(), payment=(), usb=()"
 
   <Files "sw.js">

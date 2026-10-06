@@ -199,11 +199,20 @@ export function initializeScreenCutCalculator(): void {
       if (forceValidation) {
         if (result.errors[0].field === "cornerExtensionPerEndMm") advancedSettings.open = true;
         controlForError(result.errors[0]).focus();
+        window.umami?.track("screen-cut-calculation-result", { outcome: "invalid", unit: currentUnit });
       }
       return;
     }
 
     renderResult(result.value);
+    if (forceValidation) {
+      window.umami?.track("screen-cut-calculation-result", {
+        outcome: "success",
+        unit: currentUnit,
+        clearance: clearanceSelect.value === "custom" ? "custom" : "preset",
+        rounding: roundingSelect.value === "0" ? "exact" : "rounded",
+      });
+    }
     if (focusResult) resultHeading.focus();
   }
 
@@ -249,12 +258,20 @@ export function initializeScreenCutCalculator(): void {
     select.addEventListener("change", () => {
       if (select === clearanceSelect) updateCustomClearance();
       if (hasBothDimensions()) calculate();
+      const setting = select === clearanceSelect ? "clearance" : "rounding";
+      const choice = select === clearanceSelect
+        ? (clearanceSelect.value === "custom" ? "custom" : "preset")
+        : (roundingSelect.value === "0" ? "exact" : "rounded");
+      window.umami?.track("screen-cut-setting-change", { setting, choice });
     });
   });
 
   unitInputs.forEach((input) => {
     input.addEventListener("change", () => {
-      if (input.checked) updateOpeningUnit(input.value as MeasurementUnit);
+      if (input.checked) {
+        updateOpeningUnit(input.value as MeasurementUnit);
+        window.umami?.track("screen-cut-setting-change", { setting: "unit", choice: currentUnit });
+      }
     });
   });
 
@@ -264,6 +281,7 @@ export function initializeScreenCutCalculator(): void {
   });
 
   resetButton.addEventListener("click", () => {
+    window.umami?.track("screen-cut-reset");
     window.requestAnimationFrame(() => {
       currentUnit = selectedUnit();
       advancedSettings.open = false;
