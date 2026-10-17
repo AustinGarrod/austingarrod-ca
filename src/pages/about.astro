@@ -8,16 +8,16 @@ import { profile, skills } from "@data/profile";
 <BaseLayout
   active="about"
   title={`About ${profile.name} | ${profile.title}`}
-  description="About Austin Garrod, a senior full-stack developer in Ontario with experience across React, Next.js, APIs, databases, teaching, and civic technology."
+  description={`About ${profile.name}, ${profile.title} at Epilogue in Ontario, with experience in full-stack product engineering, teaching, and applied research.`}
   schemaType="ProfilePage"
   breadcrumbLabel="About Austin Garrod"
 >
   <section class="page-hero">
     <div class="container page-hero-inner">
-      <p class="eyebrow">Works / experience</p>
+      <p class="eyebrow">Background and experience</p>
       <h1>About Austin Garrod</h1>
       <p>
-        My career has moved through research, freelance delivery, post-secondary teaching, lead development, and senior full-stack engineering. The common thread is practical software built with enough structure that someone else can understand it later.
+        I’m a {profile.title.toLowerCase()} at Epilogue, with a background in full-stack product engineering, post-secondary teaching, and applied research. I care about software that teams can understand, maintain, and build on.
       </p>
       <div class="button-row">
         <a
@@ -58,7 +58,7 @@ import { profile, skills } from "@data/profile";
     <div class="container content-section tight">
       <div class="section-heading">
         <p class="eyebrow">Technical range</p>
-        <h2>Enough breadth to connect the system, enough discipline to keep it simple.</h2>
+        <h2>Connecting the system while keeping it maintainable.</h2>
       </div>
       <div class="skills-grid">
         {skills.map((skill) => (
@@ -78,12 +78,12 @@ import { profile, skills } from "@data/profile";
     <div>
       <p class="eyebrow">Education</p>
       <h2>Durham College</h2>
-      <p>Diploma, Computer Programming/Programmer, General, 2016-2017. The program foundation maps to the work I still use daily: programming logic, object-oriented development, databases, networking, web development, testing, systems development, and communication.</p>
+      <p>Diploma, Computer Programming/Programmer, General, 2016–2017. The program covered programming, databases, networking, web development, testing, and systems development—fundamentals I still use daily.</p>
     </div>
     <div>
       <p class="eyebrow">Teaching foundation</p>
       <h2>Teaching software development</h2>
-      <p>Returning to Durham as a professor kept those fundamentals close: problem decomposition, debugging, JavaScript and web standards, Windows application development, project planning, SDLC habits, and the kind of plain-language explanation that makes technical work easier to share.</p>
+      <p>Teaching programming and project management at Durham strengthened how I approach debugging, project planning, and technical communication. Explaining software clearly remains central to how I collaborate with developers and company leadership.</p>
     </div>
   </section>
 </BaseLayout>

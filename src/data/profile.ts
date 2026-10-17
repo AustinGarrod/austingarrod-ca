@@ -14,7 +14,6 @@ export type Profile = {
   github: string;
   linkedin: string;
   resume: string;
-  availability: string;
   tagline: string;
   intro: string;
   seoDescription: string;
@@ -44,6 +43,7 @@ export type Experience = {
   employmentType?: string;
   summary: string;
   bullets: string[];
+  progression?: string;
 };
 
 export type CaseStudySection = {

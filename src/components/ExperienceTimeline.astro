@@ -16,6 +16,7 @@ import { experience } from "@data/profile";
         <p class="eyebrow">{item.organization}</p>
         <h3>{item.role}</h3>
         <p>{item.summary}</p>
+        {item.progression && <p>{item.progression}</p>}
         <ul>
           {item.bullets.map((bullet) => (
             <li>

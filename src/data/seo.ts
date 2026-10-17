@@ -24,6 +24,8 @@ const breadcrumbLabels: Record<string, string> = {
 };
 
 const knowsAbout = [
+  "Technical leadership",
+  "Software architecture",
   "Full-stack engineering",
   "Frontend architecture",
   "Backend API development",

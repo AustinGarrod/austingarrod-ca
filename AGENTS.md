@@ -47,7 +47,7 @@ PHP CLI is not required for local Astro work; the contact form still needs a Hos
 
 ## Content Rules
 
-- Position Austin as a senior full-stack engineer, not as a consulting-heavy lead-generation brand.
+- Position Austin as a hands-on Lead Developer at Epilogue with full-stack engineering experience, not as a consulting-heavy lead-generation brand.
 - Keep private project case studies sanitized. Do not add private repo links, credentials, household details, client-sensitive details, or invented metrics.
 - Do not associate Austin with Open Design; he has no role or contributions to that project.
 - Do not present CAPM as currently active unless renewed after the listed April 2026 expiry.

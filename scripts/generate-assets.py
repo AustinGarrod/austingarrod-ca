@@ -162,7 +162,7 @@ def enrich_resume_pdf(path: Path, profile):
             "/Title": f"{profile['name']} Resume",
             "/Author": profile["name"],
             "/Subject": f"Resume for {profile['name']}, {profile['title']}",
-            "/Keywords": "senior full-stack developer, React, Next.js, TypeScript, Node.js, APIs, databases",
+            "/Keywords": f"{profile['title']}, full-stack development, technical leadership, React, TypeScript, Node.js, APIs, databases",
             "/Creator": "AustinGarrod.ca asset generator",
         }
     )
@@ -338,6 +338,8 @@ def generate_resume(data):
             story.append(paragraph(f"{job['role']} - {job['organization']}", role))
             job_meta = [job["dates"], job.get("employmentType"), job["location"]]
             story.append(paragraph(" | ".join(value for value in job_meta if value), body))
+            if job.get("progression"):
+                story.append(paragraph(job["progression"], body))
             for bullet in job["bullets"][:2]:
                 story.append(paragraph("- " + bullet, body))
 
