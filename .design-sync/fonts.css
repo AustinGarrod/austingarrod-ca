@@ -1,0 +1,18 @@
+/* Sync-only @font-face rules for Claude Design. Mirrors the two rules at the
+   top of src/styles/global.css, but with paths relative to this file so the
+   converter can copy the font files into the uploaded fonts/ folder. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../public/fonts/inter-latin.var.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("../public/fonts/jetbrains-mono-latin.var.woff2") format("woff2");
+}

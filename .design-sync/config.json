@@ -1,0 +1,15 @@
+{
+  "projectId": "36ec2713-1ec7-4500-8c8f-fd9de3a4e421",
+  "shape": "package",
+  "pkg": "austingarrod-ca",
+  "globalName": "AustinGarrod",
+  "entry": ".design-sync/entry.mjs",
+  "cssEntry": "src/styles/global.css",
+  "extraFonts": [
+    ".design-sync/fonts.css"
+  ],
+  "guidelinesGlob": [
+    "DESIGN.md"
+  ],
+  "readmeHeader": ".design-sync/conventions.md"
+}
