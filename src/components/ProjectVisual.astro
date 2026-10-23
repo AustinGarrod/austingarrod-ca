@@ -20,7 +20,11 @@ const Icon = iconMap[project.icon];
 const screenshot = project.visual === "screenshot" ? project.screenshot : undefined;
 ---
 
-<div class:list={["project-visual", `visual-${project.visual}`]} aria-hidden={screenshot ? undefined : "true"}>
+<div
+  class:list={["project-visual", `visual-${project.visual}`]}
+  aria-hidden={screenshot ? undefined : "true"}
+  style={screenshot ? `--screenshot-ratio: ${screenshot.width} / ${screenshot.height}` : undefined}
+>
   {!screenshot && (
     <div class="visual-header" aria-hidden="true">
       <div class="visual-leds">

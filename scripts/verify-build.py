@@ -304,12 +304,21 @@ for retired_radius_map_behavior in ["signin-with-chatgpt", "signout-with-chatgpt
 featured_paths = [
     "/projects/junkin-electric/",
     "/projects/cadence/",
-    "/projects/spools/",
+    "/projects/idle-slayer-companion/",
 ]
 home_markup = route_file("/").read_text(encoding="utf-8")
 featured_positions = [home_markup.find(f'href="{path}"') for path in featured_paths]
 check(all(position >= 0 for position in featured_positions), "Homepage is missing an intended featured project")
 check(featured_positions == sorted(featured_positions), "Homepage featured projects are in the wrong order")
+for project in projects:
+    if f"/projects/{project['slug']}/" not in featured_paths:
+        continue
+    check(project["visual"] == "screenshot", f"Featured project {project['title']} must use a real screenshot")
+    screenshot = project.get("screenshot", {})
+    check(
+        bool(screenshot.get("path")) and f'src="{screenshot.get("path")}"' in home_markup,
+        f"Homepage is missing {project['title']} screenshot",
+    )
 
 not_found_path = DIST / "404.html"
 check(not_found_path.is_file(), "Missing 404.html")

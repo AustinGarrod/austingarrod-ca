@@ -4,7 +4,7 @@ import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { highlights, profile, projects, skills } from "@data/profile";
 
-const featuredProjectSlugs = ["junkin-electric", "cadence", "spools"];
+const featuredProjectSlugs = ["junkin-electric", "cadence", "idle-slayer-companion"];
 const featuredProjects = featuredProjectSlugs
   .map((slug) => projects.find((project) => project.slug === slug))
   .filter((project): project is (typeof projects)[number] => Boolean(project));

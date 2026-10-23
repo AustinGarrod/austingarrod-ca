@@ -317,10 +317,76 @@
       ],
       "stack": ["Kotlin Multiplatform", "Android", "Swift", "React", "TypeScript", "Vinext", "Cloudflare", "Sentry", "PowerShell"],
       "status": "Public preview",
-      "visual": "cadence",
+      "visual": "screenshot",
       "icon": "radio",
       "href": "https://cadenceplayer.com/",
-      "lastModified": "2026-10-17"
+      "screenshot": {
+        "path": "/images/projects/cadence.webp",
+        "alt": "Cadence product website with its podcast player introduction and Android Now Playing interface.",
+        "width": 1425,
+        "height": 1000
+      },
+      "lastModified": "2026-10-22"
+    },
+    {
+      "slug": "idle-slayer-companion",
+      "title": "Idle Slayer Companion",
+      "label": "Interactive game companion and progression tools",
+      "summary": "An unofficial browser companion for Idle Slayer, with an interactive upgrade map, progress tracking, planning tools, and local save-file imports.",
+      "role": "Independent developer across the React application, game-rule catalog, local persistence, and deployment",
+      "details": [
+        "Combines an interactive Ascension Map with achievements, crafting and materials, quests, Bestiary, and Divinities.",
+        "Models upgrade dependencies and spoiler visibility separately from recorded progress and hypothetical plans.",
+        "Supports manual tracking, reviewed game-save imports, validated JSON backups, and session undo and redo through browser-local state.",
+        "Ships as a static React and TypeScript application on GitHub Pages, with an offline app shell and installation guidance."
+      ],
+      "cardHighlights": [
+        "An interactive upgrade map combines dependency rules, spoiler controls, and planning tools.",
+        "Local progress storage, reviewed save imports, and JSON backups support use without an account."
+      ],
+      "caseStudySections": [
+        {
+          "title": "Problem",
+          "points": [
+            "Players need a way to explore upgrade dependencies and track several game systems without mixing recorded progress with future plans.",
+            "The companion needs to respect spoiler visibility and remain useful without an account or application backend."
+          ]
+        },
+        {
+          "title": "Approach",
+          "points": [
+            "Use a reviewed game-rule catalog to drive the map, visible search results, requirements, and progress previews.",
+            "Keep observations and hypothetical plans separate, hide spoilers by default, and validate imports before applying changes."
+          ]
+        },
+        {
+          "title": "System Shape",
+          "points": [
+            "React, TypeScript, and React Flow provide the interactive interface, with game rules and persistence separated from rendering.",
+            "Versioned browser storage holds recorded state; selected save files and JSON backups are processed locally. Vite builds static routes and an offline shell for GitHub Pages."
+          ]
+        },
+        {
+          "title": "Current State",
+          "points": [
+            "The public, unofficial companion is live with Ascension, achievements, crafting, quests, Bestiary, and Divinity tools.",
+            "Manual tracking, supported save imports, backups, and planning tools work within documented game-version and browser-storage limits."
+          ]
+        }
+      ],
+      "stack": ["React", "TypeScript", "React Flow", "Vite", "PWA", "GitHub Pages"],
+      "status": "Public",
+      "visual": "screenshot",
+      "icon": "map",
+      "href": "https://austingarrod.github.io/idle-slayer-companion/",
+      "source": "https://github.com/AustinGarrod/idle-slayer-companion",
+      "screenshot": {
+        "path": "/images/projects/idle-slayer-companion.webp",
+        "alt": "Idle Slayer Companion showing its Ascension upgrade map, dependency connections, and companion navigation.",
+        "width": 1440,
+        "height": 1000
+      },
+      "lastModified": "2026-10-22"
     },
     {
       "slug": "spools",

@@ -650,24 +650,28 @@ button {
 }
 
 .visual-screenshot {
-  display: flex;
-  flex-direction: column;
+  aspect-ratio: 3 / 2;
+  min-height: 0;
   background: var(--surface);
 }
 
+.project-card.featured .visual-screenshot {
+  aspect-ratio: auto;
+}
+
 .visual-screenshot .visual-stage {
-  position: static;
-  display: flex;
-  flex: 1;
-  align-items: center;
+  position: absolute;
+  inset: 0;
   padding: 0;
 }
 
 .visual-screenshot .project-screenshot {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   min-height: 0;
+  object-fit: cover;
+  object-position: left top;
 }
 
 .visual-portfolio {
@@ -1743,6 +1747,7 @@ textarea:focus-visible {
 }
 
 .project-detail-main .visual-screenshot {
+  aspect-ratio: var(--screenshot-ratio);
   min-height: 0;
 }
 

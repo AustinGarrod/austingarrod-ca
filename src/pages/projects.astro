@@ -8,11 +8,12 @@ const projectOrder = new Map([
   ["junkin-electric", -1],
   ["honour-our-veterans-banner-platform", 0],
   ["cadence", 1],
-  ["spools", 2],
-  ["charity-data-scraper", 3],
-  ["austingarrod-ca", 4],
-  ["campaign-static-site", 5],
-  ["kids-tv-controller", 6]
+  ["idle-slayer-companion", 2],
+  ["spools", 3],
+  ["charity-data-scraper", 4],
+  ["austingarrod-ca", 5],
+  ["campaign-static-site", 6],
+  ["kids-tv-controller", 7]
 ]);
 const orderedProjects = [...projects].sort(
   (a, b) => (projectOrder.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (projectOrder.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
