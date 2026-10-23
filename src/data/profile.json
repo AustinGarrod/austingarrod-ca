@@ -13,13 +13,13 @@
   },
   "pageMetadata": {
     "/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-10-22"
     },
     "/about/": {
       "lastModified": "2026-10-17"
     },
     "/projects/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-10-22"
     },
     "/utilities/": {
       "lastModified": "2026-10-17"
@@ -157,6 +157,65 @@
     }
   ],
   "projects": [
+    {
+      "slug": "junkin-electric",
+      "title": "Junkin Electric",
+      "label": "Business website and owner-managed content",
+      "summary": "A website for a Kawartha Lakes electrical contractor, with an owner editor for content and photos, draft publishing, and quote enquiries.",
+      "role": "Developer across the public website, owner editor, and deployment",
+      "details": [
+        "Built a responsive public website around electrical services, the service area, and direct call, email, and quote enquiry options.",
+        "Created an integrated owner editor for copy, services, photos, and business details, with separate Save draft and Publish actions.",
+        "Uses Astro and TypeScript for static public pages, with Cloudflare D1 holding draft and published content and Pages Functions handling editing and enquiries.",
+        "Publishing queues a Cloudflare Pages rebuild; a failed build leaves the previous live website available."
+      ],
+      "cardHighlights": [
+        "An integrated owner editor keeps content and photos editable without changing the layout or code.",
+        "Static Astro pages connect to Cloudflare Functions for publishing and Turnstile-protected quote enquiries."
+      ],
+      "caseStudySections": [
+        {
+          "title": "Problem",
+          "points": [
+            "Visitors need a clear view of the contractor's services and service area, with straightforward ways to get in touch.",
+            "The owner needs to update copy, services, photos, and business details without editing source code."
+          ]
+        },
+        {
+          "title": "Approach",
+          "points": [
+            "Build responsive public pages with direct call and email links alongside a quote enquiry form.",
+            "Provide an integrated owner editor with separate draft and publish actions, keeping editable content separate from layout and styling."
+          ]
+        },
+        {
+          "title": "System Shape",
+          "points": [
+            "Astro and TypeScript build static public pages from published content in Cloudflare D1, served through Cloudflare Pages.",
+            "Pages Functions handle owner editing, sign-in sessions, and quote enquiries, with server-side Turnstile verification and origin checks on the enquiry endpoint."
+          ]
+        },
+        {
+          "title": "Current State",
+          "points": [
+            "The public website is live at junkinelectric.ca; the client source repository remains private.",
+            "Publishing snapshots the saved draft and queues a rebuild. The previous live deployment remains available if the build fails."
+          ]
+        }
+      ],
+      "stack": ["Astro", "TypeScript", "Cloudflare Pages", "Pages Functions", "D1", "Turnstile"],
+      "status": "Public",
+      "visual": "screenshot",
+      "icon": "globe",
+      "href": "https://junkinelectric.ca/",
+      "screenshot": {
+        "path": "/images/projects/junkin-electric.webp",
+        "alt": "Junkin Electric homepage showing electrical services in Kawartha Lakes, the company logo, and a quote enquiry link.",
+        "width": 1440,
+        "height": 1000
+      },
+      "lastModified": "2026-10-22"
+    },
     {
       "slug": "austingarrod-ca",
       "title": "AustinGarrod.ca",

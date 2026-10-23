@@ -5,6 +5,7 @@ import { profile, projects } from "@data/profile";
 import { createProjectsStructuredData, PROJECTS_ITEM_LIST_ID } from "@data/seo";
 
 const projectOrder = new Map([
+  ["junkin-electric", -1],
   ["honour-our-veterans-banner-platform", 0],
   ["cadence", 1],
   ["spools", 2],
@@ -33,7 +34,7 @@ const projectsStructuredData = createProjectsStructuredData(orderedProjects);
       <p class="eyebrow">Case studies</p>
       <h1>Full-stack engineering projects</h1>
       <p>
-        A selection of product, civic, and local software projects. The case studies explain the architecture, technical decisions, and current state of each project.
+        A selection of product, business, civic, and local software projects. The case studies explain the architecture, technical decisions, and current state of each project.
       </p>
     </div>
   </section>

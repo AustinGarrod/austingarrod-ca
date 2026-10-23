@@ -230,7 +230,32 @@ check(
 projects_markup = route_file("/projects/").read_text(encoding="utf-8")
 project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
 check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
+check(
+    bool(project_heading_links) and 'href="/projects/junkin-electric/"' in project_heading_links[0],
+    "Projects index must feature Junkin Electric first",
+)
 check("Private prototype" in projects_markup, "Projects index must label the NFC project as a prototype")
+check("github.com/Junkin-Electric/" not in combined_html, "Public pages must not expose the private client repository")
+
+for project in projects:
+    if project["visual"] != "screenshot":
+        continue
+    screenshot = project.get("screenshot")
+    check(bool(screenshot), f"{project['title']} is missing screenshot metadata")
+    if not screenshot:
+        continue
+    screenshot_path = DIST / screenshot["path"].lstrip("/")
+    check(screenshot_path.is_file(), f"Missing project screenshot: {screenshot['path']}")
+    if screenshot_path.is_file():
+        with Image.open(screenshot_path) as image:
+            check(
+                image.size == (screenshot["width"], screenshot["height"]),
+                f"{project['title']} screenshot dimensions do not match its metadata",
+            )
+    check(bool(screenshot.get("alt", "").strip()), f"{project['title']} screenshot needs descriptive alt text")
+    detail_markup = route_file(f"/projects/{project['slug']}/").read_text(encoding="utf-8")
+    for markup, placement in [(projects_markup, "Projects index"), (detail_markup, "case study")]:
+        check(f'src="{screenshot["path"]}"' in markup, f"{placement} is missing {project['title']} screenshot")
 
 utilities_markup = route_file("/utilities/").read_text(encoding="utf-8")
 utility_heading_links = re.findall(r'<h2><a href="/utilities/[^\"]+/"[^>]*>', utilities_markup)
@@ -277,7 +302,7 @@ for retired_radius_map_behavior in ["signin-with-chatgpt", "signout-with-chatgpt
     check(retired_radius_map_behavior not in radius_map_markup, f"Radius Map still contains Sites account behavior: {retired_radius_map_behavior}")
 
 featured_paths = [
-    "/projects/honour-our-veterans-banner-platform/",
+    "/projects/junkin-electric/",
     "/projects/cadence/",
     "/projects/spools/",
 ]

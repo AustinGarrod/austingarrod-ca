@@ -649,6 +649,31 @@ button {
   min-height: 164px;
 }
 
+.visual-screenshot {
+  display: flex;
+  flex-direction: column;
+}
+
+.visual-screenshot .visual-header {
+  flex-shrink: 0;
+}
+
+.visual-screenshot .visual-stage {
+  position: static;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  padding: clamp(12px, 2vw, 24px);
+}
+
+.visual-screenshot .project-screenshot {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  border: 1px solid var(--line);
+}
+
 .visual-portfolio {
   background:
     linear-gradient(90deg, rgb(11 28 48 / 8%) 1px, transparent 1px) 0 0 / 32px 32px,
