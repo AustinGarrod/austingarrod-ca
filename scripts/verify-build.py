@@ -228,8 +228,11 @@ check(
 )
 
 projects_markup = route_file("/projects/").read_text(encoding="utf-8")
-project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
-check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
+project_heading_links = re.findall(r'<h3><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
+check(len(project_heading_links) == len(projects), "Projects index must use one h3 per project beneath its section heading")
+check('id="selected-projects-title"' in projects_markup, "Projects index is missing the screenshot gallery heading")
+check('id="more-case-studies-title"' in projects_markup, "Projects index is missing the additional case studies heading")
+check('class="visual-header"' not in projects_markup, "Projects index must not mix illustrations with its screenshot gallery")
 check(
     bool(project_heading_links) and 'href="/projects/junkin-electric/"' in project_heading_links[0],
     "Projects index must feature Junkin Electric first",
