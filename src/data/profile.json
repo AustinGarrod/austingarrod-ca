@@ -209,9 +209,9 @@
       "icon": "globe",
       "href": "https://junkinelectric.ca/",
       "screenshot": {
-        "path": "/images/projects/junkin-electric.webp",
+        "path": "/images/projects/junkin-electric-clean.webp",
         "alt": "Junkin Electric homepage showing electrical services in Kawartha Lakes, the company logo, and a quote enquiry link.",
-        "width": 1440,
+        "width": 1425,
         "height": 1000
       },
       "lastModified": "2026-10-22"

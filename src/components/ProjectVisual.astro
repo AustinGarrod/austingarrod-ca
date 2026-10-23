@@ -21,14 +21,16 @@ const screenshot = project.visual === "screenshot" ? project.screenshot : undefi
 ---
 
 <div class:list={["project-visual", `visual-${project.visual}`]} aria-hidden={screenshot ? undefined : "true"}>
-  <div class="visual-header" aria-hidden="true">
-    <div class="visual-leds">
-      <span></span>
-      <span></span>
-      <span></span>
+  {!screenshot && (
+    <div class="visual-header" aria-hidden="true">
+      <div class="visual-leds">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <Icon size={22} />
     </div>
-    <Icon size={22} />
-  </div>
+  )}
   <div class="visual-stage">
     {screenshot && (
       <img

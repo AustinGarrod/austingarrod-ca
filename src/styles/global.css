@@ -652,10 +652,7 @@ button {
 .visual-screenshot {
   display: flex;
   flex-direction: column;
-}
-
-.visual-screenshot .visual-header {
-  flex-shrink: 0;
+  background: var(--surface);
 }
 
 .visual-screenshot .visual-stage {
@@ -663,7 +660,7 @@ button {
   display: flex;
   flex: 1;
   align-items: center;
-  padding: clamp(12px, 2vw, 24px);
+  padding: 0;
 }
 
 .visual-screenshot .project-screenshot {
@@ -671,7 +668,6 @@ button {
   width: 100%;
   height: auto;
   min-height: 0;
-  border: 1px solid var(--line);
 }
 
 .visual-portfolio {
@@ -1744,6 +1740,10 @@ textarea:focus-visible {
 .project-detail-main .project-visual {
   min-height: 360px;
   border: 1px solid var(--line);
+}
+
+.project-detail-main .visual-screenshot {
+  min-height: 0;
 }
 
 .project-detail-main h2 {
