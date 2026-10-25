@@ -528,6 +528,11 @@ if resume_path.is_file():
         "Resume PDF must clarify the verified freelance and teaching overlap",
     )
 
+for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess"]:
+    check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")
+for config in [DIST / ".htaccess", DIST / "utilities/radius-map/.htaccess"]:
+    check("https://reports.garrod.house" in config.read_text(encoding="utf-8"), f"Reporting is blocked by CSP in {config}")
+
 if failures:
     print("Deployment verification failed:")
     for failure in failures:

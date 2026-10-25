@@ -1,0 +1,5 @@
+{
+  "name": "austingarrod/portfolio",
+  "require": { "php": ">=8.1", "sentry/sentry": "^4.0" },
+  "config": { "platform": { "php": "8.1.0" }, "vendor-dir": "public/reporting/vendor", "sort-packages": true }
+}

@@ -27,6 +27,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: curl, mbstring
+          tools: composer:v2
+
+      - name: Bundle PHP reporting SDK
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
       - name: Install asset generator dependencies
         run: python -m pip install -r requirements.txt
 
@@ -37,12 +47,20 @@ jobs:
         run: npm test
 
       - name: Build
+        id: build
         run: npm run build
+
+      - name: Upload reporting source maps before deployment
+        id: reporting-upload
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.REPORTS_AUTH_TOKEN }}
+        run: npm run reporting:upload
 
       - name: Write deployment manifest
         run: npm run write:deployment-manifest
 
       - name: Verify deployment output
+        id: verify-output
         run: npm run verify:dist
 
       - name: Check deployment secrets
@@ -56,6 +74,7 @@ jobs:
           fi
 
       - name: Upload dist to HostPapa
+        id: ftps-upload
         if: steps.deploy-secrets.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -71,3 +90,9 @@ jobs:
       - name: Skip deploy notice
         if: steps.deploy-secrets.outputs.ready != 'true'
         run: echo "Skipping HostPapa deploy because required repository secrets are not configured."
+
+      - name: Report failed deployment
+        if: failure()
+        env:
+          REPORTING_STEPS: ${{ toJson(steps) }}
+        run: node scripts/report-deployment-failure.mjs

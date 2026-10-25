@@ -1,3 +1,4 @@
+import { reportState } from "../../../reporting/browser";
 import {
   calculateFrameCuts,
   convertMeasurement,
@@ -182,6 +183,7 @@ export function initializeScreenCutCalculator(): void {
   }
 
   function calculate(forceValidation = false, focusResult = false): void {
+    if (forceValidation) reportState("screen-cut.calculate", { unit: currentUnit, width: parseInput(widthInput), height: parseInput(heightInput), clearance: selectedClearance(), rounding: roundingSelect.value });
     const result = calculateFrameCuts({
       openingWidth: parseInput(widthInput),
       openingHeight: parseInput(heightInput),

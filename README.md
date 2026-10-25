@@ -9,6 +9,9 @@ Personal and professional portfolio site for Austin Garrod. Built as a static As
 - CSS with the light International Precision visual direction from the proper Stitch export
 - PHP contact and utility handlers for cPanel shared hosting
 - GitHub Actions for CI and FTPS deployment
+- GlitchTip browser/PHP errors, logs and performance traces at reports.garrod.house
+
+Reporting setup, source-map uploads, local verification and operational limits are documented in [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md). Install the PHP bundle with `composer install --no-dev --prefer-dist` before building a deployment.
 
 ## Design Source
 

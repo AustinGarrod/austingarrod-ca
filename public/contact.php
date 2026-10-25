@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/reporting/bootstrap.php';
 
 $recipient = 'austin.r.garrod@gmail.com';
 $sender = 'austin@austingarrod.ca';
@@ -34,6 +35,7 @@ function rate_limit_exceeded(string $clientId, int $limit = 3, int $windowSecond
     $directory = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'austingarrod-contact-rate';
     if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
         error_log('AustinGarrod.ca contact rate-limit directory could not be created.');
+        report_failure('contact.rate_limit.directory');
         return false;
     }
 
@@ -41,12 +43,14 @@ function rate_limit_exceeded(string $clientId, int $limit = 3, int $windowSecond
     $handle = @fopen($path, 'c+');
     if ($handle === false) {
         error_log('AustinGarrod.ca contact rate-limit state could not be opened.');
+        report_failure('contact.rate_limit.open');
         return false;
     }
 
     if (!flock($handle, LOCK_EX)) {
         fclose($handle);
         error_log('AustinGarrod.ca contact rate-limit state could not be locked.');
+        report_failure('contact.rate_limit.lock');
         return false;
     }
 
@@ -131,10 +135,24 @@ $headers = [
     'X-Mailer: PHP/' . phpversion()
 ];
 
-$sent = @mail($recipient, $safeSubject, $body, implode("\r\n", $headers), '-f' . $sender);
+$mailCause = null;
+$mailSpan = reporting_span('contact.mail');
+error_clear_last();
+try {
+    $sent = @mail($recipient, $safeSubject, $body, implode("\r\n", $headers), '-f' . $sender);
+    $mailError = error_get_last();
+    if (!$sent && $mailError !== null) $mailCause = new ErrorException($mailError['message'], 0, $mailError['type'], $mailError['file'], $mailError['line']);
+} catch (Throwable $error) {
+    $sent = false;
+    $mailCause = $error;
+}
+$mailSpan?->setData(['accepted' => $sent]);
+$mailSpan?->finish();
 
 if (!$sent) {
+    report_failure('contact.mail.rejected', ['transport' => 'php-mail', 'message_length' => strlen($message)], $mailCause);
     error_log('AustinGarrod.ca contact mail() call was not accepted by the local mail system.');
 }
+if (function_exists('Sentry\\logger')) \Sentry\logger()->info('Contact mail result', ['accepted' => $sent]);
 
 redirect_with_status($sent ? 'sent' : 'error');

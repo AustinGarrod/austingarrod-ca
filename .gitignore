@@ -7,4 +7,9 @@ dist/
 tmp/
 output/
 coverage/
+.ds-sync/
+ds-bundle/
+public/reporting/vendor/
+public/reporting/build.php
+src/reporting/build.json
 *.log

@@ -1,4 +1,5 @@
 import L, { type Circle, type LatLngBounds, type LatLngExpression, type Marker } from "leaflet";
+import { reportFailure, reportState } from "../../../reporting/browser";
 import {
   convertDisplayedMeasurement,
   formatMeasurement,
@@ -156,9 +157,14 @@ export function initializeRadiusMap(): void {
     worldCopyJump: true,
   });
   L.control.zoom({ position: "topright" }).addTo(map);
+  let tileFailures = 0;
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
     maxZoom: 19,
+  }).on("tileerror", () => {
+    tileFailures += 1;
+    reportState("map.tiles", { failures: tileFailures, zoom: map.getZoom(), online: navigator.onLine });
+    if (tileFailures === 1) reportFailure(new Error("Map tiles failed to load"), "map.tiles", { zoom: map.getZoom() });
   }).addTo(map);
 
   const draftIcon = L.divIcon({
@@ -182,9 +188,12 @@ export function initializeRadiusMap(): void {
   let renameTargetId: string | null = null;
   let deleteTargetId: string | null = null;
   let measurementStore: LocalMeasurementsStore | null = null;
+  let measurementStoreError: unknown;
   try {
     measurementStore = new LocalMeasurementsStore(window.localStorage);
-  } catch {
+  } catch (error) {
+    measurementStoreError = error;
+    reportFailure(error, "storage.initialize");
     measurementStore = null;
   }
 
@@ -515,7 +524,7 @@ export function initializeRadiusMap(): void {
 
   function requireMeasurementStore(): LocalMeasurementsStore {
     if (!measurementStore) {
-      throw new LocalMeasurementStorageError("This browser is blocking access to saved measurements.");
+      throw new LocalMeasurementStorageError("This browser is blocking access to saved measurements.", { cause: measurementStoreError });
     }
     return measurementStore;
   }
@@ -534,6 +543,7 @@ export function initializeRadiusMap(): void {
       setLibraryStatus(`${measurement.name} is now ${visible ? "shown" : "hidden"}.`);
       window.umami?.track("radius-map-visibility-result", { outcome: "success", visibility: visible ? "shown" : "hidden" });
     } catch (error) {
+      reportFailure(error, "measurement.visibility", { visible, savedCount: state.saved.length });
       measurement.visible = previous;
       renderLibrary();
       renderSavedLayers();
@@ -648,6 +658,7 @@ export function initializeRadiusMap(): void {
       });
     } catch (error) {
       saveDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be saved.";
+      reportFailure(error, `measurement.${operation}`, { kind: state.kind, unit: state.unit, savedCount: state.saved.length });
       saveDialogError.hidden = false;
       window.umami?.track("radius-map-save-result", { operation, outcome: "error" });
     } finally {
@@ -680,6 +691,7 @@ export function initializeRadiusMap(): void {
       window.umami?.track("radius-map-delete-result", { outcome: "success" });
     } catch (error) {
       deleteDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be deleted.";
+      reportFailure(error, "measurement.delete", { savedCount: state.saved.length });
       deleteDialogError.hidden = false;
       window.umami?.track("radius-map-delete-result", { outcome: "error" });
     } finally {
@@ -757,6 +769,7 @@ export function initializeRadiusMap(): void {
     setLibraryStatus("");
     try {
       const result = requireMeasurementStore().load();
+      if (result.warning) reportFailure(new Error(result.warning), "measurement.recovery", { recoveredCount: result.measurements.length });
       state.saved = result.measurements;
       sortSaved();
       state.libraryLoaded = true;
@@ -767,6 +780,7 @@ export function initializeRadiusMap(): void {
       if (force) window.umami?.track("radius-map-library-refresh-result", { outcome: result.warning ? "warning" : "success" });
     } catch (error) {
       setLibraryStatus(error instanceof Error ? error.message : "Your measurements could not be loaded.");
+      reportFailure(error, "measurement.load", { force });
       window.umami?.track("radius-map-library-load-error", { source: force ? "refresh" : "initial" });
     } finally {
       libraryLoading.hidden = true;
@@ -818,11 +832,12 @@ export function initializeRadiusMap(): void {
     try {
       const response = await fetch(`/utilities/radius-map/api/geocode.php?q=${encodeURIComponent(query)}`, { headers: { accept: "application/json" } });
       const payload = await response.json() as GeocodeResponse;
-      if (!response.ok) throw new Error(payload.error ?? "Location search failed.");
+      if (!response.ok) throw new Error(`Geocode HTTP ${response.status}: ${payload.error ?? "Location search failed."} (request ${response.headers.get("x-request-id") ?? "unknown"})`);
       renderSearchResults(payload.results ?? []);
       window.umami?.track("radius-map-search-result", { outcome: payload.results?.length ? "matches" : "empty" });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Location search is temporarily unavailable.");
+      reportFailure(error, "geocode.search", { queryLength: query.length });
       window.umami?.track("radius-map-search-result", { outcome: "error" });
     } finally {
       searchButton.disabled = false;
@@ -875,6 +890,7 @@ export function initializeRadiusMap(): void {
         };
         setStatus(messages[error.code] ?? "Your location could not be determined.");
         const outcome = error.code === 1 ? "denied" : error.code === 3 ? "timeout" : "unavailable";
+        reportState("geolocation", { outcome, code: error.code });
         window.umami?.track("radius-map-geolocation-result", { outcome });
         locateButton.disabled = false;
         queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Use my location";
