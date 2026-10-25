@@ -37,7 +37,7 @@ Build the production site:
 npm run build:deploy
 ```
 
-`build:deploy` regenerates the resume and social image, builds Astro and the Radius Map offline shell, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact.
+`build:deploy` regenerates the resume and social image, builds Astro and the Radius Map offline shell, uploads source maps with `SENTRY_AUTH_TOKEN`, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact. Install the Composer bundle first; ordinary `npm run build` remains available without reporting credentials.
 
 Preview the built output:
 

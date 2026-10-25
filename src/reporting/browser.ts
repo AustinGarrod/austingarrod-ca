@@ -66,7 +66,9 @@ if (enabled && !Sentry.getClient()) {
 
 export function reportFailure(error: unknown, operation: string, context: Record<string, unknown> = {}): void {
   if (!enabled) return;
-  const exception = error instanceof Error ? error : new Error(String(error), { cause: error });
+  const exception = error instanceof DOMException
+    ? new Error(error.message, { cause: error })
+    : error instanceof Error ? error : new Error(String(error), { cause: error });
   if (error instanceof DOMException) exception.name = error.name;
   Sentry.withScope((scope) => {
     scope.setTag("operation", operation);

@@ -825,19 +825,23 @@ export function initializeRadiusMap(): void {
   }
 
   async function searchForLocation(query: string): Promise<void> {
+    let requestId: string | null = null;
+    let status: number | null = null;
     searchButton.disabled = true;
     searchButton.textContent = "Finding…";
     closeSearchResults();
     setStatus("Searching for that location…");
     try {
       const response = await fetch(`/utilities/radius-map/api/geocode.php?q=${encodeURIComponent(query)}`, { headers: { accept: "application/json" } });
+      requestId = response.headers.get("x-request-id");
+      status = response.status;
       const payload = await response.json() as GeocodeResponse;
-      if (!response.ok) throw new Error(`Geocode HTTP ${response.status}: ${payload.error ?? "Location search failed."} (request ${response.headers.get("x-request-id") ?? "unknown"})`);
+      if (!response.ok) throw new Error(`Geocode HTTP ${response.status}: ${payload.error ?? "Location search failed."}`);
       renderSearchResults(payload.results ?? []);
       window.umami?.track("radius-map-search-result", { outcome: payload.results?.length ? "matches" : "empty" });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Location search is temporarily unavailable.");
-      reportFailure(error, "geocode.search", { queryLength: query.length });
+      reportFailure(error, "geocode.search", { queryLength: query.length, requestId, status });
       window.umami?.track("radius-map-search-result", { outcome: "error" });
     } finally {
       searchButton.disabled = false;

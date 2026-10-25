@@ -16,7 +16,7 @@
     "generate:assets": "python scripts/generate-assets.py",
     "write:deployment-manifest": "python scripts/write-deployment-manifest.py",
     "verify:dist": "python scripts/verify-build.py",
-    "build:deploy": "npm run generate:assets && npm run build && npm run write:deployment-manifest && npm run verify:dist"
+    "build:deploy": "npm run generate:assets && npm run build && npm run reporting:upload && npm run write:deployment-manifest && npm run verify:dist"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

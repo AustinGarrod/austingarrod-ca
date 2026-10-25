@@ -138,6 +138,9 @@ for route in routes:
             failures.append(f"{route} contains invalid JSON-LD")
 
 combined_html = "\n".join(all_html)
+combined_client = combined_html + "\n" + "\n".join(
+    path.read_text(encoding="utf-8") for path in (DIST / "_astro").glob("*.js")
+)
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
@@ -195,8 +198,8 @@ for required_event in [
     "resume-view",
 ]:
     check(
-        f'data-umami-event="{required_event}"' in combined_html or required_event in combined_html,
-        f"Built HTML is missing Umami event coverage: {required_event}",
+        required_event in combined_client,
+        f"Built client assets are missing Umami event coverage: {required_event}",
     )
 
 for stale_phrase in [
