@@ -1,5 +1,6 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "exclude": ["node_modules", "dist", "ds-bundle", ".ds-sync", ".design-sync", "public/reporting/vendor", "tmp", "output"],
   "compilerOptions": {
     "baseUrl": ".",
     "resolveJsonModule": true,

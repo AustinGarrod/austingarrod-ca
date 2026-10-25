@@ -5,23 +5,30 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev --host 0.0.0.0",
-    "build": "astro check && astro build && node scripts/generate-radius-map-service-worker.mjs",
+    "predev": "node scripts/prepare-reporting.mjs",
+    "precheck": "node scripts/prepare-reporting.mjs",
+    "prebuild": "node scripts/prepare-reporting.mjs",
+    "build": "astro check && astro build && sentry-cli sourcemaps inject dist/_astro && node scripts/generate-radius-map-service-worker.mjs",
+    "reporting:upload": "node scripts/upload-reporting.mjs",
     "check": "astro check",
     "preview": "astro preview --host 0.0.0.0",
     "test": "vitest run",
     "generate:assets": "python scripts/generate-assets.py",
     "write:deployment-manifest": "python scripts/write-deployment-manifest.py",
     "verify:dist": "python scripts/verify-build.py",
-    "build:deploy": "npm run generate:assets && npm run build && npm run write:deployment-manifest && npm run verify:dist"
+    "build:deploy": "npm run generate:assets && npm run build && npm run reporting:upload && npm run write:deployment-manifest && npm run verify:dist"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
     "@lucide/astro": "^1.23.0",
+    "@sentry/browser": "^10.76.2",
     "astro": "^7.0.7",
     "leaflet": "^1.9.4",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@sentry/cli": "^3.8.2",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.10.1",
     "vitest": "^4.1.10"

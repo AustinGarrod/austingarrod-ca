@@ -85,4 +85,16 @@ describe("local Radius Map measurement storage", () => {
 
     expect(() => store.load()).toThrow("This browser is blocking access to saved measurements.");
   });
+
+  it("preserves the original browser storage cause for diagnostics", () => {
+    const cause = new Error("QuotaExceededError: disk quota exhausted");
+    const store = new LocalMeasurementsStore({ getItem: () => null, setItem: () => { throw cause; } }, { randomUUID: () => "measurement-1" });
+    try {
+      store.create(validInput);
+      throw new Error("Expected storage failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(LocalMeasurementStorageError);
+      expect((error as Error).cause).toBe(cause);
+    }
+  });
 });
