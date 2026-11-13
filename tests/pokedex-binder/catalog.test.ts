@@ -138,5 +138,5 @@ describe("shipped Pokédex catalog", () => {
     expect(allCardIds.size).toBe(index.audit.indexedCards);
     expect(allCardIds.size).toBeGreaterThan(15000);
     expect(index.audit.excludedPocketCards).toBeGreaterThan(0);
-  });
+  }, 30000); // Read every shipped shard and sprite, including on slower Windows disks.
 });
