@@ -1,0 +1,9 @@
+.sp-cost { font-variant-numeric: tabular-nums; overflow-wrap: normal; }
+.sp-cost .cost-digits, .sp-cost .cost-power, .sp-cost .cost-unit { white-space: nowrap; }
+.sp-cost sup { font-size: .75em; line-height: 0; vertical-align: super; }
+.exact-cost { margin: 16px 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: .875rem; line-height: 1.5; }
+.exact-cost h3 { margin: 0 0 8px; color: var(--muted); font-size: .875rem; }
+.exact-cost p { margin: 8px 0; }
+.exact-cost button { max-width: 100%; margin-top: 10px; font-size: inherit; }
+.exact-cost small { margin-top: 5px; overflow-wrap: anywhere; }
+.exact-cost textarea { width: 100%; min-height: 80px; padding: 8px; font: inherit; color: inherit; background: var(--raised); border: 1px solid var(--frame); }

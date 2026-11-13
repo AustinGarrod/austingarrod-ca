@@ -296,7 +296,7 @@ export function createUtilityApplicationSchema(utility: Utility): JsonLd {
     url: getUtilityUrl(utility),
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any modern web browser",
-    browserRequirements: "Requires JavaScript; location access is optional",
+    browserRequirements: utility.slug === "radius-map" ? "Requires JavaScript; location access is optional" : "Requires JavaScript; browser storage enables saved progress",
     creator: {
       "@id": PERSON_ID
     },

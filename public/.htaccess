@@ -4,6 +4,8 @@ ErrorDocument 404 /404.html
   RewriteEngine On
 
   # Collapse explicit index.html URLs directly to the canonical HTTPS route.
+  # Companion precache verifies physical HTML entries without following redirects.
+  RewriteCond %{REQUEST_URI} !^/utilities/idle-slayer-companion/ [NC]
   RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html(?:[?\s]) [NC]
   RewriteRule ^(.*/)?index\.html$ https://austingarrod.ca/$1 [R=301,L,NE]
 

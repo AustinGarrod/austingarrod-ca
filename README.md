@@ -25,6 +25,7 @@ The current visual system is light, precise, and Swiss/corporate: sharp corners,
 
 ```powershell
 npm install
+npm run install:companion
 python -m pip install -r requirements.txt
 npm run generate:assets
 npm test
@@ -37,7 +38,7 @@ Build the production site:
 npm run build:deploy
 ```
 
-`build:deploy` regenerates the resume and social image, builds Astro and the Radius Map offline shell, uploads source maps with `SENTRY_AUTH_TOKEN`, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact. Install the Composer bundle first; ordinary `npm run build` remains available without reporting credentials.
+`build:deploy` regenerates the resume and social image, builds Astro, the Radius Map offline shell, and the independently validated Idle Slayer Companion, uploads source maps with `SENTRY_AUTH_TOKEN`, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact. Install the Composer bundle first; ordinary `npm run build` remains available without reporting credentials.
 
 Preview the built output:
 
@@ -57,11 +58,21 @@ npm run generate:assets
 
 ## Utilities
 
-`/utilities/` is the catalog for focused browser tools. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
+`/utilities/` is the catalog for focused browser tools, including practical utilities and game planning. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
 
 Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.
 
 Place searches use `public/utilities/radius-map/api/geocode.php`, a same-origin HostPapa proxy with submit-only search, input validation, a one-request-per-second upstream limit, and temporary hash-keyed response caching. The cache does not store raw search terms or associate searches with saved measurements.
+
+## Idle Slayer Companion
+
+The complete maintained companion lives under `apps/idle-slayer-companion/` and is served at `/utilities/idle-slayer-companion/`. It retains its pinned Yarn launcher, lockfile, reviewed catalogs, provenance, licenses, tests, and browser-only progress. Root npm and companion Yarn remain separate packages; root scripts orchestrate them without sharing test discovery.
+
+`npm run build` validates the app release and copies its output byte-for-byte into the combined `dist/`. The deployment manifest is generated only after assembly and reporting-symbol uploads. The standalone app owns its tracking/privacy startup, and keeps its existing separate Umami and GlitchTip projects. Its worker cannot control Radius Map or portfolio pages.
+
+Run `npm run test:companion:e2e` for desktop/mobile regression checks. For checks against the assembled website, start `node scripts/serve-dist.mjs` and set `PLAYWRIGHT_BASE_URL` to `http://127.0.0.1:4321/utilities/idle-slayer-companion/`. Automated browser checks must remain local; production confirmation is manual.
+
+`npm run prepare:companion-migration` generates `.cache/site-migration` inside the app using the explicit `legacy-migration` target, with the original GitHub paths and installation identity and no telemetry. It is for the existing user-site compatibility repository, never HostPapa. See the app's migration runbook. Existing users transfer Companion progress, intentions, checkpoints, and saved comparison through their separate existing JSON exports, then choose layout, spoilers, and tracking preferences again. Old browser data is retained.
 
 ## Contact Form
 
@@ -110,7 +121,7 @@ Saved Umami goals track `contact-form-sent` (Contact message sent), `file-downlo
 
 ## GitHub Actions Deployment
 
-CI runs on every push and pull request. Deployment runs automatically on every push to `main`: GitHub Actions installs dependencies, regenerates assets, builds `dist/`, and uploads the contents of `dist/` to HostPapa over explicit FTPS.
+CI runs on every push and pull request through a reusable combined validation workflow. Deployment runs automatically on pushes to `main`: both applications must pass their checks and all four desktop/mobile browser shards. HostPapa then receives the exact tested artifact over explicit FTPS, without rebuilding.
 
 The deploy workflow can also be started manually from the GitHub Actions tab via `workflow_dispatch`.
 

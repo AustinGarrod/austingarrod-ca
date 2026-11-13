@@ -4,7 +4,7 @@ export type ProjectStatus = "Public" | "Public preview" | "Private case study" |
 export type ProjectVisual = "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign" | "screenshot";
 export type ProjectIcon = "blocks" | "radio" | "database" | "cpu" | "map" | "globe" | "layers";
 export type UtilityStatus = "Available";
-export type UtilityIcon = "map-pinned";
+export type UtilityIcon = "map-pinned" | "swords";
 
 export type Profile = {
   name: string;

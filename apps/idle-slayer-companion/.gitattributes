@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.woff binary
+*.woff2 binary
+# Keep the official vendored CLI byte-for-byte, including template whitespace.
+/.yarn/releases/yarn-*.cjs -whitespace
+# Keep complete vendored upstream notices byte-for-byte.
+/public/licenses/*.txt -text -whitespace

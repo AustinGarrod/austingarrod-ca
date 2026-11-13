@@ -16,6 +16,7 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 - `src/pages/` contains Astro routes for Home, About, Projects, Utilities, Contact, 404, sitemap, and robots.
 - `src/components/` contains reusable layout and content components.
 - `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, utility cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
+- `apps/idle-slayer-companion/` contains the independently built React/Vite companion. Use its pinned Yarn launcher and preserve its catalog, storage, privacy, license and release checks. It is assembled at `/utilities/idle-slayer-companion/`; its worker must remain scoped there. The `legacy-migration` build is only for the GitHub Pages compatibility host.
 - `src/utilities/` contains browser utility logic. Radius Map measurements are device-local and its service worker must remain scoped to `/utilities/radius-map/`.
 - `src/styles/global.css` contains the visual system and responsive layout.
 - `scripts/generate-assets.py` generates `public/og-image.png` and `public/austin-garrod-resume.pdf`.
@@ -27,6 +28,7 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 
 ```powershell
 npm install
+npm run install:companion
 python -m pip install -r requirements.txt
 npm run generate:assets
 npm test
@@ -34,7 +36,7 @@ npm run build
 npm run preview
 ```
 
-Use `npm run build` as the main verification command. It runs `astro check`, `astro build`, and generates the scoped Radius Map service worker.
+Use `npm run build` as the main verification command. It builds/checks Astro, generates the scoped Radius Map service worker, builds and validates the companion, and assembles both distributions. `npm test` runs the separate website and companion unit/tooling/license checks. Run `npm run test:companion:e2e` for the companion desktop/mobile browser suite; keep automated checks local.
 
 If PHP is available locally, also run:
 

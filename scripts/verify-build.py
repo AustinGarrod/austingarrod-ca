@@ -101,6 +101,14 @@ for route in routes:
         continue
 
     markup = path.read_text(encoding="utf-8")
+    if route == "/utilities/idle-slayer-companion/":
+        # The standalone React utility owns fragment cleanup and its telemetry lifecycle.
+        check(f'href="{PRODUCTION_ORIGIN}{route}"' in markup, "Companion canonical URL is incorrect")
+        check('application/ld+json' in markup and 'WebApplication' in markup, "Companion application metadata is missing")
+        check('data-domains="austingarrod.ca,www.austingarrod.ca"' not in markup, "Companion must not load the portfolio tracker")
+        check('id="root"' in markup, "Companion application entry is missing")
+        check(not list((DIST / "utilities/idle-slayer-companion").rglob("*.map")), "Companion exposes source maps")
+        continue
     all_html.append(markup)
     expected_canonical = f"{PRODUCTION_ORIGIN}{route}"
     canonical_match = re.search(r'<link rel="canonical" href="([^"]+)"', markup)
@@ -267,6 +275,7 @@ utilities_markup = route_file("/utilities/").read_text(encoding="utf-8")
 utility_heading_links = re.findall(r'<h2><a href="/utilities/[^\"]+/"[^>]*>', utilities_markup)
 check(len(utility_heading_links) == len(utilities), "Utilities index must use one h2 per utility card")
 check('href="/utilities/radius-map/"' in utilities_markup, "Utilities index must link to Radius Map")
+check('href="/utilities/idle-slayer-companion/"' in utilities_markup, "Utilities index must link to Idle Slayer Companion")
 check(
     "/utilities/screen-cut-calculator/" not in utilities_markup,
     "Utilities index and structured data must not expose the unlisted Screen Cut Calculator",
@@ -409,6 +418,7 @@ if htaccess_path.is_file():
     htaccess = htaccess_path.read_text(encoding="utf-8")
     for directive in [
         "RewriteEngine On",
+        "RewriteCond %{REQUEST_URI} !^/utilities/idle-slayer-companion/ [NC]",
         "https://austingarrod.ca%{REQUEST_URI}",
         "Strict-Transport-Security",
         "application/manifest+json",

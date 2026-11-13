@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "7.3.4",
+  "steamBuild": "25810322",
+  "reviewDate": "2026-10-16",
+  "method": "Read-only PE and IL2CPP metadata interpretation with Cpp2IL 2022.1.0-pre-release.21; no game launch, native invocation or player-save access",
+  "gameAssemblySha256": "ab968489df8032a895898d9b90ee3e583f416d4fbc97c427d935efa457bfb38a",
+  "metadataSha256": "55ecb5240daa99e1b6f7ffa4225b257e5b37e4c5ccc88c7fab28d1f3202d8011",
+  "semanticVerificationAutomatic": false,
+  "reviewedSemantics": "docs/companion-native-review.md",
+  "methods": [
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Achievement",
+      "method": "Init",
+      "rva": "0x3A34A0",
+      "length": 613,
+      "nativeBodySha256": "2e102114eb359ea7d42513564614abbd98b14efb038f48585a3727071ff7e7fd"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Achievement",
+      "method": "GetDescription",
+      "rva": "0x3A2460",
+      "length": 3888,
+      "nativeBodySha256": "dfc1e9eb4ddea1c600988e22f1f541a16bb0ab6d32dfa72ab3f012c581a48ba6"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "AchievementManager",
+      "method": "AchievementCells",
+      "rva": "0x3140F0",
+      "length": 797,
+      "nativeBodySha256": "2943c9d0e4e3b56b3cdeb813580a0a3f1c92a5d3c3d423ab7d55d56de0786cc1"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "AchievementManager",
+      "method": "ShowAchievement",
+      "rva": "0x3152C0",
+      "length": 462,
+      "nativeBodySha256": "6efb5e128eee7c7c8c3d53778f204422f8165c1c7882a2c3a7489da3e8b2d97f"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasAllMaterialsUnlocked",
+      "rva": "0x3AB3A0",
+      "length": 222,
+      "nativeBodySha256": "d7f2b99d87f1f0a58b432ce3e7687a0429c180c9723b559fa8fba4ff03d33d8c"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasAtLeastOneMaterialUnlocked",
+      "rva": "0x3AB480",
+      "length": 233,
+      "nativeBodySha256": "ca76692dcd4f2bfc53a86a559125dbebc682e13716de39368797bb793d086451"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasRequiredAscensionUpgrades",
+      "rva": "0x3AB570",
+      "length": 146,
+      "nativeBodySha256": "9d8ca0676787ea9e6b5ced7b58beb178f6f8d739beab3bc80f1cf0df919b0df8"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasRequiredItems",
+      "rva": "0x3AB670",
+      "length": 130,
+      "nativeBodySha256": "c538e14fa5be2cf5de7513fb88f6c1ded4f9c61119454822ea37d1615ce9eac9"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasRequiredUpgrades",
+      "rva": "0x3AB790",
+      "length": 92,
+      "nativeBodySha256": "ffaf671fac36c8b06406fe1e9cdc256cf3aefeaeee55ab86d6ef36aa66b067b7"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "CraftableItem",
+      "method": "HasRequiredCharacterSkins",
+      "rva": "0x3AB610",
+      "length": 89,
+      "nativeBodySha256": "573c28b56c9513114355a29ae700da0226c952d470aab4efc5c01f3c1b14346d"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PermanentCraftableItem",
+      "method": "AdditionalInit",
+      "rva": "0x3B9BC0",
+      "length": 210,
+      "nativeBodySha256": "9e259168d7419cda6e94a8090923b917db20aedd7514f7cec0ef97d9ae713af0"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PermanentCraftableItem",
+      "method": "IsActive",
+      "rva": "0x3BA4A0",
+      "length": 8,
+      "nativeBodySha256": "f735d0fc9d977dae4106869f19103860041ce8fe3fcea5a380c84ac3a66f7df4"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PermanentCraftableItem",
+      "method": "TabVisible",
+      "rva": "0x3BA4B0",
+      "length": 126,
+      "nativeBodySha256": "a07b98fbff18376a805ec499e2b6be605f36522634434b6471eeb6bd8c308f36"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "TemporaryCraftableItem",
+      "method": "AdditionalInit",
+      "rva": "0x3C6130",
+      "length": 353,
+      "nativeBodySha256": "ed759db99897b16b14d2c75f5a1416054df4cbfa073583a8c8ac1319454368f3"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "TemporaryCraftableItem",
+      "method": "GetRequirements",
+      "rva": "0x3C7830",
+      "length": 8,
+      "nativeBodySha256": "77c89f3bec3cec8d5caed75e3d04e10c6d3af214ade3cb66b04d8a93f923b651"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "TemporaryCraftableItem",
+      "method": "TabVisible",
+      "rva": "0x3C7BE0",
+      "length": 100,
+      "nativeBodySha256": "73381d40dff4578ec7b5cbb4ae77549ad6a1c69a5bdc15b3004f7aea68ae3be7"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "TemporaryCraftableItem",
+      "method": "ExtraCondition",
+      "rva": "0x3C6CE0",
+      "length": 946,
+      "nativeBodySha256": "fcc17c3f449554e3038cfdcd70b97c5631c5470f41c446feab1b5a40964a0acf"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Drop",
+      "method": "Init",
+      "rva": "0x3ACA00",
+      "length": 387,
+      "nativeBodySha256": "9227b2c4eb3f698c094514f33bda62bba14ec9838fa373570d46844b0b66263a"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Drop",
+      "method": "AddDrop",
+      "rva": "0x3AC710",
+      "length": 517,
+      "nativeBodySha256": "cf635e76c0fe3bc2cb220d0e44c5ad9779c535928aad0548bac3cd82263c4ae7"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Quest",
+      "method": "Init",
+      "rva": "0x3BBA30",
+      "length": 394,
+      "nativeBodySha256": "55c81ab513485c968b7c95a759af5dcc5b79b27d0f52188c134c6c5705288e7a"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Quest",
+      "method": "IsCompleted",
+      "rva": "0x3BBBC0",
+      "length": 10,
+      "nativeBodySha256": "5aa0cca4cada5977c77f097226b28da329154462feae22782720cc4611ffc567"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Quest",
+      "method": "CanBeClaimed",
+      "rva": "0x3BAD40",
+      "length": 19,
+      "nativeBodySha256": "0e34d8524f502b77783713f9a1c8ceecc861aea80c25ed6f38cce85deaf707d1"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Quest",
+      "method": "BundleBought",
+      "rva": "0x3BACB0",
+      "length": 128,
+      "nativeBodySha256": "566bb109d29d815ee26a0816524a6e9d06f2aac2d35c3e5c068a9e1a17cd5303"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Quest",
+      "method": "ResetProgress",
+      "rva": "0x3BBBD0",
+      "length": 12,
+      "nativeBodySha256": "a9c113616703b668db2bfbb7d230a34c0c08eb9b41004a06ffbaea419b0315a4"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Divinity",
+      "method": "Init",
+      "rva": "0x3ABE60",
+      "length": 757,
+      "nativeBodySha256": "1e42c7aeacfb6f13ed58b61a71ce6c5cd316adb5c7a50ab5a68184e8875dde46"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Divinity",
+      "method": "IsAvailable",
+      "rva": "0x3AC160",
+      "length": 521,
+      "nativeBodySha256": "e1b6669711f7595211978295d6977d83d9b65cf502c976fadc3b1aa89d5e64dc"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Divinities",
+      "method": "CheckUnlocked",
+      "rva": "0x47DCD0",
+      "length": 156,
+      "nativeBodySha256": "7ea9f8de2014b6562e5996e492c1a84b8c27f2a314ae4d967d032421c335672f"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "DivinityObject",
+      "method": "Open",
+      "rva": "0x465790",
+      "length": 3194,
+      "nativeBodySha256": "ec297b47c28ff8b37c66de62cb7ff31c1e3fb9b5c75abe8ce02d2820681829b9"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Enemy",
+      "method": "Init",
+      "rva": "0x3AD3F0",
+      "length": 779,
+      "nativeBodySha256": "ac10e50387def0d0201439f3ee0c10f08808300ca746f8b551022b36c1f13d56"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Enemy",
+      "method": "GetTotalKillCount",
+      "rva": "0x3AD2C0",
+      "length": 291,
+      "nativeBodySha256": "558d01277e87312c308d40e7c8c62692b88358fe53148a922da7a4a3352d9dbd"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "BestiaryManager",
+      "method": "GetEnemyBestiaryTier",
+      "rva": "0x40E5D0",
+      "length": 424,
+      "nativeBodySha256": "cf1dafeb1bb15b9c3ee98813c36872eda4215514598d7eccbe5125634ed2691c"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "BestiaryManager",
+      "method": "GetTierKillCountTargets",
+      "rva": "0x40E930",
+      "length": 404,
+      "nativeBodySha256": "30adae5947a61c4b929905f7a7242acce3118fe3f4304b4517b58314bb924f3d"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "UpgradableBuilding",
+      "method": "Init",
+      "rva": "0x4041D0",
+      "length": 789,
+      "nativeBodySha256": "31a6938ccadc9776e9d6d92f7a4e4744afbd7ed0f281830864859b902cc104c7"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "UpgradableBuilding",
+      "method": "CanBeBuilt",
+      "rva": "0x403C50",
+      "length": 283,
+      "nativeBodySha256": "b569ce6b5ed63c2693d91c1b93d3c18aa22069f3d2aa5ce841deb9cef1156a6d"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "BoardStepSO",
+      "method": "IsAvailable",
+      "rva": "0x2D9B20",
+      "length": 34,
+      "nativeBodySha256": "efb410c2baaa431d95da224358b80cb58e240a00fb882acf80d4afae24943b08"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "BoardStepSO",
+      "method": "IsCompleted",
+      "rva": "0x2D9B50",
+      "length": 301,
+      "nativeBodySha256": "50e497604c341ac6939afc60b3d8aaa5f205b64b4c508e5443dddfc6de7d29cd"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "BoardSubStepSO",
+      "method": "IsCompleted",
+      "rva": "0x2D9B20",
+      "length": 34,
+      "nativeBodySha256": "efb410c2baaa431d95da224358b80cb58e240a00fb882acf80d4afae24943b08"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "SaveManager",
+      "method": "GetInt",
+      "rva": "0x3B6690",
+      "length": 76,
+      "nativeBodySha256": "f1e6b69b5c54da06d88a322607361b3b37c8d1bab74178e87a4213af9f21af38"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "SaveManager",
+      "method": "GetString",
+      "rva": "0x3B66E0",
+      "length": 93,
+      "nativeBodySha256": "c9d5f94c5f3e59c14511b8c76bc109d0d6f2ecace645320118e643c0e82bd92a"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PlayerInventory",
+      "method": "CalculateValues",
+      "rva": "0x4F3C70",
+      "length": 11236,
+      "nativeBodySha256": "4f5d13ca3c9a0bff613ace7d2633472e78a2f67a3641df4ad6cccdd595d789dd"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetCurrentSaveBytes",
+      "rva": "0x2CC210",
+      "length": 140,
+      "nativeBodySha256": "efad9781565d2af6146b6e3d8ec01cc7f3f2d25475a262b03cf0fdf895834c46"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetSaveFile",
+      "rva": "0x2CC8F0",
+      "length": 471,
+      "nativeBodySha256": "4a724e9351c0dcc211dd8bbfb29293f66d6b8d5971bd6af8975998168a525d89"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "DataScrambler",
+      "rva": "0x2CBA00",
+      "length": 346,
+      "nativeBodySha256": "479f52a4f2eae7811f14951cfb238b7cc0b141603fdc36b9738234130ad06cf9"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetInt",
+      "rva": "0x2CC770",
+      "length": 226,
+      "nativeBodySha256": "04614cf7f0d4a2aefde1628f8392e2aa5ac4a72eb4c7b1b44608e3415765c00b"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetString",
+      "rva": "0x2CCAD0",
+      "length": 196,
+      "nativeBodySha256": "e0fc9538fa740a17838d8fe0379b4ff935c91d6d13063b4fe2c2832600d28d7f"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "CreateNewSaveFile",
+      "rva": "0x2CB980",
+      "length": 127,
+      "nativeBodySha256": "87682a4ae647c8fb376cccc25287a7a5801a5ffe161af5836f2213393a20d43b"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefsSaveFileModel",
+      "method": "FileBasedPrefsSaveFileModel",
+      "rva": "0x2CB710",
+      "length": 208,
+      "nativeBodySha256": "7f77629112ab7f608298bce30341a9542300aa293d22b7c936e4e772cc7ae830"
+    }
+  ]
+}

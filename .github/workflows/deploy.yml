@@ -2,12 +2,21 @@ name: Deploy to HostPapa
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: hostpapa-production
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+    with:
+      upload-symbols: true
+    secrets: inherit
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     env:
       FTP_HOST: ${{ secrets.HOSTPAPA_FTP_HOST }}
@@ -15,54 +24,15 @@ jobs:
       FTP_PASSWORD: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
       FTP_REMOTE_DIR: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup PHP and Composer
-        uses: shivammathur/setup-php@v2
+      - name: Download the exact validated distribution
+        uses: actions/download-artifact@v8
         with:
-          php-version: '8.1'
-          extensions: curl, mbstring
-          tools: composer:v2
-
-      - name: Bundle PHP reporting SDK
-        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-
-      - name: Install asset generator dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Generate assets
-        run: npm run generate:assets
-
-      - name: Test utilities
-        run: npm test
-
-      - name: Build
-        id: build
-        run: npm run build
-
-      - name: Upload reporting source maps before deployment
-        id: reporting-upload
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.REPORTS_AUTH_TOKEN }}
-        run: npm run reporting:upload
-
-      - name: Write deployment manifest
-        run: npm run write:deployment-manifest
-
-      - name: Verify deployment output
-        id: verify-output
-        run: npm run verify:dist
-
+          name: website-dist
+          path: dist/
       - name: Check deployment secrets
         id: deploy-secrets
         shell: bash
@@ -72,8 +42,7 @@ jobs:
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Upload dist to HostPapa
+      - name: Upload validated dist to HostPapa
         id: ftps-upload
         if: steps.deploy-secrets.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
@@ -86,13 +55,24 @@ jobs:
           security: loose
           local-dir: ./dist/
           server-dir: ${{ env.FTP_REMOTE_DIR }}
-
       - name: Skip deploy notice
         if: steps.deploy-secrets.outputs.ready != 'true'
         run: echo "Skipping HostPapa deploy because required repository secrets are not configured."
-
       - name: Report failed deployment
         if: failure()
         env:
           REPORTING_STEPS: ${{ toJson(steps) }}
+        run: node scripts/report-deployment-failure.mjs
+  report-validation-failure:
+    needs: validate
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Report failed predeployment validation
+        env:
+          REPORTING_STEPS: '{"validation":{"outcome":"failure"}}'
         run: node scripts/report-deployment-failure.mjs

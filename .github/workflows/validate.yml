@@ -1,0 +1,97 @@
+name: Validate combined website
+
+on:
+  workflow_call:
+    inputs:
+      upload-symbols:
+        type: boolean
+        default: false
+    secrets:
+      REPORTS_AUTH_TOKEN:
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:companion
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: curl, mbstring
+          tools: composer:v2
+      - name: Bundle and lint PHP
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          php -l public/reporting/bootstrap.php
+          php -l public/contact.php
+          php -l public/utilities/radius-map/api/geocode.php
+      - run: python -m pip install -r requirements.txt
+      - run: npm run generate:assets
+      - name: Website, catalog, domain, storage, tools and license checks
+        run: npm test
+      - run: npm run build
+      - name: Upload both applications' symbols before publication
+        if: inputs.upload-symbols
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.REPORTS_AUTH_TOKEN }}
+        run: npm run reporting:upload
+      - name: Exclude public source maps
+        run: node scripts/strip-public-maps.mjs
+      - run: npm run write:deployment-manifest
+      - run: npm run verify:dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: website-dist
+          path: dist/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+  browser:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:companion
+      - uses: actions/download-artifact@v8
+        with:
+          name: website-dist
+          path: dist/
+      - name: Restore byte-identical app output for its release/migration checks
+        run: node scripts/companion.mjs restore-build
+      - name: Install local browser
+        working-directory: apps/idle-slayer-companion
+        run: node .yarn/releases/yarn-4.13.0.cjs playwright install --with-deps chromium
+      - name: Serve assembled static output on localhost
+        run: node scripts/serve-dist.mjs > /tmp/portfolio-preview.log 2>&1 &
+      - name: Desktop and mobile regressions against the combined artifact
+        id: browser-checks
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4321/utilities/idle-slayer-companion/
+        run: npm run test:companion:e2e -- --shard=${{ matrix.shard }}/4 --workers=2
+      - name: Retain synthetic failure diagnostics
+        if: ${{ !cancelled() && steps.browser-checks.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failure-${{ matrix.shard }}
+          path: |
+            apps/idle-slayer-companion/playwright-report/
+            apps/idle-slayer-companion/test-results/
+          retention-days: 5
+          if-no-files-found: warn

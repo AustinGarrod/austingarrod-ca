@@ -1,0 +1,5221 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "label": "Idle Slayer Wiki · Ascension Tree Tier List",
+    "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List",
+    "revision": 7187,
+    "revisionTimestamp": "2026-07-05T09:50:07Z",
+    "revisionUrl": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187",
+    "historyUrl": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?action=history",
+    "gameVersion": "7.0.0",
+    "retrievedAt": "2026-10-05",
+    "wikitextSha256": "550d10f516e5f0a06cbd6a5c2d3a355ade16c517ba8b6d440dcb1cae202ae0f2",
+    "license": "CC-BY-SA-3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "licenseEvidence": {
+      "wikiApiRights": "CC-BY-SA",
+      "wikiApiRightsUrl": "https://www.fandom.com/licensing",
+      "fandomDefaultUrl": "https://community.fandom.com/wiki/Help:Licensing",
+      "revision": "3983537",
+      "revisionTimestamp": "2025-07-02T23:39:18Z"
+    },
+    "attribution": "Idle Slayer Wiki contributors. Ordering adapted into stable native IDs; descriptions are original summaries based on native effects. Raw wiki paragraphs and images are not copied.",
+    "strategyContext": {
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Strategy",
+      "revision": "7232",
+      "revisionTimestamp": "2026-08-04T14:35:39Z",
+      "wikitextSha256": "e28ad739c894768684a7741406c189c425338d4615b256580b50835a9656c1a2"
+    }
+  },
+  "catalog": {
+    "revision": "steam-25810322-v1",
+    "gameVersion": "7.3.4",
+    "sha256": "b9ec818c797f959bb3e65b95aba031364c818b88274f5470f525aa639fc67f77"
+  },
+  "orderingPolicy": "Ascending tier sequence and top-to-bottom row order; each stable ID keeps its earliest non-supplementary occurrence. Stage labels are source context, not inferred player state. The quick-UA key table is mapping evidence, not a universal purchase order.",
+  "rows": [
+    {
+      "id": "cjnr3qwntwqt4505351h",
+      "priority": 1,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Keeps the initial enemy unlocks ready across ordinary Ascensions."
+    },
+    {
+      "id": "5ew02t2oprzthi4hmyk6",
+      "priority": 2,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Keeps the basic soul-gathering unlocks available across ordinary Ascensions."
+    },
+    {
+      "id": "6d44qruuppdrshhefq8b",
+      "priority": 3,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Avoids re-unlocking quest bundles after an ordinary Ascension."
+    },
+    {
+      "id": "29vltitxuf0iz5mj0qv4",
+      "priority": 4,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Builds the soul bonus that scales with earned Slayer Points."
+    },
+    {
+      "id": "p0aekiqdbh8v22nelqzl",
+      "priority": 5,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "40499lnkesc50smk20pq",
+      "priority": 6,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "flc82emtcpk6h2e8lyrd",
+      "priority": 7,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "vt0m50bvr31g04n43hrh",
+      "priority": 8,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "m60w38ayqj38qmo43frq",
+      "priority": 9,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "s574rwri2dzfcw0jk4g1",
+      "priority": 10,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "nczg1sa0khxvrgepcv8d",
+      "priority": 11,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "h4d63rlvigc5gq6lhbs3",
+      "priority": 12,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "w6zd7o5bdkpyxrllrxy8",
+      "priority": 13,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "sgxpka8ycavz6105p2kh",
+      "priority": 14,
+      "tier": "Tier 1",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_1",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "3ghh68y7r9pwdaq19krp",
+      "priority": 1001,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "sr13x2slqlvm0a9z118d",
+      "priority": 1002,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "hu5ro5kcjanwremd2fnf",
+      "priority": 1003,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "g21rivbh16i192svggal",
+      "priority": 1004,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "mv1tbzg2emnir1nimc3r",
+      "priority": 1005,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "et8e2lyyry1upen1w1hy",
+      "priority": 1006,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "xd7kj34bqg2iy0mehk8b",
+      "priority": 1007,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "bliplddpgoo892h8kziq",
+      "priority": 1008,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "aqmrgi8yghliokgne8en",
+      "priority": 1009,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "x91ee3if49hncfhpvyx6",
+      "priority": 1010,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "o694jhd6v4muz6ibninj",
+      "priority": 1011,
+      "tier": "Tier 2",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_2",
+      "note": "Unlocks travel. The guide places it late in its early tier; changing dimensions can alter soul farming."
+    },
+    {
+      "id": "uygxolcevnwubo6r8hlt",
+      "priority": 2001,
+      "tier": "Tier 3",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_3",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "76datz3inqq0m78gr865",
+      "priority": 2002,
+      "tier": "Tier 3",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_3",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "0rhfn89z52rsrkv73hn4",
+      "priority": 2003,
+      "tier": "Tier 3",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_3",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "uxy9bn4vhysadldt6fgx",
+      "priority": 2004,
+      "tier": "Tier 3",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_3",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "twgjzjgw4ft1do2i91jz",
+      "priority": 3001,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "dc1ljyeyy0evvcx68qxp",
+      "priority": 3002,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "skjh7wkqvhv0gldn7398",
+      "priority": 3003,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "947k675u58rrb7mu1dlg",
+      "priority": 3004,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "gug2zxxzimfx3z3vjhhj",
+      "priority": 3005,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "5cufrdofdro0l5ywjaof",
+      "priority": 3006,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "yfp31fi2tcpt8w9w3d5e",
+      "priority": 3007,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "ffk0l5bpd7mkrah14i50",
+      "priority": 3008,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "4ksmk0zx5wh7m3rpfzdd",
+      "priority": 3009,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "dhk5dza84uryr4s6ouhn",
+      "priority": 3010,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "p3pkqyomf8bl7x500hbi",
+      "priority": 3011,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "iodtetve4c8xdpstmbiw",
+      "priority": 3012,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "jihbqll1nflfmtww0zpi",
+      "priority": 3013,
+      "tier": "Tier 4",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_4",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "j5fec33cuvnji838jp3h",
+      "priority": 4001,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "vd0ehgvvd490dbi6034u",
+      "priority": 4002,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "091fry390x8fvyh1yoos",
+      "priority": 4003,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "7p1uvwkl6a39u7qygxhl",
+      "priority": 4004,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "xmsoj8anzhwbb8hqly0k",
+      "priority": 4005,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "1afrw282f4h60840beds",
+      "priority": 4006,
+      "tier": "Tier 5 (4,500+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_5_(4%2C500%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "ptixr6hix7u3m2psj4eo",
+      "priority": 5001,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "m8wmmpixs76fwa1lf8e5",
+      "priority": 5002,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "fq8u5uawdjk4d3y7zwwa",
+      "priority": 5003,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "cctxj9mv90za0y3frpx4",
+      "priority": 5004,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "h662y74ctk58h3m4nu5g",
+      "priority": 5005,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "4ykujmku282t15nx14pu",
+      "priority": 5006,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "i9dt2sh9w9579jtn44sj",
+      "priority": 5007,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "mq1y1n7s4bb04xg2qkhb",
+      "priority": 5008,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "1tesifem9ojpmfc9s87r",
+      "priority": 5009,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "j5e08ged2jc2as0f53gs",
+      "priority": 5010,
+      "tier": "Tier 6",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_6",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "a7npbmec6gwdukygn09b",
+      "priority": 6001,
+      "tier": "Tier 7",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_7",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "o5vjttro2olhgcozxauu",
+      "priority": 6002,
+      "tier": "Tier 7",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_7",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "k2evdphhohzouwxf1b8j",
+      "priority": 6003,
+      "tier": "Tier 7",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_7",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "kgsya9w1tvrquk3k3mfd",
+      "priority": 6004,
+      "tier": "Tier 7",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_7",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "atjzlpd21gchly80hiov",
+      "priority": 7001,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "kckox7dtfyyvlnwrn7z9",
+      "priority": 7002,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "024ukimcgsl327mo4xr7",
+      "priority": 7003,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "dbe6wzjv38np1x3fyvsz",
+      "priority": 7004,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "nknr6w0zv2rjytkr5shv",
+      "priority": 7005,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "1hzjnaywrmtkls5iyk9p",
+      "priority": 7006,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "g3znqm0714v29mwj7fbw",
+      "priority": 7007,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "nwpu43sn4cptzp6k759h",
+      "priority": 7008,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "muna65u8d7j2frf7vb5r",
+      "priority": 7009,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "lz76954y9o9m02362hb8",
+      "priority": 7010,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "u5k8j7jk4z1qjnn0pghy",
+      "priority": 7011,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "efowqhppkrzdsl3v60pu",
+      "priority": 7012,
+      "tier": "Tier 8",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_8",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "zwbj8rbqovj26gin4ohq",
+      "priority": 8001,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "50m8enubx3t51dwl87yk",
+      "priority": 8002,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "0jbbv97xeanlko2ri87t",
+      "priority": 8003,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "3swfw3z15gs86qkncaa7",
+      "priority": 8004,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "7yyscwtemitpdgj4ifu9",
+      "priority": 8005,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "nk0mngr6xsrt3twjr2do",
+      "priority": 8006,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "cafpmqibx53nx8867p78",
+      "priority": 8007,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "tdsa87d0qjv94dgxaknp",
+      "priority": 8008,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "m8o4wu12d28pap23h8vz",
+      "priority": 8009,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "0xkel7oio209te0swhwk",
+      "priority": 8010,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "n4lh7astxc76gisdhzbl",
+      "priority": 8011,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "it85psq0tnzahm3mhn9q",
+      "priority": 8012,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "70w3236d1y5bkussn2ea",
+      "priority": 8013,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "hiswi4ajge6q62go1g5y",
+      "priority": 8014,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "0761vzzvlcaflqmj0lco",
+      "priority": 8015,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "qk7z2pm1owdky8yt5w9k",
+      "priority": 8016,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "nc08ocfraeny32y2wcyp",
+      "priority": 8017,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "mh2xr7j8p0v5t43tyvef",
+      "priority": 8018,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "fz3ux9osb4u9wwdunvl4",
+      "priority": 8019,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "u85xtgdqrgbpug08amzc",
+      "priority": 8020,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "0qe8tzejou3012f1wnqg",
+      "priority": 8021,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "8dufmqoexzcusmvcrvw5",
+      "priority": 8022,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "22cefx5jdnh64773lnke",
+      "priority": 8023,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "3n17japhzdzif1wmzc33",
+      "priority": 8024,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "64izww3d82ng6i3lvpoa",
+      "priority": 8025,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "28lkpl66obeq1884rosn",
+      "priority": 8026,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "2cpr16u1ljpoixxyqwry",
+      "priority": 8027,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "9cd6a6o0l93hxbpxx4m5",
+      "priority": 8028,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "g4i212gljup1ftz1hlf5",
+      "priority": 8029,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "cwtb1wc8694xx340dtbr",
+      "priority": 8030,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "cwy1qtd7yohg23sfk3qu",
+      "priority": 8031,
+      "tier": "Tier 9 (70,000+ SP)",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_9_(70%2C000%2B_SP)",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "48hqttgm8yf9ouyaevkz",
+      "priority": 9001,
+      "tier": "Tier 10",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Tier_10",
+      "note": "Unlocks the reset system. Check the guide preparation advice first; readiness outside recorded purchases is not tracked here."
+    },
+    {
+      "id": "b68jn6acu00oiesllac3",
+      "priority": 10001,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "5rqq2sc9c2amd7sgh7fc",
+      "priority": 10002,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "r6tqwr233p8c9j88cdcg",
+      "priority": 10003,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "vhxvp4q2i077pymnfhz0",
+      "priority": 10004,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "i5er9w7dwwr4hgua4wml",
+      "priority": 10005,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "grrmtkyfj65p6u1r8203",
+      "priority": 10006,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "ifuxs212yqeh38qs7oap",
+      "priority": 10007,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "swc9ntjw0cn1dn97iqju",
+      "priority": 10008,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "3o6s7ds488qxznu007p3",
+      "priority": 10009,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Adds minion rewards based on spent SP; current mission and spending totals are outside this tracker."
+    },
+    {
+      "id": "umaoh24gx3qapofj3k6c",
+      "priority": 10010,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "0ozqg8dbd2t5xuarhleh",
+      "priority": 10011,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "rdrrxyat9uf8msyrijdv",
+      "priority": 10012,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "5u7rw1q6onzc5uazsa8x",
+      "priority": 10013,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "utbtanttthwl6yjkv4yb",
+      "priority": 10014,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "g5ak66hanu5zbm65o823",
+      "priority": 10015,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "04u7349eha9vacsofx7l",
+      "priority": 10016,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "bka6azyzvwpmb958chu9",
+      "priority": 10017,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "ksxhbddpoaz1p4hygr1e",
+      "priority": 10018,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "middoq500eham764yu7e",
+      "priority": 10019,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "tez2ishj7mxyki2hphc5",
+      "priority": 10020,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "ysts32nui9ru09sl11rf",
+      "priority": 10021,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "lixn5909ljr8tmcquk4u",
+      "priority": 10022,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "o0cbpn8746rxxi12oz5d",
+      "priority": 10023,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "wywyk85gvc06jz7trmhm",
+      "priority": 10024,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "9jghb8x923ygj48jfdfz",
+      "priority": 10025,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "0sqta7kx08cbiyzpggve",
+      "priority": 10026,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "teylqaqjpzomjuzu7d1u",
+      "priority": 10027,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "ukaz7da4oepzuq1k9ouw",
+      "priority": 10028,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "jb9o18w8o7v3ywfn86wy",
+      "priority": 10029,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "p0j4c708uzl0gkldku4x",
+      "priority": 10030,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens Astral progression. Ownership and activation still follow the native rules."
+    },
+    {
+      "id": "q1ohpayhstjat193jka8",
+      "priority": 10031,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "0brs6nowxe7ghztdpj33",
+      "priority": 10032,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "le7ke3q2jdjdmyhtzpgs",
+      "priority": 10033,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "g1bygobkhdd2fsu6zwpg",
+      "priority": 10034,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "fxvp2gcw4zbve2cm35z4",
+      "priority": 10035,
+      "tier": "First Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#First_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "un8k8cm2lyshd27q3mnw",
+      "priority": 11006,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "ifq95umo225vgyedjwev",
+      "priority": 11007,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "rl6ovdwzdqzxslhqw5wz",
+      "priority": 11008,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "saya5o2l6w1qldghswxb",
+      "priority": 11009,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "jatyy26v23xnkz8ttqcc",
+      "priority": 11010,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "2ms8bwf3rqocm6lf46jx",
+      "priority": 11011,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "q8a2lvvtqotrebqas3pn",
+      "priority": 11012,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "x30f35423b5b1ab9po1y",
+      "priority": 11013,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "k9htaf6b5337wm78nc84",
+      "priority": 11014,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "vxqzmip71pplngbig1eo",
+      "priority": 11015,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "jb2uguda48nml5v5ym9g",
+      "priority": 11016,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "4lsgztfb998zgs0o6ame",
+      "priority": 11017,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "eqrbvffdm6zqxnrk7p6r",
+      "priority": 11018,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "b3of6jpqoal8g79tn9l3",
+      "priority": 11019,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "ivhg4dodxw22vpxycgr5",
+      "priority": 11020,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "ocwk462g2wye6ay98xb2",
+      "priority": 11021,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "il3k05xobi3mjc516o01",
+      "priority": 11022,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "f22xgre7ts1m5oixvx04",
+      "priority": 11023,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "gmhcwrfgzcjt6j95g1lr",
+      "priority": 11024,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "lqk02crcigv4zaaztvl1",
+      "priority": 11025,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "c5tril6il2ifbhlwxcf3",
+      "priority": 11026,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "e4ic1spva3hc5pcan0kw",
+      "priority": 11027,
+      "tier": "Second Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Second_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "ejr6dtzoc0isbebxf2jk",
+      "priority": 12003,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "xo7k97u76hvcsabzw1n4",
+      "priority": 12004,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "j6of8smlae78l2874cc6",
+      "priority": 12005,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "qykei6htur6zak40khl2",
+      "priority": 12006,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens coin upgrades. The guide conditions its usefulness on coin earnings that this tracker does not record."
+    },
+    {
+      "id": "8mdf9l9rfygok9bc7uo7",
+      "priority": 12007,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "anny1gm47195yvp47wgs",
+      "priority": 12009,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "bt8c0zhhfttbck4s39jp",
+      "priority": 12010,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "ikcsdy89c8kllmmyfyiw",
+      "priority": 12011,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "kb7063zcmbtgekfo40sn",
+      "priority": 12012,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "d2q1qh9vhuu0xf2y2gbs",
+      "priority": 12013,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves minion progression; mission state and current minion levels are not recorded here."
+    },
+    {
+      "id": "h5844xv13swcq4mzpsrb",
+      "priority": 12014,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports quest progression; current quest completion is outside this tracker."
+    },
+    {
+      "id": "arn28tzl9jbxn7d191lk",
+      "priority": 12015,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports quest progression; current quest completion is outside this tracker."
+    },
+    {
+      "id": "3hrvprzihrtoqjums7zt",
+      "priority": 12016,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "bcqph70rubi6vemdkfsg",
+      "priority": 12017,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "6j2msa7ftl7bgc9mnivo",
+      "priority": 12018,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "mt14qpwn1z4ehkr0c10x",
+      "priority": 12019,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "vlgc76a3m43n09vqaeii",
+      "priority": 12020,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "ikpkotb9fxyhn3ajf2ti",
+      "priority": 12021,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "jpdjw0q1ff6ov2agf1nj",
+      "priority": 12022,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "8nfgayms225l64nku3rd",
+      "priority": 12023,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Supports quest progression; current quest completion is outside this tracker."
+    },
+    {
+      "id": "pklmwvl2898qiuedtaar",
+      "priority": 12024,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "5q0yzxudy6bmf3v28szx",
+      "priority": 12025,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "oauunsfcuppw02h7zx5e",
+      "priority": 12026,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Strengthens giant soul farming. The guide offers a different route for players focused on Chest Hunt."
+    },
+    {
+      "id": "470tmmm9hidh6e8gfrpf",
+      "priority": 12027,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "cx55nh22uycgly5ui8kc",
+      "priority": 12028,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "un0gdnjk43molksctlbm",
+      "priority": 12029,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "ndxzr0id65v30vk7kxel",
+      "priority": 12030,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "xfa343s9ghn3ckl9jvzg",
+      "priority": 12031,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "hnwbnrfi94f0vbcqebgc",
+      "priority": 12032,
+      "tier": "Third Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Third_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "w1jojbmdj84smjdwj49w",
+      "priority": 13005,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "d6qy9m91bxkv97lmq8ip",
+      "priority": 13006,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "9djl01cru87i3tmyjz6w",
+      "priority": 13007,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "9hzirwwstqjxovmmtsoi",
+      "priority": 13008,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "h8kfufj9xck8q2hg5fa4",
+      "priority": 13009,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "p84aof6f3pltugme14lz",
+      "priority": 13010,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "cnotx8pdrsrl4f4ox2uc",
+      "priority": 13011,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "2568m8h4wcal9toz18f0",
+      "priority": 13012,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "falfehv2vutp6z2dplf7",
+      "priority": 13013,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "qy9y6t153ww6x9u443ok",
+      "priority": 13014,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "6upyak7202smydsl567m",
+      "priority": 13015,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "k4e9ycoa31xjfzucqd92",
+      "priority": 13016,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "7dshvqg25sjfxqapghcw",
+      "priority": 13017,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "2i3bygvvqhujeojqfbee",
+      "priority": 13018,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "614ojwd79trd48u3zrmj",
+      "priority": 13019,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "6vhku1e8cz7lr4dvogdm",
+      "priority": 13020,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "a9au1kwpeyj3sjdbetqw",
+      "priority": 13021,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "iz3cjmhawr0eu56qx68p",
+      "priority": 13022,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "ix1ysozh6qqdyazcz7if",
+      "priority": 13023,
+      "tier": "Fourth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fourth_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "d03vc6t49mrhd2etan71",
+      "priority": 14001,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "amkft69udgzm1i8s0ivt",
+      "priority": 14002,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "gyccv217dg1unmmpc4n9",
+      "priority": 14003,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "3jkkmmg8c2bo23vbs0xq",
+      "priority": 14004,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "kxcnkq9x6vb54sq3cmok",
+      "priority": 14005,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "p8wyvoxkcaqazl0vsl1h",
+      "priority": 14006,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "7xs5t96aopw1nqe9grga",
+      "priority": 14007,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "mu0zxnis9jhsb8ug2e8s",
+      "priority": 14008,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "9mf7sq3nhcjishtbi0dq",
+      "priority": 14009,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "dfkzmgd7xyyfskxu6fij",
+      "priority": 14010,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "0wnq43jtp3iwas89ptae",
+      "priority": 14011,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "6wtyl7r8a3h4rjcqdfzh",
+      "priority": 14012,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "1zfkvifhffn2vzp9c6j2",
+      "priority": 14013,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Improves Rage Mode; its usefulness depends on the player’s active play."
+    },
+    {
+      "id": "i83imqpn2nbnxxjotkm3",
+      "priority": 14014,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "57klxc3jp3ad103t3538",
+      "priority": 14015,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "vp1wi148rl3r5fmeq9be",
+      "priority": 14016,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "dprymekh5z959acdjq8f",
+      "priority": 14017,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "ftxn72i746dtmgqez863",
+      "priority": 14018,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "dcmgvr7cm8e8kw6s49ky",
+      "priority": 14019,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "h14redsyrljuukvwa7vq",
+      "priority": 14020,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "4t1tyizp0m5ce8acovvz",
+      "priority": 14021,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "zlu7oe44grdcpisg3uip",
+      "priority": 14022,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "i3ods4dvah3ko0asv713",
+      "priority": 14023,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "k3c39co98mg9ig5atuxs",
+      "priority": 14024,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Opens another progression feature; its native prerequisites and external milestones still apply."
+    },
+    {
+      "id": "h16m3s3lng0kcn9u8sg0",
+      "priority": 14025,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "007lhm0k09vw93na7gry",
+      "priority": 14026,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "tmmzzrbt669loake0u9f",
+      "priority": 14027,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "jp2jscc0mvtmvafbz1fq",
+      "priority": 14028,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "ht6yeskjlxfkk9ptuemv",
+      "priority": 14029,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "d9kxj7m4ew8x9o1lqscy",
+      "priority": 14030,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "sbfbzp4ufk8uvlgu53tm",
+      "priority": 14031,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "izb5dl843znc6zz080ev",
+      "priority": 14032,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "ntm11u3dqqvhr2cg9w0k",
+      "priority": 14033,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "kyn3q87sgv4urv1xryfe",
+      "priority": 14034,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "us8l586jmytvwph0odyy",
+      "priority": 14035,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "0977ngqxye8padc0ajpy",
+      "priority": 14036,
+      "tier": "Fifth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Fifth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "vepipwx1it37bbl9mxag",
+      "priority": 15001,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "ej20gd9dgs3ymp5lt2eb",
+      "priority": 15002,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "j2bkzjx76l7ulzbphipt",
+      "priority": 15003,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Follows the guide’s general mixed-play order; use the native effect and cost to judge personal value."
+    },
+    {
+      "id": "w7fcz2usct2gkwkoe948",
+      "priority": 15004,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "5dg82bbgrwxgskakp6i9",
+      "priority": 15005,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "cae3dd4hllvl14xuul3a",
+      "priority": 15006,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "yv9dwoglzaihc4wkvf0z",
+      "priority": 15007,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "fa8ceamf1lowynhfkw8m",
+      "priority": 15008,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "j2hyjcj6y7alvbo42kyy",
+      "priority": 15009,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "50ewquq2ogtz6qiopwmq",
+      "priority": 15010,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "e1l9p75ug1kh1dje9mnt",
+      "priority": 15011,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "abkogu7ixwyterbuzjms",
+      "priority": 15012,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "zmf7buq1iuhy0uqbu58b",
+      "priority": 15013,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "nnqjdqzz9yolxul1t8ef",
+      "priority": 15014,
+      "tier": "Sixth Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Sixth_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "0e3sydm17ht0joqn02oa",
+      "priority": 16001,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "90jx6cnca94urya7c4xm",
+      "priority": 16002,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "96uct4zj07256mxd2n5c",
+      "priority": 16003,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "ff7p1qnhdn6nq02oy3vu",
+      "priority": 16004,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "6kxpmkz8c6bvepdqj7ez",
+      "priority": 16005,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "w9utsjmx4wnhqw8vb478",
+      "priority": 16006,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports coin or CpS progression; current equipment and coin earnings are not recorded here."
+    },
+    {
+      "id": "1ls9a3w9ju3hafzk7pdn",
+      "priority": 16007,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "l9jb6l155ooti58ka134",
+      "priority": 16008,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "invlfxp4jnzpalasvjt4",
+      "priority": 16009,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "kf9d0d05epyyx47u18l9",
+      "priority": 16010,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "2ubdnrqhk9p5zb5txi4c",
+      "priority": 16011,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "ktyggf4lzo4ak1x99kje",
+      "priority": 16012,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "3y78e4gcxs364s7q6wjd",
+      "priority": 16013,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    },
+    {
+      "id": "q9na720v18xnhqi91mx7",
+      "priority": 16014,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Builds a retained upgrade whose effect waits for Astral activation; purchase and activation are separate."
+    },
+    {
+      "id": "d7hmz2sxa8fot6tcl6nf",
+      "priority": 16015,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Improves an event or minigame benefit described by the native effect."
+    },
+    {
+      "id": "koduzd1aotoho6ek100u",
+      "priority": 16016,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "5no9lr52rkuzei0atml3",
+      "priority": 16017,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Adds Astral Keys at Ultra Ascension; this is a repeatable resource goal, not a readiness check."
+    },
+    {
+      "id": "g7mcq257gbigjcp7ad19",
+      "priority": 16018,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "A distant CpS goal. The guide presents it as optional until the player is ready for its native cost."
+    },
+    {
+      "id": "mynp2xsg5q0asaf9jdyv",
+      "priority": 16019,
+      "tier": "Seventh Ultra Ascension",
+      "url": "https://idleslayer.fandom.com/wiki/Ascension_Tree_Tier_List?oldid=7187#Seventh_Ultra_Ascension",
+      "note": "Supports soul income; the benefit depends on the activity described in the native effect."
+    }
+  ],
+  "stages": [
+    {
+      "id": "Tier_1",
+      "label": "Tier 1",
+      "sequence": 0,
+      "supplementary": false,
+      "rowCount": 14
+    },
+    {
+      "id": "Tier_2",
+      "label": "Tier 2",
+      "sequence": 1,
+      "supplementary": false,
+      "rowCount": 11
+    },
+    {
+      "id": "Tier_3",
+      "label": "Tier 3",
+      "sequence": 2,
+      "supplementary": false,
+      "rowCount": 4
+    },
+    {
+      "id": "Tier_4",
+      "label": "Tier 4",
+      "sequence": 3,
+      "supplementary": false,
+      "rowCount": 13
+    },
+    {
+      "id": "Tier_5_(4,500+_SP)",
+      "label": "Tier 5 (4,500+ SP)",
+      "sequence": 4,
+      "supplementary": false,
+      "rowCount": 6
+    },
+    {
+      "id": "Tier_6",
+      "label": "Tier 6",
+      "sequence": 5,
+      "supplementary": false,
+      "rowCount": 10
+    },
+    {
+      "id": "Tier_7",
+      "label": "Tier 7",
+      "sequence": 6,
+      "supplementary": false,
+      "rowCount": 4
+    },
+    {
+      "id": "Tier_8",
+      "label": "Tier 8",
+      "sequence": 7,
+      "supplementary": false,
+      "rowCount": 12
+    },
+    {
+      "id": "Tier_9_(70,000+_SP)",
+      "label": "Tier 9 (70,000+ SP)",
+      "sequence": 8,
+      "supplementary": false,
+      "rowCount": 31
+    },
+    {
+      "id": "Tier_10",
+      "label": "Tier 10",
+      "sequence": 9,
+      "supplementary": false,
+      "rowCount": 1
+    },
+    {
+      "id": "First_Ultra_Ascension",
+      "label": "First Ultra Ascension",
+      "sequence": 10,
+      "supplementary": false,
+      "rowCount": 35
+    },
+    {
+      "id": "Second_Ultra_Ascension",
+      "label": "Second Ultra Ascension",
+      "sequence": 11,
+      "supplementary": false,
+      "rowCount": 27
+    },
+    {
+      "id": "Third_Ultra_Ascension",
+      "label": "Third Ultra Ascension",
+      "sequence": 12,
+      "supplementary": false,
+      "rowCount": 32
+    },
+    {
+      "id": "Fourth_Ultra_Ascension",
+      "label": "Fourth Ultra Ascension",
+      "sequence": 13,
+      "supplementary": false,
+      "rowCount": 23
+    },
+    {
+      "id": "Fifth_Ultra_Ascension",
+      "label": "Fifth Ultra Ascension",
+      "sequence": 14,
+      "supplementary": false,
+      "rowCount": 36
+    },
+    {
+      "id": "Sixth_Ultra_Ascension",
+      "label": "Sixth Ultra Ascension",
+      "sequence": 15,
+      "supplementary": false,
+      "rowCount": 14
+    },
+    {
+      "id": "Seventh_Ultra_Ascension",
+      "label": "Seventh Ultra Ascension",
+      "sequence": 16,
+      "supplementary": false,
+      "rowCount": 19
+    },
+    {
+      "id": "Quick_Ultra_Ascensions_(Repeatable)",
+      "label": "Quick Ultra Ascensions (Repeatable)",
+      "sequence": 17,
+      "supplementary": true,
+      "rowCount": 11
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "cjnr3qwntwqt4505351h",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 1,
+      "wikiTitle": "Permanent Slayer",
+      "wikiCost": "2",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5ew02t2oprzthi4hmyk6",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 2,
+      "wikiTitle": "Soul Gatherer Bundle",
+      "wikiCost": "4",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "6d44qruuppdrshhefq8b",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 3,
+      "wikiTitle": "Permanent Quests",
+      "wikiCost": "3",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "29vltitxuf0iz5mj0qv4",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 4,
+      "wikiTitle": "Soul Reaper",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "p0aekiqdbh8v22nelqzl",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 5,
+      "wikiTitle": "True Idle Slayer",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "40499lnkesc50smk20pq",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 6,
+      "wikiTitle": "Boost Kill",
+      "wikiCost": "10",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "flc82emtcpk6h2e8lyrd",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 7,
+      "wikiTitle": "Souls Bonus",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vt0m50bvr31g04n43hrh",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 8,
+      "wikiTitle": "Ancient Slayer",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "m60w38ayqj38qmo43frq",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 9,
+      "wikiTitle": "Random Box Magnet",
+      "wikiCost": "15",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "s574rwri2dzfcw0jk4g1",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 10,
+      "wikiTitle": "Reinvest",
+      "wikiCost": "8",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "nczg1sa0khxvrgepcv8d",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 11,
+      "wikiTitle": "Sword Edge",
+      "wikiCost": "15",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h4d63rlvigc5gq6lhbs3",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 12,
+      "wikiTitle": "Monolith",
+      "wikiCost": "15",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "w6zd7o5bdkpyxrllrxy8",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 13,
+      "wikiTitle": "Mining Jewels",
+      "wikiCost": "10",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "sgxpka8ycavz6105p2kh",
+      "tier": "Tier 1",
+      "stage": "Tier_1",
+      "order": 14,
+      "wikiTitle": "Special Random Box Magnet",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3ghh68y7r9pwdaq19krp",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 1,
+      "wikiTitle": "Red Ore",
+      "wikiCost": "30",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "sr13x2slqlvm0a9z118d",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 2,
+      "wikiTitle": "Boost Coin",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "hu5ro5kcjanwremd2fnf",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 3,
+      "wikiTitle": "Cheap Cooldown",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g21rivbh16i192svggal",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 4,
+      "wikiTitle": "Augmented Soul Gatherer",
+      "wikiCost": "50",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mv1tbzg2emnir1nimc3r",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 5,
+      "wikiTitle": "Slowmo Bonus",
+      "wikiCost": "40",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "et8e2lyyry1upen1w1hy",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 6,
+      "wikiTitle": "Blue Ore",
+      "wikiCost": "20",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "xd7kj34bqg2iy0mehk8b",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 7,
+      "wikiTitle": "Green Ore",
+      "wikiCost": "35",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "bliplddpgoo892h8kziq",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 8,
+      "wikiTitle": "Pink Ore",
+      "wikiCost": "50",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "aqmrgi8yghliokgne8en",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 9,
+      "wikiTitle": "Soul Gem",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "x91ee3if49hncfhpvyx6",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 10,
+      "wikiTitle": "Doesn't Matter to Me",
+      "wikiCost": "150",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "o694jhd6v4muz6ibninj",
+      "tier": "Tier 2",
+      "stage": "Tier_2",
+      "order": 11,
+      "wikiTitle": "Portals",
+      "wikiCost": "20",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "uygxolcevnwubo6r8hlt",
+      "tier": "Tier 3",
+      "stage": "Tier_3",
+      "order": 1,
+      "wikiTitle": "Legendary Belt",
+      "wikiCost": "350",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "76datz3inqq0m78gr865",
+      "tier": "Tier 3",
+      "stage": "Tier_3",
+      "order": 2,
+      "wikiTitle": "Soul Slash",
+      "wikiCost": "450",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0rhfn89z52rsrkv73hn4",
+      "tier": "Tier 3",
+      "stage": "Tier_3",
+      "order": 3,
+      "wikiTitle": "Axe Edge",
+      "wikiCost": "600",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "uxy9bn4vhysadldt6fgx",
+      "tier": "Tier 3",
+      "stage": "Tier_3",
+      "order": 4,
+      "wikiTitle": "Minions",
+      "wikiCost": "1200",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "twgjzjgw4ft1do2i91jz",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 1,
+      "wikiTitle": "Money Laundering",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dc1ljyeyy0evvcx68qxp",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 2,
+      "wikiTitle": "Idle Earrings I",
+      "wikiCost": "20",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "skjh7wkqvhv0gldn7398",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 3,
+      "wikiTitle": "Idle Earrings II",
+      "wikiCost": "25",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "947k675u58rrb7mu1dlg",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 4,
+      "wikiTitle": "Purple Ore",
+      "wikiCost": "40",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "gug2zxxzimfx3z3vjhhj",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 5,
+      "wikiTitle": "Cheap Darkness",
+      "wikiCost": "30",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5cufrdofdro0l5ywjaof",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 6,
+      "wikiTitle": "Dagger Edge",
+      "wikiCost": "75",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "yfp31fi2tcpt8w9w3d5e",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 7,
+      "wikiTitle": "Stocks Buyer",
+      "wikiCost": "50",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ffk0l5bpd7mkrah14i50",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 8,
+      "wikiTitle": "Every Day Counts",
+      "wikiCost": "50",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "4ksmk0zx5wh7m3rpfzdd",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 9,
+      "wikiTitle": "Bullet Time",
+      "wikiCost": "250",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dhk5dza84uryr4s6ouhn",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 10,
+      "wikiTitle": "Idle Earrings III",
+      "wikiCost": "100",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "p3pkqyomf8bl7x500hbi",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 11,
+      "wikiTitle": "Portal Traveler",
+      "wikiCost": "200",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "iodtetve4c8xdpstmbiw",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 12,
+      "wikiTitle": "Idle Earrings IV",
+      "wikiCost": "250",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jihbqll1nflfmtww0zpi",
+      "tier": "Tier 4",
+      "stage": "Tier_4",
+      "order": 13,
+      "wikiTitle": "Idle Earrings of Death",
+      "wikiCost": "250",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "j5fec33cuvnji838jp3h",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 1,
+      "wikiTitle": "Sacred Book of Projectiles",
+      "wikiCost": "1000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vd0ehgvvd490dbi6034u",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 2,
+      "wikiTitle": "Bring Hell",
+      "wikiCost": "600",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "091fry390x8fvyh1yoos",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 3,
+      "wikiTitle": "Stability",
+      "wikiCost": "3000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "7p1uvwkl6a39u7qygxhl",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 4,
+      "wikiTitle": "Mystic Valley",
+      "wikiCost": "1200",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "xmsoj8anzhwbb8hqly0k",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 5,
+      "wikiTitle": "Enchanted Arrows",
+      "wikiCost": "600",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "1afrw282f4h60840beds",
+      "tier": "Tier 5 (4,500+ SP)",
+      "stage": "Tier_5_(4,500+_SP)",
+      "order": 6,
+      "wikiTitle": "Triple Shot",
+      "wikiCost": "4000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ptixr6hix7u3m2psj4eo",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 1,
+      "wikiTitle": "Dark Wand",
+      "wikiCost": "2000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "m8wmmpixs76fwa1lf8e5",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 2,
+      "wikiTitle": "Dark Wizard",
+      "wikiCost": "2500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "fq8u5uawdjk4d3y7zwwa",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 3,
+      "wikiTitle": "Map",
+      "wikiCost": "150",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cctxj9mv90za0y3frpx4",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 4,
+      "wikiTitle": "Ethereal Wand",
+      "wikiCost": "500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h662y74ctk58h3m4nu5g",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 5,
+      "wikiTitle": "Dual Randomness",
+      "wikiCost": "300",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "4ykujmku282t15nx14pu",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 6,
+      "wikiTitle": "Coins In The Box",
+      "wikiCost": "350",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "i9dt2sh9w9579jtn44sj",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 7,
+      "wikiTitle": "Royalties",
+      "wikiCost": "400",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mq1y1n7s4bb04xg2qkhb",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 8,
+      "wikiTitle": "Lunar Idle Earrings",
+      "wikiCost": "950",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "1tesifem9ojpmfc9s87r",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 9,
+      "wikiTitle": "Solar Idle Earrings",
+      "wikiCost": "1000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "j5e08ged2jc2as0f53gs",
+      "tier": "Tier 6",
+      "stage": "Tier_6",
+      "order": 10,
+      "wikiTitle": "Book of Efficiency I",
+      "wikiCost": "500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "a7npbmec6gwdukygn09b",
+      "tier": "Tier 7",
+      "stage": "Tier_7",
+      "order": 1,
+      "wikiTitle": "Silver Money Amulet",
+      "wikiCost": "1600",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "o5vjttro2olhgcozxauu",
+      "tier": "Tier 7",
+      "stage": "Tier_7",
+      "order": 2,
+      "wikiTitle": "Golden Money Amulet",
+      "wikiCost": "2000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "k2evdphhohzouwxf1b8j",
+      "tier": "Tier 7",
+      "stage": "Tier_7",
+      "order": 3,
+      "wikiTitle": "Soul Reaper II",
+      "wikiCost": "1000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kgsya9w1tvrquk3k3mfd",
+      "tier": "Tier 7",
+      "stage": "Tier_7",
+      "order": 4,
+      "wikiTitle": "Soul Amulet",
+      "wikiCost": "3000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "atjzlpd21gchly80hiov",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 1,
+      "wikiTitle": "Rock And Stone",
+      "wikiCost": "10000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kckox7dtfyyvlnwrn7z9",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 2,
+      "wikiTitle": "Embrace The Fear",
+      "wikiCost": "6500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "024ukimcgsl327mo4xr7",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 3,
+      "wikiTitle": "Skeleton",
+      "wikiCost": "8000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dbe6wzjv38np1x3fyvsz",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 4,
+      "wikiTitle": "Safety First",
+      "wikiCost": "8000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "nknr6w0zv2rjytkr5shv",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 5,
+      "wikiTitle": "Chest Hunt Saver",
+      "wikiCost": "5000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "1hzjnaywrmtkls5iyk9p",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 6,
+      "wikiTitle": "Sword Edge II",
+      "wikiCost": "1850",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g3znqm0714v29mwj7fbw",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 7,
+      "wikiTitle": "Shinies",
+      "wikiCost": "500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "nwpu43sn4cptzp6k759h",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 8,
+      "wikiTitle": "Golden Invasion",
+      "wikiCost": "650",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "muna65u8d7j2frf7vb5r",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 9,
+      "wikiTitle": "Saved",
+      "wikiCost": "2500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "lz76954y9o9m02362hb8",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 10,
+      "wikiTitle": "Book of Efficiency II",
+      "wikiCost": "5000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "u5k8j7jk4z1qjnn0pghy",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 11,
+      "wikiTitle": "Bonus Stage 2",
+      "wikiCost": "5000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "efowqhppkrzdsl3v60pu",
+      "tier": "Tier 8",
+      "stage": "Tier_8",
+      "order": 12,
+      "wikiTitle": "Doomed",
+      "wikiCost": "2500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "zwbj8rbqovj26gin4ohq",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 1,
+      "wikiTitle": "Permanent Supply Boxes",
+      "wikiCost": "4000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "50m8enubx3t51dwl87yk",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 2,
+      "wikiTitle": "King of The Sea",
+      "wikiCost": "6500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0jbbv97xeanlko2ri87t",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 3,
+      "wikiTitle": "ASHPD",
+      "wikiCost": "5000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3swfw3z15gs86qkncaa7",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 4,
+      "wikiTitle": "Wall Breaker",
+      "wikiCost": "3500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "7yyscwtemitpdgj4ifu9",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 5,
+      "wikiTitle": "Tornado of Souls",
+      "wikiCost": "20000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "nk0mngr6xsrt3twjr2do",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 6,
+      "wikiTitle": "Gemstone Rush",
+      "wikiCost": "10000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cafpmqibx53nx8867p78",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 7,
+      "wikiTitle": "Bag",
+      "wikiCost": "10000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "tdsa87d0qjv94dgxaknp",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 8,
+      "wikiTitle": "Terra Idle Earrings",
+      "wikiCost": "7500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "m8o4wu12d28pap23h8vz",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 9,
+      "wikiTitle": "Roll The Dice",
+      "wikiCost": "16500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0xkel7oio209te0swhwk",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 10,
+      "wikiTitle": "Premium Time",
+      "wikiCost": "25000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "n4lh7astxc76gisdhzbl",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 11,
+      "wikiTitle": "Knight Services",
+      "wikiCost": "7500",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "it85psq0tnzahm3mhn9q",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 12,
+      "wikiTitle": "High Alchemy",
+      "wikiCost": "12000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "70w3236d1y5bkussn2ea",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 13,
+      "wikiTitle": "Blue Sparkle",
+      "wikiCost": "6000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "hiswi4ajge6q62go1g5y",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 14,
+      "wikiTitle": "Factory",
+      "wikiCost": "140000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0761vzzvlcaflqmj0lco",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 15,
+      "wikiTitle": "Human After All",
+      "wikiCost": "60000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "qk7z2pm1owdky8yt5w9k",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 16,
+      "wikiTitle": "Protect",
+      "wikiCost": "15000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "nc08ocfraeny32y2wcyp",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 17,
+      "wikiTitle": "Oblivion Idle Earrings",
+      "wikiCost": "23000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mh2xr7j8p0v5t43tyvef",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 18,
+      "wikiTitle": "Boost Blood",
+      "wikiCost": "50000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "fz3ux9osb4u9wwdunvl4",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 19,
+      "wikiTitle": "Augmented Boost Kill",
+      "wikiCost": "100000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "u85xtgdqrgbpug08amzc",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 20,
+      "wikiTitle": "Super Chest Souls",
+      "wikiCost": "35000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0qe8tzejou3012f1wnqg",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 21,
+      "wikiTitle": "Soul Silver",
+      "wikiCost": "35000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "8dufmqoexzcusmvcrvw5",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 22,
+      "wikiTitle": "Muscle Memory",
+      "wikiCost": "35000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "22cefx5jdnh64773lnke",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 23,
+      "wikiTitle": "Book of Efficiency III",
+      "wikiCost": "50000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3n17japhzdzif1wmzc33",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 24,
+      "wikiTitle": "Idle Earrings of Unity",
+      "wikiCost": "45000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "64izww3d82ng6i3lvpoa",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 25,
+      "wikiTitle": "Mega Horde",
+      "wikiCost": "175000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "28lkpl66obeq1884rosn",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 26,
+      "wikiTitle": "Blessing of Kratos",
+      "wikiCost": "95000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2cpr16u1ljpoixxyqwry",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 27,
+      "wikiTitle": "Divinities",
+      "wikiCost": "200000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9cd6a6o0l93hxbpxx4m5",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 28,
+      "wikiTitle": "Critical Culling",
+      "wikiCost": "150000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g4i212gljup1ftz1hlf5",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 29,
+      "wikiTitle": "Bonus Rewards+",
+      "wikiCost": "1250000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cwtb1wc8694xx340dtbr",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 30,
+      "wikiTitle": "Mega Chest Souls",
+      "wikiCost": "1500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cwy1qtd7yohg23sfk3qu",
+      "tier": "Tier 9 (70,000+ SP)",
+      "stage": "Tier_9_(70,000+_SP)",
+      "order": 31,
+      "wikiTitle": "Book of Efficiency IV",
+      "wikiCost": "500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "48hqttgm8yf9ouyaevkz",
+      "tier": "Tier 10",
+      "stage": "Tier_10",
+      "order": 1,
+      "wikiTitle": "Ultra Ascension",
+      "wikiCost": "2000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "b68jn6acu00oiesllac3",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Stones of Time",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5rqq2sc9c2amd7sgh7fc",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Hot Desert",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "r6tqwr233p8c9j88cdcg",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Ancient Quests",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vhxvp4q2i077pymnfhz0",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Village Key",
+      "wikiCost": "3",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "i5er9w7dwwr4hgua4wml",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Blessing of Cronus",
+      "wikiCost": "50",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "grrmtkyfj65p6u1r8203",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Orange Ore",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ifuxs212yqeh38qs7oap",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Yellow Ore",
+      "wikiCost": "5",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "swc9ntjw0cn1dn97iqju",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Dangerous While Alone",
+      "wikiCost": "35",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3o6s7ds488qxznu007p3",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Inner Power",
+      "wikiCost": "5000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "umaoh24gx3qapofj3k6c",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "3 Rows",
+      "wikiCost": "350000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0ozqg8dbd2t5xuarhleh",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Critical Training",
+      "wikiCost": "350000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "rdrrxyat9uf8msyrijdv",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Critical Practice",
+      "wikiCost": "350000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5u7rw1q6onzc5uazsa8x",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Critical Study",
+      "wikiCost": "350000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "utbtanttthwl6yjkv4yb",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Portal Dominum",
+      "wikiCost": "5000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g5ak66hanu5zbm65o823",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Perfect Prestige",
+      "wikiCost": "2500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "04u7349eha9vacsofx7l",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Rage Mode",
+      "wikiCost": "30000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "bka6azyzvwpmb958chu9",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Already Enraged",
+      "wikiCost": "100",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ksxhbddpoaz1p4hygr1e",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Outrage",
+      "wikiCost": "200",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "middoq500eham764yu7e",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Fury",
+      "wikiCost": "10",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "tez2ishj7mxyki2hphc5",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 20,
+      "wikiTitle": "Gala's Bone",
+      "wikiCost": "600000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ysts32nui9ru09sl11rf",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 21,
+      "wikiTitle": "Climbing Boots",
+      "wikiCost": "75000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "lixn5909ljr8tmcquk4u",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 22,
+      "wikiTitle": "Book of Efficiency V",
+      "wikiCost": "5000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "o0cbpn8746rxxi12oz5d",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 23,
+      "wikiTitle": "Giant Horde",
+      "wikiCost": "50000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "wywyk85gvc06jz7trmhm",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 24,
+      "wikiTitle": "Careful Slayer",
+      "wikiCost": "12500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9jghb8x923ygj48jfdfz",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 25,
+      "wikiTitle": "Master Chest Souls",
+      "wikiCost": "150000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0sqta7kx08cbiyzpggve",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 26,
+      "wikiTitle": "Advanced Cooking",
+      "wikiCost": "2000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "teylqaqjpzomjuzu7d1u",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 27,
+      "wikiTitle": "Ramen",
+      "wikiCost": "3500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ukaz7da4oepzuq1k9ouw",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 28,
+      "wikiTitle": "Stew",
+      "wikiCost": "4000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jb9o18w8o7v3ywfn86wy",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 29,
+      "wikiTitle": "Bonus Sphere Control",
+      "wikiCost": "5000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "p0j4c708uzl0gkldku4x",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 30,
+      "wikiTitle": "Astral Slayer",
+      "wikiCost": "500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "q1ohpayhstjat193jka8",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 31,
+      "wikiTitle": "Land Lord",
+      "wikiCost": "2000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0brs6nowxe7ghztdpj33",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 32,
+      "wikiTitle": "Astral Sword",
+      "wikiCost": "10000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "le7ke3q2jdjdmyhtzpgs",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 33,
+      "wikiTitle": "Astral Blessing",
+      "wikiCost": "60000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g1bygobkhdd2fsu6zwpg",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 34,
+      "wikiTitle": "Daily Silver Bonus",
+      "wikiCost": "500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "fxvp2gcw4zbve2cm35z4",
+      "tier": "First Ultra Ascension",
+      "stage": "First_Ultra_Ascension",
+      "order": 35,
+      "wikiTitle": "Multiverse",
+      "wikiCost": "1000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "g5ak66hanu5zbm65o823",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Perfect Prestige",
+      "wikiCost": "2500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "04u7349eha9vacsofx7l",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Rage Mode",
+      "wikiCost": "30000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "o0cbpn8746rxxi12oz5d",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Giant Horde",
+      "wikiCost": "50000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "wywyk85gvc06jz7trmhm",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Careful Slayer",
+      "wikiCost": "12500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9jghb8x923ygj48jfdfz",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Master Chest Souls",
+      "wikiCost": "150000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "un8k8cm2lyshd27q3mnw",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Gold Hammer",
+      "wikiCost": "180000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ifq95umo225vgyedjwev",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Bonus Stage 3",
+      "wikiCost": "500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "rl6ovdwzdqzxslhqw5wz",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Cleric’s Staff",
+      "wikiCost": "600000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "saya5o2l6w1qldghswxb",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Board The Platforms",
+      "wikiCost": "1500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jatyy26v23xnkz8ttqcc",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Souls Surge I",
+      "wikiCost": "3000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2ms8bwf3rqocm6lf46jx",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Souls Surge II",
+      "wikiCost": "5000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "q8a2lvvtqotrebqas3pn",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Slash The Life",
+      "wikiCost": "3000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "x30f35423b5b1ab9po1y",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Leadership Master",
+      "wikiCost": "100000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "k9htaf6b5337wm78nc84",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Mastery of Multipliers",
+      "wikiCost": "1000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vxqzmip71pplngbig1eo",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Reincarnation",
+      "wikiCost": "2500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jb2uguda48nml5v5ym9g",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Rare Soul Vase",
+      "wikiCost": "700000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "4lsgztfb998zgs0o6ame",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Command & Conquer",
+      "wikiCost": "750000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "eqrbvffdm6zqxnrk7p6r",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Soul of The Fallen",
+      "wikiCost": "10000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "b3of6jpqoal8g79tn9l3",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Magical Temporary Item",
+      "wikiCost": "8500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ivhg4dodxw22vpxycgr5",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 20,
+      "wikiTitle": "Flawless",
+      "wikiCost": "10000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ocwk462g2wye6ay98xb2",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 21,
+      "wikiTitle": "Golden Tooth",
+      "wikiCost": "150000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "il3k05xobi3mjc516o01",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 22,
+      "wikiTitle": "Ultra Reset",
+      "wikiCost": "100000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "f22xgre7ts1m5oixvx04",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 23,
+      "wikiTitle": "Astral Scales",
+      "wikiCost": "500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "gmhcwrfgzcjt6j95g1lr",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 24,
+      "wikiTitle": "Eternal Rage",
+      "wikiCost": "4500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "lqk02crcigv4zaaztvl1",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 25,
+      "wikiTitle": "Dismantler",
+      "wikiCost": "5000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "c5tril6il2ifbhlwxcf3",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 26,
+      "wikiTitle": "Stone of Hope",
+      "wikiCost": "12000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "e4ic1spva3hc5pcan0kw",
+      "tier": "Second Ultra Ascension",
+      "stage": "Second_Ultra_Ascension",
+      "order": 27,
+      "wikiTitle": "Silk Master",
+      "wikiCost": "50000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jatyy26v23xnkz8ttqcc",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Souls Surge I",
+      "wikiCost": "3000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2ms8bwf3rqocm6lf46jx",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Souls Surge II",
+      "wikiCost": "5000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ejr6dtzoc0isbebxf2jk",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Uncontrolled Anger",
+      "wikiCost": "10000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "xo7k97u76hvcsabzw1n4",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Endless Aggression",
+      "wikiCost": "15000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "j6of8smlae78l2874cc6",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Triple Silvers",
+      "wikiCost": "20000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "qykei6htur6zak40khl2",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Magic Beetle Box",
+      "wikiCost": "30000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "8mdf9l9rfygok9bc7uo7",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Chemical X",
+      "wikiCost": "9000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "eqrbvffdm6zqxnrk7p6r",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Soul of The Fallen",
+      "wikiCost": "10000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "anny1gm47195yvp47wgs",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Soul Grapple Cape",
+      "wikiCost": "3500000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "bt8c0zhhfttbck4s39jp",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Dark Hook",
+      "wikiCost": "150000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ikcsdy89c8kllmmyfyiw",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Bad-Tempered",
+      "wikiCost": "50000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kb7063zcmbtgekfo40sn",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Armory Talismans",
+      "wikiCost": "750000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "d2q1qh9vhuu0xf2y2gbs",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Provisions",
+      "wikiCost": "150000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h5844xv13swcq4mzpsrb",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Gem Seller",
+      "wikiCost": "55000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "arn28tzl9jbxn7d191lk",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Gem Buyer",
+      "wikiCost": "85000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3hrvprzihrtoqjums7zt",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Unique Soul Vase",
+      "wikiCost": "65000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "bcqph70rubi6vemdkfsg",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Soul to Wind",
+      "wikiCost": "350000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "6j2msa7ftl7bgc9mnivo",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Dash Kill",
+      "wikiCost": "7500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mt14qpwn1z4ehkr0c10x",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Astral Keys",
+      "wikiCost": "50000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vlgc76a3m43n09vqaeii",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 20,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "100000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Rage Mode"
+    },
+    {
+      "id": "ikpkotb9fxyhn3ajf2ti",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 21,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "1000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Astral Scales"
+    },
+    {
+      "id": "jpdjw0q1ff6ov2agf1nj",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 22,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "10000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Dismantler"
+    },
+    {
+      "id": "8nfgayms225l64nku3rd",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 23,
+      "wikiTitle": "Collateral",
+      "wikiCost": "1500000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "pklmwvl2898qiuedtaar",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 24,
+      "wikiTitle": "Funky Space",
+      "wikiCost": "1000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5q0yzxudy6bmf3v28szx",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 25,
+      "wikiTitle": "The Eye of Providence",
+      "wikiCost": "3000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "oauunsfcuppw02h7zx5e",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 26,
+      "wikiTitle": "Wander's Path",
+      "wikiCost": "1000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "470tmmm9hidh6e8gfrpf",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 27,
+      "wikiTitle": "Dark Side of Nature",
+      "wikiCost": "250000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cx55nh22uycgly5ui8kc",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 28,
+      "wikiTitle": "Knight of The Wind",
+      "wikiCost": "500000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "un0gdnjk43molksctlbm",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 29,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "100000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Unique Soul Vase"
+    },
+    {
+      "id": "ndxzr0id65v30vk7kxel",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 30,
+      "wikiTitle": "Ancient Treasures",
+      "wikiCost": "500000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "xfa343s9ghn3ckl9jvzg",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 31,
+      "wikiTitle": "Time Skip",
+      "wikiCost": "2000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "hnwbnrfi94f0vbcqebgc",
+      "tier": "Third Ultra Ascension",
+      "stage": "Third_Ultra_Ascension",
+      "order": 32,
+      "wikiTitle": "Sacred Tome of Death Pact",
+      "wikiCost": "10000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "pklmwvl2898qiuedtaar",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Funky Space",
+      "wikiCost": "1000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "d2q1qh9vhuu0xf2y2gbs",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Provisions",
+      "wikiCost": "150000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5q0yzxudy6bmf3v28szx",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "The Eye of Providence",
+      "wikiCost": "3000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "oauunsfcuppw02h7zx5e",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Wander's Path",
+      "wikiCost": "1000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "w1jojbmdj84smjdwj49w",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Toolkits Crafting",
+      "wikiCost": "800000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "d6qy9m91bxkv97lmq8ip",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Generations",
+      "wikiCost": "10000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9djl01cru87i3tmyjz6w",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Chest In a Chest",
+      "wikiCost": "40000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9hzirwwstqjxovmmtsoi",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Great Loot",
+      "wikiCost": "200000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h8kfufj9xck8q2hg5fa4",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Mimic's Corpse",
+      "wikiCost": "250000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "p84aof6f3pltugme14lz",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Multiplier Manifest",
+      "wikiCost": "350000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cnotx8pdrsrl4f4ox2uc",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Golden Hook",
+      "wikiCost": "12500000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2568m8h4wcal9toz18f0",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Mirror Force",
+      "wikiCost": "40000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "falfehv2vutp6z2dplf7",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Cyan Ore",
+      "wikiCost": "40000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "qy9y6t153ww6x9u443ok",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Steel Crate",
+      "wikiCost": "100000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "6upyak7202smydsl567m",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Sneaky Stealer",
+      "wikiCost": "50000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "k4e9ycoa31xjfzucqd92",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Boosted Swing",
+      "wikiCost": "40000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "7dshvqg25sjfxqapghcw",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Silver Spirit",
+      "wikiCost": "50000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2i3bygvvqhujeojqfbee",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Book of Efficiency VI",
+      "wikiCost": "100000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "614ojwd79trd48u3zrmj",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "10000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Time Skip"
+    },
+    {
+      "id": "6vhku1e8cz7lr4dvogdm",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 20,
+      "wikiTitle": "Total Sale",
+      "wikiCost": "200000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "a9au1kwpeyj3sjdbetqw",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 21,
+      "wikiTitle": "Stone of Rage",
+      "wikiCost": "500000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "iz3cjmhawr0eu56qx68p",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 22,
+      "wikiTitle": "Rights Of A Villager",
+      "wikiCost": "750000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ix1ysozh6qqdyazcz7if",
+      "tier": "Fourth Ultra Ascension",
+      "stage": "Fourth_Ultra_Ascension",
+      "order": 23,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "100000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Sacred Tome of Death Pact"
+    },
+    {
+      "id": "d03vc6t49mrhd2etan71",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Magic Lamp",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "amkft69udgzm1i8s0ivt",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Stone of Idle Overcharge",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "gyccv217dg1unmmpc4n9",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Soul Climbing Boots",
+      "wikiCost": "10000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3jkkmmg8c2bo23vbs0xq",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Dark Heights",
+      "wikiCost": "500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kxcnkq9x6vb54sq3cmok",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Advanced Divinities",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "p8wyvoxkcaqazl0vsl1h",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Advanced Dark Divinities",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "7xs5t96aopw1nqe9grga",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Cutting-Edge Divinities",
+      "wikiCost": "3000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mu0zxnis9jhsb8ug2e8s",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Jewelry Case",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "9mf7sq3nhcjishtbi0dq",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Cuneiform Tablet",
+      "wikiCost": "300000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dfkzmgd7xyyfskxu6fij",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Soul Trader",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0wnq43jtp3iwas89ptae",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Stone of Activity Overcharge",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "6wtyl7r8a3h4rjcqdfzh",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Stone of Hope Overcharge",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "1zfkvifhffn2vzp9c6j2",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Stone of Rage Overcharge",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "i83imqpn2nbnxxjotkm3",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Soul Reaper III",
+      "wikiCost": "750000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "57klxc3jp3ad103t3538",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Soul of the Protector",
+      "wikiCost": "1500000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vp1wi148rl3r5fmeq9be",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Souls on Belts",
+      "wikiCost": "5000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dprymekh5z959acdjq8f",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Globus Cruciger",
+      "wikiCost": "10000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ftxn72i746dtmgqez863",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Earrings of Blood",
+      "wikiCost": "30000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "dcmgvr7cm8e8kw6s49ky",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Armory Loadouts",
+      "wikiCost": "15000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h14redsyrljuukvwa7vq",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 20,
+      "wikiTitle": "Giant's Bane Precision",
+      "wikiCost": "500000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "4t1tyizp0m5ce8acovvz",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 21,
+      "wikiTitle": "Demolition Sword",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "zlu7oe44grdcpisg3uip",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 22,
+      "wikiTitle": "Demolition Bow",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "i3ods4dvah3ko0asv713",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 23,
+      "wikiTitle": "Wipe Out Bow",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "k3c39co98mg9ig5atuxs",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 24,
+      "wikiTitle": "Glamour Tiara",
+      "wikiCost": "300000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "h16m3s3lng0kcn9u8sg0",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 25,
+      "wikiTitle": "Brooch of Grind",
+      "wikiCost": "5000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "007lhm0k09vw93na7gry",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 26,
+      "wikiTitle": "Bonus Stage Loadout",
+      "wikiCost": "5000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "tmmzzrbt669loake0u9f",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 27,
+      "wikiTitle": "Chest Hunt Loadout",
+      "wikiCost": "5000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "jp2jscc0mvtmvafbz1fq",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 28,
+      "wikiTitle": "Boss Fight Loadout",
+      "wikiCost": "5000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ht6yeskjlxfkk9ptuemv",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 29,
+      "wikiTitle": "Packed Souls",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "d9kxj7m4ew8x9o1lqscy",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 30,
+      "wikiTitle": "Specter Knight",
+      "wikiCost": "1000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "sbfbzp4ufk8uvlgu53tm",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 31,
+      "wikiTitle": "Strength Overload",
+      "wikiCost": "2000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "izb5dl843znc6zz080ev",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 32,
+      "wikiTitle": "Cyclone Soul",
+      "wikiCost": "2000000000000000",
+      "mapping": "reviewed-name-inversion-exact-cost-and-effect",
+      "supplementary": false
+    },
+    {
+      "id": "ntm11u3dqqvhr2cg9w0k",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 33,
+      "wikiTitle": "Ancient Awakening",
+      "wikiCost": "2500000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kyn3q87sgv4urv1xryfe",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 34,
+      "wikiTitle": "Golden Wind",
+      "wikiCost": "4000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "us8l586jmytvwph0odyy",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 35,
+      "wikiTitle": "Book of Optimization",
+      "wikiCost": "5000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "0977ngqxye8padc0ajpy",
+      "tier": "Fifth Ultra Ascension",
+      "stage": "Fifth_Ultra_Ascension",
+      "order": 36,
+      "wikiTitle": "Elemental Dark Divinities",
+      "wikiCost": "7500000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vepipwx1it37bbl9mxag",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Soul Brooch",
+      "wikiCost": "5000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ej20gd9dgs3ymp5lt2eb",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Spear Edge",
+      "wikiCost": "80000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "j2bkzjx76l7ulzbphipt",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Perfect Cut",
+      "wikiCost": "75000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "w7fcz2usct2gkwkoe948",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Soul Node",
+      "wikiCost": "25000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "5dg82bbgrwxgskakp6i9",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "Shadow Essence",
+      "wikiCost": "50000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "cae3dd4hllvl14xuul3a",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Gold Node",
+      "wikiCost": "10000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "yv9dwoglzaihc4wkvf0z",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Ancient Coin",
+      "wikiCost": "20000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "fa8ceamf1lowynhfkw8m",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Grapple Run Loadout",
+      "wikiCost": "10000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "j2hyjcj6y7alvbo42kyy",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Ascending Heights Loadout",
+      "wikiCost": "10000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "50ewquq2ogtz6qiopwmq",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Original Sin",
+      "wikiCost": "200000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "e1l9p75ug1kh1dje9mnt",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Edge Master",
+      "wikiCost": "500000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "abkogu7ixwyterbuzjms",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Upgrades of Time",
+      "wikiCost": "1500000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "zmf7buq1iuhy0uqbu58b",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "1000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Soul Cyclone"
+    },
+    {
+      "id": "nnqjdqzz9yolxul1t8ef",
+      "tier": "Sixth Ultra Ascension",
+      "stage": "Sixth_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "10000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Golden Hook"
+    },
+    {
+      "id": "0e3sydm17ht0joqn02oa",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 1,
+      "wikiTitle": "Frozen Essence",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "90jx6cnca94urya7c4xm",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 2,
+      "wikiTitle": "Castle Phantoms",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "96uct4zj07256mxd2n5c",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 3,
+      "wikiTitle": "Echoes of the Hills",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ff7p1qnhdn6nq02oy3vu",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 4,
+      "wikiTitle": "Wild Souls",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "6kxpmkz8c6bvepdqj7ez",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 5,
+      "wikiTitle": "City Spirits",
+      "wikiCost": "250000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "w9utsjmx4wnhqw8vb478",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 6,
+      "wikiTitle": "Land Surveyor",
+      "wikiCost": "1000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "1ls9a3w9ju3hafzk7pdn",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 7,
+      "wikiTitle": "Soul Assembly",
+      "wikiCost": "250000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "l9jb6l155ooti58ka134",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 8,
+      "wikiTitle": "Coimbo Release",
+      "wikiCost": "1000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "invlfxp4jnzpalasvjt4",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 9,
+      "wikiTitle": "Promotion Letter",
+      "wikiCost": "500000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "kf9d0d05epyyx47u18l9",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 10,
+      "wikiTitle": "Wind Release",
+      "wikiCost": "1000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "2ubdnrqhk9p5zb5txi4c",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 11,
+      "wikiTitle": "Nature Essence",
+      "wikiCost": "500000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "ktyggf4lzo4ak1x99kje",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 12,
+      "wikiTitle": "Mystic Essence",
+      "wikiCost": "250000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "3y78e4gcxs364s7q6wjd",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 13,
+      "wikiTitle": "Desert Spirits",
+      "wikiCost": "250000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "q9na720v18xnhqi91mx7",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 14,
+      "wikiTitle": "Clearance",
+      "wikiCost": "10000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "d7hmz2sxa8fot6tcl6nf",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 15,
+      "wikiTitle": "Random Shine",
+      "wikiCost": "60000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "koduzd1aotoho6ek100u",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 16,
+      "wikiTitle": "Astral Key (+3)",
+      "wikiCost": "100000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Perfect Cut"
+    },
+    {
+      "id": "5no9lr52rkuzei0atml3",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 17,
+      "wikiTitle": "Astral Key (+4)",
+      "wikiCost": "1000000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": false,
+      "prerequisiteWitness": "Nature Essence"
+    },
+    {
+      "id": "g7mcq257gbigjcp7ad19",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 18,
+      "wikiTitle": "Master of Realms",
+      "wikiCost": "100000000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "mynp2xsg5q0asaf9jdyv",
+      "tier": "Seventh Ultra Ascension",
+      "stage": "Seventh_Ultra_Ascension",
+      "order": 19,
+      "wikiTitle": "Cosmic Blessing",
+      "wikiCost": "250000000000000000000",
+      "mapping": "unique-normalized-title",
+      "supplementary": false
+    },
+    {
+      "id": "vlgc76a3m43n09vqaeii",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 1,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "100000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Rage Mode"
+    },
+    {
+      "id": "ikpkotb9fxyhn3ajf2ti",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 2,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "1000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Astral Scales"
+    },
+    {
+      "id": "jpdjw0q1ff6ov2agf1nj",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 3,
+      "wikiTitle": "Astral Key",
+      "wikiCost": "10000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Dismantler"
+    },
+    {
+      "id": "un0gdnjk43molksctlbm",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 4,
+      "wikiTitle": "Astral Key (+2)",
+      "wikiCost": "100000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Unique Soul Vase"
+    },
+    {
+      "id": "bfxg92d5su1vxe2fsg14",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 5,
+      "wikiTitle": "Astral Key (+2)",
+      "wikiCost": "1000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Limit Break"
+    },
+    {
+      "id": "614ojwd79trd48u3zrmj",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 6,
+      "wikiTitle": "Astral Key (+2)",
+      "wikiCost": "10000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Time Skip"
+    },
+    {
+      "id": "ix1ysozh6qqdyazcz7if",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 7,
+      "wikiTitle": "Astral Key (+2)",
+      "wikiCost": "100000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Sacred Tome of Death Pact"
+    },
+    {
+      "id": "zmf7buq1iuhy0uqbu58b",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 8,
+      "wikiTitle": "Astral Key (+3)",
+      "wikiCost": "1000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Soul Cyclone"
+    },
+    {
+      "id": "nnqjdqzz9yolxul1t8ef",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 9,
+      "wikiTitle": "Astral Key (+3)",
+      "wikiCost": "10000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Golden Hook"
+    },
+    {
+      "id": "koduzd1aotoho6ek100u",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 10,
+      "wikiTitle": "Astral Key (+3)",
+      "wikiCost": "100000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Perfect Cut"
+    },
+    {
+      "id": "5no9lr52rkuzei0atml3",
+      "tier": "Quick Ultra Ascensions (Repeatable)",
+      "stage": "Quick_Ultra_Ascensions_(Repeatable)",
+      "order": 11,
+      "wikiTitle": "Astral Key (+4)",
+      "wikiCost": "1000000000000000000",
+      "mapping": "duplicate-title-exact-cost-and-prerequisite",
+      "supplementary": true,
+      "prerequisiteWitness": "Nature Essence"
+    }
+  ],
+  "coverage": {
+    "nativeUpgradeCount": 288,
+    "rankedUpgradeCount": 280,
+    "extractedRowCount": 303,
+    "mappedOccurrenceCount": 303,
+    "unrankedNativeIds": [
+      "2oxx5mu5lw5rlpky0rsa",
+      "bfxg92d5su1vxe2fsg14",
+      "f0u5ddz1ddlbfcunejog",
+      "f49bj6r65ffyqmf0anum",
+      "iugl3af4wlzw5ru7wooh",
+      "joffg528v6o2a86ldmnl",
+      "tksbj36zo6dlvjdnx1n2",
+      "z04g6cmfx6oucj9c7t9p"
+    ],
+    "unmappedRows": [],
+    "ambiguousRows": [],
+    "costMismatches": [],
+    "reviewedAliases": [
+      {
+        "wikiTitle": "Cyclone Soul",
+        "nativeTitle": "Soul Cyclone",
+        "id": "izb5dl843znc6zz080ev",
+        "tier": "Fifth Ultra Ascension",
+        "evidence": "Exact cost and effect match; the same wiki revision uses Soul Cyclone in its Astral Key prerequisite table."
+      }
+    ],
+    "syntaxCorrections": [
+      {
+        "tier": "Fifth Ultra Ascension",
+        "order": 12,
+        "title": "Stone of Hope Overcharge",
+        "correction": "Ignored one extra delimiter before the File image; the name, cost and effect remain their own cells."
+      },
+      {
+        "tier": "Fifth Ultra Ascension",
+        "order": 13,
+        "title": "Stone of Rage Overcharge",
+        "correction": "Ignored one extra delimiter before the File image; the name, cost and effect remain their own cells."
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+dialog:has(.ua-roadmap) { width: min(1000px, calc(100vw - 24px)); overflow-wrap: anywhere; }
+.ua-roadmap, .roadmap-stage, .roadmap-route { min-width: 0; overflow-wrap: anywhere; }
+.ua-roadmap p, .ua-roadmap small, .ua-roadmap li, .ua-roadmap label { font-size: .875rem; line-height: 1.5; }
+.ua-roadmap h3, .ua-roadmap h4 { color: var(--bright-gold); font: inherit; font-weight: bold; }
+.ua-roadmap button, .ua-roadmap summary { min-height: 44px; max-width: 100%; font-size: .875rem; overflow-wrap: anywhere; }
+.ua-roadmap summary { cursor: pointer; padding: 10px 0; }
+.ua-roadmap input:not([type='checkbox']):not([type='radio']), .ua-roadmap select { display: block; width: 100%; min-width: 0; min-height: 44px; font: inherit; font-size: .875rem; color: var(--bright-gold); background: var(--raised); }
+.roadmap-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.roadmap-plan-actions [aria-pressed='true'] { border-color: var(--bright-gold); }
+.roadmap-stage, .roadmap-route, .roadmap-summary article { margin: 16px 0; padding: 12px; border: 1px solid var(--line); border-radius: 0; background: var(--raised); }
+.roadmap-targets, .roadmap-purchases { padding-left: 20px; }
+.roadmap-targets li, .roadmap-purchases li { margin: 12px 0; }
+.roadmap-targets small, .roadmap-target-results small { display: block; }
+.roadmap-picker, .roadmap-items, .roadmap-checklist { border-top: 1px solid var(--line); margin: 16px 0; }
+.roadmap-target-results { display: flex; flex-direction: column; gap: 8px; }
+.roadmap-target-results button { flex-shrink: 0; width: 100%; text-align: left; }
+.roadmap-items label, .roadmap-boundary, .roadmap-route label { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; min-height: 44px; }
+.roadmap-items input, .roadmap-boundary input, .roadmap-route input { flex-shrink: 0; }
+.roadmap-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.detail-secondary > .roadmap-entry { margin-top: 12px; max-width: 100%; overflow-wrap: anywhere; font-size: .875rem; }
+@media (min-width: 64em) { .roadmap-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

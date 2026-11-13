@@ -1,0 +1,23 @@
+dialog:has(.prerequisite-routes) { width: min(1000px, calc(100vw - 24px)); overflow-wrap: anywhere; }
+.prerequisite-routes { min-width: 0; overflow-wrap: anywhere; }
+.prerequisite-routes p, .prerequisite-routes small, .prerequisite-routes li, .prerequisite-routes label { font-size: .875rem; line-height: 1.5; }
+.prerequisite-routes h3, .prerequisite-routes h4 { color: var(--bright-gold); }
+.prerequisite-routes button, .prerequisite-routes summary { min-height: 44px; max-width: 100%; font-size: .875rem; overflow-wrap: anywhere; }
+.prerequisite-routes summary { cursor: pointer; padding: 10px 0; }
+.prerequisite-routes select, .prerequisite-routes input[type='search'] { width: 100%; min-width: 0; min-height: 44px; font: inherit; font-size: .875rem; color: var(--bright-gold); background: var(--raised); }
+.route-targets, .route-steps { padding: 0; list-style: none; }
+.route-targets li, .route-card { min-width: 0; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 0; background: var(--raised); }
+.route-targets li label { display: block; margin: 12px 0; }
+.route-picker, .route-assumptions, .route-goals { border-top: 1px solid var(--line); margin: 16px 0; }
+.route-target-results { display: flex; flex-direction: column; gap: 8px; }
+.route-goals button { display: block; width: 100%; text-align: left; margin: 8px 0; }
+.route-goals small { display: block; }
+.route-target-results button { flex-shrink: 0; width: 100%; text-align: left; }
+.route-target-results small, .route-steps small { display: block; }
+.route-assumptions label, .route-intention { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; min-height: 44px; }
+.route-assumptions input, .route-intention input { flex-shrink: 0; }
+.route-comparisons { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.route-total { color: var(--bright-gold); font-weight: bold; }
+.route-steps li { border-top: 1px solid var(--line); padding: 8px 0; }
+.detail-secondary > .route-entry { margin-top: 12px; max-width: 100%; overflow-wrap: anywhere; font-size: .875rem; }
+@media (min-width: 64em) { .route-comparisons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

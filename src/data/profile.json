@@ -19,10 +19,10 @@
       "lastModified": "2026-10-17"
     },
     "/projects/": {
-      "lastModified": "2026-10-22"
+      "lastModified": "2026-11-13"
     },
     "/utilities/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-11-13"
     },
     "/contact/": {
       "lastModified": "2026-10-17"
@@ -54,22 +54,50 @@
     {
       "title": "Frontend engineering",
       "summary": "React, Next.js, TypeScript, state management, accessible interfaces, and component systems that stay maintainable as product scope grows.",
-      "items": ["React", "Next.js", "TypeScript", "React Native", "Redux", "Accessibility"]
+      "items": [
+        "React",
+        "Next.js",
+        "TypeScript",
+        "React Native",
+        "Redux",
+        "Accessibility"
+      ]
     },
     {
       "title": "Backend and data",
       "summary": "APIs, relational and document databases, background jobs, rate-limited workers, and progress dashboards for long-running tasks.",
-      "items": ["Node.js", "Express", "MongoDB", "SQL", "Redis", "REST APIs"]
+      "items": [
+        "Node.js",
+        "Express",
+        "MongoDB",
+        "SQL",
+        "Redis",
+        "REST APIs"
+      ]
     },
     {
       "title": "Native and platform work",
       "summary": "Mobile and platform development with Kotlin Multiplatform, Android, C#/.NET, Python, Docker, and local device integrations.",
-      "items": ["Kotlin", "Android", "C#/.NET", "Python", "Docker", "MQTT"]
+      "items": [
+        "Kotlin",
+        "Android",
+        "C#/.NET",
+        "Python",
+        "Docker",
+        "MQTT"
+      ]
     },
     {
       "title": "Engineering practice",
       "summary": "Technical direction, architecture decisions, code review, CI/CD, documentation, and mentoring, with tests and clear reasoning behind changes.",
-      "items": ["Technical leadership", "Architecture", "Code review", "CI/CD", "Documentation", "Mentorship"]
+      "items": [
+        "Technical leadership",
+        "Architecture",
+        "Code review",
+        "CI/CD",
+        "Documentation",
+        "Mentorship"
+      ]
     }
   ],
   "experience": [
@@ -150,10 +178,36 @@
         "Save measurements on this device and compare several circles",
         "Calculate a best-fit point from three or more visible circles"
       ],
-      "stack": ["Astro", "TypeScript", "Leaflet", "PHP", "OpenStreetMap"],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "Leaflet",
+        "PHP",
+        "OpenStreetMap"
+      ],
       "status": "Available",
       "icon": "map-pinned",
       "lastModified": "2026-08-19"
+    },
+    {
+      "slug": "idle-slayer-companion",
+      "title": "Idle Slayer Companion",
+      "label": "Game progress and planning",
+      "summary": "An unofficial Idle Slayer companion with an interactive Ascension Map, local progress tracking, and planning tools.",
+      "capabilities": [
+        "Track achievements, crafting, quests, Bestiary, and Divinities.",
+        "Explore upgrade requirements and plan progression with spoilers hidden by default.",
+        "Import supported saves locally, back up progress, and reopen offline."
+      ],
+      "stack": [
+        "React",
+        "TypeScript",
+        "React Flow",
+        "PWA"
+      ],
+      "status": "Available",
+      "icon": "swords",
+      "lastModified": "2026-11-13"
     }
   ],
   "projects": [
@@ -203,7 +257,14 @@
           ]
         }
       ],
-      "stack": ["Astro", "TypeScript", "Cloudflare Pages", "Pages Functions", "D1", "Turnstile"],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "Cloudflare Pages",
+        "Pages Functions",
+        "D1",
+        "Turnstile"
+      ],
       "status": "Public",
       "visual": "screenshot",
       "icon": "globe",
@@ -262,7 +323,14 @@
           ]
         }
       ],
-      "stack": ["Astro", "TypeScript", "PHP", "Python", "GitHub Actions", "Static hosting"],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "PHP",
+        "Python",
+        "GitHub Actions",
+        "Static hosting"
+      ],
       "status": "Public",
       "visual": "portfolio",
       "icon": "globe",
@@ -315,7 +383,17 @@
           ]
         }
       ],
-      "stack": ["Kotlin Multiplatform", "Android", "Swift", "React", "TypeScript", "Vinext", "Cloudflare", "Sentry", "PowerShell"],
+      "stack": [
+        "Kotlin Multiplatform",
+        "Android",
+        "Swift",
+        "React",
+        "TypeScript",
+        "Vinext",
+        "Cloudflare",
+        "Sentry",
+        "PowerShell"
+      ],
       "status": "Public preview",
       "visual": "screenshot",
       "icon": "radio",
@@ -338,7 +416,7 @@
         "Combines an interactive Ascension Map with achievements, crafting and materials, quests, Bestiary, and Divinities.",
         "Models upgrade dependencies and spoiler visibility separately from recorded progress and hypothetical plans.",
         "Supports manual tracking, reviewed game-save imports, validated JSON backups, and session undo and redo through browser-local state.",
-        "Ships as a static React and TypeScript application on GitHub Pages, with an offline app shell and installation guidance."
+        "Ships as a static React and TypeScript utility on this site, with an offline app shell and installation guidance."
       ],
       "cardHighlights": [
         "An interactive upgrade map combines dependency rules, spoiler controls, and planning tools.",
@@ -363,7 +441,7 @@
           "title": "System Shape",
           "points": [
             "React, TypeScript, and React Flow provide the interactive interface, with game rules and persistence separated from rendering.",
-            "Versioned browser storage holds recorded state; selected save files and JSON backups are processed locally. Vite builds static routes and an offline shell for GitHub Pages."
+            "Versioned browser storage holds recorded state; selected save files and JSON backups are processed locally. Vite builds static routes and an offline shell for static hosting on this site."
           ]
         },
         {
@@ -374,19 +452,25 @@
           ]
         }
       ],
-      "stack": ["React", "TypeScript", "React Flow", "Vite", "PWA", "GitHub Pages"],
+      "stack": [
+        "React",
+        "TypeScript",
+        "React Flow",
+        "Vite",
+        "PWA"
+      ],
       "status": "Public",
       "visual": "screenshot",
       "icon": "map",
-      "href": "https://austingarrod.github.io/idle-slayer-companion/",
-      "source": "https://github.com/AustinGarrod/idle-slayer-companion",
+      "href": "https://austingarrod.ca/utilities/idle-slayer-companion/",
+      "source": "https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion",
       "screenshot": {
         "path": "/images/projects/idle-slayer-companion.webp",
-        "alt": "Idle Slayer Companion showing its Ascension upgrade map, dependency connections, and companion navigation.",
+        "alt": "Idle Slayer Companion in the light AustinGarrod.ca utility layout, showing the Ascension map, selected upgrade details, and companion navigation.",
         "width": 1440,
         "height": 1000
       },
-      "lastModified": "2026-10-22"
+      "lastModified": "2026-11-13"
     },
     {
       "slug": "spools",
@@ -434,7 +518,14 @@
           ]
         }
       ],
-      "stack": ["React", "TypeScript", "Express", "SQLite", "MQTT", "Docker"],
+      "stack": [
+        "React",
+        "TypeScript",
+        "Express",
+        "SQLite",
+        "MQTT",
+        "Docker"
+      ],
       "status": "Private case study",
       "visual": "spools",
       "icon": "layers",
@@ -486,7 +577,14 @@
           ]
         }
       ],
-      "stack": ["Node.js", "TypeScript", "React", "MongoDB", "Redis", "Docker"],
+      "stack": [
+        "Node.js",
+        "TypeScript",
+        "React",
+        "MongoDB",
+        "Redis",
+        "Docker"
+      ],
       "status": "Private case study",
       "visual": "charity",
       "icon": "database",
@@ -538,7 +636,14 @@
           ]
         }
       ],
-      "stack": ["React", "TypeScript", "Express", "MUI", "ESP32", "NFC"],
+      "stack": [
+        "React",
+        "TypeScript",
+        "Express",
+        "MUI",
+        "ESP32",
+        "NFC"
+      ],
       "status": "Private prototype",
       "visual": "nfc",
       "icon": "cpu",
@@ -589,7 +694,13 @@
           ]
         }
       ],
-      "stack": ["React", "React Native", "Express", "TypeScript", "JavaScript"],
+      "stack": [
+        "React",
+        "React Native",
+        "Express",
+        "TypeScript",
+        "JavaScript"
+      ],
       "status": "Archived public",
       "visual": "civic",
       "icon": "map",
@@ -642,7 +753,13 @@
           ]
         }
       ],
-      "stack": ["Astro", "React", "TypeScript", "MUI", "Netlify"],
+      "stack": [
+        "Astro",
+        "React",
+        "TypeScript",
+        "MUI",
+        "Netlify"
+      ],
       "status": "Private case study",
       "visual": "campaign",
       "icon": "globe",
