@@ -155,6 +155,36 @@ try {
     const remoteImage = page.locator('#printing-list img').first();
     if (await remoteImage.count()) await expect(remoteImage).toBeHidden();
   });
+  await scenario('card reference scroll and search caret survive ownership and tab refreshes', async () => {
+    await go(page, 25);
+    await expect(page.locator('#pokemon-details h2')).toHaveText('Pikachu');
+    await expect(page.locator('#printing-list .dex-card-printing').first()).toBeVisible({ timeout: 15000 });
+    // Keep deliberately unavailable artwork from changing row heights while testing scroll restoration.
+    const stableArtwork = await page.addStyleTag({ content: '#printing-list img { display:none !important; }' });
+    await page.locator('#printing-list').evaluate(node => { node.scrollTop = 700; });
+    await page.locator('#page-overview').evaluate(node => { node.scrollTop = 120; });
+    assert.equal(await page.locator('#printing-list').evaluate(node => node.scrollTop), 700);
+    await page.locator('#owned-grid-25').check();
+    await expect(page.locator('#owned-count')).toHaveText('2');
+    await expect.poll(() => page.locator('#printing-list').evaluate(node => node.scrollTop)).toBe(700);
+    await expect.poll(() => page.locator('#page-overview').evaluate(node => node.scrollTop)).toBe(120);
+    await page.locator('#owned-grid-25').uncheck();
+    await expect(page.locator('#owned-count')).toHaveText('1');
+    await page.locator('#printing-search').fill('Pikachu');
+    await page.locator('#printing-search').evaluate(node => node.setSelectionRange(3, 5));
+    await page.locator('#printing-list').evaluate(node => { node.scrollTop = 700; });
+    const broadcastTab = await open(desktop);
+    await broadcastTab.locator('#owned-grid-1').check();
+    await expect(page.locator('#owned-count')).toHaveText('2');
+    await expect.poll(() => page.locator('#printing-list').evaluate(node => node.scrollTop)).toBe(700);
+    await expect.poll(() => page.locator('#page-overview').evaluate(node => node.scrollTop)).toBe(120);
+    await expect(page.locator('#printing-search')).toHaveValue('Pikachu');
+    assert.deepEqual(await page.locator('#printing-search').evaluate(node => [node.selectionStart, node.selectionEnd]), [3, 5]);
+    await broadcastTab.locator('#owned-grid-1').uncheck();
+    await expect(page.locator('#owned-count')).toHaveText('1');
+    await broadcastTab.close();
+    await stableArtwork.evaluate(node => node.remove());
+  });
   await scenario('reserved pockets front sides and checklist preserve ownership', async () => {
     await layout(page, { leadingBlankPockets: 1, useBackSides: false });
     await go(page, 16);

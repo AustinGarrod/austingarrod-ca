@@ -25,6 +25,7 @@ async function initialize() {
   let snapshot: BinderSnapshot = { state: defaultState(), status: "loading", error: null, storageWarning: null, connected: false, key: null, layoutConflict: null };
   let currentPage = 1, selected: number | null = null, view: "binder" | "checklist" = "binder", checklistLimit = 100, printingQuery = "";
   let loadedPrintings: Printing[] | null = null, detailLoading = false, detailError = false;
+  let renderedSpecies: number | null = null;
   const printingCache = new Map<number, Printing[]>();
   const search = el<HTMLInputElement>("dex-search");
   const filter = el<HTMLSelectElement>("dex-filter");
@@ -72,6 +73,10 @@ async function initialize() {
   }
   function render() {
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement.id : "";
+    const activeInput = document.activeElement instanceof HTMLInputElement && document.activeElement.type === "search" ? document.activeElement : null;
+    const selection = activeInput ? [activeInput.selectionStart, activeInput.selectionEnd] : null;
+    const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
+      .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
     const owned = new Set(snapshot.state.ownedDexIds), count = owned.size;
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
@@ -114,7 +119,10 @@ async function initialize() {
       return `<div class="dex-pocket ${has ? "owned" : ""} ${selected === item.id ? "selected" : ""} ${!matches(item) || !searched.has(item.id) ? "dimmed" : ""}"><button id="open-grid-${item.id}" class="dex-pocket-open" data-pokemon="${item.id}" aria-label="${escape(item.name)}, ${dex(item.id)}, row ${slot.row}, column ${slot.column}. View card references" aria-pressed="${selected === item.id}"><span class="dex-pocket-number">${dex(item.id)}</span>${sprite(item)}<span class="dex-pocket-name">${escape(item.name)}</span></button><label class="dex-pocket-check"><input id="owned-grid-${item.id}" type="checkbox" data-owned="${item.id}" ${has ? "checked" : ""} aria-label="Own ${escape(item.name)}" /><span>${has ? "Owned" : "Missing"}</span></label></div>`;
     }).join("");
     renderResults(); renderChecklist(); renderDetails(); renderSync();
+    for (const { id, top } of scrollPositions) { const node = document.getElementById(id); if (node) node.scrollTop = top; }
+    renderedSpecies = selected;
     if (focused && document.getElementById(focused) && document.activeElement?.id !== focused) document.getElementById(focused)?.focus({ preventScroll: true });
+    if (selection && focused === "printing-search") el<HTMLInputElement>(focused).setSelectionRange(selection[0], selection[1]);
   }
   function renderResults() {
     const active = !!search.value.trim() && view === "binder";
