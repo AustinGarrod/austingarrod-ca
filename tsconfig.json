@@ -1,15 +1,35 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "exclude": ["node_modules", "dist", "ds-bundle", ".ds-sync", ".design-sync", "public/reporting/vendor", "tmp", "output"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "ds-bundle",
+    ".ds-sync",
+    ".design-sync",
+    "public/reporting/vendor",
+    "tmp",
+    "output",
+    "apps"
+  ],
   "compilerOptions": {
     "baseUrl": ".",
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "paths": {
-      "@components/*": ["src/components/*"],
-      "@data/*": ["src/data/*"],
-      "@layouts/*": ["src/layouts/*"],
-      "@styles/*": ["src/styles/*"]
+      "@components/*": [
+        "src/components/*"
+      ],
+      "@data/*": [
+        "src/data/*"
+      ],
+      "@layouts/*": [
+        "src/layouts/*"
+      ],
+      "@styles/*": [
+        "src/styles/*"
+      ]
     }
   }
 }

@@ -1,0 +1,25 @@
+/* Optional reference cards reflow inside the existing native dialog. */
+dialog:has(.saved-comparison) { width: min(1000px, calc(100vw - 24px)); overflow-wrap: anywhere; }
+.saved-comparison { min-width: 0; }
+.saved-comparison > small { margin-bottom: 16px; }
+.saved-comparison-status { padding: 10px; border: 1px solid var(--line); border-radius: 0; }
+.saved-comparison-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.saved-comparison-tools button, .saved-comparison .dialog-actions button { min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
+.saved-comparison-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.saved-comparison-card, .saved-comparison-confirm { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 0; background: var(--raised); margin-bottom: 16px; }
+.saved-comparison-card p { margin: 12px 0; }
+.saved-comparison-card h3 { color: var(--bright-gold); margin: 0; }
+.saved-comparison-identity { display: flex; align-items: center; gap: 10px; }
+.saved-comparison-identity .upgrade-icon { width: 44px; height: 44px; flex: 0 0 44px; }
+.saved-comparison-cost { color: var(--bright-gold); font-weight: 700; }
+.saved-comparison-card dt { font-weight: 700; margin-top: 16px; }
+.saved-comparison-card dd { margin: 6px 0 0; }
+.saved-comparison summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
+.saved-comparison-picker { margin: 16px 0; border-top: 1px solid var(--line); }
+.saved-comparison-picker label { display: block; margin: 12px 0; }
+.saved-comparison-picker input { display: block; width: 100%; margin-top: 8px; }
+.saved-comparison-results { display: flex; flex-direction: column; gap: 8px; padding: 5px; }
+.saved-comparison-results > button { flex-shrink: 0; font-size: .875rem; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.saved-comparison-results small { font-size: .8em; }
+.saved-comparison-results > button > span { display: block; }
+@media (min-width: 52em) { .saved-comparison-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

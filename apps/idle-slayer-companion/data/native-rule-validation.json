@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "method": "Independent exhaustive boolean evaluation of reviewed native purchase and reveal control flow; no native method execution",
+  "steamBuild": "25810322",
+  "gameVersion": "7.3.4",
+  "catalogRevision": "steam-25810322-v1",
+  "catalogSha256": "b9ec818c797f959bb3e65b95aba031364c818b88274f5470f525aa639fc67f77",
+  "assetExportSha256": "b2f47313980e0352c5249e7047b02e32017f96ddb026c8f88b3708e4d92dbd99",
+  "nativeMethodReceiptSha256": "b646f6c0d5b4564219e3431ae4b4da53ab1d0ec80a35c770aa3a93ab02c4f20c",
+  "validatorSha256": "e3420a9c875f1b0f02822b30897bb36fed62203468fef31e87932ef6c62a402e",
+  "checks": {
+    "nativeNodes": 288,
+    "connections": 318,
+    "purchaseTruthTableCases": 1374,
+    "revealTruthTableCases": 9200,
+    "conditionalRetentionPairs": 4,
+    "coverageMatches": true,
+    "purchasePredicatesMatch": true,
+    "revealPredicatesMatch": true,
+    "retentionAndActivationMatch": true,
+    "ultraAscensionConditionMatches": true,
+    "activationBeforeRetentionOrderMatches": true
+  },
+  "limits": [
+    "This comparison relies on the separately reviewed native method interpretation; it does not infer semantics automatically.",
+    "Manual milestone control visibility, removal, undo and storage are app policies tested separately.",
+    "Descriptions and icons are reviewed by the separate asset-extraction workflow."
+  ]
+}

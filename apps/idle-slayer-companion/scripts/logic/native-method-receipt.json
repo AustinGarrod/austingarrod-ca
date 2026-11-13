@@ -1,0 +1,234 @@
+{
+  "tool": "Cpp2IL 2022.1.0-pre-release.21+58fc404ac503f4e512055cafc48c03088fc6e224",
+  "toolUrl": "https://github.com/SamboyCoding/Cpp2IL/releases/tag/2022.1.0-pre-release.21",
+  "method": "Offline PE/IL2CPP metadata interpretation; no game launch or method invocation",
+  "gameAssemblySha256": "ab968489df8032a895898d9b90ee3e583f416d4fbc97c427d935efa457bfb38a",
+  "metadataSha256": "55ecb5240daa99e1b6f7ffa4225b257e5b37e4c5ccc88c7fab28d1f3202d8011",
+  "metadataVersion": 39,
+  "peImageBase": "0x180000000",
+  "semanticVerificationAutomatic": false,
+  "methods": [
+    {
+      "type": "AscensionSkill",
+      "method": "Init",
+      "signature": "System.Void Init()",
+      "rva": "0x3A50A0",
+      "length": 248,
+      "nativeBodySha256": "bd39c2a357a0502db1b473ba0d210899e5598e81404e6b12f3941ddea50c9ae3"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "HasAstralAncestor",
+      "signature": "System.Boolean HasAstralAncestor()",
+      "rva": "0x3A5010",
+      "length": 141,
+      "nativeBodySha256": "a69701eefbc7c898bc888808da65d1bde2ca4059b00dc54cf17e046c35baaa32"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "CanBeBought",
+      "signature": "System.Boolean CanBeBought()",
+      "rva": "0x3A4710",
+      "length": 388,
+      "nativeBodySha256": "67e1e4bf8c6d7b51d5917b7a574ac36c0edd16fe78d984aaa6fdb9ec3f67095e"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "IsActive",
+      "signature": "System.Boolean IsActive()",
+      "rva": "0x3A51A0",
+      "length": 65,
+      "nativeBodySha256": "c20d2f0186a193ea080c54c66610dc4f714428799d37f926714cdefb0afaa9c4"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "IsUnlocked",
+      "signature": "System.Boolean IsUnlocked()",
+      "rva": "0x3A51F0",
+      "length": 8,
+      "nativeBodySha256": "c318209d1b67bbe4082f1ee498f7187734d0c47e9440f89b97e3d1bf457cbf7a"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "GetDescription",
+      "signature": "System.String GetDescription()",
+      "rva": "0x3A48A0",
+      "length": 1895,
+      "nativeBodySha256": "76b6ba2fdc8435be798be1c65f40dcb0a9ffac16041532a85ef7813dd48c24d7"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "Reset",
+      "signature": "System.Void Reset()",
+      "rva": "0x3A5200",
+      "length": 8,
+      "nativeBodySha256": "a8fa316cc4af52910d9ca452cf3e9f253d286b285c835b387afec1e65fbcfb22"
+    },
+    {
+      "type": "AscensionSkill",
+      "method": "Unlock",
+      "signature": "System.Void Unlock()",
+      "rva": "0x3A52A0",
+      "length": 8,
+      "nativeBodySha256": "11aadf67d3d61eb3f59107b9269286d38127575f881153db9b533dbc3860f9b2"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "SetActive",
+      "signature": "System.Void SetActive(System.Boolean active)",
+      "rva": "0x2D6CB0",
+      "length": 311,
+      "nativeBodySha256": "2a76fe8c5cfc3dda43f2080e2f12be79e360d2a96a6592c5af4af056303dbc11"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "CheckRequirements",
+      "signature": "System.Void CheckRequirements()",
+      "rva": "0x2D61C0",
+      "length": 736,
+      "nativeBodySha256": "c6f7bbe4f433cc57cc9d1d76eadc6558ee8390f8a3adb415dc485b28bbbd6ba3"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "CheckUltraOrAstral",
+      "signature": "System.Boolean CheckUltraOrAstral()",
+      "rva": "0x2D64B0",
+      "length": 325,
+      "nativeBodySha256": "1f7e079b2a5829ef56d50e32f2ad74cedfd264fddc000ebdc9088a68406ecbf1"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "CheckRequiredUpgrade",
+      "signature": "System.Boolean CheckRequiredUpgrade()",
+      "rva": "0x2D6120",
+      "length": 148,
+      "nativeBodySha256": "3bb02a7050af38ab36d084142b0502151ca54a5dbd9c7b09792f1623160e3578"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "CheckRequiredAscensionUpgrade",
+      "signature": "System.Boolean CheckRequiredAscensionUpgrade()",
+      "rva": "0x2D6080",
+      "length": 147,
+      "nativeBodySha256": "4cc9c8e4a50b73e026084275a3305d45148c5cbe80cd9983eeebaa9441807cc6"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "RefreshLinesColors",
+      "signature": "System.Void RefreshLinesColors()",
+      "rva": "0x2D6690",
+      "length": 682,
+      "nativeBodySha256": "06eea2fe89705178f2ba41bf09b2f8935c33412120628c4efa272a8c6f537649"
+    },
+    {
+      "type": "AscensionSkillObject",
+      "method": "<Start>b__17_0",
+      "signature": "System.Void <Start>b__17_0()",
+      "rva": "0x2D7AA0",
+      "length": 4498,
+      "nativeBodySha256": "e2e2b8c21d03b5192c1e112653b82153692a67094d189492319c8125a3241532"
+    },
+    {
+      "type": "AscensionManager",
+      "method": "UltraAscendPopup",
+      "signature": "System.Void UltraAscendPopup()",
+      "rva": "0x2D5200",
+      "length": 1455,
+      "nativeBodySha256": "88c8405e692cb79aae7e003e0876587ba6d67c61b54172de1fc8ce3c9d3c16c1"
+    },
+    {
+      "type": "AscensionManager",
+      "method": "Ascend",
+      "signature": "System.Void Ascend(System.Boolean isUltra = False)",
+      "rva": "0x2D1660",
+      "length": 1287,
+      "nativeBodySha256": "3f2b462ca08255002d113f7c2461b6b70933e9befe1be2de065e58dc8e3f0c36"
+    },
+    {
+      "type": "AscensionManager",
+      "method": "GetAstralKeys",
+      "signature": "System.Double GetAstralKeys()",
+      "rva": "0x2D2DC0",
+      "length": 345,
+      "nativeBodySha256": "43de8f97e40b503bab8d0186b4dcc594afd3d14d4cecdb353b22975540fc4c9a"
+    },
+    {
+      "type": "AscensionManager",
+      "method": "<Ascend>b__0",
+      "signature": "System.Void <Ascend>b__0()",
+      "rva": "0x2E2CE0",
+      "length": 6424,
+      "nativeBodySha256": "321f4fcc9be10143813d1c79d1e348049285781bd0ae6717b249f7443ed1dd67"
+    },
+    {
+      "type": "PlayerInventory",
+      "method": "Awake",
+      "signature": "System.Void Awake()",
+      "rva": "0x4F2640",
+      "length": 260,
+      "nativeBodySha256": "6adabae34cdb66cad35c89b8f60fdeda9dadf652d232fa95942bf594ec3472d3"
+    },
+    {
+      "type": "PlayerInventory",
+      "method": "CalculateValues",
+      "signature": "System.Void CalculateValues()",
+      "rva": "0x4F3C70",
+      "length": 11236,
+      "nativeBodySha256": "4f5d13ca3c9a0bff613ace7d2633472e78a2f67a3641df4ad6cccdd595d789dd"
+    },
+    {
+      "type": "PermanentCraftableItem",
+      "method": "AdditionalInit",
+      "signature": "System.Void AdditionalInit()",
+      "rva": "0x3B9BC0",
+      "length": 210,
+      "nativeBodySha256": "9e259168d7419cda6e94a8090923b917db20aedd7514f7cec0ef97d9ae713af0"
+    },
+    {
+      "type": "PermanentCraftableItem",
+      "method": "IsActive",
+      "signature": "System.Boolean IsActive()",
+      "rva": "0x3BA4A0",
+      "length": 8,
+      "nativeBodySha256": "f735d0fc9d977dae4106869f19103860041ce8fe3fcea5a380c84ac3a66f7df4"
+    },
+    {
+      "type": "TemporaryCraftableItem",
+      "method": "IsActive",
+      "signature": "System.Boolean IsActive()",
+      "rva": "0x3C7980",
+      "length": 562,
+      "nativeBodySha256": "8f4cbc663de0aa2da94e505eed64cff767924bebd9efe528b552e84bf5a147f9"
+    },
+    {
+      "type": "SkillTreeManager",
+      "method": "AutoSizeContent",
+      "signature": "System.Void AutoSizeContent()",
+      "rva": "0x3C10E0",
+      "length": 2460,
+      "nativeBodySha256": "cdef949d8a4b0f79cd509ae4bd9ef46cedac8073fa339ab1bd79f611d731be3e"
+    },
+    {
+      "type": "SkillTreeManager",
+      "method": "BuyAscensionSkill",
+      "signature": "System.Void BuyAscensionSkill(System.String id, System.Boolean showNotification = True, System.Boolean force = False)",
+      "rva": "0x3C1BE0",
+      "length": 4229,
+      "nativeBodySha256": "5e5b2db6a12fea0f2b6dc6f26ecb55c3c62113caceb2d600e2e488414e06ae56"
+    },
+    {
+      "type": "BenefitReferences",
+      "method": "GetDescription",
+      "signature": "System.String GetDescription(System.Boolean shortDescription = False)",
+      "rva": "0x3A5D80",
+      "length": 5840,
+      "nativeBodySha256": "687090bdc7dac370354d3a60bdff3ecd98dd0a02d24f3e641f6944263feea45c"
+    }
+  ],
+  "steamBuild": "25810322",
+  "gameVersion": "7.3.4",
+  "unityVersion": "6000.3.14f1",
+  "reviewDate": "2026-10-16",
+  "reviewedSemantics": "docs/companion-native-review.md",
+  "toolSha256": "663fb432433b4371fd1ee0ebc321a8fff2a9aac5ac4230c843f9e03ddee4e04c"
+}
