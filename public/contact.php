@@ -146,13 +146,12 @@ try {
     $sent = false;
     $mailCause = $error;
 }
-$mailSpan?->setData(['accepted' => $sent]);
-$mailSpan?->finish();
+reporting_finish_span($mailSpan, ['accepted' => $sent]);
 
 if (!$sent) {
     report_failure('contact.mail.rejected', ['transport' => 'php-mail', 'message_length' => strlen($message)], $mailCause);
     error_log('AustinGarrod.ca contact mail() call was not accepted by the local mail system.');
 }
-if (function_exists('Sentry\\logger')) \Sentry\logger()->info('Contact mail result', ['accepted' => $sent]);
+reporting_log('Contact mail result', ['accepted' => $sent]);
 
 redirect_with_status($sent ? 'sent' : 'error');

@@ -11,6 +11,31 @@ on:
         required: false
 
 jobs:
+  php-compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring
+          tools: composer:v2
+      - name: Install reporting SDK on supported PHP
+        if: matrix.php == '8.1'
+        run: composer install --no-dev --prefer-dist --no-interaction
+      - name: Verify PHP handlers and optional reporting failures
+        run: |
+          php -l public/reporting/bootstrap.php
+          php -l public/contact.php
+          php -l public/utilities/radius-map/api/geocode.php
+          node scripts/test-php-reporting.mjs
   build:
     runs-on: ubuntu-latest
     steps:
