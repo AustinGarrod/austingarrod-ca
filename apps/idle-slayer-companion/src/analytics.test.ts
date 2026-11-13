@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ANALYTICS_CALLBACK, ANALYTICS_PREFERENCE_KEY, analyticsPosition, createAnalyticsController, type AnalyticsContext, type AnalyticsEventName } from './analytics'
+import { ANALYTICS_CALLBACK, ANALYTICS_PREFERENCE_KEY, analyticsPosition, createAnalyticsController, honorMigrationOptOut, type AnalyticsContext, type AnalyticsEventName } from './analytics'
 
 const hostname = 'example.test'
 const basePath = '/map/'
@@ -53,6 +53,18 @@ function setup(options: { url?: string; production?: boolean; preference?: strin
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('analytics activation and preference', () => {
+  it('persists a plain migration opt-out when the canonical app is reopened without its marker', () => {
+    const landing = setup({ url: `https://${hostname}${basePath}?migration=1#analytics=off`, preference: 'enabled' })
+    honorMigrationOptOut(landing.win)
+    landing.analytics.initializeAnalytics()
+    expect(landing.stored.get(ANALYTICS_PREFERENCE_KEY)).toBe('disabled')
+    expect(landing.scripts).toEqual([])
+    landing.win.history.replaceState(null, '', `https://${hostname}${basePath}`)
+    const reopened = createAnalyticsController({ window: landing.win, production: true, hostname, basePath, host: 'https://isolated.test', websiteId })
+    reopened.initializeAnalytics()
+    expect(reopened.getTrackingStatus()).toMatchObject({ enabled: false, active: false, preference: 'disabled', reason: 'opt-out' })
+    expect(landing.scripts).toEqual([])
+  })
   it('keeps a migration landing opted out even when its preference write is unavailable', () => {
     const { analytics, scripts } = setup({ migrationLanding: true, storageFails: true })
     analytics.initializeAnalytics()

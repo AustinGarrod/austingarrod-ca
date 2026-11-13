@@ -342,7 +342,7 @@ dialog > button { margin: 6px 8px 0 0; }
 .recommendation-heading > div { min-width: 0; }
 .recommendation-heading h3, .recommendation-heading h4 { margin: 0; color: var(--bright-gold); font-size: .9375rem; line-height: 1.45; overflow-wrap: anywhere; }
 .recommendation-cost { grid-column: 1 / -1; color: var(--muted); font-size: .875rem; }
-.recommendation-status { display: inline-block; margin: 12px 0 8px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 0; color: var(--bright-gold); font-size: .75rem; line-height: 1.4; }
+.recommendation-status { display: inline-block; max-width: 100%; overflow-wrap: anywhere; margin: 12px 0 8px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 0; color: var(--bright-gold); font-size: .75rem; line-height: 1.4; }
 .recommendation-basis { margin-bottom: 4px; color: var(--muted); font-size: .75rem; }
 .recommendation-reason, .recommendation-activation, .recommendation-effect { margin: 0 0 10px; font-size: .875rem; line-height: 1.55; overflow-wrap: anywhere; }
 .recommendation-activation { color: var(--ink); }

@@ -6,6 +6,7 @@ import type { Catalog } from '../../src/domain/types'
 import { emptyProfile } from '../../src/domain/types'
 import { emptyCompanionProgress } from '../../src/domain/companion-progress'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
+import { ANALYTICS_PREFERENCE_KEY } from '../../src/analytics'
 import { PROFILE_STORAGE_KEY } from '../../src/domain/storage'
 import { encodeProgressTransfer } from '../../src/domain/progress-transfer'
 import { COMPANION_WORKSPACE_KEY, emptyCompanionWorkspace } from '../../src/domain/companion-workspace'
@@ -134,7 +135,7 @@ test('four guided JSON backups restore across origins without silently replacing
   await page.goto(origin + companion)
   const guide = page.getByRole('region', { name: 'Move Companion progress', exact: true })
   await expect(guide.getByRole('heading', { name: 'Idle Slayer Companion has moved', exact: true })).toBeVisible()
-  await expect(guide.getByRole('link', { name: 'Open new utility', exact: true })).toHaveAttribute('href', 'https://austingarrod.ca/utilities/idle-slayer-companion/#analytics=off')
+  await expect(guide.getByRole('link', { name: 'Open new utility', exact: true })).toHaveAttribute('href', 'https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off')
   await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
   const progressFile = await exportedFile(page, page.getByRole('button', { name: 'Export Companion progress', exact: true }))
   const intentionsFile = await exportedFile(page, page.getByRole('button', { name: 'Export intentions', exact: true }))
@@ -152,7 +153,7 @@ test('four guided JSON backups restore across origins without silently replacing
   const existing = emptyCompanionProgress(catalog.revision)
   existing.modules.material = { tracked: true, records: { 'existing-destination': { count: '9' } } }
   await page.addInitScript(({ targetOrigin, key, existing }) => { if (location.origin === targetOrigin && !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ format: 'idle-slayer-companion-storage', version: 1, legacyBaseline: null, progress: existing })) }, { targetOrigin: new URL(baseURL).origin, key: COMPANION_STORAGE_KEY, existing })
-  await page.goto(baseURL + '#analytics=off')
+  await page.goto(baseURL + '?migration=1#analytics=off')
   const readProgress = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).progress, COMPANION_STORAGE_KEY)
   await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
   await page.getByLabel('Restore Companion progress', { exact: true }).setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
@@ -186,6 +187,10 @@ test('four guided JSON backups restore across origins without silently replacing
   await page.reload()
   await expect.poll(readProgress).toEqual(progress)
   expect((await readProgress()).ascension.showSpoilers).toBe(false)
+  await page.goto(baseURL)
+  await expect(page.getByRole('main', { name: 'Overview', exact: true })).toBeVisible()
+  expect(await page.evaluate((key) => localStorage.getItem(key), ANALYTICS_PREFERENCE_KEY)).toBe('disabled')
+  await expect(page.locator('#ascension-map-tracker, #ascension-map-recorder')).toHaveCount(0)
   await page.goto(origin + companion)
   expect(await readProgress()).toEqual(progress)
 })

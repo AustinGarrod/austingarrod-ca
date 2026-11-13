@@ -8,7 +8,7 @@ const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catal
 describe('explicit website migration links', () => {
   it('drops arbitrary URL contents and starts ordinary migration with tracking off', async () => {
     for (const fragment of ['', '#private=synthetic-secret', '#transfer=v1.invalid', '#upgrade=x&catalog=y&private=secret', '#analytics=off']) {
-      expect(await reviewMigrationFragment(fragment)).toEqual({ href: WEBSITE_COMPANION_URL + '#analytics=off', kind: 'plain' })
+      expect(await reviewMigrationFragment(fragment)).toEqual({ href: WEBSITE_COMPANION_URL + '?migration=1#analytics=off', kind: 'plain' })
     }
   })
   it('forwards only a bounded public upgrade reference and fixed migration marker', async () => {
@@ -27,6 +27,6 @@ describe('explicit website migration links', () => {
     expect(reviewed.kind).toBe('transfer')
     expect(new URL(reviewed.href).hash).toBe('#transfer=' + encoded.token)
     expect(new URL(reviewed.href).search).toBe('?migration=1')
-    expect(await reviewMigrationFragment('#transfer=v1.' + 'a'.repeat(MAX_TRANSFER_TOKEN_CHARS))).toEqual({ href: WEBSITE_COMPANION_URL + '#analytics=off', kind: 'plain' })
+    expect(await reviewMigrationFragment('#transfer=v1.' + 'a'.repeat(MAX_TRANSFER_TOKEN_CHARS))).toEqual({ href: WEBSITE_COMPANION_URL + '?migration=1#analytics=off', kind: 'plain' })
   })
 })

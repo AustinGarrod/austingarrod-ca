@@ -15,6 +15,7 @@ import { MAX_GAME_SAVE_BYTES } from './domain/save-codec'
 import { planUltraAscension, visibility } from './domain/rules'
 import { CompanionShell, type CompanionSection } from './CompanionShell'
 import { MigrationGuide } from './components/MigrationGuide'
+import { runtimeDeployment } from './runtime-deployment'
 import { CompanionModules } from './CompanionModules'
 import { CompanionMapGoalsContext, CompanionProfileContext } from './CompanionRuntimeContext'
 import { useCompanionWorkspace, parseCompanionWorkspace, type CompanionWorkspace, type CompanionWorkspaceReview } from './useCompanionWorkspace'
@@ -287,7 +288,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent }: { catalogs: Lo
   </>
 
   return <CompanionProfileContext.Provider value={session}><CompanionMapGoalsContext.Provider value={goalController}>
-    <CompanionShell section={section} onNavigate={navigate} onImport={() => open('import')} onBackup={() => open('backup')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} notice={<MigrationGuide />}
+    <CompanionShell section={section} onNavigate={navigate} onImport={() => open('import')} onBackup={() => open('backup')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} notice={runtimeDeployment.target === 'legacy-migration' || section === 'overview' ? <MigrationGuide /> : undefined}
       ascension={map ? <MapApp embedded onActions={(actions) => { mapActions.current = actions }} catalog={map} transferInbox={transferInbox} active={section === 'ascension'} requestedUpgrade={inspection?.ref.system === 'ascension' ? { id: inspection.ref.id, sequence: inspection.sequence } : undefined} onCompanionImport={() => open('import')} onCompanionReset={startReset} onCompanionExport={exportProgress} onCompanionRecovery={() => open('backup')} onCompanionTrackingChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} onReferenceGuard={(guard) => { referenceGuard.current = guard }} /> : <div className="loading"><h2>Ascension catalog unavailable</h2><p>The reviewed tree could not be loaded. Other companion sections remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalog</button></div>}>
       {!companion ? <section className="loading"><h2>Companion data unavailable</h2><p>The reviewed companion catalog could not be loaded. Stored progress and Ascension remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalogs</button></section> : <>
         <div className="companion-page-controls telemetry-private rr-block"><label className="spoiler-control"><input type="checkbox" checked={state.profile.showSpoilers} disabled={state.pending} onChange={(event) => session.applyProfile({ ...state.profile, showSpoilers: event.target.checked }, false, 'spoilers')} />Show spoilers</label><button onClick={startReset}>Record Ultra Ascension…</button></div>

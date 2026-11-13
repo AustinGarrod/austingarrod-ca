@@ -3,7 +3,7 @@ import { parseUpgradeReference } from './domain/upgrade-reference'
 
 export const WEBSITE_COMPANION_URL = 'https://austingarrod.ca/utilities/idle-slayer-companion/'
 export interface MigrationLink { href: string; kind: 'plain' | 'reference' | 'transfer' }
-const plain: MigrationLink = { href: WEBSITE_COMPANION_URL + '#analytics=off', kind: 'plain' }
+const plain: MigrationLink = { href: WEBSITE_COMPANION_URL + '?migration=1#analytics=off', kind: 'plain' }
 let current = plain
 const listeners = new Set<() => void>()
 
