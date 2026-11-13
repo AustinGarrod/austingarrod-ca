@@ -168,6 +168,22 @@
   ],
   "utilities": [
     {
+      "slug": "pokedex-binder",
+      "title": "Pokédex Binder",
+      "label": "Pokémon collection planner",
+      "summary": "Build a binder with one of every Pokémon. Track what you own, find each Pokémon’s pocket, and browse English card printings and set codes.",
+      "capabilities": [
+        "Visualize binder pages with custom pocket dimensions and reserved spaces",
+        "Track owned and missing Pokémon in National Pokédex order",
+        "Browse physical English cards, collector numbers, and set codes",
+        "Save locally, back up progress, or sync devices with a private key"
+      ],
+      "stack": ["Astro", "TypeScript", "IndexedDB", "PHP", "MySQL"],
+      "status": "Available",
+      "icon": "book-open",
+      "lastModified": "2026-11-13"
+    },
+    {
       "slug": "radius-map",
       "title": "Radius Map",
       "label": "Geographic distance utility",

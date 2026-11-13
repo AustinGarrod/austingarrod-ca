@@ -1,5 +1,5 @@
 ---
-import { ArrowRight, MapPinned, Swords } from "@lucide/astro";
+import { ArrowRight, BookOpen, MapPinned, Swords } from "@lucide/astro";
 import { getUtilityPath } from "@data/seo";
 import type { Utility } from "@data/profile";
 
@@ -9,7 +9,7 @@ interface Props {
 
 const { utility } = Astro.props;
 const href = getUtilityPath(utility);
-const icons = { "map-pinned": MapPinned, swords: Swords } as const;
+const icons = { "map-pinned": MapPinned, swords: Swords, "book-open": BookOpen } as const;
 const Icon = icons[utility.icon];
 ---
 

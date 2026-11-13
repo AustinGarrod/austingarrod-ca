@@ -62,6 +62,12 @@ npm run generate:assets
 
 Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.
 
+Pokédex Binder is available at `/utilities/pokedex-binder/`. It tracks one slot per National Pokédex species, with configurable page dimensions, front/back use, reserved starting pockets, card references, missing-list exports, and JSON backups. Progress saves in IndexedDB; optional private-key sync uses a same-origin PHP/MySQL API. It is a normal website without a service worker. Collection backups exclude the access key. [Database setup and local integration checks](server/pokedex-binder/README.md) describe the private configuration and schema; missing configuration leaves local collection tracking usable.
+
+Run `npm run refresh:pokedex` explicitly to rebuild the committed species/card catalog and local sprites from the source revisions pinned in `scripts/refresh-pokedex-catalog.mjs`. It requires Node, the existing TypeScript dependency, `tar` for source archive extraction, and network access. Ordinary builds use the committed snapshot. Source revisions, asset hash, snapshot timestamp, omitted unmapped cards, and unknown set codes are recorded in the catalog index; source/artwork notices ship beside it. Review the audit before accepting a refreshed snapshot. Run `npm run test:pokedex:api` against an isolated localhost MySQL/MariaDB for transaction tests.
+
+After building, `npm run test:pokedex:browser` uses the same localhost database settings to exercise the built utility through PHP in desktop/mobile browsers, with telemetry and remote artwork blocked. With the Composer bundle installed, `php tests/pokedex-binder/reporting.test.php` verifies private sync requests are scrubbed at the reporting SDK boundary. Test diagnostics are saved only in ignored `output/` and `tmp/` directories.
+
 Place searches use `public/utilities/radius-map/api/geocode.php`, a same-origin HostPapa proxy with submit-only search, input validation, a one-request-per-second upstream limit, and temporary hash-keyed response caching. The cache does not store raw search terms or associate searches with saved measurements.
 
 ## Idle Slayer Companion

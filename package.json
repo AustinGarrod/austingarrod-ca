@@ -23,7 +23,10 @@
     "test:companion:e2e": "node scripts/companion.mjs e2e",
     "prepare:companion-migration": "node scripts/companion.mjs migration",
     "reporting:upload:site": "node scripts/upload-reporting.mjs",
-    "prebuild:site": "node scripts/prepare-reporting.mjs"
+    "prebuild:site": "node scripts/prepare-reporting.mjs",
+    "refresh:pokedex": "node scripts/refresh-pokedex-catalog.mjs",
+    "test:pokedex:api": "node scripts/test-pokedex-api.mjs",
+    "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -38,6 +41,7 @@
     "@sentry/cli": "^3.8.2",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.10.1",
+    "fake-indexeddb": "^6.2.8",
     "vitest": "^4.1.10"
   }
 }

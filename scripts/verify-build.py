@@ -152,6 +152,7 @@ combined_client = combined_html + "\n" + "\n".join(
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
+    "/utilities/pokedex-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "print-content"],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
