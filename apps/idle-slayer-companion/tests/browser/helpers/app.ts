@@ -16,6 +16,9 @@ export async function openAction(page: Page, name: string) {
     return
   }
   if (['About & sources', 'Privacy & tracking', 'Install & offline'].includes(name)) {
+    // React may attach its shell after the document load event. Wait before
+    // deciding whether the action is hidden behind the mobile navigation.
+    await expect(page.locator('.companion-sidebar')).toBeAttached()
     const current = page.locator('dialog[open]')
     if (await current.count()) await current.getByRole('button', { name: 'Close dialog', exact: true }).click()
     const action = page.getByRole('button', { name, exact: true })

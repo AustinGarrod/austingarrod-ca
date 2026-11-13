@@ -76,7 +76,7 @@ small { display: block; font-size: .8125rem; color: var(--muted); line-height: 1
 .toolbar > button, .spoiler-control { font-size: .8125rem; }
 .spoiler-control { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; background: var(--raised); line-height: 1.35; cursor: pointer; white-space: nowrap; }
 .spoiler-control:hover { border-color: var(--frame); background: var(--surface); }
-.spoiler-control:has(input:checked) { border-color: var(--frame); color: var(--bright-gold); }
+.spoiler-control:has(input:checked) { border-color: var(--secondary); color: var(--bright-gold); }
 .spoiler-control:has(input:focus-visible) { outline: 3px solid var(--secondary); outline-offset: 3px; }
 .spoiler-control input { appearance: none; padding: 0; border-color: var(--frame); border-radius: 0; cursor: pointer; }
 .spoiler-control input:focus-visible { outline: none; }
