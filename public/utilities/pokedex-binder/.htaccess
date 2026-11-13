@@ -1,0 +1,3 @@
+<IfModule mod_headers.c>
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house https://reports.garrod.house; img-src 'self' data: https://assets.tcgdex.net; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
+</IfModule>

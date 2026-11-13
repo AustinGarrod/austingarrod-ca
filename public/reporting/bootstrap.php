@@ -7,6 +7,14 @@ $GLOBALS['portfolioReportingReady'] = false;
 
 function reporting_request_context(\Sentry\Event $event): \Sentry\Event
 {
+    if (strpos((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '/utilities/pokedex-binder/api/') !== false) {
+        // The key is a bearer credential; neither requests nor collection bodies belong in reports.
+        $request = $event->getRequest();
+        unset($request['query_string'], $request['data'], $request['cookies'], $request['headers']);
+        if (isset($request['url'])) $request['url'] = explode('?', $request['url'])[0];
+        $event->setRequest($request);
+        $event->setExtra([]);
+    }
     if (substr((string) ($_SERVER['SCRIPT_NAME'] ?? ''), -12) === '/geocode.php') {
         $request = $event->getRequest();
         unset($request['query_string'], $request['data']);

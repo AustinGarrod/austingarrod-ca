@@ -1,12 +1,10 @@
 import * as Sentry from "@sentry/browser";
 import build from "./build.json";
+import { redactReporting } from "./privacy";
 
 // Keep the existing geocoder contract without dropping request/status/timing diagnostics.
 function withoutGeocodeQuery<T>(value: T): T {
-  if (typeof value === "string") return value.replace(/(\/utilities\/radius-map\/api\/geocode\.php)\?[^\s"']*/g, "$1") as T;
-  if (Array.isArray(value)) return value.map(withoutGeocodeQuery) as T;
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withoutGeocodeQuery(item)])) as T;
-  return value;
+  return redactReporting(value, location.pathname.startsWith("/utilities/pokedex-binder/"));
 }
 
 const enabled = import.meta.env.PROD || import.meta.env.PUBLIC_REPORTING_ENABLED === "true";
@@ -22,7 +20,7 @@ if (enabled && !Sentry.getClient()) {
     beforeSend: withoutGeocodeQuery,
     beforeSendTransaction: withoutGeocodeQuery,
     beforeBreadcrumb: withoutGeocodeQuery,
-    beforeSendLog: (log) => ({ ...withoutGeocodeQuery(log), attributes: { ...log.attributes, "service.name": "portfolio-browser" } }),
+    beforeSendLog: (log) => { const safe = withoutGeocodeQuery(log); return { ...safe, attributes: { ...safe.attributes, "service.name": "portfolio-browser" } }; },
     maxBreadcrumbs: 100,
     attachStacktrace: true,
     normalizeDepth: 6,
