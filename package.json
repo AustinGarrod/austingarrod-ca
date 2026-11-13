@@ -23,7 +23,8 @@
     "test:companion:e2e": "node scripts/companion.mjs e2e",
     "prepare:companion-migration": "node scripts/companion.mjs migration",
     "reporting:upload:site": "node scripts/upload-reporting.mjs",
-    "prebuild:site": "node scripts/prepare-reporting.mjs"
+    "prebuild:site": "node scripts/prepare-reporting.mjs",
+    "test:php": "node scripts/test-php-reporting.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
