@@ -7,9 +7,9 @@ const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const CACHE_TTL_SECONDS = 86400;
 const MIN_UPSTREAM_INTERVAL_MICROSECONDS = 1000000;
 
-function json_response(array $payload, int $status = 200, array $extraHeaders = []): never
+function json_response(array $payload, int $status = 200, array $extraHeaders = []): void
 {
-    if (function_exists('Sentry\\logger')) \Sentry\logger()->info('Geocode response', [], ['status' => $status, 'result_count' => count($payload['results'] ?? []), 'cache_hit' => $GLOBALS['geocodeCacheHit'] ?? false, 'upstream_status' => $GLOBALS['upstreamStatus'] ?? null]);
+    reporting_log('Geocode response', ['status' => $status, 'result_count' => count($payload['results'] ?? []), 'cache_hit' => $GLOBALS['geocodeCacheHit'] ?? false, 'upstream_status' => $GLOBALS['upstreamStatus'] ?? null]);
     if ($status >= 500 || $status === 429) report_failure('geocode.' . ($GLOBALS['geocodeStage'] ?? 'validation'), ['status' => $status, 'upstream_status' => $GLOBALS['upstreamStatus'] ?? null, 'duration_seconds' => $GLOBALS['upstreamTiming'] ?? null], $GLOBALS['geocodeCause'] ?? null);
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -104,7 +104,7 @@ $elapsedMicroseconds = (int) ((microtime(true) - $lastRequestAt) * 1000000);
 if ($lastRequestAt > 0 && $elapsedMicroseconds < MIN_UPSTREAM_INTERVAL_MICROSECONDS) {
     usleep(MIN_UPSTREAM_INTERVAL_MICROSECONDS - max(0, $elapsedMicroseconds));
 }
-$waitSpan?->finish();
+reporting_finish_span($waitSpan);
 
 ftruncate($lockHandle, 0);
 rewind($lockHandle);
@@ -150,8 +150,7 @@ $curlErrno = curl_errno($curl);
 $upstreamTiming = curl_getinfo($curl, CURLINFO_TOTAL_TIME);
 $upstreamStatus = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 $curlFailed = $upstreamBody === false;
-$upstreamSpan?->setData(['http.response.status_code' => $upstreamStatus, 'duration_seconds' => $upstreamTiming, 'curl_errno' => $curlErrno]);
-$upstreamSpan?->finish();
+reporting_finish_span($upstreamSpan, ['http.response.status_code' => $upstreamStatus, 'duration_seconds' => $upstreamTiming, 'curl_errno' => $curlErrno]);
 curl_close($curl);
 flock($lockHandle, LOCK_UN);
 fclose($lockHandle);
@@ -178,8 +177,8 @@ $rows = json_decode((string) $upstreamBody, true);
 $geocodeStage = 'upstream.decode';
 if (!is_array($rows)) {
     $geocodeCause = json_last_error() !== JSON_ERROR_NONE
-        ? new JsonException(json_last_error_msg(), json_last_error())
-        : new UnexpectedValueException('Nominatim returned ' . get_debug_type($rows) . ' instead of an array.');
+        ? (class_exists('JsonException') ? new JsonException(json_last_error_msg(), json_last_error()) : new UnexpectedValueException(json_last_error_msg(), json_last_error()))
+        : new UnexpectedValueException('Nominatim returned ' . (is_object($rows) ? get_class($rows) : gettype($rows)) . ' instead of an array.');
     json_response(['error' => 'Location search returned an unexpected response.'], 502, ['Cache-Control' => 'no-store']);
 }
 

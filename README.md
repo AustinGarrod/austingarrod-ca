@@ -98,9 +98,10 @@ Local PHP CLI is optional. If PHP is installed, check syntax with:
 ```powershell
 php -l public/contact.php
 php -l public/utilities/radius-map/api/geocode.php
+npm run test:php
 ```
 
-Otherwise, smoke test the form after upload on HostPapa.
+Otherwise, smoke test the form after upload on HostPapa. Core handlers retain compatible PHP syntax; optional server reporting requires PHP 8.1+, cURL, and mbstring and safely stays off when those requirements are unavailable. Browser reporting remains independent.
 
 ## Analytics
 

@@ -43,6 +43,7 @@ If PHP is available locally, also run:
 ```powershell
 php -l public/contact.php
 php -l public/utilities/radius-map/api/geocode.php
+npm run test:php
 ```
 
 PHP CLI is not required for local Astro work; the contact form still needs a HostPapa-side smoke test after deployment.

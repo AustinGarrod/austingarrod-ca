@@ -26,7 +26,8 @@
     "prebuild:site": "node scripts/prepare-reporting.mjs",
     "refresh:pokedex": "node scripts/refresh-pokedex-catalog.mjs",
     "test:pokedex:api": "node scripts/test-pokedex-api.mjs",
-    "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs"
+    "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs",
+    "test:php": "node scripts/test-php-reporting.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
