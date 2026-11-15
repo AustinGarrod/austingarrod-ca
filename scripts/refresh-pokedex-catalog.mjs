@@ -143,7 +143,14 @@ export function normalizeCatalog(speciesInput, cards, assets = {}) {
   }
   audit.missingDexIdCards.sort();
   audit.missingSetCodes = Object.values(sortedSets).filter((set) => !set.code).map((set) => set.id);
-  return { species, sets: sortedSets, printings, audit };
+  return { species, sets: sortedSets, setSpecies: indexSetSpecies(sortedSets, printings), printings, audit };
+}
+
+// Derived only from explicit species mappings, including forms and multi-species cards.
+export function indexSetSpecies(sets, printings) {
+  return Object.fromEntries(Object.keys(sets).map(id => [id, [...printings.entries()]
+    .filter(([, cards]) => cards.some(card => card.setId === id))
+    .map(([dexId]) => dexId).sort((a, b) => a - b)]));
 }
 
 async function filesUnder(directory) {
@@ -284,7 +291,7 @@ export async function refreshCatalog() {
         sprites: { repository: "https://github.com/PokeAPI/sprites", revision: SOURCE_REVISIONS.sprites },
         assets: { url: ASSET_INDEX, sha256: createHash("sha256").update(assetBytes).digest("hex") },
       },
-      species: catalog.species, sets: catalog.sets, audit: catalog.audit,
+      species: catalog.species, sets: catalog.sets, setSpecies: catalog.setSpecies, audit: catalog.audit,
     };
     await writeFile(path.join(stage, "catalog/index.json"), JSON.stringify(index) + "\n");
     await writeFile(path.join(stage, "licenses/TCGdex-MIT.txt"), source.license);

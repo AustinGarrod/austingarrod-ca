@@ -52,6 +52,7 @@ describe("Pokédex catalog normalization", () => {
     expect(result.printings.get(25).map((entry: { id: string }) => entry.id)).toEqual(["sv03.5-033"]);
     expect(result.printings.get(644)).toHaveLength(1);
     expect(result.printings.get(1)).toEqual([]);
+    expect(result.setSpecies["sv03.5"]).toEqual([19, 25, 644]);
     expect(result.audit.missingDexIdCards).toEqual(["sv03.5-999"]);
   });
 
@@ -120,12 +121,14 @@ describe("shipped Pokédex catalog", () => {
     const printingFiles = await readdir(publicFile("catalog/printings/"));
     expect(printingFiles).toHaveLength(index.species.length);
     const allCardIds = new Set();
+    const expectedSetSpecies: Record<string, Set<number>> = Object.fromEntries(Object.keys(index.sets).map(id => [id, new Set<number>()]));
     for (const entry of index.species) {
       const printings = JSON.parse(await readFile(publicFile(`catalog/printings/${entry.id}.json`), "utf8"));
       expect(printings, entry.name).toHaveLength(entry.printingCount);
       const perSpeciesIds = new Set();
       for (const printing of printings) {
         expect(index.sets[printing.setId], printing.id).toBeDefined();
+        expectedSetSpecies[printing.setId].add(entry.id);
         expect(typeof printing.number).toBe("string");
         expect(printing.id).toBe(`${printing.setId}-${printing.number}`);
         expect(perSpeciesIds.has(printing.id)).toBe(false);
@@ -136,6 +139,7 @@ describe("shipped Pokédex catalog", () => {
       expect(sprite.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
     }
     expect(allCardIds.size).toBe(index.audit.indexedCards);
+    expect(index.setSpecies).toEqual(Object.fromEntries(Object.entries(expectedSetSpecies).map(([id, ids]) => [id, [...ids].sort((a, b) => a - b)])));
     expect(allCardIds.size).toBeGreaterThan(15000);
     expect(index.audit.excludedPocketCards).toBeGreaterThan(0);
   }, 30000); // Read every shipped shard and sprite, including on slower Windows disks.

@@ -110,6 +110,11 @@
 .dex-result small { display: block; font-size: 10px; color: var(--subtle); }
 .dex-result button { font-size: 10px; min-height: 34px; padding: 6px 8px; flex: none; }
 .dex-checklist { border: 1px solid var(--line); background: var(--surface); padding: 20px; }
+.dex-checklist-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.dex-checklist-controls label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; min-width: 0; flex: 1 1 200px; }
+.dex-checklist-controls label:first-child { flex-grow: 3; }
+.dex-checklist-controls input,.dex-checklist-controls select { width: 100%; }
+.dex-checklist-controls button { flex: 0 0 auto; }
 .dex-checklist-row { display: grid; grid-template-columns: 28px 48px minmax(0,1fr) auto auto; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12px; }
 .dex-checklist-row img { width: 48px; height: 48px; }
 .dex-checklist-row small { color: var(--subtle); font-size: 11px; }
