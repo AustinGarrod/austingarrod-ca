@@ -27,6 +27,7 @@
     "refresh:pokedex": "node scripts/refresh-pokedex-catalog.mjs",
     "test:pokedex:api": "node scripts/test-pokedex-api.mjs",
     "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs",
+    "test:pokedex:checklist": "node scripts/test-pokedex-checklist.mjs",
     "test:php": "node scripts/test-php-reporting.mjs"
   },
   "dependencies": {

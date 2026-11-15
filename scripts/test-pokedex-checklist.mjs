@@ -1,0 +1,70 @@
+// Run against npm run preview only. No production or third-party requests.
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { chromium, expect } from '@playwright/test';
+
+const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
+assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
+await mkdir('output/pokedex-checklist', { recursive: true });
+const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
+try {
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 1000 } });
+    await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`${origin}/utilities/pokedex-binder/`);
+    await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+    await page.locator('#view-checklist').click();
+    const rows = page.locator('.dex-checklist-row');
+    await expect(rows).toHaveCount(100);
+    await page.locator('#checklist-more').click();
+    await expect(rows).toHaveCount(200);
+    await page.locator('#checklist-sort').selectOption('name');
+    await expect(rows).toHaveCount(100);
+    await expect(rows.first()).toContainText('Abomasnow');
+    await page.locator('#checklist-sort').selectOption('name-desc');
+    await expect(rows.first()).toContainText('Zygarde');
+    await page.locator('#checklist-sort').selectOption('dex-desc');
+    await expect(rows.first()).toContainText('Pecharunt');
+    await page.locator('#checklist-sort').selectOption('name');
+    await page.locator('#checklist-set').fill('151 (MEW)');
+    await expect(page.locator('#checklist-count')).toContainText('151 Pokémon');
+    await expect(rows.first()).toContainText('Abra');
+    await page.locator('#owned-list-63').check();
+    await page.locator('#dex-filter').selectOption('owned');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('Page 4 · Row 4, column 3');
+    await page.locator('#dex-filter').selectOption('missing');
+    await expect(page.locator('#checklist-count')).toContainText('150 Pokémon');
+    await page.locator('#dex-generation').selectOption('2');
+    await expect(rows).toHaveCount(0);
+    await expect(page.locator('#checklist-list')).toContainText('No Pokémon match');
+    await page.locator('#dex-generation').selectOption('all');
+    await page.locator('#dex-filter').selectOption('all');
+    await page.locator('#dex-search').fill('mr mime');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('Mr. Mime');
+    await page.locator('#dex-search').fill('');
+    await page.locator('#checklist-set').fill('not a real set');
+    await expect(rows).toHaveCount(0);
+    await page.locator('#checklist-set').fill('mew');
+    await expect(page.locator('#checklist-count')).toContainText('151 Pokémon');
+    await rows.first().locator('[data-goto]').click();
+    await expect(page.locator('#page-heading')).toHaveText('Page 4');
+    await expect(page.locator('#open-grid-63')).toHaveAttribute('aria-label', /row 4, column 3/);
+    await page.locator('#view-checklist').click();
+    await expect(page.locator('#checklist-set')).toHaveValue('mew');
+    await page.locator('#owned-list-63').uncheck();
+    await page.locator('#checklist-set').fill('151 (MEW)');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'No horizontal overflow');
+    await page.screenshot({ path: `output/pokedex-checklist/${width}.png` });
+    await page.locator('#checklist-clear-set').click();
+    await expect(page.locator('#checklist-set')).toHaveValue('');
+    await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
+    assert.deepEqual(errors, []);
+    await context.close();
+    console.log(`Passed checklist sorting, set/name/ownership/generation filters and stable locations at ${width}px`);
+  }
+} finally { await browser.close(); }

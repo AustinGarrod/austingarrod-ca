@@ -1,9 +1,10 @@
 import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, searchSpecies, type BinderState, type Species } from "../lib/model";
 import { createBinderController, type BinderSnapshot } from "../lib/sync";
+import { checklistSpecies, setLabel, type ChecklistSort } from "../lib/checklist";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
 interface Printing { id: string; name: string; number: string; setId: string; rarity: string | null; image: string | null }
-interface Catalog { schemaVersion: number; generatedAt: string; species: Species[]; sets: Record<string, SetInfo> }
+interface Catalog { schemaVersion: number; generatedAt: string; species: Species[]; sets: Record<string, SetInfo>; setSpecies: Record<string, number[]> }
 const root = "/utilities/pokedex-binder/";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => {
   const node = document.getElementById(id);
@@ -30,6 +31,10 @@ async function initialize() {
   const search = el<HTMLInputElement>("dex-search");
   const filter = el<HTMLSelectElement>("dex-filter");
   const generation = el<HTMLSelectElement>("dex-generation");
+  const checklistSet = el<HTMLInputElement>("checklist-set");
+  const checklistSort = el<HTMLSelectElement>("checklist-sort");
+  el("checklist-sets").innerHTML = Object.values(catalog.sets).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))
+    .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
   const syncDialog = el<HTMLDialogElement>("sync-dialog");
   const statusLabels = { loading: "Loading your binder…", local: "Saved locally · Sync is optional", syncing: "Syncing your binder…", synced: "Synced · Saved on this device", pending: "Saved locally · Waiting to sync", error: "Saved locally · Sync needs attention", conflict: "Saved locally · Choose a binder layout" };
@@ -134,8 +139,8 @@ async function initialize() {
   }
   function renderChecklist() {
     if (view !== "checklist") return;
-    const results = filteredSpecies(), owned = new Set(snapshot.state.ownedDexIds);
-    el("checklist-count").textContent = `${results.length} Pokémon`;
+    const results = checklistSpecies(filteredSpecies(), catalog.sets, catalog.setSpecies, checklistSet.value, checklistSort.value as ChecklistSort), owned = new Set(snapshot.state.ownedDexIds);
+    el("checklist-count").textContent = `${results.length} Pokémon${results.length > checklistLimit ? ` · Showing ${checklistLimit}` : ""}`;
     el("checklist-list").innerHTML = results.slice(0, checklistLimit).map(item => `<div class="dex-checklist-row"><input id="owned-list-${item.id}" type="checkbox" data-owned="${item.id}" ${owned.has(item.id) ? "checked" : ""} aria-label="Own ${escape(item.name)}" />${sprite(item, 48)}<div><span class="dex-label">${dex(item.id)}</span><br/><strong>${escape(item.name)}</strong></div><small>${locationText(item.id)}</small><button data-goto="${item.id}">Page ${locationFor(item.id, snapshot.state.settings).page}</button></div>`).join("") || '<p class="dex-help">No Pokémon match these filters.</p>';
     el("checklist-more").hidden = results.length <= checklistLimit;
   }
@@ -209,6 +214,9 @@ async function initialize() {
   document.addEventListener("error", event => { if (event.target instanceof HTMLImageElement && el("dex-app").contains(event.target)) { event.target.hidden = true; } }, true);
   search.addEventListener("input", () => { checklistLimit = 100; render(); });
   for (const node of [filter, generation]) node.addEventListener("change", () => { checklistLimit = 100; render(); });
+  checklistSet.addEventListener("input", () => { checklistLimit = 100; renderChecklist(); });
+  checklistSort.addEventListener("change", () => { checklistLimit = 100; renderChecklist(); });
+  el("checklist-clear-set").addEventListener("click", () => { checklistSet.value = ""; checklistLimit = 100; renderChecklist(); checklistSet.focus(); });
   el("view-binder").addEventListener("click", () => { view = "binder"; render(); });
   el("view-checklist").addEventListener("click", () => { view = "checklist"; render(); });
   el("checklist-more").addEventListener("click", () => { checklistLimit += 100; renderChecklist(); });
