@@ -17,7 +17,7 @@ const sprite = (item: Species, size = 64) => `<img src="${root}sprites/${item.id
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 async function initialize() {
-  const response = await fetch(`${root}catalog/index.json`);
+  const response = await fetch(`${root}catalog/index.json`, { cache: "no-cache" });
   if (!response.ok) throw new Error("The Pokémon catalog could not load. Reload to try again; your saved binder is safe.");
   const catalog = await response.json() as Catalog;
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.species) || !catalog.species.length) throw new Error("The Pokémon catalog needs updating. Your saved binder is safe.");
