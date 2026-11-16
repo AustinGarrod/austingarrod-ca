@@ -133,7 +133,9 @@
 .dex-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .dex-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 .dex-backups { margin-top: 24px; padding-top: 8px; border-top: 1px solid var(--line); }
-.dex-file-label { display: inline-flex !important; cursor: pointer; margin-top: 10px !important; }
+.dex-backup-actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.dex-backup-actions>button,.dex-backup-actions>.dex-file-label { flex: 1 1 180px; margin: 0; }
+.dex-file-label { display: inline-flex !important; align-items: center; justify-content: center; cursor: pointer; margin: 0 !important; }
 .dex-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .dex-file-label:focus-within { outline: 2px solid var(--secondary); outline-offset: 3px; }
 .dex-print-only { display: none; }
