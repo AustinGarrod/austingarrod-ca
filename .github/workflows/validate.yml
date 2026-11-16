@@ -103,6 +103,9 @@ jobs:
       - name: Install local browser
         working-directory: apps/idle-slayer-companion
         run: node .yarn/releases/yarn-4.13.0.cjs playwright install --with-deps chromium
+      - name: Install the website scanner's pinned browser
+        if: matrix.shard == 1
+        run: node node_modules/playwright/cli.js install --with-deps chromium
       - name: Serve assembled static output on localhost
         run: node scripts/serve-dist.mjs > /tmp/portfolio-preview.log 2>&1 &
       - name: Serve scanner with its production camera and WASM policies
