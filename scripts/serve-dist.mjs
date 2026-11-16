@@ -4,7 +4,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../dist/', import.meta.url));
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.pdf': 'application/pdf' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.pdf': 'application/pdf', '.gz': 'application/gzip', '.wasm': 'application/wasm' };
 createServer((request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
@@ -12,7 +12,17 @@ createServer((request, response) => {
     if (!file.startsWith(resolve(root) + sep) && file !== resolve(root)) throw new Error('Invalid path');
     if (statSync(file).isDirectory()) file = resolve(file, 'index.html');
     const bytes = readFileSync(file);
-    response.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' });
+    const headers = { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' };
+    // Optional faithful Apache header simulation for camera/WASM checks; never enabled by ordinary CI serving.
+    if (process.env.POKEDEX_SCANNER_HEADERS === '1') {
+      const config = url.pathname.startsWith('/utilities/pokedex-binder/')
+        ? readFileSync(resolve(root, 'utilities/pokedex-binder/.htaccess'), 'utf8') : readFileSync(resolve(root, '.htaccess'), 'utf8');
+      for (const name of ['Content-Security-Policy', 'Permissions-Policy']) {
+        const value = config.match(new RegExp(`Header set ${name} "([^"]+)"`))?.[1];
+        if (value) headers[name] = value;
+      }
+    }
+    response.writeHead(200, headers);
     response.end(request.method === 'HEAD' ? undefined : bytes);
   } catch {
     response.writeHead(404); response.end('Not found');

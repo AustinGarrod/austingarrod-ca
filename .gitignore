@@ -12,4 +12,5 @@ ds-bundle/
 public/reporting/vendor/
 public/reporting/build.php
 src/reporting/build.json
+public/utilities/pokedex-binder/scanner-assets/
 *.log

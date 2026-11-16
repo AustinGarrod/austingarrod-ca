@@ -105,6 +105,13 @@ jobs:
         run: node .yarn/releases/yarn-4.13.0.cjs playwright install --with-deps chromium
       - name: Serve assembled static output on localhost
         run: node scripts/serve-dist.mjs > /tmp/portfolio-preview.log 2>&1 &
+      - name: Serve scanner with its production camera and WASM policies
+        if: matrix.shard == 1
+        run: PORT=4331 POKEDEX_SCANNER_HEADERS=1 node scripts/serve-dist.mjs > /tmp/scanner-preview.log 2>&1 &
+      - name: On-device scanner regressions against local synthetic video
+        if: matrix.shard == 1
+        id: scanner-checks
+        run: npm run test:pokedex:scanner
       - name: Desktop and mobile regressions against the combined artifact
         id: browser-checks
         env:
@@ -118,5 +125,13 @@ jobs:
           path: |
             apps/idle-slayer-companion/playwright-report/
             apps/idle-slayer-companion/test-results/
+          retention-days: 5
+          if-no-files-found: warn
+      - name: Retain synthetic scanner failure diagnostics
+        if: ${{ !cancelled() && steps.scanner-checks.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: scanner-failure
+          path: output/pokedex-scanner/
           retention-days: 5
           if-no-files-found: warn

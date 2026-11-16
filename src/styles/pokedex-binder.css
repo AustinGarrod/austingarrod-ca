@@ -180,3 +180,70 @@
   .dex-checklist-location strong { font-size: 12px; }
 }
 @media (forced-colors:active) { .pokedex-page select { appearance: auto; background-image: none; } .dex-checklist-row.owned { border-left-color: Highlight; } }
+
+.dex-scan-dialog { width: min(780px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 20px; border: 1px solid var(--ink); border-radius: 0; color: var(--ink); background: var(--surface); overflow-y: auto; }
+.dex-scan-dialog::backdrop { background: rgb(11 28 48 / .6); }
+.dex-scan-dialog [hidden] { display: none !important; }
+.dex-scan-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.dex-scan-heading h2 { display: flex; align-items: center; gap: 10px; font-size: 21px; margin: 0; }
+.dex-scan-status { min-height: 20px; font-size: 14px; font-weight: 600; margin: 14px 0 4px; }
+.dex-scan-privacy { font-size: 11px; color: var(--muted); margin: 0 0 12px; }
+.dex-scan-notice { font-size: 12px; color: var(--danger); margin: 8px 0; }
+.dex-scan-notice:empty { display: none; }
+.dex-scan-camera { position: relative; height: min(58dvh,570px); min-height: 210px; overflow: hidden; background: #101a22; }
+.dex-scan-camera video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.dex-scan-guide { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 60%; aspect-ratio: 63 / 88; border: 2px solid white; pointer-events: none; }
+.dex-scan-guide[data-ready=true] { border-color: #5ee1bd; }
+.dex-scan-guide span { position: absolute; left: 0; top: 0; right: 0; padding: 5px; background: rgb(0 0 0 / .65); color: white; font-size: 10px; text-align: center; }
+.dex-scan-actions,.dex-scan-result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.dex-scan-actions button { flex: 1 1 130px; }
+.dex-scan-dialog[open][data-phase=result] { display: flex; flex-direction: column; }
+.dex-scan-dialog[data-phase=result] .dex-scan-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+.dex-scan-dialog[data-phase=result] .dex-scan-privacy { display: none; }
+.dex-scan-result { display: flex; flex-direction: column; gap: 22px; flex: 1; min-width: 0; padding-top: 24px; }
+.dex-scan-result-hero { display: flex; align-items: center; gap: 22px; padding: 18px; border: 1px solid var(--line); background: var(--surface-low); }
+.dex-scan-preview { width: 108px; height: auto; flex: none; background: var(--surface); border: 1px solid var(--line); }
+.dex-scan-result-body { min-width: 0; }
+.dex-scan-result-body>p { font-size: 13px; margin-top: 0; }
+.dex-scan-candidates { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+.dex-scan-candidates button { flex-direction: column; align-items: start; text-align: left; }
+.dex-scan-candidates span,.dex-scan-candidates small { font-size: 11px; font-weight: 400; }
+.dex-scan-candidates button[aria-pressed=true] { border-color: var(--ink); background: var(--ink); color: white; }
+.dex-scan-species { display: flex; gap: 12px; align-items: center; }
+.dex-scan-species img { flex: none; }
+.dex-scan-species h3 { margin: 5px 0 12px; font-size: 28px; line-height: 1.15; overflow-wrap: anywhere; }
+.dex-scan-dialog[data-has-photo=true] #scan-pokemon-sprite { display: none; }
+#scan-owned-status { display: inline-block; padding: 5px 9px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; color: var(--muted); }
+#scan-owned-status[data-owned=true] { color: #176050; background: #e4f3ec; border-color: #a8cdc0; }
+.dex-scan-placement-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.dex-scan-placement-heading h3 { font-size: 14px; margin: 0; }
+.dex-scan-placement-heading>span { font: 11px 'JetBrains Mono',monospace; color: var(--muted); }
+.dex-scan-location { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid var(--line); background: var(--surface); }
+.dex-scan-location>div { padding: 16px; border-right: 1px solid var(--line); }
+.dex-scan-location>div:first-child { background: var(--surface-low); }
+.dex-scan-location>div:last-child { border: 0; }
+.dex-scan-location span { display: block; font: 11px 'JetBrains Mono',monospace; color: var(--muted); }
+.dex-scan-location strong { display: block; margin-top: 8px; font: 600 28px 'JetBrains Mono',monospace; }
+.pokedex-page button.dex-scan-correct { min-height: 32px; padding: 4px 0; margin-top: 12px; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; color: var(--muted); }
+#scan-search-panel { margin-top: 16px; }
+#scan-search-panel label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+#scan-search { width: 100%; }
+.dex-scan-search-results { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; margin-top: 8px; max-height: 230px; overflow-y: auto; }
+.dex-scan-search-results button { justify-content: start; text-align: left; }
+.dex-scan-search-results span { color: var(--subtle); font: 10px 'JetBrains Mono',monospace; }
+.dex-scan-result-actions { margin-top: auto; padding: 16px 0 0; border-top: 1px solid var(--line); background: var(--surface); position: sticky; bottom: -1px; }
+.dex-scan-result-actions button { flex: 1 1 170px; min-height: 48px; font-size: 13px; }
+@media(max-width:600px) {
+  .dex-scan-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: max(16px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom)); border: 0; }
+  .dex-scan-camera { height: calc(100dvh - 270px); }
+  .dex-scan-actions { gap: 6px; }
+  .dex-scan-actions button { padding: 8px; font-size: 11px; flex-basis: 100px; }
+  .dex-scan-result { gap: 20px; padding-top: 20px; }
+  .dex-scan-result-hero { padding: 14px; gap: 16px; }
+  .dex-scan-preview { width: 88px; max-height: 128px; object-fit: contain; }
+  .dex-scan-species h3 { font-size: 25px; }
+  .dex-scan-placement-heading>span { font-size: 10px; }
+  .dex-scan-location>div { padding: 14px 12px; }
+  .dex-scan-result-actions { flex-wrap: nowrap; padding-bottom: max(0px,env(safe-area-inset-bottom)); }
+  .dex-scan-result-actions button { min-width: 0; flex-basis: 0; }
+}

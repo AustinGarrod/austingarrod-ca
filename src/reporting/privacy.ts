@@ -1,10 +1,11 @@
 const PRIVATE_TOKEN = /pdx_[A-Za-z0-9_-]{43}/g;
 const PRIVATE_FIELDS = new Set(["x-pokedex-key", "authorization", "cookie", "set-cookie"]);
-const COLLECTION_FIELDS = new Set(["body", "data", "request_body", "response_body", "ownedDexIds", "settings", "state", "baseline", "key"]);
+const COLLECTION_FIELDS = new Set(["body", "data", "request_body", "response_body", "ownedDexIds", "settings", "state", "baseline", "key", "image", "frame", "preview", "ocrText", "rawText", "scanResult", "signature"]);
 
 /** Keep operation/status diagnostics while excluding access keys and collection payloads. */
 export function redactReporting<T>(value: T, binderPage = false): T {
   if (typeof value === "string") {
+    if (/data:image\//i.test(value) || (binderPage && /blob:/.test(value))) return "[private scanner image]" as T;
     if (value.includes('"ownedDexIds"') || value.includes('"X-Pokedex-Key"')) return "[private binder data]" as T;
     return value.replace(PRIVATE_TOKEN, "[private sync key]")
       .replace(/(\/utilities\/radius-map\/api\/geocode\.php)\?[^\s"']*/g, "$1")
