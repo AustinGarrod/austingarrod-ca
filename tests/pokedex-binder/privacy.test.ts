@@ -22,4 +22,10 @@ describe("binder reporting privacy", () => {
   it("preserves the existing geocoder query privacy boundary", () => {
     expect(redactReporting({ url: "/utilities/radius-map/api/geocode.php?q=private-place", status: 429 })).toEqual({ url: "/utilities/radius-map/api/geocode.php", status: 429 });
   });
+  it("excludes scanner images and OCR content from diagnostics", () => {
+    const result = redactReporting({ image: "private-pixels", frame: [1, 2], rawText: "private OCR", ocrText: "private title", signature: [33], operation: "scanner", status: "failed" }, true);
+    expect(result).toMatchObject({ image: "[private]", frame: "[private]", rawText: "[private]", ocrText: "[private]", signature: "[private]", status: "failed" });
+    expect(redactReporting("failed image data:image/png;base64,secret")).toBe("[private scanner image]");
+    expect(redactReporting("blob:https://austingarrod.ca/private-image", true)).toBe("[private scanner image]");
+  });
 });

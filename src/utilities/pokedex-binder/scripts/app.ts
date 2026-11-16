@@ -1,6 +1,7 @@
 import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
 import { createBinderController, type BinderSnapshot } from "../lib/sync";
 import { checklistSpecies, setLabel, type ChecklistSort } from "../lib/checklist";
+import type { CardScanner } from "./scanner";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
 interface Printing { id: string; name: string; number: string; setId: string; rarity: string | null; image: string | null }
@@ -28,6 +29,7 @@ async function initialize() {
   let loadedPrintings: Printing[] | null = null, detailLoading = false, detailError = false;
   let renderedSpecies: number | null = null;
   let checklistSelected: number | null = null, hasRendered = false;
+  let scanner: CardScanner | null = null;
   const printingCache = new Map<number, Printing[]>();
   const search = el<HTMLInputElement>("dex-search");
   const filter = el<HTMLSelectElement>("dex-filter");
@@ -230,9 +232,21 @@ async function initialize() {
     const changed = !sameState(snapshot.state, value.state); snapshot = value;
     if (changed || !hasRendered) { render(); hasRendered = true; }
     else { renderFeedback(); renderSync(); }
+    scanner?.refresh();
   });
   await controller.start();
   el("dex-app").setAttribute("aria-busy", "false");
+  el("scan-open").addEventListener("click", async event => {
+    const button = event.currentTarget as HTMLButtonElement; button.disabled = true;
+    try {
+      if (!scanner) {
+        const { createCardScanner } = await import("./scanner");
+        scanner = createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
+      }
+      scanner.open();
+    } catch { el("dex-warning").textContent = "The scanner could not load. Check your connection and try again."; el("dex-warning").hidden = false; }
+    finally { button.disabled = false; }
+  });
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {

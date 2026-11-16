@@ -150,9 +150,41 @@ combined_client = combined_html + "\n" + "\n".join(
     path.read_text(encoding="utf-8") for path in (DIST / "_astro").glob("*.js")
 )
 
+# OCR models/workers must be complete, pinned and same-origin. Camera access is utility-scoped.
+scanner_assets = DIST / "utilities/pokedex-binder/scanner-assets/v1"
+scanner_manifest = scanner_assets / "assets.json"
+check(scanner_manifest.is_file(), "Missing scanner asset manifest")
+if scanner_manifest.is_file():
+    scanner_files = json.loads(scanner_manifest.read_text(encoding="utf-8"))
+    check(scanner_files.get("schemaVersion") == 1, "Unknown scanner asset manifest version")
+    scanner_files = scanner_files.get("files", {})
+    required_scanner_files = {
+        "worker.min.js", "worker.min.js.LICENSE.txt", "tesseract.js-LICENSE.txt",
+        "tesseract.js-core-LICENSE.txt", "eng.traineddata.gz", "README.md",
+        *[f"tesseract-core{variant}-lstm.wasm.js" for variant in ["", "-simd", "-relaxedsimd"]],
+    }
+    check(set(scanner_files) == required_scanner_files, "Unexpected scanner assets or missing notices")
+    for name, metadata in scanner_files.items():
+        check(Path(name).name == name, "Scanner asset filename must be local")
+        asset = scanner_assets / Path(name).name
+        check(asset.is_file(), f"Missing scanner asset: {name}")
+        if asset.is_file():
+            check(asset.stat().st_size == metadata["bytes"] and sha256(asset) == metadata["sha256"],
+                  f"Scanner asset does not match pinned manifest: {name}")
+        expected_version = "1.0.0" if metadata["package"] == "@tesseract.js-data/eng" else "7.0.0"
+        check(metadata["version"] == expected_version, f"Unexpected scanner package version: {name}")
+check((scanner_assets / "ATTRIBUTION.txt").is_file(), "Missing scanner attribution")
+check((DIST / "utilities/pokedex-binder/catalog/scan-index.json").is_file(), "Missing scanner name index")
+scanner_headers = (DIST / "utilities/pokedex-binder/.htaccess").read_text(encoding="utf-8")
+check("camera=(self)" in scanner_headers and "worker-src 'self'" in scanner_headers
+      and "'wasm-unsafe-eval'" in scanner_headers, "Scanner camera/worker policy is incomplete")
+check("'unsafe-eval'" not in scanner_headers, "Scanner must not enable JavaScript eval")
+check("camera=()" in (DIST / ".htaccess").read_text(encoding="utf-8"), "Root camera restriction must remain")
+check(not (DIST / "utilities/pokedex-binder/sw.js").exists(), "Binder must not install a service worker")
+
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
-    "/utilities/pokedex-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "print-content"],
+    "/utilities/pokedex-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content"],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",

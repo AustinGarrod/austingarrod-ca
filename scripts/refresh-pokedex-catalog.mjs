@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { buildScanIndex } from "./pokedex-scan-index.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -294,6 +295,7 @@ export async function refreshCatalog() {
       species: catalog.species, sets: catalog.sets, setSpecies: catalog.setSpecies, audit: catalog.audit,
     };
     await writeFile(path.join(stage, "catalog/index.json"), JSON.stringify(index) + "\n");
+    await writeFile(path.join(stage, "catalog/scan-index.json"), JSON.stringify(buildScanIndex(catalog.species, catalog.printings)) + "\n");
     await writeFile(path.join(stage, "licenses/TCGdex-MIT.txt"), source.license);
     await writeFile(path.join(stage, "licenses/PokeAPI-LICENSE.txt"), pokeLicense);
     await writeFile(path.join(stage, "licenses/PokeAPI-sprites-LICENSE.txt"), spriteLicense);
