@@ -10,12 +10,32 @@ const browser = await chromium.launch({ headless: true, ...(process.platform ===
 try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
-    await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    let remoteState, revision = 1, acknowledgedSequence = 0, holdPatch = null;
+    await context.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      if (!url.pathname.endsWith('/api/binder.php')) return route.continue();
+      const method = route.request().method(), body = route.request().postDataJSON();
+      if (method === 'POST') remoteState = body.state;
+      if (method === 'PATCH') {
+        if (holdPatch) await holdPatch;
+        remoteState = body.state; revision++; acknowledgedSequence = body.mutationSequence;
+      }
+      return route.fulfill({ json: { schemaVersion: 1, revision, acknowledgedSequence, state: remoteState } });
+    });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${origin}/utilities/pokedex-binder/`);
     await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator('#pokemon-details')).toBeHidden();
+    await expect(page.locator('#binder-view')).not.toHaveClass(/has-details/);
+    await expect(page.locator('.dex-intro')).not.toContainText('Fill the gaps');
+    assert.equal(await page.locator('#dex-filter').evaluate(node => getComputedStyle(node).appearance), 'none');
+    await page.locator('#sync-open').click();
+    await page.locator('#create-sync').click();
+    await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device');
+    await page.keyboard.press('Escape');
     await page.locator('#view-checklist').click();
     const rows = page.locator('.dex-checklist-row');
     await expect(rows).toHaveCount(100);
@@ -24,18 +44,58 @@ try {
     await page.locator('#checklist-sort').selectOption('name');
     await expect(rows).toHaveCount(100);
     await expect(rows.first()).toContainText('Abomasnow');
+    await page.getByRole('button', { name: 'Jump to Z', exact: true }).click();
+    await expect(page.locator('.dex-checklist-name:focus')).toHaveText(/^Z/);
+    await expect(rows).toHaveCount(1025);
     await page.locator('#checklist-sort').selectOption('name-desc');
     await expect(rows.first()).toContainText('Zygarde');
+    await page.getByRole('button', { name: 'Jump to A', exact: true }).click();
+    await expect(page.locator('.dex-checklist-name:focus')).toHaveText(/^A/);
     await page.locator('#checklist-sort').selectOption('dex-desc');
     await expect(rows.first()).toContainText('Pecharunt');
     await page.locator('#checklist-sort').selectOption('name');
     await page.locator('#checklist-set').fill('151 (MEW)');
     await expect(page.locator('#checklist-count')).toContainText('151 Pokémon');
     await expect(rows.first()).toContainText('Abra');
+    const abra = page.locator('#checklist-row-63');
+    await abra.locator('.dex-checklist-name').click();
+    await expect(abra).toHaveClass(/selected/);
+    let releasePatch;
+    holdPatch = new Promise(resolve => { releasePatch = resolve; });
     await page.locator('#owned-list-63').check();
+    await expect(abra).toHaveClass(/owned/);
+    await expect(abra.locator('.dex-collected-label')).toBeVisible();
+    await expect(page.locator('#dex-status')).not.toHaveText('Synced · Saved on this device');
+    await abra.locator('.dex-checklist-name').evaluate(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    });
+    releasePatch(); holdPatch = null;
+    await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device');
+    assert.equal(await page.evaluate(() => window.getSelection().toString()), 'Abra', 'Sync acknowledgment preserves selected text');
+    await page.evaluate(() => window.getSelection().removeAllRanges());
+    await expect(abra).toHaveClass(/selected/);
+    const otherTab = await context.newPage();
+    await otherTab.goto(`${origin}/utilities/pokedex-binder/`);
+    await expect(otherTab.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+    await abra.locator('.dex-checklist-name').evaluate(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      window.getSelection().removeAllRanges(); window.getSelection().addRange(range);
+    });
+    await otherTab.locator('#owned-grid-1').check();
+    await expect(page.locator('#owned-count')).toHaveText('2');
+    assert.equal(await page.evaluate(() => window.getSelection().toString()), 'Abra', 'Another tab updating ownership preserves selected row text');
+    await otherTab.locator('#owned-grid-1').uncheck();
+    await expect(page.locator('#owned-count')).toHaveText('1');
+    await otherTab.close();
+    await page.evaluate(() => window.getSelection().removeAllRanges());
+    await page.locator('#checklist-hide-collected').check();
+    await expect(abra).toHaveCount(0);
+    await page.locator('#checklist-hide-collected').uncheck();
+    await expect(abra).toHaveCount(1);
     await page.locator('#dex-filter').selectOption('owned');
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText('Page 4 · Row 4, column 3');
+    await expect(rows.first().locator('.dex-checklist-location')).toHaveAttribute('aria-label', 'Page 4 · Row 4, column 3');
     await page.locator('#dex-filter').selectOption('missing');
     await expect(page.locator('#checklist-count')).toContainText('150 Pokémon');
     await page.locator('#dex-generation').selectOption('2');

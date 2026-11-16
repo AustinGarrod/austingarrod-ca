@@ -13,12 +13,11 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
   <header class="dex-header">
     <a href="/" class="dex-brand" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
     <nav aria-label="Utility breadcrumb"><a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a><span aria-hidden="true">/</span><span aria-current="page">Pokédex Binder</span></nav>
-    <span class="dex-header-note">One of every Pokémon.</span>
   </header>
 
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <section class="dex-intro">
-      <div><p class="dex-eyebrow">Your collection, in order</p><h1><BookOpen size={30} aria-hidden="true" /> Pokédex Binder</h1><p>Find their place. Fill the gaps. One Pokémon at a time.</p></div>
+      <h1><BookOpen size={30} aria-hidden="true" /> Pokédex Binder</h1>
       <div class="dex-actions"><button id="layout-open"><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
     </section>
 
@@ -52,7 +51,7 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
         <div id="binder-grid" class="dex-binder-grid" aria-label="Binder pockets"></div>
         <p class="dex-help dex-page-tip">Open a Pokémon for card references. Check its box when you have a card for that slot.</p>
       </section>
-      <aside id="pokemon-details" class="dex-details" aria-label="Pokémon details"><div class="dex-details-empty"><BookOpen size={26} aria-hidden="true" /><h2>Every pocket has a place.</h2><p>Choose a Pokémon to see its location and the sets you can find it in.</p></div></aside>
+      <aside id="pokemon-details" class="dex-details" aria-label="Pokémon details" hidden></aside>
     </div>
 
     <section id="checklist-view" class="dex-checklist" aria-labelledby="checklist-heading" hidden>
@@ -63,11 +62,13 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
         <button id="checklist-clear-set">Clear set filter</button>
         <label for="checklist-sort">Sort checklist<select id="checklist-sort"><option value="dex">Pokédex number ↑</option><option value="dex-desc">Pokédex number ↓</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option></select></label>
       </div>
-      <p id="checklist-filter-help" class="dex-help">Find Pokémon with indexed English cards in a set. Combine with the search, ownership, and generation filters above. Ownership counts any card; binder positions stay in Pokédex order.</p>
+      <div class="dex-checklist-options"><label><input id="checklist-hide-collected" type="checkbox" /> Hide collected Pokémon</label><span class="dex-help">Click a row to highlight it.</span></div>
+      <nav id="checklist-letters" class="dex-letter-jump" aria-label="Jump to starting letter" hidden>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}</nav>
+      <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
       <div id="checklist-list"></div><button id="checklist-more" hidden>Show more Pokémon</button>
     </section>
 
-    <section class="dex-export-bar" aria-label="Collection exports"><p>Take your missing list to your next card shop or trade.</p><div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div></section>
+    <section class="dex-export-bar" aria-label="Collection exports"><div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div></section>
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokédex Binder needs JavaScript to display your collection and save progress.</p></noscript>
