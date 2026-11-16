@@ -198,7 +198,7 @@ try {
     await expect(page.locator('#checklist-list .dex-checklist-row')).toHaveCount(100);
     await page.locator('#dex-search').fill('#0017');
     await expect(page.locator('#owned-list-17')).toBeChecked();
-    await expect(page.locator('#checklist-list')).toContainText('Page 2 · Row 1, column 2');
+    await expect(page.locator('#checklist-list .dex-checklist-location')).toHaveAttribute('aria-label', 'Page 2 · Row 1, column 2');
     await page.locator('#checklist-list [data-goto]').click();
     await expect(page.locator('#view-binder')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#dex-search').fill('');
