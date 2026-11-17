@@ -22,6 +22,7 @@ export function reportingRelease(root: string) {
     }
   }
   walk('src'); walk('scripts')
+  hash.update(readFileSync(resolve(root, '../../packages/accounts/client.ts')))
   for (const file of ['public/catalog.json', 'public/companion-catalog.json']) hash.update(readFileSync(resolve(root, file)))
   hash.update(process.env.VITE_REPORTING_ENVIRONMENT || 'production')
   hash.update(process.env.VITE_REPORTING_ENABLED || 'false')

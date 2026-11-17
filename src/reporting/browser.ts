@@ -7,7 +7,9 @@ function withoutGeocodeQuery<T>(value: T): T {
   return redactReporting(value, location.pathname.startsWith("/utilities/pokedex-binder/"));
 }
 
-const enabled = import.meta.env.PROD || import.meta.env.PUBLIC_REPORTING_ENABLED === "true";
+// Login and recovery pages must not initialize diagnostics or record credentials.
+const enabled = !location.pathname.startsWith("/account/")
+  && (import.meta.env.PROD || import.meta.env.PUBLIC_REPORTING_ENABLED === "true");
 if (enabled && !Sentry.getClient()) {
   Sentry.init({
     dsn: "https://8b561c6564244066bd2960053ed220cd@reports.garrod.house/8",

@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.1']
+        php: ['7.4', '8.1', '8.4']
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -28,14 +28,45 @@ jobs:
           extensions: curl, mbstring
           tools: composer:v2
       - name: Install reporting SDK on supported PHP
-        if: matrix.php == '8.1'
+        if: matrix.php != '7.4'
         run: composer install --no-dev --prefer-dist --no-interaction
       - name: Verify PHP handlers and optional reporting failures
         run: |
           php -l public/reporting/bootstrap.php
           php -l public/contact.php
           php -l public/utilities/radius-map/api/geocode.php
+          php -l public/api/v1/auth.php
+          php -l public/api/v1/sync.php
           node scripts/test-php-reporting.mjs
+          node scripts/test-accounts-runtime.mjs
+  accounts-api:
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: accounts-local-test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, pdo_mysql, openssl
+          tools: composer:v2
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - name: Real local authentication, transaction and recovery checks
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:api
   build:
     runs-on: ubuntu-latest
     steps:
@@ -48,7 +79,7 @@ jobs:
       - run: npm run install:companion
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.4'
           extensions: curl, mbstring
           tools: composer:v2
       - name: Bundle and lint PHP
@@ -78,6 +109,48 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 7
+
+  accounts-browser:
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: accounts-local-test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, pdo_mysql, openssl
+      - uses: actions/download-artifact@v8
+        with:
+          name: website-dist
+          path: dist/
+      - run: node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Shared login and non-destructive migrations in real local browsers
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:browser
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: accounts-browser-failure
+          path: output/accounts-browser/
+          retention-days: 5
+          if-no-files-found: warn
 
   browser:
     needs: build

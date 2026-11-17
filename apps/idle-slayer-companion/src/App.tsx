@@ -33,6 +33,9 @@ import { sectionAtPath, sectionPath } from './domain/companion-navigation'
 import { ProgressComparison } from './ProgressComparison'
 import { SPCost } from './SPCost'
 import { reportFailure, reportingState, reportingAction, Sentry } from './reporting'
+import { AccountSyncBoundary } from './AccountSync'
+import { useAccountPersistence } from './AccountPersistenceContext'
+import type { ReactNode } from 'react'
 
 type LoadedCatalogs = { map: Catalog | null; companion: CompanionCatalog | null }
 type Panel = 'import' | 'backup' | 'settings' | 'help' | 'install' | 'reset' | 'correction' | null
@@ -76,14 +79,17 @@ export default function App({ transferInbox, initialMapIntent = false }: { trans
     return () => controller.abort()
   }, [])
   if (!catalogs) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening your companion…</p><p className="startup-disclosure">{trackingDisclosure}</p><details className="startup-privacy" onToggle={(event) => { if (event.currentTarget.open) setStartupTracking(getTrackingStatus()) }}><summary>Privacy & tracking</summary><PrivacyPanel status={startupTracking} onChange={(enabled) => { const result = setTrackingPreference(enabled); reloadWithURL(result.reloadURL) }} /></details></main>
-  return <Companion catalogs={catalogs} transferInbox={transferInbox} initialMapIntent={initialMapIntent} />
+  if (runtimeDeployment.target === 'legacy-migration') return <Companion catalogs={catalogs} transferInbox={transferInbox} initialMapIntent={initialMapIntent} />
+  return <AccountSyncBoundary revision={catalogs.map?.revision ?? catalogs.companion?.revision ?? 'unavailable'}>{(accountControls) => <Companion catalogs={catalogs} transferInbox={transferInbox} initialMapIntent={initialMapIntent} accountControls={accountControls} />}</AccountSyncBoundary>
 }
 
-function Companion({ catalogs, transferInbox, initialMapIntent }: { catalogs: LoadedCatalogs; transferInbox: ProgressTransferInbox; initialMapIntent: boolean }) {
+function Companion({ catalogs, transferInbox, initialMapIntent, accountControls }: { catalogs: LoadedCatalogs; transferInbox: ProgressTransferInbox; initialMapIntent: boolean; accountControls?: ReactNode }) {
   const { map, companion } = catalogs
   const revision = map?.revision ?? companion?.revision ?? 'unavailable'
-  const session = useMemo(() => createCompanionSession({ onFailure: reportFailure, revision, storage: () => localStorage, locks: () => navigator.locks, mapCatalog: map ?? undefined, companionCatalog: companion ?? undefined, mapMilestoneIds: map?.milestones.map((item) => item.id), companionItemIds: companion?.entities.filter((entity) => entity.system === 'craft' || entity.system === 'village').map((entity) => entity.id) }), [revision, map, companion])
+  const persistence = useAccountPersistence()
+  const session = useMemo(() => createCompanionSession({ onFailure: reportFailure, revision, storage: persistence.storage, locks: persistence.locks, mapCatalog: map ?? undefined, companionCatalog: companion ?? undefined, mapMilestoneIds: map?.milestones.map((item) => item.id), companionItemIds: companion?.entities.filter((entity) => entity.system === 'craft' || entity.system === 'village').map((entity) => entity.id) }), [revision, map, companion, persistence])
   const state = useSyncExternalStore(session.subscribe, session.getState)
+  useEffect(() => persistence.registerVisit('progress', () => session.getState().progress), [persistence, session])
   useEffect(() => {
     reportingState({ revision, persistence: state.persistence, dirty: state.dirty, pending: state.pending, conflict: state.conflict?.kind, errorKind: state.errorKind })
     if (state.error) reportFailure(new Error(state.error), 'progress.persistence', { kind: state.errorKind, persistence: state.persistence })
@@ -109,7 +115,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent }: { catalogs: Lo
   const receiveTransfer = useEffectEvent(() => { cancelRepair(true); if (transferInbox.getKind?.() === 'transfer') navigate('ascension') })
   useEffect(() => { const stopTransfer = transferInbox.subscribe(receiveTransfer), stopReference = subscribeUpgradeReference(() => { cancelRepair(true) }); return () => { stopTransfer(); stopReference(); repair.current?.abort(); repair.current = null } }, [transferInbox])
   useEffect(() => { cancelRepair(true) }, [state.version, workspace.version])
-  useEffect(() => { session.initialize(); const changed = (event: StorageEvent) => { if (event.key === null || [COMPANION_STORAGE_KEY, PROFILE_STORAGE_KEY].includes(event.key)) session.refreshExternal(); if (event.key === null || event.key === ANALYTICS_PREFERENCE_KEY) setTracking(getTrackingStatus()) }; window.addEventListener('storage', changed); return () => { window.removeEventListener('storage', changed); session.cancelPending() } }, [session])
+  useEffect(() => { session.initialize(); const changed = (event: StorageEvent) => { try { if (persistence.matches(event, [COMPANION_STORAGE_KEY, PROFILE_STORAGE_KEY])) session.refreshExternal() } catch { session.refreshExternal() }; if (event.key === null || event.key === ANALYTICS_PREFERENCE_KEY) setTracking(getTrackingStatus()) }; window.addEventListener('storage', changed); const stopRefresh = persistence.subscribe(() => session.refreshExternal()); return () => { stopRefresh(); window.removeEventListener('storage', changed); session.cancelPending() } }, [session, persistence])
   useEffect(() => { if (reference) navigate('ascension') }, [reference])
   const receiveNavigation = useEffectEvent(() => { cancelRepair(true); navigate(sectionAtPath(location.pathname, import.meta.env.BASE_URL) ?? 'overview') })
   useEffect(() => { window.addEventListener('popstate', receiveNavigation); return () => window.removeEventListener('popstate', receiveNavigation) }, [])
@@ -288,7 +294,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent }: { catalogs: Lo
   </>
 
   return <CompanionProfileContext.Provider value={session}><CompanionMapGoalsContext.Provider value={goalController}>
-    <CompanionShell section={section} onNavigate={navigate} onImport={() => open('import')} onBackup={() => open('backup')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} notice={runtimeDeployment.target === 'legacy-migration' || section === 'overview' ? <MigrationGuide /> : undefined}
+    <CompanionShell section={section} onNavigate={navigate} onImport={() => open('import')} onBackup={() => open('backup')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} accountControls={accountControls} notice={runtimeDeployment.target === 'legacy-migration' || section === 'overview' ? <MigrationGuide /> : undefined}
       ascension={map ? <MapApp embedded onActions={(actions) => { mapActions.current = actions }} catalog={map} transferInbox={transferInbox} active={section === 'ascension'} requestedUpgrade={inspection?.ref.system === 'ascension' ? { id: inspection.ref.id, sequence: inspection.sequence } : undefined} onCompanionImport={() => open('import')} onCompanionReset={startReset} onCompanionExport={exportProgress} onCompanionRecovery={() => open('backup')} onCompanionTrackingChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} onReferenceGuard={(guard) => { referenceGuard.current = guard }} /> : <div className="loading"><h2>Ascension catalog unavailable</h2><p>The reviewed tree could not be loaded. Other companion sections remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalog</button></div>}>
       {!companion ? <section className="loading"><h2>Companion data unavailable</h2><p>The reviewed companion catalog could not be loaded. Stored progress and Ascension remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalogs</button></section> : <>
         <div className="companion-page-controls telemetry-private rr-block"><label className="spoiler-control"><input type="checkbox" checked={state.profile.showSpoilers} disabled={state.pending} onChange={(event) => session.applyProfile({ ...state.profile, showSpoilers: event.target.checked }, false, 'spoilers')} />Show spoilers</label><button onClick={startReset}>Record Ultra Ascension…</button></div>

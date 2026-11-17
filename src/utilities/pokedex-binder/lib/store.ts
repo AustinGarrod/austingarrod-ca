@@ -1,6 +1,6 @@
 import { defaultState, record, validateSettings, validateState, type BinderSettings, type BinderState, type Species } from "./model";
 
-export interface InFlightMutation { sequence: number; baseRevision: number; baseline: BinderState; state: BinderState }
+export interface InFlightMutation { sequence: number; baseRevision: number; baseline: BinderState; state: BinderState; operationId?: string }
 export interface SyncSession {
   key: string;
   revision: number;
@@ -37,7 +37,8 @@ export function validateDocument(value: unknown, species: readonly Species[]): S
       if (!record(flight) || !Number.isSafeInteger(flight.sequence) || flight.sequence !== session.nextSequence
         || !Number.isSafeInteger(flight.baseRevision) || Number(flight.baseRevision) < 0) throw new Error("Unsupported pending sync format.");
       result.session.inFlight = { sequence: Number(flight.sequence), baseRevision: Number(flight.baseRevision),
-        baseline: validateState(flight.baseline, species), state: validateState(flight.state, species) };
+        baseline: validateState(flight.baseline, species), state: validateState(flight.state, species),
+        ...(typeof flight.operationId === "string" && /^[a-f0-9-]{36}$/i.test(flight.operationId) ? { operationId: flight.operationId } : {}) };
     }
   }
   if (value.layoutConflict !== null) {
@@ -53,6 +54,8 @@ export interface BinderStoreOptions { species: readonly Species[]; indexedDB?: I
 export class BinderStore {
   private database: IDBDatabase | null = null;
   private current: StoredBinder = freshDocument();
+  private lastPersisted: StoredBinder | null = null;
+  private changeNumber = 0;
   private channel: BroadcastChannel | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly factory: IDBFactory | null;
@@ -87,6 +90,48 @@ export class BinderStore {
     return this.read();
   }
   read(): StoredBinder { return copyDocument(this.current); }
+  get persistent(): boolean { return this.database !== null && this.warning === null; }
+  /** Retry an in-memory save only if no other writer replaced its exact persisted baseline. */
+  async retryPersistence(): Promise<boolean> {
+    if (this.persistent) return true;
+    if (!this.factory || !this.lastPersisted) throw new Error("This browser cannot recover its saved connection. Export this open binder before leaving.");
+    const baseline = copyDocument(this.lastPersisted), generation = this.changeNumber;
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = this.factory!.open(this.name, 1);
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error("Close other binder windows before retrying this save."));
+    });
+    let saved: StoredBinder | null = null;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = database.transaction("binder", "readwrite"), store = tx.objectStore("binder"), request = store.get("main");
+        request.onsuccess = () => {
+          try {
+            const persisted = validateDocument(request.result, this.options.species);
+            if (JSON.stringify(persisted) !== JSON.stringify(baseline)) throw new Error("Another window changed the saved binder. Export this open copy before reviewing the saved copy.");
+            saved = this.read(); store.put(saved, "main");
+          } catch (error) { reject(error); tx.abort(); }
+        };
+        request.onerror = () => reject(request.error);
+        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      });
+      this.lastPersisted = saved;
+      if (generation !== this.changeNumber) {
+        this.warning = "This binder changed while retrying its save. The latest open copy is kept; retry saving again before switching accounts.";
+        database.close(); this.emit(false); return false;
+      }
+      this.database = database; this.warning = null;
+      database.onversionchange = () => { database.close(); this.database = null; this.warning = "Binder storage changed in another window. Export this open copy before switching accounts."; this.emit(false); };
+      this.emit(); return true;
+    } catch (error) { database.close(); throw error; }
+  }
+  async rawDocument(): Promise<unknown> {
+    if (!this.database) return this.read();
+    return new Promise((resolve, reject) => {
+      const tx = this.database!.transaction("binder", "readonly"), request = tx.objectStore("binder").get("main");
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+  }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(broadcast = true): void { this.listeners.forEach(listener => listener()); if (broadcast) this.channel?.postMessage("changed"); }
   async refresh(): Promise<StoredBinder> {
@@ -95,12 +140,13 @@ export class BinderStore {
       const tx = this.database!.transaction("binder", "readonly"), request = tx.objectStore("binder").get("main");
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
-    if (raw !== undefined) this.current = validateDocument(raw, this.options.species);
+    if (raw !== undefined) { this.current = validateDocument(raw, this.options.species); this.lastPersisted = copyDocument(this.current); this.changeNumber++; }
     this.emit(false); return this.read();
   }
   async update(change: (doc: StoredBinder) => StoredBinder, broadcast = true): Promise<StoredBinder> {
     if (!this.database) {
       this.current = validateDocument(change(copyDocument(this.current)), this.options.species);
+      this.changeNumber++;
       this.emit(broadcast); return this.read();
     }
     let next: StoredBinder | undefined;
@@ -121,12 +167,14 @@ export class BinderStore {
         tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error ?? new Error("Save interrupted."));
       });
       this.current = next!;
+      this.lastPersisted = copyDocument(this.current); this.changeNumber++;
     } catch {
       if (rejectedChange) throw rejectedChange;
       this.database?.close(); this.database = null;
       // Never replace unreadable persisted bytes with a fresh default document.
       this.warning = "This browser could not save the binder. Your saved data has been left untouched; export this session before leaving.";
       this.current = next ?? validateDocument(change(copyDocument(this.current)), this.options.species);
+      this.changeNumber++;
     }
     this.emit(broadcast); return this.read();
   }

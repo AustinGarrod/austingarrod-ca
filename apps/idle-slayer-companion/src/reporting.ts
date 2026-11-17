@@ -38,13 +38,14 @@ export function initializeReporting() {
     attachStacktrace: true,
     initialScope: { tags: { service: 'idle-slayer-companion', surface: 'browser' }, contexts: { build: { commit: import.meta.env.VITE_REPORTING_COMMIT, source: 'https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion', release: import.meta.env.VITE_REPORTING_RELEASE } } },
     beforeSendLog(log) { log.attributes = { ...log.attributes, 'service.name': 'idle-slayer-companion' }; return log },
-    integrations: (defaults) => [...defaults.filter((integration) => !['BrowserSession', 'Breadcrumbs'].includes(integration.name)), Sentry.breadcrumbsIntegration({ dom: false }), Sentry.browserTracingIntegration(), Sentry.httpClientIntegration(),
+    integrations: (defaults) => [...defaults.filter((integration) => !['BrowserSession', 'Breadcrumbs'].includes(integration.name)), Sentry.breadcrumbsIntegration({ dom: false }), Sentry.browserTracingIntegration({ shouldCreateSpanForRequest: (url) => !isAccountRequest(url) }), Sentry.httpClientIntegration({ failedRequestTargets: [/^(?!.*\/api\/v1\/).*/] }),
       Sentry.captureConsoleIntegration({ levels: ['error', 'assert'] }),
       Sentry.consoleLoggingIntegration({ levels: ['info', 'warn', 'error'] })],
-    // There is no app backend. Do not propagate tracing headers to third parties.
+    // Account requests carry no tracing headers and never enter diagnostics.
     tracePropagationTargets: [],
     beforeBreadcrumb(breadcrumb) {
       if (breadcrumb.category === 'ui.input') return null
+      if (['url', 'from', 'to'].some((key) => typeof breadcrumb.data?.[key] === 'string' && isAccountRequest(breadcrumb.data[key]))) return null
       return breadcrumb
     },
     beforeSend: cleanDiagnosticEvent,
@@ -65,8 +66,22 @@ export function initializeReporting() {
 export function cleanReportingURL(value: string) {
   try { const url = new URL(value, globalThis.location?.href ?? 'http://localhost/'); if (!['https:', 'http:'].includes(url.protocol)) return `[${url.protocol} resource]`; url.hash = ''; url.search = ''; return url.toString() } catch { return '[invalid URL]' }
 }
+export function isAccountRequest(value: string) { try { return new URL(value, globalThis.location?.href ?? 'http://localhost/').pathname.startsWith('/api/v1/') } catch { return false } }
 /** Transfer fragments are portable backups, including in performance span attributes. */
 export function cleanDiagnosticEvent<T extends Sentry.Event>(event: T): T {
+  delete event.user
+  if (event.request) { delete event.request.data; delete event.request.cookies; delete event.request.headers }
+  event.breadcrumbs = event.breadcrumbs?.filter((crumb) => !['url', 'from', 'to'].some((key) => typeof crumb.data?.[key] === 'string' && isAccountRequest(crumb.data[key])))
+  event.spans = event.spans?.filter((span) => !['http.url', 'url.full', 'url'].some((key) => typeof span.data?.[key] === 'string' && isAccountRequest(span.data[key])))
+  const sensitive = /email|password|authorization|cookie|csrf|token|otp|challenge|account.?id|request.?body|response.?body|mutation|snapshot|payload|backup|legacy.?key|^(?:remote|state|raw|user|selected|device)$/i
+  function redact(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(redact)
+    if (!value || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !sensitive.test(key)).map(([key, child]) => [key, redact(child)]))
+  }
+  if (event.extra) event.extra = redact(event.extra) as typeof event.extra
+  if (event.contexts) event.contexts = redact(event.contexts) as typeof event.contexts
+  if (event.request?.url && isAccountRequest(event.request.url)) { event.request = { url: '[account request]' }; delete event.extra; delete event.contexts }
   if (event.request?.url) event.request.url = cleanReportingURL(event.request.url)
   for (const crumb of event.breadcrumbs ?? []) {
     for (const key of ['url', 'from', 'to']) if (typeof crumb.data?.[key] === 'string') crumb.data[key] = cleanReportingURL(crumb.data[key])

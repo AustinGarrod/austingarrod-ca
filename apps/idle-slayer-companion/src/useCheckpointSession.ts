@@ -2,18 +2,22 @@ import { useEffect, useMemo, useState } from 'react'
 import { createCheckpointSession } from './domain/checkpoint-session'
 import { CHECKPOINT_STORAGE_KEY } from './domain/checkpoints'
 import { diagnosticStorage } from './reporting-storage'
+import { useAccountPersistence } from './AccountPersistenceContext'
 
 export function useCheckpointSession(revision: string) {
-  const session = useMemo(() => createCheckpointSession({ revision, storage: diagnosticStorage('checkpoints'), locks: () => window.navigator.locks, id: () => window.crypto.randomUUID() }), [revision])
+  const persistence = useAccountPersistence()
+  const session = useMemo(() => createCheckpointSession({ revision, storage: diagnosticStorage('checkpoints', persistence.storage), locks: persistence.locks, id: () => window.crypto.randomUUID() }), [revision, persistence])
   const [state, setState] = useState(session.getState)
+  useEffect(() => persistence.registerVisit('checkpoints', () => session.getState().vault), [persistence, session])
   useEffect(() => {
     const unsubscribe = session.subscribe(setState)
     session.initialize()
     const changed = (event: StorageEvent) => {
-      try { if (event.storageArea === window.localStorage && (event.key === null || event.key === CHECKPOINT_STORAGE_KEY)) session.refreshExternal() } catch { session.refreshExternal() }
+      try { if (persistence.matches(event, [CHECKPOINT_STORAGE_KEY])) session.refreshExternal() } catch { session.refreshExternal() }
     }
     window.addEventListener('storage', changed)
-    return () => { window.removeEventListener('storage', changed); unsubscribe(); session.cancelPending() }
-  }, [session])
+    const stopRefresh = persistence.subscribe(() => session.refreshExternal())
+    return () => { stopRefresh(); window.removeEventListener('storage', changed); unsubscribe(); session.cancelPending() }
+  }, [session, persistence])
   return { session, state }
 }

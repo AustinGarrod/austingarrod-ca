@@ -178,20 +178,30 @@ function pokedex_snapshot(array $row, int $ack = 0): array
 
 function pokedex_find(PDO $database, string $keyHash, bool $lock = false, bool $includeDeleted = false): array
 {
-    $statement = $database->prepare('SELECT id, revision, state_json, deleted_at FROM pokedex_binders WHERE key_hash = ?' . ($includeDeleted ? '' : ' AND deleted_at IS NULL') . ($lock ? ' FOR UPDATE' : ''));
+    $statement = $database->prepare('SELECT id, revision, state_json, deleted_at FROM pokedex_binders WHERE key_hash = ?' . ($lock ? ' FOR UPDATE' : ''));
     $statement->execute([$keyHash]);
     $row = $statement->fetch();
     if (!is_array($row)) throw new PokedexApiError(404, 'binder_not_found', 'No synced binder was found for this key.');
+    if (!$includeDeleted && $row['deleted_at'] !== null) {
+        // Account migration retains the complete legacy state; ordinary deletion clears it.
+        // No dependency on account tables is needed by an unmigrated utility deployment.
+        if ($row['state_json'] !== null) throw new PokedexApiError(410, 'binder_revoked', 'This key was moved to an account. Your device copy is still available; sign in to review and sync it.');
+        throw new PokedexApiError(404, 'binder_not_found', 'No synced binder was found for this key.');
+    }
     return $row;
 }
 
 function pokedex_handle(PDO $database, string $method, string $keyHash, ?array $body, ?string $readClient, array $allowedIds): array
 {
     if ($method === 'GET') {
-        $statement = $database->prepare('SELECT b.id, b.revision, b.state_json, COALESCE(c.last_applied_sequence, 0) AS acknowledged_sequence FROM pokedex_binders b LEFT JOIN pokedex_binder_clients c ON c.binder_id = b.id AND c.client_id = ? WHERE b.key_hash = ? AND b.deleted_at IS NULL');
+        $statement = $database->prepare('SELECT b.id, b.revision, b.state_json, b.deleted_at, COALESCE(c.last_applied_sequence, 0) AS acknowledged_sequence FROM pokedex_binders b LEFT JOIN pokedex_binder_clients c ON c.binder_id = b.id AND c.client_id = ? WHERE b.key_hash = ?');
         $statement->execute([$readClient ?? '', $keyHash]);
         $row = $statement->fetch();
         if (!is_array($row)) throw new PokedexApiError(404, 'binder_not_found', 'No synced binder was found for this key.');
+        if ($row['deleted_at'] !== null) {
+            if ($row['state_json'] !== null) throw new PokedexApiError(410, 'binder_revoked', 'This key was moved to an account. Your device copy is still available; sign in to review and sync it.');
+            throw new PokedexApiError(404, 'binder_not_found', 'No synced binder was found for this key.');
+        }
         return pokedex_snapshot($row, (int) $row['acknowledged_sequence']);
     }
     if ($method === 'POST') {

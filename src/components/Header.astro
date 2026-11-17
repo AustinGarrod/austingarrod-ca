@@ -1,5 +1,5 @@
 ---
-import { Download, Menu, X } from "@lucide/astro";
+import { Download, Menu, UserRound, X } from "@lucide/astro";
 import { profile, siteNav } from "@data/profile";
 
 interface Props {
@@ -29,6 +29,9 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
     </nav>
 
     <div class="nav-actions">
+      <a class="button compact account-nav rr-block" data-analytics-private href="/account/" aria-label="Your utility account">
+        <UserRound size={17} aria-hidden="true" /><span>Account</span>
+      </a>
       <a
         class="button compact"
         href={profile.resume}
@@ -56,6 +59,7 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
 
   <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile navigation" hidden>
     <p class="mobile-nav-label">Navigation</p>
+    <a class="mobile-link rr-block" data-analytics-private href="/account/">Utility account</a>
     {siteNav.map((item) => (
       <a
         class:list={["mobile-link", item.href === activePath && "active"]}

@@ -1,0 +1,28 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { profile } from "@data/profile";
+import "@styles/account.css";
+---
+<BaseLayout title="Utility account privacy | Austin Garrod" description="How optional utility accounts use your email and saved progress." noIndex privatePage>
+  <section class="page-hero"><div class="container page-hero-inner">
+    <p class="eyebrow">Utility accounts</p><h1>Your account data.</h1>
+    <p>Accounts are optional. Local utility saves and file backups remain available without signing in.</p>
+  </div></section>
+  <section class="container account-layout rr-block" data-analytics-private>
+    <div class="account-panel">
+      <h2>What an account stores</h2>
+      <p>Signing in creates an account with your verified email address. If you use Google, the site receives your email address and Google account identifier to recognize your sign-in. It requests no access to Gmail, Drive, contacts, or other Google content.</p>
+      <p>When you connect a utility, its supported saved progress is copied to the account for synchronization. Pokédex Binder stores collected Pokémon and binder settings. Idle Slayer Companion stores normalized progress, intentions, checkpoints, and saved comparison. Selected game-save files stay in your browser.</p>
+      <h2>Where it is kept</h2>
+      <p>Account records, secure sign-in sessions, synced utility documents, and recovery copies are stored with the site on HostPapa. Sign-in codes are sent through HostPapa email. Google processes its own sign-in flow when you choose that option. Utility data is not sent to Google for synchronization.</p>
+      <p>This is account-based synchronization, not end-to-end encrypted storage. Keep downloaded backups and migration recovery files private; they contain your saved data.</p>
+      <h2>Recovery and deletion</h2>
+      <p>Migration and conflicting versions are retained for recovery until you delete their recovery copies. Restoring a version preserves the version it replaces. Deleting one recovery copy does not delete the active save, other copies, browser originals, or hosting backups.</p>
+      <p>For account access, export, or deletion requests, <a href={`mailto:${profile.email}`}>contact Austin Garrod</a> using the email address associated with your account. Do not email sign-in codes, session cookies, or private sync keys.</p>
+      <h2>Cookies and diagnostics</h2>
+      <p>A secure session cookie keeps you signed in across this site. Sign-out ends that session; sign-out everywhere ends all account sessions. Browser account copies and pending edits remain on their original device.</p>
+      <p>Account and recovery pages do not load usage analytics or session recordings. Authentication and synchronization payloads are excluded from application diagnostics and recordings. Other site pages and utilities retain their existing analytics and privacy controls.</p>
+      <p><a class="text-link" href="/account/">Back to your account</a></p>
+    </div>
+  </section>
+</BaseLayout>

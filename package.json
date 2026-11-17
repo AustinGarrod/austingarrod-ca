@@ -29,6 +29,8 @@
     "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs",
     "test:pokedex:checklist": "node scripts/test-pokedex-checklist.mjs",
     "test:php": "node scripts/test-php-reporting.mjs",
+    "test:accounts:api": "node scripts/test-accounts-api.mjs",
+    "test:accounts:browser": "node scripts/test-accounts-browser.mjs",
     "refresh:pokedex:scan-index": "node scripts/pokedex-scan-index.mjs",
     "test:pokedex:scanner": "node scripts/test-pokedex-scanner.mjs"
   },

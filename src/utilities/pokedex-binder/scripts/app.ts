@@ -1,5 +1,7 @@
 import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
-import { createBinderController, type BinderSnapshot } from "../lib/sync";
+import { type BinderSnapshot } from "../lib/sync";
+import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
+import { accountHref } from "../../../../packages/accounts/client";
 import { checklistSpecies, setLabel, type ChecklistSort } from "../lib/checklist";
 import type { CardScanner } from "./scanner";
 
@@ -23,7 +25,9 @@ async function initialize() {
   const catalog = await response.json() as Catalog;
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.species) || !catalog.species.length) throw new Error("The Pokémon catalog needs updating. Your saved binder is safe.");
   const species = catalog.species;
-  const controller = createBinderController({ species });
+  const controller = createUnifiedBinderController({ species });
+  let account: BinderAccountState = controller.accountState();
+  let migrationPreview: MigrationPreview | null = null;
   let snapshot: BinderSnapshot = { state: defaultState(), status: "loading", error: null, storageWarning: null, connected: false, key: null, layoutConflict: null };
   let currentPage = 1, selected: number | null = null, view: "binder" | "checklist" = "binder", checklistLimit = 100, printingQuery = "";
   let loadedPrintings: Printing[] | null = null, detailLoading = false, detailError = false;
@@ -223,7 +227,19 @@ async function initialize() {
   }
   function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view = "binder"; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
   function renderSync() {
-    el("sync-connected").hidden = !snapshot.connected; el("sync-disconnected").hidden = snapshot.connected;
+    el("sync-connected").hidden = !snapshot.connected || account.mode === "account"; el("sync-disconnected").hidden = snapshot.connected || account.mode === "account";
+    el("binder-account-panel").hidden = !account.enabled;
+    el<HTMLAnchorElement>("binder-account-link").href = accountHref(root);
+    el("binder-account-link").textContent = account.user ? "Manage account & recovery" : "Sign in with email or Google";
+    el("binder-account-status").textContent = account.retainedAccount ? `This open binder belongs to ${account.retainedAccount.email}. Your account changed, and this binder has changes that could not be saved on this device. Export its JSON backup before leaving, or retry saving to finish switching accounts.` : account.offline ? `Saved on this device for ${account.user?.email ?? "your account"}. Reconnect and sign in before syncing.` : account.mode === "account" ? `Syncing with ${account.user?.email ?? "your account"}.` : account.user
+      ? `Signed in as ${account.user.email}. Review your device and account copies before connecting them.`
+      : "An account can sync this binder and Idle Slayer Companion. You can also keep using this device without an account.";
+    el("binder-account-review").hidden = !account.user || !account.migrationEnabled || account.mode === "account" || account.pendingMigration;
+    el("binder-account-resume").hidden = !account.user || !account.pendingMigration;
+    el("binder-account-sync").hidden = account.mode !== "account";
+    el("binder-account-recheck").hidden = !account.storageNeedsRecovery;
+    el("binder-recovery-download").hidden = !account.user;
+    el("binder-legacy-input").hidden = !account.user || !account.migrationEnabled || account.mode === "account";
     el("sync-message").textContent = snapshot.error ?? (snapshot.storageWarning ? "Browser storage is unavailable. Export a backup before leaving this page." : statusLabels[snapshot.status]);
     const display = el<HTMLInputElement>("sync-key-display");
     if (!display.hidden && display.value !== (snapshot.key ?? "")) display.value = snapshot.key ?? "";
@@ -234,6 +250,7 @@ async function initialize() {
     else { renderFeedback(); renderSync(); }
     scanner?.refresh();
   });
+  controller.subscribeAccount(value => { account = value; renderSync(); });
   await controller.start();
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", async event => {
@@ -307,6 +324,35 @@ async function initialize() {
     });
   });
   el("sync-open").addEventListener("click", () => { el("sync-error").textContent = ""; renderSync(); syncDialog.showModal(); });
+  el("binder-account-review").addEventListener("click", event => void action(async () => {
+    migrationPreview = await controller.previewMigration(el<HTMLInputElement>("binder-migration-key").value);
+    const preview = migrationPreview;
+    el("binder-migration-summary").textContent = `This device: ${preview.device.ownedDexIds.length} collected. Private-key binder: ${preview.legacy ? preview.legacy.ownedDexIds.length + " collected" : "none"}. Account: ${preview.account ? preview.account.ownedDexIds.length + " collected" : "new binder"}.`;
+    const layout = el<HTMLSelectElement>("binder-migration-layout"), collection = el<HTMLSelectElement>("binder-migration-collection");
+    layout.querySelector<HTMLOptionElement>('option[value="legacy"]')!.disabled = !preview.legacy;
+    layout.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
+    collection.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
+    layout.value = preview.layoutConflict ? "" : "device"; collection.value = "combine";
+    el("binder-migration-error").textContent = "";
+    syncDialog.close(); el<HTMLDialogElement>("binder-migration-dialog").showModal();
+  }, event.currentTarget as HTMLButtonElement));
+  el("binder-migration-form").addEventListener("submit", event => {
+    event.preventDefault();
+    const button = (event.target as HTMLFormElement).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    void action(async () => {
+      if (!migrationPreview) throw new Error("Review your binder copies again before connecting.");
+      try {
+        const selectedState = combineMigrationSources(migrationPreview, el<HTMLSelectElement>("binder-migration-layout").value as "device" | "legacy" | "account", el<HTMLSelectElement>("binder-migration-collection").value as "combine" | "device" | "account");
+        await controller.migrate(migrationPreview, selectedState);
+        el<HTMLInputElement>("binder-migration-key").value = "";
+        el<HTMLDialogElement>("binder-migration-dialog").close();
+      } catch (error) { el("binder-migration-error").textContent = error instanceof Error ? error.message : "Migration could not finish. Your original copies are preserved."; throw error; }
+    }, button);
+  });
+  el("binder-account-resume").addEventListener("click", event => void action(() => controller.resumeMigration(), event.currentTarget as HTMLButtonElement));
+  el("binder-account-sync").addEventListener("click", event => void action(() => controller.sync(), event.currentTarget as HTMLButtonElement));
+  el("binder-account-recheck").addEventListener("click", event => void action(() => controller.recheckConnection(), event.currentTarget as HTMLButtonElement));
+  el("binder-recovery-download").addEventListener("click", event => void action(async () => download(await controller.recoveryBackups(), "pokedex-binder-migration-backups.json", "application/json"), event.currentTarget as HTMLButtonElement));
   syncDialog.addEventListener("close", () => { el<HTMLInputElement>("sync-key-input").value = ""; el<HTMLInputElement>("sync-key-display").value = ""; el("sync-key-display").hidden = true; el("reveal-key").textContent = "Show key"; });
   el("create-sync").addEventListener("click", event => void action(async () => {
     await controller.createSync();
