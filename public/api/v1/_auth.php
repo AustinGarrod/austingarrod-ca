@@ -35,12 +35,18 @@ function accounts_send_code(array $config, string $webroot, string $email, strin
         throw new RuntimeException();
     }
 
-    $mail->SMTPSecure = in_array($encryption, ['smtps', 'tls'], true) ? $encryption : '';
+    $mail->SMTPSecure = match ($encryption) {
+        'smtps' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS,
+        'tls' => PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS,
+        default => '',
+    };
     $mail->SMTPAutoTLS = $mail->SMTPSecure !== '';
     $mail->SMTPAuth = ($smtp['username'] ?? '') !== '';
     $mail->Username = (string)($smtp['username'] ?? '');
     $mail->Password = (string)($smtp['password'] ?? '');
     $mail->Timeout = 10;
+    // PHPMailer has a separate command-read limit; its default is five minutes.
+    $mail->getSMTPInstance()->Timelimit = $mail->Timeout;
     $mail->SMTPDebug = 0;
     $mail->CharSet = 'UTF-8';
     $mail->setFrom((string)$smtp['from'], (string)($smtp['name'] ?? 'AustinGarrod.ca'));

@@ -92,6 +92,9 @@ const binder = (ownedDexIds = []) => ({ schemaVersion: 1, settings: { columns: 3
 const app = 'pokedex-binder', document = 'binder';
 const write = (state, baseRevision, clientId, mutationSequence = 1) => ({ app, document, schemaVersion: 1, state, baseRevision, clientId, mutationSequence, operationId: randomUUID() });
 try {
+  execFileSync(process.execPath, [join(root, 'scripts/test-accounts-smtp-tls.mjs')], {
+    env: { ...env, PHP_BINARY: php }, stdio: ['ignore', 'inherit', 'pipe'],
+  });
   databaseCommand('create'); created = true;
   saveConfig(); [origin, parallel] = await Promise.all([startServer(), startServer()]); config.allowedOrigin = origin; saveConfig();
   execFileSync(php, [...flags, join(root, 'server/accounts/migrate.php'), configFile], { env, stdio: ['ignore', 'pipe', 'pipe'] });
