@@ -166,7 +166,9 @@ function accounts_config(string $webroot, ?string $explicit = null): ?array
 {
     $home = getenv('HOME') ?: getenv('USERPROFILE') ?: dirname($webroot);
     $path = $explicit ?? (getenv('ACCOUNTS_CONFIG') ?: $home.'/private/accounts.php');
-    if (!is_file($path)) {
+    clearstatcache(true, $path);
+    $real = realpath($path);
+    if ($real === false || !is_file($real)) {
         return null;
     }
 
@@ -174,7 +176,8 @@ function accounts_config(string $webroot, ?string $explicit = null): ?array
         throw new RuntimeException('Private configuration required.');
     }
 
-    $c = require $path;
+    accounts_refresh_private_config($real);
+    $c = require $real;
     if (!is_array($c)) {
         throw new RuntimeException();
     }
@@ -202,6 +205,23 @@ function accounts_config(string $webroot, ?string $explicit = null): ?array
     }
 
     return accounts_rollout_flags($c);
+}
+
+/** Rollback/preview switches must not keep an older compiled PHP config alive.
+ * Invalidate this one private file even when timestamp validation is disabled.
+ * Restricted cache APIs fail closed rather than trusting an unknown old flag. */
+function accounts_refresh_private_config(string $path): void
+{
+    $active = filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN)
+        && (!in_array(PHP_SAPI, ['cli', 'cli-server'], true) || filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN));
+    if (!$active) return;
+    if (!function_exists('opcache_get_status') || !function_exists('opcache_invalidate') || !function_exists('opcache_is_script_cached')
+        || !is_array(@opcache_get_status(false))) {
+        throw new RuntimeException('Private configuration refresh is unavailable.');
+    }
+    if (!@opcache_invalidate($path, true) && @opcache_is_script_cached($path)) {
+        throw new RuntimeException('Private configuration refresh is unavailable.');
+    }
 }
 
 /** Private rollout access never trusts forwarded headers or bypasses login.

@@ -97,6 +97,10 @@ try {
   execFileSync(php, [...flags, join(root, 'server/accounts/migrate.php'), configFile], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync(php, [...flags, join(root, 'tests/accounts/validators.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync(php, [...flags, join(root, 'tests/accounts/preview.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const cacheFlags = [...flags, '-d', 'opcache.enable_cli=1', '-d', 'opcache.validate_timestamps=0', '-d', 'opcache.file_update_protection=0'];
+  if (process.platform === 'win32' && !loaded.includes('Zend OPcache')) cacheFlags.push('-d', `zend_extension=${join(phpDir, 'ext/php_opcache.dll')}`);
+  execFileSync(php, [...cacheFlags, join(root, 'tests/accounts/config-cache.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync(php, [...cacheFlags, '-d', 'disable_functions=opcache_invalidate', join(root, 'tests/accounts/config-cache.test.php'), 'restricted'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync(php, [...flags, join(root, 'tests/accounts/oauth-form.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync(php, [...flags, join(root, 'tests/accounts/auth-race.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   // The production routes can be verified privately while the file's public
