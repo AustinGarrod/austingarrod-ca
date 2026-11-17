@@ -146,6 +146,9 @@ async function adoptBinder(page, chooseAccount) {
 async function openSlayer(page) {
   await page.goto(origin + '/utilities/idle-slayer-companion/');
   await expect(page.getByRole('button', { name: /^Account & sync/ })).toBeVisible({ timeout: 20_000 });
+  // Session discovery can replace the cached offline account workspace. Wait
+  // for that initial reconciliation before interacting with its new controls.
+  await page.waitForLoadState('networkidle');
   await page.getByRole('button', { name: /^Account & sync/ }).click();
   await expect(page.getByRole('dialog', { name: 'Account & sync', exact: true })).toBeVisible();
 }
