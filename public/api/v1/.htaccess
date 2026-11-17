@@ -6,7 +6,10 @@ Options -Indexes
 </FilesMatch>
 <IfModule mod_headers.c>
   Header always set Cache-Control "no-store, private"
+  # Clear inherited normal-table headers before setting the PHP/error table.
+  Header onsuccess unset Referrer-Policy
   Header always set Referrer-Policy "no-referrer"
+  Header onsuccess unset X-Content-Type-Options
   Header always set X-Content-Type-Options "nosniff"
 </IfModule>
 <FilesMatch "^_">
