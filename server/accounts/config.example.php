@@ -4,6 +4,9 @@
 return [
     'enabled' => false,
     'migrationEnabled' => false,
+    // Temporary operator-only live checks; exact REMOTE_ADDR IP literals only.
+    // Clear these addresses and disable preview after the public rollout.
+    'preview' => ['enabled' => false, 'migrationEnabled' => false, 'addresses' => []],
     // MUST be the existing Binder database for atomic migration/key revocation.
     'dsn' => 'mysql:host=localhost;dbname=CPANEL_DATABASE;charset=utf8mb4',
     'username' => 'CPANEL_ACCOUNTS_RUNTIME_USER',

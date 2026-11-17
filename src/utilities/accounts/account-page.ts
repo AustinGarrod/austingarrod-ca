@@ -1,4 +1,4 @@
-import { APIError, createAccountClient, refreshSession, requestEmailCode, safeReturnTo, signOut, startGoogle, subscribeSession, verifyEmailCode, type AccountSession, type RecoverySnapshot } from "../../../packages/accounts/client";
+import { APIError, beginLogin, createAccountClient, refreshSession, requestEmailCode, safeReturnTo, signOut, startGoogle, subscribeSession, verifyEmailCode, type AccountSession, type RecoverySnapshot } from "../../../packages/accounts/client";
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const status = element("account-status");
@@ -100,9 +100,10 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
 function render(value: AccountSession): void {
   const previousId = current?.user?.id;
   const previousPendingEmail = current?.pendingGoogleEmail;
+  const previousBootstrap = current?.requiresBootstrap === true;
   const verifyingGoogle = !!value.pendingGoogleEmail;
   current = value;
-  if (previousId !== value.user?.id || previousPendingEmail !== value.pendingGoogleEmail) {
+  if (previousId !== value.user?.id || previousPendingEmail !== value.pendingGoogleEmail || previousBootstrap !== (value.requiresBootstrap === true)) {
     challengeId = ""; code.value = ""; resendAt = 0;
     element("account-code-form").hidden = true;
   }
@@ -129,6 +130,7 @@ function render(value: AccountSession): void {
     ++recoveryGeneration; recoveryList.replaceChildren();
   }
   if (!value.enabled) message("Account syncing is not available yet. Your local saves are unchanged.");
+  else if (value.requiresBootstrap) message("Your sign-in expired. Request a new email code or continue with Google to sign in again.");
   else if (verifyingGoogle) message("Verify your email address to finish connecting Google.");
   else if (previousId !== value.user?.id) message(value.user ? "You’re signed in." : "Choose how to sign in.");
 }
@@ -170,13 +172,13 @@ function logout(everywhere: boolean): void {
 element("account-logout").addEventListener("click", () => logout(false));
 element("account-logout-all").addEventListener("click", () => logout(true));
 element("account-recovery-refresh").addEventListener("click", () => { void loadRecovery(); });
-async function reload(): Promise<void> {
+async function reload(explicitLoginRetry = false): Promise<void> {
   try {
-    render(await refreshSession());
+    render(await (explicitLoginRetry ? beginLogin() : refreshSession()));
     if (params.get("google") === "failed") message("Google sign-in could not finish. Try again or use an emailed code.", true);
     if (params.get("google") === "cancelled") message("Google sign-in was cancelled. You can choose another sign-in method.");
   }
   catch (error) { element("account-unavailable").hidden = false; failure(error); }
 }
-element("account-retry").addEventListener("click", () => { void reload(); });
+element("account-retry").addEventListener("click", () => { void reload(true); });
 void reload();

@@ -201,7 +201,42 @@ function accounts_config(string $webroot, ?string $explicit = null): ?array
 
     }
 
-    return $c;
+    return accounts_rollout_flags($c);
+}
+
+/** Private rollout access never trusts forwarded headers or bypasses login.
+ * The file's public switches stay false while a configured operator tests the
+ * same production routes. Preview migration access has its own explicit gate. */
+function accounts_rollout_flags(array $config): array
+{
+    $publicEnabled = ($config['enabled'] ?? false) === true;
+    $publicMigration = ($config['migrationEnabled'] ?? false) === true;
+    $preview = $config['preview'] ?? [];
+    if (!is_array($preview) || array_diff(array_keys($preview), ['enabled', 'migrationEnabled', 'addresses']) !== []) {
+        throw new RuntimeException('Invalid private preview configuration.');
+    }
+    foreach (['enabled', 'migrationEnabled'] as $flag) {
+        if (array_key_exists($flag, $preview) && !is_bool($preview[$flag])) {
+            throw new RuntimeException('Invalid private preview configuration.');
+        }
+    }
+    $addresses = $preview['addresses'] ?? [];
+    if (!is_array($addresses) || !array_is_list($addresses)) {
+        throw new RuntimeException('Invalid private preview configuration.');
+    }
+    foreach ($addresses as $address) {
+        if (!is_string($address) || filter_var($address, FILTER_VALIDATE_IP) === false) {
+            throw new RuntimeException('Invalid private preview configuration.');
+        }
+    }
+    $remote = $_SERVER['REMOTE_ADDR'] ?? null;
+    $active = ($preview['enabled'] ?? false) === true && is_string($remote)
+        && filter_var($remote, FILTER_VALIDATE_IP) !== false && in_array($remote, $addresses, true);
+    $config['previewActive'] = $active;
+    $config['enabled'] = $publicEnabled || $active;
+    $config['migrationEnabled'] = ($publicEnabled && $publicMigration)
+        || ($active && ($preview['migrationEnabled'] ?? false) === true);
+    return $config;
 }
 
 function accounts_database(array $config, bool $check = true): PDO
@@ -253,7 +288,7 @@ function accounts_rate(PDO $db, array $config, string $bucket, string $subject, 
 {
     $key = hash_hmac('sha256', $bucket.'|'.$subject, $config['secret'], true);
     $window = time();
-    accounts_transaction($db, function () use ($db, $key, $window, $limit, $seconds) {
+    $update = function () use ($db, $key, $window, $limit, $seconds) {
         // An exclusive upsert avoids concurrent INSERT IGNORE shared-lock upgrades.
         accounts_query($db, 'INSERT INTO accounts_rate_limits(bucket,window_start,request_count) VALUES(?,?,0) ON DUPLICATE KEY UPDATE bucket=VALUES(bucket)', [$key, $window]);
         $row = accounts_query($db, 'SELECT window_start,request_count FROM accounts_rate_limits WHERE bucket=? FOR UPDATE', [$key])->fetch();
@@ -265,7 +300,12 @@ function accounts_rate(PDO $db, array $config, string $bucket, string $subject, 
         }
 
         accounts_query($db, 'UPDATE accounts_rate_limits SET window_start=?,request_count=? WHERE bucket=?', [$start, $count + 1, $key]);
-    });
+    };
+    if ($db->inTransaction()) {
+        $update();
+    } else {
+        accounts_transaction($db, $update);
+    }
 }
 
 function accounts_cookie(string $token, int $expires): void
@@ -273,7 +313,16 @@ function accounts_cookie(string $token, int $expires): void
     setcookie('__Host-ag-session', $token, ['expires' => $expires, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
 }
 
-function accounts_new_session(PDO $db, ?string $user = null, ?string $old = null): array
+/** A short-lived, OAuth-only proof accompanies Google's cross-site form POST.
+ * The ordinary account session always keeps SameSite=Lax. */
+function accounts_oauth_cookie(string $proof = '', int $expires = 0): void
+{
+    setcookie('__Host-ag-oauth', $proof, ['expires' => $expires ?: time() - 3600, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'None']);
+}
+
+/** Insert a rotation inside its owning transaction; publish its cookie only
+ * after commit so a rollback never acknowledges a nonexistent session. */
+function accounts_prepare_session(PDO $db, ?string $user = null, ?string $old = null): array
 {
     $token = bin2hex(random_bytes(32));
     $hash = hash('sha256', $token, true);
@@ -284,11 +333,22 @@ function accounts_new_session(PDO $db, ?string $user = null, ?string $old = null
         accounts_query($db, 'DELETE FROM accounts_sessions WHERE token_hash=?', [$old]);
     }
 
-    accounts_cookie($token, $now + 90 * 86400);
-    return ['token_hash' => $hash, 'user_id' => $user, 'csrf_token' => $csrf, 'created_at' => $now, 'seen_at' => $now];
+    return ['token' => $token, 'expires' => $now + 90 * 86400,
+        'session' => ['token_hash' => $hash, 'user_id' => $user, 'csrf_token' => $csrf, 'created_at' => $now, 'seen_at' => $now]];
 }
 
-function accounts_session(PDO $db, bool $create = true): ?array
+function accounts_publish_session(array $prepared): array
+{
+    accounts_cookie($prepared['token'], $prepared['expires']);
+    return $prepared['session'];
+}
+
+function accounts_new_session(PDO $db, ?string $user = null, ?string $old = null): array
+{
+    return accounts_publish_session(accounts_prepare_session($db, $user, $old));
+}
+
+function accounts_session(PDO $db, bool $create = true, bool $touch = true): ?array
 {
     $token = $_COOKIE['__Host-ag-session'] ?? '';
     $row = false;
@@ -298,9 +358,9 @@ function accounts_session(PDO $db, bool $create = true): ?array
 
     if (is_array($row)) {
         if ((int)$row['seen_at'] < time() - 30 * 86400 || (int)$row['created_at'] < time() - 90 * 86400) {
-            accounts_query($db, 'DELETE FROM accounts_sessions WHERE token_hash=?', [$row['token_hash']]);
+            if ($touch) accounts_query($db, 'DELETE FROM accounts_sessions WHERE token_hash=? AND (seen_at<? OR created_at<?)', [$row['token_hash'], time() - 30 * 86400, time() - 90 * 86400]);
         } else {
-            if ((int)$row['seen_at'] < time() - 300) {
+            if ($touch && (int)$row['seen_at'] < time() - 300) {
                 accounts_query($db, 'UPDATE accounts_sessions SET seen_at=? WHERE token_hash=?', [time(), $row['token_hash']]);
             }
             return $row;
@@ -308,7 +368,33 @@ function accounts_session(PDO $db, bool $create = true): ?array
 
     }
 
-    return $create ? accounts_new_session($db) : null;
+    // A delayed request carrying a retired cookie must never overwrite a newer
+    // OAuth/login cookie. Only an explicit same-origin login intent bootstraps it.
+    return $create && !array_key_exists('__Host-ag-session', $_COOKIE) ? accounts_new_session($db) : null;
+}
+
+/** Revalidate the request's snapshot while its mutation holds the session row.
+ * A refresh of seen_at is harmless; rotation, expiry and changed identity/CSRF
+ * are not. Callers must lock before rate, challenge, identity or cookie effects. */
+function accounts_mutating_session(PDO $db, array $snapshot): array
+{
+    if (!$db->inTransaction()) throw new RuntimeException('An authentication mutation requires a transaction.');
+    $live = accounts_query($db, 'SELECT * FROM accounts_sessions WHERE token_hash=? FOR UPDATE', [$snapshot['token_hash']])->fetch();
+    if (!is_array($live) || $live['user_id'] !== $snapshot['user_id']
+        || !hash_equals($live['csrf_token'], $snapshot['csrf_token'])
+        || (int)$live['seen_at'] < time() - 30 * 86400 || (int)$live['created_at'] < time() - 90 * 86400) {
+        accounts_fail(409, 'session_changed', 'Your sign-in session changed. Refresh account status and try again. Your saved data has been kept.');
+    }
+    if ((int)$live['seen_at'] < time() - 300) {
+        accounts_query($db, 'UPDATE accounts_sessions SET seen_at=? WHERE token_hash=?', [time(), $live['token_hash']]);
+        $live['seen_at'] = time();
+    }
+    return $live;
+}
+
+function accounts_empty_view(array $config): array
+{
+    return ['enabled' => $config['enabled'], 'migrationEnabled' => $config['migrationEnabled'], 'user' => null, 'csrfToken' => '', 'requiresBootstrap' => true];
 }
 
 function accounts_csrf(?array $session): void

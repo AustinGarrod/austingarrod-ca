@@ -7,6 +7,7 @@ if (PHP_VERSION_ID < 80400) {
     header('Cache-Control: no-store, private');
     header('Referrer-Policy: no-referrer');
     if (($_GET['action'] ?? 'session') === 'google-callback') {
+        setcookie('__Host-ag-oauth', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'None']);
         header('Location: /account/?google=failed', true, 303);
         exit;
     }
@@ -39,22 +40,31 @@ try {
 
     $db = accounts_database($config);
     $mutation = $method === 'POST';
-    // The provider redirect is necessarily cross-site; its single-use state,
-    // nonce and session binding replace the ordinary API origin check.
-    if (!($method === 'GET' && $action === 'google-callback')) {
+    // The provider form POST uses a separate short-lived proof cookie; do not
+    // create or replace a Lax account session when that cookie is absent here.
+    if ($action !== 'google-callback') {
         accounts_origin($config, $mutation);
     }
-    accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+    if (!$mutation || $action === 'google-callback') {
+        accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+    }
 
-    $session = accounts_session($db);
-    if ($method === 'GET' && $action === 'session') {
-        accounts_json(accounts_view($db, $config, $session));
+    if ($action === 'google-callback') {
+        $input = accounts_google_callback_input();
+        $location = accounts_google_callback($db, $config, $input, $webroot);
+        accounts_oauth_cookie();
+        header('Location: '.$location, true, 303);
         exit;
     }
 
-    if ($method === 'GET' && $action === 'google-callback') {
-        $location = accounts_google_callback($db, $config, $session, $webroot);
-        header('Location: '.$location, true, 303);
+    if ($action === 'bootstrap' && $mutation) {
+        accounts_json(accounts_bootstrap($db, $config, accounts_body()));
+        exit;
+    }
+
+    $session = accounts_session($db, !$mutation, !$mutation);
+    if ($method === 'GET' && $action === 'session') {
+        accounts_json($session === null ? accounts_empty_view($config) : accounts_view($db, $config, $session));
         exit;
     }
 
@@ -63,6 +73,7 @@ try {
         accounts_fail(405, 'method_not_allowed', 'This request method is unsupported.');
     }
 
+    if ($session === null) accounts_fail(409, 'session_changed', 'Your sign-in session changed. Start sign-in again. Your saved data has been kept.');
     accounts_csrf($session);
     $body = accounts_body();
     if ($action === 'email-start') {
@@ -76,13 +87,7 @@ try {
             accounts_fail(422, 'invalid_request', 'The sign-out request is invalid.');
         }
 
-        $fresh = accounts_transaction($db, function () use ($db, $session, $action) {
-            if ($action === 'logout-all' && $session['user_id'] !== null) {
-                accounts_query($db, 'DELETE FROM accounts_sessions WHERE user_id=?', [$session['user_id']]);
-            }
-            return accounts_new_session($db, null, $session['token_hash']);
-        });
-        $result = accounts_view($db, $config, $fresh);
+        $result = accounts_logout($db, $config, $session, $action === 'logout-all');
     } else {
         accounts_fail(404, 'unknown_action', 'The accounts action does not exist.');
     }
@@ -90,7 +95,8 @@ try {
     accounts_json($result);
 } catch (Throwable $error) {
     if (($_GET['action'] ?? '') === 'google-callback') {
-        // Never render diagnostics on the provider's code/state-bearing URL.
+        accounts_oauth_cookie();
+        // Never render callback bodies, provider errors, codes or state.
         header('Location: /account/?google=failed', true, 303);
         exit;
     }

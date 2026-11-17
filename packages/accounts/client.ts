@@ -6,6 +6,8 @@ export interface AccountSession {
   user: AccountUser | null;
   csrfToken: string;
   pendingGoogleEmail?: string;
+  /** A retired cookie needs an explicit login action before it can be replaced. */
+  requiresBootstrap?: boolean;
 }
 export interface RemoteDocument<T = unknown> {
   resourceId: string;
@@ -91,7 +93,8 @@ function validSession(value: unknown): value is AccountSession {
   if (!value || typeof value !== "object") return false;
   const item = value as AccountSession;
   return typeof item.enabled === "boolean" && typeof item.migrationEnabled === "boolean"
-    && typeof item.csrfToken === "string" && (item.user === null
+    && typeof item.csrfToken === "string" && (item.requiresBootstrap === undefined || typeof item.requiresBootstrap === "boolean")
+    && (!item.requiresBootstrap || (item.user === null && item.csrfToken === "")) && (item.user === null
       || (typeof item.user?.id === "string" && typeof item.user?.email === "string"));
 }
 
@@ -102,12 +105,16 @@ async function request<T>(file: "auth" | "sync", action: string, options: {
   if (options.accountId) headers["X-Account-ID"] = options.accountId;
   if (options.legacyKey) headers["X-Pokedex-Key"] = options.legacyKey;
   if (options.body !== undefined) {
-    const current = await getSession();
-    if (options.accountId && current.user?.id !== options.accountId) {
-      throw new APIError("Your account changed. These saved changes remain on this device.", "account_changed", 409);
-    }
     headers["Content-Type"] = "application/json";
-    headers["X-CSRF-Token"] = current.csrfToken;
+    // Bootstrap is an explicit same-origin login action with no live CSRF
+    // session yet. It must never be called by discovery or sync recovery.
+    if (!(file === "auth" && action === "bootstrap")) {
+      const current = await getSession();
+      if (options.accountId && current.user?.id !== options.accountId) {
+        throw new APIError("Your account changed. These saved changes remain on this device.", "account_changed", 409);
+      }
+      headers["X-CSRF-Token"] = current.csrfToken;
+    }
   }
   const query = new URLSearchParams({ action, ...options.query });
   const send = async (): Promise<T> => {
@@ -131,7 +138,16 @@ async function request<T>(file: "auth" | "sync", action: string, options: {
     }
     return result as T;
   };
-  return file === "auth" ? serializeAuth(send) : send();
+  try {
+    return await (file === "auth" ? serializeAuth(send) : send());
+  } catch (error) {
+    if (file === "auth" && action !== "session" && error instanceof APIError && ["session_changed", "csrf_failed"].includes(error.code)) {
+      // The failed queue operation has released its lock. Refreshing here is
+      // read-only, makes a login retry available, and cannot replace a cookie.
+      await refreshSession().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 export function peekSession(): AccountSession | null { return session; }
@@ -164,13 +180,31 @@ async function authenticated(action: string, body: unknown): Promise<AccountSess
   ++sessionGeneration;
   return publish(value, true);
 }
-export function requestEmailCode(email: string, returnTo?: string) {
+/** Only call in response to a deliberate login/retry action. The server rechecks
+ * the actual cookie, so a valid newer session is returned without replacement. */
+export async function bootstrapSession(): Promise<AccountSession> {
+  const value = await request<AccountSession>("auth", "bootstrap", { body: {} });
+  if (!validSession(value) || value.requiresBootstrap || (value.enabled && !value.csrfToken)) {
+    throw new APIError("The account service returned an unsupported response.", "invalid_response", 502);
+  }
+  ++sessionGeneration;
+  return publish(value, true);
+}
+export async function beginLogin(): Promise<AccountSession> {
+  // Another device may have revoked a cached session since the page loaded.
+  // Discovery itself never bootstraps; this path is used only by user actions.
+  const current = await refreshSession();
+  return current.requiresBootstrap ? bootstrapSession() : current;
+}
+export async function requestEmailCode(email: string, returnTo?: string) {
+  await beginLogin();
   return request<{ challengeId: string; expiresIn: number; retryAfter: number }>("auth", "email-start", { body: { email, returnTo } });
 }
 export function verifyEmailCode(challengeId: string, code: string) {
   return authenticated("email-verify", { challengeId, code });
 }
 export async function startGoogle(returnTo?: string, link = false): Promise<string> {
+  await beginLogin();
   const value = await request<{ url: string }>("auth", "google-start", { body: { returnTo, link } });
   const url = new URL(value.url);
   if (url.protocol !== "https:" || url.origin !== "https://accounts.google.com") {

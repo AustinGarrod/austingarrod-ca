@@ -58,15 +58,17 @@ function accounts_email_start(PDO $db, array $config, array $session, stdClass $
 
     $email = accounts_email($body->email);
     $address = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    accounts_rate($db, $config, 'email-resend', $email, 1, 60);
-    accounts_rate($db, $config, 'email-hour', $email, 10, 3600);
-    accounts_rate($db, $config, 'email-ip', $address, 30, 3600);
     $id = accounts_uuid();
     $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $hash = hash_hmac('sha256', $id.'|'.$code, $config['secret'], true);
-    $pending = accounts_query($db, 'SELECT subject,email FROM accounts_pending_google WHERE session_hash=? AND expires_at>?', [$session['token_hash'], time()])->fetch();
-    $subject = is_array($pending) && $pending['email'] === $email ? $pending['subject'] : null;
-    accounts_transaction($db, function () use ($db, $session, $email, $id, $hash, $subject) {
+    accounts_transaction($db, function () use ($db, $config, $session, $email, $address, $id, $hash) {
+        $session = accounts_mutating_session($db, $session);
+        accounts_rate($db, $config, 'auth-ip', $address, 120, 60);
+        accounts_rate($db, $config, 'email-resend', $email, 1, 60);
+        accounts_rate($db, $config, 'email-hour', $email, 10, 3600);
+        accounts_rate($db, $config, 'email-ip', $address, 30, 3600);
+        $pending = accounts_query($db, 'SELECT subject,email FROM accounts_pending_google WHERE session_hash=? AND expires_at>?', [$session['token_hash'], time()])->fetch();
+        $subject = is_array($pending) && $pending['email'] === $email ? $pending['subject'] : null;
         accounts_query($db, 'UPDATE accounts_challenges SET consumed_at=? WHERE session_hash=? AND email=? AND consumed_at IS NULL', [time(), $session['token_hash'], $email]);
         accounts_query($db, 'INSERT INTO accounts_challenges(id,session_hash,email,code_hash,expires_at,pending_google) VALUES(?,?,?,?,?,?)', [$id, $session['token_hash'], $email, $hash, time() + 600, $subject]);
     });
@@ -90,8 +92,10 @@ function accounts_email_verify(PDO $db, array $config, array $session, stdClass 
         accounts_fail(422, 'invalid_code', 'Enter the six-digit code from your email.');
     }
 
-    accounts_rate($db, $config, 'verify-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 60, 600);
     $result = accounts_transaction($db, function () use ($db, $config, $session, $body, $id) {
+        $session = accounts_mutating_session($db, $session);
+        accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+        accounts_rate($db, $config, 'verify-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 60, 600);
         $row = accounts_query($db, 'SELECT * FROM accounts_challenges WHERE id=? AND session_hash=? FOR UPDATE', [$id, $session['token_hash']])->fetch();
         if (!is_array($row) || $row['consumed_at'] !== null || (int)$row['expires_at'] <= time() || (int)$row['attempts'] >= 5) {
             return null;
@@ -109,12 +113,40 @@ function accounts_email_verify(PDO $db, array $config, array $session, stdClass 
 
         accounts_query($db, 'UPDATE accounts_challenges SET consumed_at=? WHERE id=?', [time(), $id]);
         accounts_query($db, 'DELETE FROM accounts_pending_google WHERE session_hash=?', [$session['token_hash']]);
-        return accounts_new_session($db, $user['id'], $session['token_hash']);
+        return accounts_prepare_session($db, $user['id'], $session['token_hash']);
     });
     if ($result === null) {
         accounts_fail(401, 'code_invalid_or_expired', 'The code is incorrect or expired. Request a new code if needed.');
     }
-    return accounts_view($db, $config, $result);
+    return accounts_view($db, $config, accounts_publish_session($result));
+}
+
+function accounts_logout(PDO $db, array $config, array $session, bool $everywhere): array
+{
+    $prepared = accounts_transaction($db, function () use ($db, $config, $session, $everywhere) {
+        $live = accounts_mutating_session($db, $session);
+        accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+        if ($everywhere && $live['user_id'] !== null) {
+            accounts_query($db, 'DELETE FROM accounts_sessions WHERE user_id=?', [$live['user_id']]);
+        }
+        return accounts_prepare_session($db, null, $live['token_hash']);
+    });
+    return accounts_view($db, $config, accounts_publish_session($prepared));
+}
+
+/** Explicit same-origin login intent only; discovery never replaces a retired
+ * cookie automatically. A current cookie is revalidated and left unchanged. */
+function accounts_bootstrap(PDO $db, array $config, stdClass $body): array
+{
+    if (!accounts_fields($body, [])) accounts_fail(422, 'invalid_request', 'The sign-in request is invalid.');
+    $snapshot = accounts_session($db, false, false);
+    $result = accounts_transaction($db, function () use ($db, $config, $snapshot) {
+        $live = $snapshot === null ? null : accounts_mutating_session($db, $snapshot);
+        accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+        return $live === null ? ['prepared' => accounts_prepare_session($db)] : ['live' => $live];
+    });
+    $live = $result['live'] ?? accounts_publish_session($result['prepared']);
+    return accounts_view($db, $config, $live);
 }
 
 function accounts_google_provider(array $config, string $webroot, ?string $verifier = null): Google\Auth\OAuth2
@@ -134,20 +166,69 @@ function accounts_google_start(PDO $db, array $config, array $session, stdClass 
         accounts_fail(422, 'invalid_request', 'The Google sign-in request is invalid.');
     }
 
-    accounts_rate($db, $config, 'google-start', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30, 600);
-    $state = bin2hex(random_bytes(32));
-    $nonce = bin2hex(random_bytes(32));
-    $verifier = rtrim(strtr(base64_encode(random_bytes(64)), '+/', '-_'), '=');
-    $link = ($body->link ?? false) ? $session['user_id'] : null;
-    if (($body->link ?? false) && $link === null) {
-        accounts_fail(401, 'login_required', 'Sign in before linking Google.');
-    }
+    $prepared = accounts_transaction($db, function () use ($db, $config, $session, $body, $webroot) {
+        $session = accounts_mutating_session($db, $session);
+        accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
+        accounts_rate($db, $config, 'google-start', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30, 600);
+        $state = bin2hex(random_bytes(32));
+        $nonce = bin2hex(random_bytes(32));
+        $verifier = rtrim(strtr(base64_encode(random_bytes(64)), '+/', '-_'), '=');
+        $link = ($body->link ?? false) ? $session['user_id'] : null;
+        if (($body->link ?? false) && $link === null) {
+            accounts_fail(401, 'login_required', 'Sign in before linking Google.');
+        }
 
-    $provider = accounts_google_provider($config, $webroot, $verifier);
-    $provider->setState($state);
-    $url = (string)$provider->buildFullAuthorizationUri(['nonce' => $nonce, 'prompt' => 'select_account']);
-    accounts_query($db, 'INSERT INTO accounts_oauth(state_hash,session_hash,nonce,verifier,return_to,link_user,expires_at) VALUES(?,?,?,?,?,?,?)', [hash('sha256', $state, true), $session['token_hash'], $nonce, $verifier, accounts_return($body->returnTo ?? null), $link, time() + 600]);
-    return ['url' => $url];
+        $provider = accounts_google_provider($config, $webroot, $verifier);
+        $provider->setState($state);
+        $url = (string)$provider->buildFullAuthorizationUri(['nonce' => $nonce, 'prompt' => 'select_account', 'response_mode' => 'form_post']);
+        $expires = time() + 600;
+        accounts_query($db, 'INSERT INTO accounts_oauth(state_hash,session_hash,nonce,verifier,return_to,link_user,expires_at) VALUES(?,?,?,?,?,?,?)', [hash('sha256', $state, true), $session['token_hash'], $nonce, $verifier, accounts_return($body->returnTo ?? null), $link, $expires]);
+        return ['url' => $url, 'proof' => accounts_google_cookie_proof($config, $state, ['session_hash' => $session['token_hash'], 'expires_at' => $expires]), 'expires' => $expires];
+    });
+    accounts_oauth_cookie($prepared['proof'], $prepared['expires']);
+    return ['url' => $prepared['url']];
+}
+
+function accounts_google_cookie_proof(array $config, string $state, array $flow): string
+{
+    return hash_hmac('sha256', 'oauth-form|'.$state.'|'.bin2hex($flow['session_hash']).'|'.$flow['expires_at'], $config['secret']);
+}
+
+/** Parse a bounded form ourselves: PHP's form parser silently accepts repeated
+ * keys and arrays, which must never make the callback state ambiguous. */
+function accounts_google_callback_input(?string $raw = null, ?array $server = null, ?array $query = null): array
+{
+    $server ??= $_SERVER;
+    $query ??= $_GET;
+    if (($server['REQUEST_METHOD'] ?? '') !== 'POST'
+        || ($server['HTTP_ORIGIN'] ?? '') !== 'https://accounts.google.com'
+        || !preg_match('~^application/x-www-form-urlencoded(?:\s*;\s*charset=(?:utf-8|us-ascii))?\s*$~iD', (string)($server['CONTENT_TYPE'] ?? ''))
+        || $query !== ['action' => 'google-callback']) {
+        accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified. Please try again.');
+    }
+    $raw ??= file_get_contents('php://input', false, null, 0, 16385);
+    if (!is_string($raw) || strlen($raw) > 16384) {
+        accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified. Please try again.');
+    }
+    $pairs = explode('&', $raw);
+    if (count($pairs) > 32) accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
+    $input = [];
+    foreach ($pairs as $pair) {
+        if ($pair === '') continue;
+        if (preg_match('/%(?![a-f0-9]{2})/i', $pair)) accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
+        $parts = explode('=', $pair, 2);
+        $key = rawurldecode(str_replace('+', ' ', $parts[0]));
+        $value = rawurldecode(str_replace('+', ' ', $parts[1] ?? ''));
+        if (!preg_match('/^[a-z_][a-z0-9_]{0,63}$/D', $key) || array_key_exists($key, $input) || strlen($value) > 8192 || preg_match('/[\x00-\x1f\x7f]/', $value)) {
+            accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
+        }
+        $input[$key] = $value;
+    }
+    if (!preg_match('/^[a-f0-9]{64}$/D', $input['state'] ?? '') || (isset($input['code']) === isset($input['error']))
+        || (isset($input['iss']) && $input['iss'] !== 'https://accounts.google.com')) {
+        accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
+    }
+    return $input;
 }
 
 function accounts_google_claims(array $claims, array $config, string $nonce): array
@@ -165,25 +246,34 @@ function accounts_google_claims(array $claims, array $config, string $nonce): ar
     return ['subject' => $claims['sub'], 'email' => accounts_email($claims['email'] ?? null), 'authoritative' => ($claims['email_verified'] ?? false) === true && (str_ends_with(strtolower((string)$claims['email']), '@gmail.com') || (is_string($claims['hd'] ?? null) && $claims['hd'] !== ''))];
 }
 
-function accounts_google_callback(PDO $db, array $config, array $session, string $webroot): string
+function accounts_google_callback(PDO $db, array $config, array $input, string $webroot, ?callable $httpHandler = null): string
 {
-    $state = $_GET['state'] ?? '';
-    $code = $_GET['code'] ?? '';
+    $state = $input['state'] ?? '';
+    $code = $input['code'] ?? '';
     if (!is_string($state) || !preg_match('/^[a-f0-9]{64}$/D', $state)) {
         accounts_fail(401, 'oauth_state_invalid', 'The Google sign-in expired. Please start again.');
     }
 
-    $flow = accounts_transaction($db, function () use ($db, $state, $session) {
+    $proof = $_COOKIE['__Host-ag-oauth'] ?? '';
+    $bound = accounts_transaction($db, function () use ($db, $state, $config, $proof) {
         $hash = hash('sha256', $state, true);
-        $flow = accounts_query($db, 'SELECT * FROM accounts_oauth WHERE state_hash=? AND session_hash=? FOR UPDATE', [$hash, $session['token_hash']])->fetch();
-        if (!is_array($flow) || (int)$flow['expires_at'] <= time()) {
+        $flow = accounts_query($db, 'SELECT * FROM accounts_oauth WHERE state_hash=? FOR UPDATE', [$hash])->fetch();
+        if (!is_array($flow) || (int)$flow['expires_at'] <= time() || !is_string($proof) || !preg_match('/^[a-f0-9]{64}$/D', $proof) || !hash_equals(accounts_google_cookie_proof($config, $state, $flow), $proof)) {
             accounts_fail(401, 'oauth_state_invalid', 'The Google sign-in expired. Please start again.');
         }
+        $session = accounts_query($db, 'SELECT * FROM accounts_sessions WHERE token_hash=?', [$flow['session_hash']])->fetch();
+        $main = $_COOKIE['__Host-ag-session'] ?? null;
+        if (!is_array($session) || (int)$session['seen_at'] < time() - 30 * 86400 || (int)$session['created_at'] < time() - 90 * 86400
+            || ($main !== null && (!is_string($main) || !preg_match('/^[a-f0-9]{64}$/D', $main) || !hash_equals($flow['session_hash'], hash('sha256', $main, true))))) {
+            accounts_fail(401, 'oauth_state_invalid', 'The Google sign-in expired. Please start again.');
+        }
+        $session = accounts_mutating_session($db, $session);
         accounts_query($db, 'DELETE FROM accounts_oauth WHERE state_hash=?', [$hash]);
-        return $flow;
+        return [$flow, $session];
     });
-    if (isset($_GET['error'])) {
-        return '/account/?google=cancelled';
+    [$flow, $session] = $bound;
+    if (isset($input['error'])) {
+        return $input['error'] === 'access_denied' ? '/account/?google=cancelled' : '/account/?google=failed';
     }
 
     if (!is_string($code) || $code === '' || strlen($code) > 4096) {
@@ -192,7 +282,7 @@ function accounts_google_callback(PDO $db, array $config, array $session, string
 
     $provider = accounts_google_provider($config, $webroot, $flow['verifier']);
     $provider->setCode($code);
-    $http = Google\Auth\HttpHandler\HttpHandlerFactory::build(new GuzzleHttp\Client([
+    $http = $httpHandler ?? Google\Auth\HttpHandler\HttpHandlerFactory::build(new GuzzleHttp\Client([
         'connect_timeout' => 3,
         'timeout' => 10,
         'allow_redirects' => false,
@@ -208,33 +298,35 @@ function accounts_google_callback(PDO $db, array $config, array $session, string
         accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
     }
     $claims = accounts_google_claims($verified, $config, $flow['nonce']);
-    $user = accounts_query($db, "SELECT u.id,u.email FROM accounts_identities i JOIN accounts_users u ON u.id=i.user_id WHERE i.provider='google' AND i.subject=?", [$claims['subject']])->fetch();
-    if (is_array($user)) {
-        if ($flow['link_user'] !== null && $flow['link_user'] !== $user['id']) {
-            accounts_fail(409, 'identity_already_linked', 'This Google sign-in is linked to another account.');
+    $result = accounts_transaction($db, function () use ($db, $flow, $claims, $session) {
+        // A logout or account switch during Google's network exchange revokes
+        // the original flow; it must never recreate a retired browser session.
+        $session = accounts_mutating_session($db, $session);
+        $user = accounts_query($db, "SELECT u.id,u.email FROM accounts_identities i JOIN accounts_users u ON u.id=i.user_id WHERE i.provider='google' AND i.subject=?", [$claims['subject']])->fetch();
+        if (is_array($user)) {
+            if ($flow['link_user'] !== null && $flow['link_user'] !== $user['id']) {
+                accounts_fail(409, 'identity_already_linked', 'This Google sign-in is linked to another account.');
+            }
+
+            return ['location' => $flow['return_to'], 'prepared' => accounts_prepare_session($db, $user['id'], $session['token_hash'])];
         }
 
-        accounts_transaction($db, fn () => accounts_new_session($db, $user['id'], $session['token_hash']));
-        return $flow['return_to'];
-    }
-
-    if ($flow['link_user'] !== null) {
-        $current = accounts_user($db, $session, false);
-        if ($current['id'] !== $flow['link_user'] || $current['email'] !== $claims['email']) {
-            accounts_fail(409, 'email_mismatch', 'Use Google with the same email as your account.');
+        if ($flow['link_user'] !== null) {
+            $current = accounts_user($db, $session, false);
+            if ($current['id'] !== $flow['link_user'] || $current['email'] !== $claims['email']) {
+                accounts_fail(409, 'email_mismatch', 'Use Google with the same email as your account.');
+            }
         }
 
-    }
+        if (!$claims['authoritative']) {
+            accounts_query($db, 'INSERT INTO accounts_pending_google(session_hash,subject,email,expires_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE subject=VALUES(subject),email=VALUES(email),expires_at=VALUES(expires_at)', [$session['token_hash'], $claims['subject'], $claims['email'], time() + 600]);
+            return ['location' => '/account/?google=verify-email'];
+        }
 
-    if (!$claims['authoritative']) {
-        accounts_query($db, 'INSERT INTO accounts_pending_google(session_hash,subject,email,expires_at) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE subject=VALUES(subject),email=VALUES(email),expires_at=VALUES(expires_at)', [$session['token_hash'], $claims['subject'], $claims['email'], time() + 600]);
-        return '/account/?google=verify-email';
-    }
-
-    accounts_transaction($db, function () use ($db, $claims, $session) {
         $u = accounts_find_or_create($db, $claims['email']);
         accounts_link_google($db, $claims['subject'], $u['id']);
-        accounts_new_session($db, $u['id'], $session['token_hash']);
+        return ['location' => $flow['return_to'], 'prepared' => accounts_prepare_session($db, $u['id'], $session['token_hash'])];
     });
-    return $flow['return_to'];
+    if (isset($result['prepared'])) accounts_publish_session($result['prepared']);
+    return $result['location'];
 }

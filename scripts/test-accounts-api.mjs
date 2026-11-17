@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,13 +60,23 @@ async function startServer() {
   throw new Error('Local accounts PHP server did not start.');
 }
 let origin, parallel;
-function browser() { return { cookie: '', session: null }; }
+function browser() { return { cookie: '', cookies: new Map(), session: null }; }
+function rememberCookies(client, headers) {
+  for (const cookie of headers.getSetCookie()) {
+    assert.match(cookie, /Secure/i); assert.match(cookie, /HttpOnly/i); assert.match(cookie, /;\s*path=\//i); assert.ok(!/;\s*domain=/i.test(cookie));
+    const pair = cookie.split(';')[0], at = pair.indexOf('='), name = pair.slice(0, at), value = pair.slice(at + 1);
+    assert.ok(['__Host-ag-session', '__Host-ag-oauth'].includes(name), 'Unexpected authentication cookie');
+    assert.match(cookie, name === '__Host-ag-session' ? /SameSite=Lax/i : /SameSite=None/i);
+    if (/Max-Age=0/i.test(cookie)) client.cookies.delete(name); else client.cookies.set(name, value);
+  }
+  client.cookie = [...client.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+}
 async function request(client, file, action, body, query = {}, extra = {}, server = origin) {
   const headers = { Accept: 'application/json', ...(client.cookie ? { Cookie: client.cookie } : {}), ...extra };
   if (file === 'sync' && client.session?.user) headers['X-Account-ID'] ??= client.session.user.id;
   if (body !== undefined) { headers['Content-Type'] ??= 'application/json'; headers.Origin ??= origin; headers['X-CSRF-Token'] ??= client.session?.csrfToken || ''; }
   const response = await fetch(`${server}/api/v1/${file}.php?${new URLSearchParams({ action, ...query })}`, { method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual' });
-  const setCookie = response.headers.get('set-cookie'); if (setCookie) { assert.match(setCookie, /Secure/i); assert.match(setCookie, /HttpOnly/i); assert.match(setCookie, /SameSite=Lax/i); assert.ok(!/;\s*domain=/i.test(setCookie)); client.cookie = setCookie.split(';')[0]; }
+  rememberCookies(client, response.headers);
   assert.match(response.headers.get('cache-control') || '', /no-store/);
   const data = await response.json(); if (file === 'auth' && response.ok && typeof data.csrfToken === 'string') client.session = data;
   return { status: response.status, data, headers: response.headers };
@@ -86,12 +96,73 @@ try {
   saveConfig(); [origin, parallel] = await Promise.all([startServer(), startServer()]); config.allowedOrigin = origin; saveConfig();
   execFileSync(php, [...flags, join(root, 'server/accounts/migrate.php'), configFile], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   execFileSync(php, [...flags, join(root, 'tests/accounts/validators.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync(php, [...flags, join(root, 'tests/accounts/preview.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync(php, [...flags, join(root, 'tests/accounts/oauth-form.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  execFileSync(php, [...flags, join(root, 'tests/accounts/auth-race.test.php')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // The production routes can be verified privately while the file's public
+  // switches remain false. Forwarding headers never select an operator.
+  config.enabled = false; config.migrationEnabled = false;
+  config.preview = { enabled: true, migrationEnabled: false, addresses: ['127.0.0.2'] }; saveConfig();
+  const publicClient = browser();
+  let gated = await request(publicClient, 'auth', 'session', undefined, {}, { 'X-Forwarded-For': '127.0.0.2', 'X-Real-IP': '127.0.0.2', Forwarded: 'for=127.0.0.2' });
+  assert.deepEqual(gated.data, { enabled: false, migrationEnabled: false, user: null, csrfToken: '' });
+  assert.equal((await request(publicClient, 'auth', 'email-start', { email: 'blocked@example.test' })).status, 503);
+  assert.equal((await request(publicClient, 'sync', 'read', undefined, { app, document, clientId: randomUUID() })).status, 503);
+  assert.equal(messages.length, 0, 'Unlisted clients must not send mail');
+  config.preview.addresses = ['127.0.0.1']; saveConfig();
+  const operator = browser();
+  gated = await request(operator, 'auth', 'session');
+  assert.equal(gated.data.enabled, true); assert.equal(gated.data.migrationEnabled, false);
+  assert.equal((await request(operator, 'sync', 'read', undefined, { app, document, clientId: randomUUID() })).status, 401, 'Preview must still require login');
+  await login(operator, 'preview@example.test');
+  const privateStage = { migrationId: randomUUID(), app, document, variant: 'selected', schemaVersion: 1, state: binder([1]), baseRevision: 0 };
+  assert.equal((await request(operator, 'sync', 'migration-stage', privateStage)).status, 503, 'Preview migrations require their own switch');
+  config.preview.migrationEnabled = true; saveConfig();
+  assert.equal((await request(operator, 'sync', 'migration-stage', privateStage)).status, 200, 'Selected operator can verify real staging without public access');
+  config.preview.enabled = false; saveConfig();
+  assert.equal((await request(operator, 'auth', 'session')).data.enabled, false, 'Disabling preview also gates existing operator sessions');
+  assert.equal((await request(operator, 'sync', 'migration-stage', privateStage)).status, 503);
+  config.enabled = true; config.migrationEnabled = true; config.preview.addresses = []; saveConfig();
   const a = browser(), b = browser(), clientId = randomUUID(), client2 = randomUUID();
   const unauth = await request(a, 'sync', 'read', undefined, { app, document, clientId }); assert.equal(unauth.status, 401);
   await request(a, 'auth', 'session');
   assert.equal((await request(a, 'auth', 'email-start', { email: 'one@example.test' }, {}, { 'X-CSRF-Token': 'wrong' })).status, 403);
   assert.equal((await request(a, 'auth', 'email-start', { email: 'one@example.test' }, {}, { Origin: 'https://external.example' })).status, 403);
+  const retiredPreauth = { cookie: a.cookie, cookies: new Map(a.cookies), session: structuredClone(a.session) };
   const proof = await login(a, 'one@example.test');
+  const currentCookie = a.cookies.get('__Host-ag-session'), currentUserId = a.session.user.id, sentBeforeRetiredRequests = messages.length;
+  for (const [action, body] of [
+    ['email-start', { email: 'retired-http@example.test' }],
+    ['email-verify', proof], ['google-start', {}], ['logout', {}], ['logout-all', {}],
+  ]) {
+    const retired = await request(retiredPreauth, 'auth', action, body);
+    assert.equal(retired.status, 409, `Retired ${action} must fail before response/session mutation`);
+    assert.equal(retired.data.error.code, 'session_changed');
+    assert.deepEqual(retired.headers.getSetCookie(), [], 'A retired auth POST must not replace the browser cookie');
+  }
+  const absentPost = await request(browser(), 'auth', 'email-start', { email: 'missing-session@example.test' });
+  assert.equal(absentPost.status, 409); assert.equal(absentPost.data.error.code, 'session_changed');
+  assert.deepEqual(absentPost.headers.getSetCookie(), [], 'An unauthenticated mutation must not create a replacement preauth cookie');
+  assert.equal(messages.length, sentBeforeRetiredRequests, 'Retired/absent session requests must not send SMTP messages');
+  const retiredGet = await request(retiredPreauth, 'auth', 'session');
+  assert.deepEqual(retiredGet.headers.getSetCookie(), [], 'A retired-cookie discovery must never replace a newer browser cookie');
+  assert.equal(retiredGet.data.requiresBootstrap, true); assert.equal(retiredGet.data.csrfToken, ''); assert.equal(retiredGet.data.user, null);
+  const retiredCookie = retiredPreauth.cookies.get('__Host-ag-session');
+  const bootstrapped = await request(retiredPreauth, 'auth', 'bootstrap', {});
+  assert.equal(bootstrapped.status, 200); assert.equal(bootstrapped.data.user, null); assert.ok(bootstrapped.data.csrfToken);
+  assert.notEqual(retiredPreauth.cookies.get('__Host-ag-session'), retiredCookie);
+  assert.equal(bootstrapped.headers.getSetCookie().length, 1, 'An explicit retired-cookie bootstrap must create one fresh preauth cookie');
+  const restartedCode = await request(retiredPreauth, 'auth', 'email-start', { email: 'bootstrap-restored@example.test' });
+  assert.equal(restartedCode.status, 200, 'The fresh bootstrap CSRF token must support a deliberate emailed sign-in');
+  const restartedProof = messages.at(-1).match(/code is:\s*(\d{6})/)[1];
+  const restartedLogin = await request(retiredPreauth, 'auth', 'email-verify', { challengeId: restartedCode.data.challengeId, code: restartedProof });
+  assert.equal(restartedLogin.status, 200); assert.equal(restartedLogin.data.user.email, 'bootstrap-restored@example.test');
+  const unchangedBootstrap = await request(a, 'auth', 'bootstrap', {});
+  assert.equal(unchangedBootstrap.status, 200); assert.equal(unchangedBootstrap.data.user.id, currentUserId);
+  assert.deepEqual(unchangedBootstrap.headers.getSetCookie(), [], 'A valid current cookie must be returned unchanged by bootstrap');
+  assert.equal((await request(browser(), 'auth', 'bootstrap', {}, {}, { Origin: 'https://attacker.example' })).status, 403, 'Cross-origin bootstrap must fail');
+  assert.equal((await request(a, 'auth', 'session')).data.user.id, currentUserId);
+  assert.equal(a.cookies.get('__Host-ag-session'), currentCookie, 'Rejected old POSTs must leave the current account cookie intact');
   assert.equal((await request(a, 'auth', 'email-verify', proof)).status, 401, 'OTP replay must fail after session rotation');
   await login(b, 'two@example.test');
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId }, { 'X-Account-ID': b.session.user.id })).status, 409);
@@ -186,12 +257,62 @@ try {
   response = await request(a, 'sync', 'write', { app: 'idle-slayer-companion', document: 'progress', schemaVersion: 1, state: largeProgress, baseRevision: 1, clientId, mutationSequence: 1, operationId: randomUUID() });
   assert.equal(response.status, 200); assert.equal(response.data.document.state.modules.material.records['unknown-99'].count.length, 1024);
   assert.equal((await request(a, 'sync', 'read', undefined, { app: 'radius-map', document: 'measurements', clientId })).status, 422);
-  const oauth = await request(a, 'auth', 'google-start', { returnTo: '//external.example/' }); assert.equal(oauth.status, 200, JSON.stringify(oauth.data)); const oauthUrl = new URL(oauth.data.url); assert.equal(oauthUrl.origin, 'https://accounts.google.com'); assert.equal(oauthUrl.searchParams.get('code_challenge_method'), 'S256'); assert.ok(oauthUrl.searchParams.get('nonce')); assert.ok(oauthUrl.searchParams.get('state'));
-  const badCallback = await fetch(`${origin}/api/v1/auth.php?action=google-callback&state=${'0'.repeat(64)}&code=invalid`, { headers: { Cookie: a.cookie }, redirect: 'manual' });
-  assert.equal(badCallback.status, 303); assert.equal(badCallback.headers.get('location'), '/account/?google=failed');
-  // Consume a real callback state through cancellation; no Google network request occurs.
-  const cancelled = await fetch(`${origin}/api/v1/auth.php?${new URLSearchParams({ action: 'google-callback', state: oauthUrl.searchParams.get('state'), error: 'access_denied' })}`, { headers: { Cookie: a.cookie, 'Sec-Fetch-Site': 'cross-site' }, redirect: 'manual' }); assert.equal(cancelled.status, 303); assert.equal(cancelled.headers.get('location'), '/account/?google=cancelled');
-  const cancelledReplay = await fetch(`${origin}/api/v1/auth.php?${new URLSearchParams({ action: 'google-callback', state: oauthUrl.searchParams.get('state'), error: 'access_denied' })}`, { headers: { Cookie: a.cookie }, redirect: 'manual' }); assert.equal(cancelledReplay.headers.get('location'), '/account/?google=failed');
+  async function startGoogle(client = a) {
+    const main = client.cookies.get('__Host-ag-session');
+    const oauth = await request(client, 'auth', 'google-start', { returnTo: '//external.example/' });
+    assert.equal(oauth.status, 200, JSON.stringify(oauth.data));
+    const url = new URL(oauth.data.url);
+    assert.equal(url.origin, 'https://accounts.google.com'); assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(url.searchParams.get('response_mode'), 'form_post'); assert.ok(url.searchParams.get('nonce'));
+    const state = url.searchParams.get('state'), proof = client.cookies.get('__Host-ag-oauth');
+    assert.match(proof, /^[a-f0-9]{64}$/); assert.equal(client.cookies.get('__Host-ag-session'), main, 'OAuth cookie must never replace the Lax account cookie');
+    const cookie = oauth.headers.getSetCookie().find(value => value.startsWith('__Host-ag-oauth='));
+    const expires = new Date(cookie.match(/expires=([^;]+)/i)[1]); assert.ok(expires.valueOf() - Date.now() <= 600_000);
+    return { state, proof };
+  }
+  async function callback(client, flow, options = {}) {
+    const main = client.cookies.get('__Host-ag-session');
+    const headers = { Origin: 'https://accounts.google.com', 'Content-Type': 'application/x-www-form-urlencoded', 'Sec-Fetch-Site': 'cross-site', ...options.headers };
+    const proof = options.proof === undefined ? flow.proof : options.proof;
+    if (proof) headers.Cookie = `__Host-ag-oauth=${proof}`;
+    if (options.main) headers.Cookie = `${headers.Cookie || ''}; __Host-ag-session=${options.main}`;
+    const method = options.method || 'POST';
+    const body = options.body === undefined ? new URLSearchParams({ state: flow.state, error: 'access_denied' }).toString() : options.body;
+    const response = await fetch(`${origin}/api/v1/auth.php?${options.query || 'action=google-callback'}`, { method, headers, ...(method === 'GET' ? {} : { body }), redirect: 'manual' });
+    assert.equal(response.status, 303); assert.match(response.headers.get('cache-control') || '', /no-store/);
+    assert.equal(response.headers.get('referrer-policy'), 'no-referrer'); assert.equal(await response.text(), '');
+    assert.ok(response.headers.getSetCookie().some(value => value.startsWith('__Host-ag-oauth=') && /Max-Age=0/i.test(value)), 'Every callback outcome clears its temporary proof');
+    assert.ok(response.headers.getSetCookie().every(value => !value.startsWith('__Host-ag-session=')), 'Cancellation/failure must not create or replace a main session');
+    rememberCookies(client, response.headers); assert.equal(client.cookies.get('__Host-ag-session'), main);
+    return response.headers.get('location');
+  }
+  let flow = await startGoogle();
+  for (const options of [
+    { method: 'GET', query: `action=google-callback&state=${flow.state}&code=invalid` },
+    { method: 'PUT' },
+    { proof: '' }, { proof: '0'.repeat(64) },
+    { headers: { Origin: '' } }, { headers: { Origin: 'https://attacker.example' } },
+    { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: flow.state, error: 'access_denied' }) },
+    { query: 'action=google-callback&code=invalid' },
+    { query: `action=google-callback&state=${flow.state}` },
+    { body: `state=${'0'.repeat(64)}&error=access_denied` },
+    { body: `state=${flow.state}&state=${flow.state}&error=access_denied` },
+    { body: `state%5B%5D=${flow.state}&error=access_denied` },
+    { body: 'x='.padEnd(16385, 'x') },
+    { main: b.cookies.get('__Host-ag-session') },
+  ]) assert.equal(await callback(a, flow, options), '/account/?google=failed');
+  // This authentic provider-shaped POST deliberately omits the Lax main cookie.
+  assert.equal(await callback(a, flow), '/account/?google=cancelled');
+  assert.equal(await callback(a, flow), '/account/?google=failed', 'Consumed form-post state must not replay even with the old proof');
+  const firstFlow = await startGoogle();
+  flow = await startGoogle();
+  assert.equal(await callback(a, flow, { proof: firstFlow.proof }), '/account/?google=failed', 'A proof from another valid OAuth flow must not bind this state');
+  assert.equal(await callback(a, flow), '/account/?google=cancelled');
+  flow = await startGoogle(); databaseCommand('expire-oauth');
+  assert.equal(await callback(a, flow), '/account/?google=failed', 'Expired provider state must fail');
+  const retired = browser(); await request(retired, 'auth', 'session');
+  flow = await startGoogle(retired); await request(retired, 'auth', 'logout', {});
+  assert.equal(await callback(retired, flow), '/account/?google=failed', 'A retired original session must not authorize its Google flow');
   const attempts = browser(); await request(attempts, 'auth', 'session');
   const startAttempts = await request(attempts, 'auth', 'email-start', { email: 'attempts@example.test' }); assert.equal(startAttempts.status, 200);
   const attemptCode = messages.at(-1).match(/code is:\s*(\d{6})/)[1]; const incorrect = attemptCode === '000000' ? '999999' : '000000';
@@ -203,6 +324,10 @@ try {
   assert.equal((await request(expired, 'auth', 'email-verify', { challengeId: expiryStart.data.challengeId, code: expiryCode })).status, 401);
   const logout = await request(a, 'auth', 'logout-all', {}); assert.equal(logout.status, 200); assert.equal(logout.data.user, null); assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).status, 401);
   config.enabled = false; saveConfig(); assert.equal((await request(b, 'auth', 'session')).data.enabled, false); assert.equal((await request(b, 'sync', 'read', undefined, { app, document, clientId })).status, 503);
+  assert.equal(await callback(a, flow), '/account/?google=failed', 'Disabled accounts must clear an OAuth proof and redirect without diagnostics');
+  const unavailableConfig = configFile + '.temporarily-unavailable'; renameSync(configFile, unavailableConfig);
+  try { assert.equal(await callback(a, flow), '/account/?google=failed', 'Missing private config must also clear an OAuth proof'); }
+  finally { renameSync(unavailableConfig, configFile); }
   assert.ok(!phpOutput.includes(key), 'A key entered server diagnostics'); assert.ok(!phpOutput.includes(proof.code), 'An email code entered server diagnostics'); assert.ok(!phpOutput.includes('one@example.test'), 'Email entered server diagnostics');
   console.log('Accounts API: real email-code login, signed-token validation, CSRF, isolation, concurrent revisions, staged migration/revocation, recovery, and logout passed.');
 } finally {

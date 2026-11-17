@@ -62,6 +62,11 @@ try {
         exit;
     }
 
+    if ($action === 'expire-oauth') {
+        $db->exec('UPDATE accounts_oauth SET expires_at=0');
+        exit;
+    }
+
     if (in_array($action, ['seed-pending-google', 'read-google-identity'], true)) {
         // CLI-only fixtures within the generated loopback test database. The
         // production API has no OIDC/mock-auth bypass or fixture action.
