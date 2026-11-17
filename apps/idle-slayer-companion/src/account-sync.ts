@@ -1,15 +1,18 @@
 import { APIError, createAccountClient, getSession, refreshSession, subscribeSession, type AccountSession, type RemoteDocument } from '../../../packages/accounts/client'
 import { ACTIVE_ACCOUNT_KEY, accountKey, accountPersistence, captureRaw, documentKeys, documents, guestPersistence, rawForDocuments, readBundle, readDocuments, sameRaw, sameState, setRawDocument, validateDocument, writeBundle, type AccountBundle, type CompanionPersistence, type DocumentName, type RawDocuments } from './account-storage'
 import type { ProfileLocks } from './domain/profile-session'
+import { createAccountRepository, type AccountRepository } from './account-repository'
 
 const APP = 'idle-slayer-companion'
 type MigrationPreview = { migrationId: string; raw: RawDocuments; device: Record<DocumentName, unknown>; remote: Record<DocumentName, RemoteDocument | null>; choices: Record<DocumentName, 'device' | 'account' | null>; prepared?: boolean }
 type MigrationJournal = MigrationPreview & { version: 1; accountId: string; clientId: string; selected: Record<DocumentName, unknown>; phase: 'prepared' | 'committed' | 'complete' }
 const journalKey = (id: string) => accountKey(id) + '.migration.v1'
-export interface SyncView { session: AccountSession | null; accountId: string | null; mount: number; status: string; busy: boolean; preview: MigrationPreview | null; conflicts: DocumentName[] }
-export function createCompanionAccountSync(options: { revision: string; storage: Storage; locks: () => ProfileLocks | undefined; uuid: () => string; enabled: boolean }) {
+export interface SyncView { session: AccountSession | null; accountId: string | null; mount: number; status: string; busy: boolean; loading: boolean; preview: MigrationPreview | null; conflicts: DocumentName[] }
+export function createCompanionAccountSync(options: { revision: string; storage: Storage; accountStorage?: AccountRepository; locks: () => ProfileLocks | undefined; uuid: () => string; enabled: boolean }) {
   let disposed = false, epoch = 0, running = false, timer: ReturnType<typeof setTimeout> | undefined
-  let view: SyncView = { session: null, accountId: null, mount: 0, status: 'Saved in this browser. Sign in to connect an account.', busy: false, preview: null, conflicts: [] }
+  let startup = 0, sessionWork = Promise.resolve(), unsubscribeStorage = () => {}
+  const accountStorage = options.accountStorage ?? createAccountRepository()
+  let view: SyncView = { session: null, accountId: null, mount: 0, status: 'Opening saved account data…', busy: false, loading: options.enabled, preview: null, conflicts: [] }
   const listeners = new Set<() => void>()
   let persistence: CompanionPersistence = guestPersistence()
   function publish(patch: Partial<SyncView>) { if (!disposed) { view = { ...view, ...patch }; listeners.forEach((listener) => listener()) } }
@@ -17,7 +20,7 @@ export function createCompanionAccountSync(options: { revision: string; storage:
   function ensureVisitSaved() {
     const visits = persistence.visitStates()
     if (!Object.keys(visits).length) return
-    const raw = view.accountId ? readBundle(options.storage, view.accountId)?.raw : captureRaw(options.storage)
+    const raw = view.accountId ? readBundle(accountStorage, view.accountId)?.raw : captureRaw(options.storage)
     if (!raw) throw new Error('The current account copy could not be read. Export this visit before changing accounts.')
     const saved = readDocuments(raw, options.revision)
     if (documents.some((name) => name in visits && !sameState(validateDocument(name, visits[name], options.revision), saved[name]))) throw new Error('This visit has unsaved changes. It was kept open. Export or recover them with the existing backup controls before changing accounts or connecting data.')
@@ -27,32 +30,39 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     ensureVisitSaved()
     if (persist) { if (id) options.storage.setItem(ACTIVE_ACCOUNT_KEY, id); else options.storage.removeItem(ACTIVE_ACCOUNT_KEY) }
     epoch++
-    persistence = id ? accountPersistence({ id, revision: options.revision, storage: options.storage, locks: options.locks, uuid: options.uuid, changed: schedule }) : guestPersistence()
+    persistence = id ? accountPersistence({ id, revision: options.revision, storage: accountStorage, locks: options.locks, uuid: options.uuid, changed: schedule }) : guestPersistence()
     publish({ accountId: id, mount: view.mount + 1, preview: null, busy: false, conflicts: [], status: id ? 'Account copy available on this device. Checking sync…' : 'Saved in this browser. Sign in to connect an account.' })
   }
-  try {
-    const cachedId = options.enabled ? options.storage.getItem(ACTIVE_ACCOUNT_KEY) : null
-    if (cachedId) { const bundle = readBundle(options.storage, cachedId); if (bundle) { readDocuments(bundle.raw, options.revision); activate(cachedId, false) } }
-  } catch { publish({ status: 'Saved account data needs recovery. Browser originals were kept.' }) }
-  function saveRecovery(id: string, raw: RawDocuments, label: string) {
+  async function saveRecovery(id: string, raw: RawDocuments, label: string) {
     const key = accountKey(id) + '.recovery.' + options.uuid(), text = JSON.stringify({ version: 1, accountId: id, label, raw })
-    options.storage.setItem(key, text)
-    if (options.storage.getItem(key) !== text) throw new Error('A recovery copy could not be verified. No saved copy was replaced.')
+    await accountStorage.setItem(key, text)
+    if (accountStorage.getItem(key) !== text) throw new Error('A recovery copy could not be verified. No saved copy was replaced.')
   }
-  function saveJournal(journal: MigrationJournal) {
-    const text = JSON.stringify(journal); options.storage.setItem(journalKey(journal.accountId), text)
-    if (options.storage.getItem(journalKey(journal.accountId)) !== text) throw new Error('The prepared connection could not be saved. Browser originals remain active.')
+  async function saveJournal(journal: MigrationJournal) {
+    const text = JSON.stringify(journal); await accountStorage.setItem(journalKey(journal.accountId), text)
+    if (accountStorage.getItem(journalKey(journal.accountId)) !== text) throw new Error('The prepared connection could not be saved. Browser originals remain active.')
   }
   function readJournal(id: string): MigrationJournal | null {
-    const text = options.storage.getItem(journalKey(id)); if (!text) return null
+    const text = accountStorage.getItem(journalKey(id)); if (!text) return null
     const journal = JSON.parse(text) as MigrationJournal
     if (journal.version !== 1 || journal.accountId !== id || !journal.migrationId || !journal.clientId || !journal.selected || !journal.raw || !journal.device || !journal.remote || !journal.choices || !['prepared', 'committed', 'complete'].includes(journal.phase)) throw new Error('The prepared connection needs recovery. Browser originals were kept.')
     for (const name of documents) { validateDocument(name, journal.selected[name], options.revision); validateDocument(name, journal.device[name], options.revision) }
     return journal
   }
-  async function locked<T>(id: string, callback: () => T): Promise<T> {
+  async function locked<T>(id: string, callback: () => T | Promise<T>, allRecords = false): Promise<T> {
     const locks = options.locks(); if (!locks) throw new Error('Safe account saving is unavailable in this browser. Export a backup to keep this visit.')
-    return locks.request(accountKey(id) + '.write', { mode: 'exclusive', ifAvailable: true }, (lock) => { if (!lock) throw new Error('Another tab is saving. Retry when it finishes.'); return callback() })
+    return locks.request(accountKey(id) + '.write', { mode: 'exclusive', ifAvailable: true }, async (lock) => { if (!lock) throw new Error('Another tab is saving. Retry when it finishes.'); await accountStorage.reload(allRecords ? undefined : accountKey(id)); return callback() })
+  }
+  async function importUnreleasedStorage(id: string) {
+    await locked(id, async () => {
+      const prefix = accountKey(id)
+      for (let index = 0; index < options.storage.length; index++) {
+        const key = options.storage.key(index)
+        if (!key || !(key === prefix || key.startsWith(prefix + '.')) || accountStorage.getItem(key) !== null) continue
+        const text = options.storage.getItem(key)
+        if (text !== null) await accountStorage.setItem(key, text)
+      }
+    }, true)
   }
   function checkedRemote(name: DocumentName, remote: RemoteDocument): RemoteDocument {
     if (remote.app !== APP || remote.document !== name || remote.schemaVersion !== 1 || !remote.resourceId || !Number.isSafeInteger(remote.revision) || remote.revision < 1 || !Number.isSafeInteger(remote.acknowledgedSequence) || remote.acknowledgedSequence < 0) throw new Error('The account returned an unsupported document. Device data was kept.')
@@ -77,7 +87,8 @@ export function createCompanionAccountSync(options: { revision: string; storage:
         const client = createAccountClient(id)
         for (const name of documents) {
           if (!valid(id, ticket)) return
-          let bundle = readBundle(options.storage, id); if (!bundle) throw new Error('Account data is unavailable on this device.')
+          await locked(id, () => {})
+          let bundle = readBundle(accountStorage, id); if (!bundle) throw new Error('Account data is unavailable on this device.')
           if (bundle.conflicts[name]) continue
           const pending = bundle.pending[name]
           let remote: RemoteDocument | null
@@ -87,7 +98,7 @@ export function createCompanionAccountSync(options: { revision: string; storage:
             if (!valid(id, ticket)) return
             if (error instanceof APIError && error.status === 409 && error.remote) {
               const conflict = checkedRemote(name, error.remote)
-              await locked(id, () => { if (!valid(id, ticket)) return; bundle = readBundle(options.storage, id)!; requireCurrentRevision(name, conflict, bundle); bundle.conflicts[name] = conflict; writeBundle(options.storage, bundle!) })
+              await locked(id, async () => { if (!valid(id, ticket)) return; bundle = readBundle(accountStorage, id)!; requireCurrentRevision(name, conflict, bundle); bundle.conflicts[name] = conflict; await writeBundle(accountStorage, bundle!) })
               continue
             }
             throw error
@@ -96,9 +107,9 @@ export function createCompanionAccountSync(options: { revision: string; storage:
           if (!remote) { if (bundle.remote[name]) throw new Error('A saved account document is unavailable. Device data was kept.'); continue }
           const acknowledged = checkedRemote(name, remote)
           let changed = false
-          await locked(id, () => {
+          await locked(id, async () => {
             if (!valid(id, ticket)) return
-            bundle = readBundle(options.storage, id)!
+            bundle = readBundle(accountStorage, id)!
             requireCurrentRevision(name, acknowledged, bundle)
             const current = bundle.pending[name]
             if (pending) {
@@ -120,12 +131,12 @@ export function createCompanionAccountSync(options: { revision: string; storage:
               if (prior && !sameState(local, validateDocument(name, prior.state, options.revision))) bundle.conflicts[name] = acknowledged
               else { setRawDocument(bundle.raw, name, acknowledged.state, options.revision); bundle.remote[name] = acknowledged; changed = true }
             }
-            writeBundle(options.storage, bundle)
+            await writeBundle(accountStorage, bundle)
           })
           if (changed) persistence.refresh()
         }
         if (!valid(id, ticket)) return
-        const bundle = readBundle(options.storage, id)!, conflicts = documents.filter((name) => !!bundle.conflicts[name]), pending = documents.some((name) => !!bundle.pending[name])
+        const bundle = readBundle(accountStorage, id)!, conflicts = documents.filter((name) => !!bundle.conflicts[name]), pending = documents.some((name) => !!bundle.pending[name])
         publish({ conflicts, status: conflicts.length ? 'Sync needs review. Both account and device copies are kept.' : pending ? 'Changes saved on this device. Waiting to sync.' : 'Account changes synced. Device backups remain available.' })
         if (pending && !conflicts.length) schedule()
       })
@@ -135,23 +146,45 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     } finally { running = false }
   }
   function receiveSession(session: AccountSession) {
-    if (disposed) return
+    if (disposed) return Promise.resolve()
     const previous = view.session?.user?.id, id = session.enabled ? session.user?.id ?? null : null
     publish({ session })
     if (previous !== id) { epoch++; publish({ busy: false, preview: null }) }
-    try {
-      if (!id) { activate(null); publish({ status: 'Saved in this browser. Sign in to connect an account.' }); return }
-      const bundle = readBundle(options.storage, id)
-      if (bundle) { readDocuments(bundle.raw, options.revision); activate(id); schedule() }
-      else { activate(null); publish({ status: 'Signed in. Review your saved browser and account copies before connecting.' }) }
-    } catch (error) { publish({ status: error instanceof Error ? error.message : 'Account storage is unavailable. Browser originals were kept.' }) }
+    const ticket = epoch
+    sessionWork = sessionWork.catch(() => {}).then(async () => {
+      if (disposed || ticket !== epoch) return
+      try {
+        if (!id) { activate(null); publish({ status: 'Saved in this browser. Sign in to connect an account.' }); return }
+        await importUnreleasedStorage(id)
+        if (!valid(id, ticket)) return
+        const bundle = readBundle(accountStorage, id)
+        if (bundle) { readDocuments(bundle.raw, options.revision); activate(id); schedule() }
+        else { activate(null); publish({ status: 'Signed in. Review your saved browser and account copies before connecting.' }) }
+      } catch (error) { if (!disposed && ticket === epoch) publish({ status: error instanceof Error ? error.message : 'Account storage is unavailable. Browser originals were kept.' }) }
+    })
+    return sessionWork
   }
   let unsubscribe = () => {}
-  function start() {
+  async function start() {
     disposed = false
     if (!options.enabled) return
-    unsubscribe(); unsubscribe = subscribeSession(receiveSession)
-    void getSession().then(receiveSession).catch(() => publish({ status: view.accountId ? 'Offline account copy. Changes stay on this device until sign-in can be checked.' : 'Accounts are unavailable. Existing browser saves and backups still work.' }))
+    const ticket = ++startup
+    try {
+      await accountStorage.reload()
+      if (disposed || ticket !== startup) return
+      const cachedId = options.storage.getItem(ACTIVE_ACCOUNT_KEY)
+      if (cachedId) {
+        await importUnreleasedStorage(cachedId)
+        if (disposed || ticket !== startup) return
+        const bundle = readBundle(accountStorage, cachedId)
+        if (bundle) { readDocuments(bundle.raw, options.revision); activate(cachedId, false) }
+      }
+      unsubscribeStorage(); unsubscribeStorage = accountStorage.subscribe(() => { void refreshExternal() })
+      unsubscribe(); unsubscribe = subscribeSession((session) => { void receiveSession(session) })
+      publish({ loading: false })
+      try { await receiveSession(await getSession()) }
+      catch { if (!disposed && ticket === startup) publish({ status: view.accountId ? 'Offline account copy. Changes stay on this device until sign-in can be checked.' : 'Accounts are unavailable. Existing browser saves and backups still work.' }) }
+    } catch (error) { if (!disposed && ticket === startup) publish({ loading: false, status: error instanceof Error ? error.message : 'Account device storage is unavailable. Browser originals and existing backup tools remain available.' }) }
   }
   async function reviewMigration() {
     const id = view.session?.user?.id, ticket = epoch
@@ -159,6 +192,8 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     publish({ busy: true, preview: null })
     try {
       ensureVisitSaved()
+      await locked(id, () => {}, true)
+      if (!valid(id, ticket)) return
       const journal = readJournal(id)
       if (journal && journal.phase !== 'complete') { publish({ preview: { ...journal, prepared: true }, status: 'A prepared connection was recovered. Retry it to verify the same migration without replacing browser originals.' }); return }
       const raw = captureRaw(options.storage), device = readDocuments(raw, options.revision)
@@ -180,13 +215,21 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     try {
       ensureVisitSaved()
       if (!sameRaw(preview.raw, captureRaw(options.storage))) throw new Error('Browser data changed during review. Review the current copies again.')
-      let journal = readJournal(id)
-      if (!journal || journal.phase === 'complete') {
-        saveRecovery(id, preview.raw, 'Before first account connection')
+      const journal = await locked(id, async () => {
+        if (!valid(id, ticket)) throw new Error('The account changed. Browser originals remain active.')
+        const existing = readJournal(id)
+        if (existing && existing.phase !== 'complete') {
+          if (existing.migrationId !== preview.migrationId) throw new Error('Another tab prepared this account connection. Cancel this preview and review its saved attempt before continuing.')
+          return existing
+        }
+        if (!valid(id, ticket)) throw new Error('The account changed. Browser originals remain active.')
+        await saveRecovery(id, preview.raw, 'Before first account connection')
+        if (!valid(id, ticket)) throw new Error('The account changed. Browser originals remain active.')
         const selected = Object.fromEntries(documents.map((name) => [name, preview.choices[name] === 'account' ? preview.remote[name]!.state : preview.device[name]])) as Record<DocumentName, unknown>
-        journal = { ...preview, version: 1, accountId: id, clientId: options.uuid(), selected, phase: 'prepared', prepared: true }
-        saveJournal(journal)
-      }
+        const prepared: MigrationJournal = { ...preview, version: 1, accountId: id, clientId: options.uuid(), selected, phase: 'prepared', prepared: true }
+        await saveJournal(prepared); return prepared
+      }, true)
+      if (!valid(id, ticket)) return
       publish({ preview: { ...journal, prepared: true } })
       const client = createAccountClient(id), selected = journal.selected, clientId = journal.clientId
       if (journal.phase === 'prepared') {
@@ -201,7 +244,8 @@ export function createCompanionAccountSync(options: { revision: string; storage:
       if (!valid(id, ticket)) return
       await client.commitMigration({ migrationId: journal.migrationId, app: APP, clientId, documents: documents.map((name) => ({ document: name, baseRevision: journal.remote[name]?.revision ?? 0 })) })
       if (!valid(id, ticket)) return
-      journal.phase = 'committed'; saveJournal(journal)
+      journal.phase = 'committed'; await saveJournal(journal)
+      if (!valid(id, ticket)) return
       const results = await Promise.all(documents.map((name) => client.getDocument(APP, name, clientId)))
       if (!valid(id, ticket)) return
       const remote: AccountBundle['remote'] = {}
@@ -212,12 +256,16 @@ export function createCompanionAccountSync(options: { revision: string; storage:
         remote[name] = document
       }
       if (!sameRaw(preview.raw, captureRaw(options.storage))) throw new Error('Browser data changed while connecting. It remains active. Review the current copies again.')
-      await locked(id, () => {
+      let activated = false
+      await locked(id, async () => {
         if (!valid(id, ticket)) return
-        if (!readBundle(options.storage, id)) writeBundle(options.storage, { version: 1, accountId: id, clientId, raw: rawForDocuments(selected, options.revision), remote, pending: {}, conflicts: {} })
-        journal.phase = 'complete'; saveJournal(journal)
+        if (!readBundle(accountStorage, id)) await writeBundle(accountStorage, { version: 1, accountId: id, clientId, raw: rawForDocuments(selected, options.revision), remote, pending: {}, conflicts: {} })
+        journal.phase = 'complete'; await saveJournal(journal)
+        if (!valid(id, ticket)) return
         activate(id)
+        activated = true
       })
+      if (!activated || disposed || view.accountId !== id || view.session?.user?.id !== id) return
       publish({ status: 'Connected and verified all four documents. Original browser saves were kept.', busy: false }); schedule()
     } catch (error) { if (valid(id, ticket)) publish({ status: error instanceof Error ? error.message : 'Connection could not finish. Browser originals remain active.', busy: false }) }
   }
@@ -227,10 +275,12 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     publish({ busy: true })
     try {
       ensureVisitSaved()
-      const before = readBundle(options.storage, id)!, remote = before.conflicts[name]
+      await locked(id, () => {})
+      if (!valid(id, ticket)) return
+      const before = readBundle(accountStorage, id)!, remote = before.conflicts[name]
       if (!remote) return
       const device = readDocuments(before.raw, options.revision)[name], selected = choice === 'device' ? device : remote.state, migrationId = options.uuid(), client = createAccountClient(id)
-      saveRecovery(id, before.raw, 'Before resolving ' + name)
+      await saveRecovery(id, before.raw, 'Before resolving ' + name)
       for (const variant of ['device', 'selected'] as const) {
         if (!valid(id, ticket)) return
         await client.stageMigration({ migrationId, app: APP, document: name, variant, schemaVersion: 1, state: variant === 'device' ? device : selected, baseRevision: remote.revision })
@@ -240,37 +290,45 @@ export function createCompanionAccountSync(options: { revision: string; storage:
       const result = await client.getDocument(APP, name, before.clientId)
       if (!valid(id, ticket)) return
       if (!result || !sameState(validateDocument(name, checkedRemote(name, result).state, options.revision), validateDocument(name, selected, options.revision))) throw new Error('The account changed during review. Both copies remain available.')
-      await locked(id, () => {
+      await locked(id, async () => {
         if (!valid(id, ticket)) return
-        const bundle = readBundle(options.storage, id)!
+        const bundle = readBundle(accountStorage, id)!
         requireCurrentRevision(name, result, bundle)
-        if (bundle.raw[documentKeys[name]] !== before.raw[documentKeys[name]]) { bundle.conflicts[name] = result; writeBundle(options.storage, bundle); throw new Error('Device data changed during review. Review the newer copies again.') }
-        setRawDocument(bundle.raw, name, result.state, options.revision); bundle.remote[name] = result; delete bundle.pending[name]; delete bundle.conflicts[name]; writeBundle(options.storage, bundle)
+        if (bundle.raw[documentKeys[name]] !== before.raw[documentKeys[name]]) { bundle.conflicts[name] = result; await writeBundle(accountStorage, bundle); throw new Error('Device data changed during review. Review the newer copies again.') }
+        setRawDocument(bundle.raw, name, result.state, options.revision); bundle.remote[name] = result; delete bundle.pending[name]; delete bundle.conflicts[name]; await writeBundle(accountStorage, bundle)
       })
-      persistence.refresh(); publish({ conflicts: documents.filter((name) => !!readBundle(options.storage, id)!.conflicts[name]), status: 'Conflict resolved. Recovery copies of both versions were retained.' })
+      if (!valid(id, ticket)) return
+      persistence.refresh(); publish({ conflicts: documents.filter((name) => !!readBundle(accountStorage, id)!.conflicts[name]), status: 'Conflict resolved. Recovery copies of both versions were retained.' })
     } catch (error) {
       if (valid(id, ticket) && error instanceof APIError && error.status === 409 && error.remote) {
         const conflict = checkedRemote(name, error.remote)
-        await locked(id, () => { if (!valid(id, ticket)) return; const bundle = readBundle(options.storage, id)!; requireCurrentRevision(name, conflict, bundle); bundle.conflicts[name] = conflict; writeBundle(options.storage, bundle) })
+        try { await locked(id, async () => { if (!valid(id, ticket)) return; const bundle = readBundle(accountStorage, id)!; requireCurrentRevision(name, conflict, bundle); bundle.conflicts[name] = conflict; await writeBundle(accountStorage, bundle) }) }
+        catch (storageError) { if (valid(id, ticket)) publish({ status: storageError instanceof Error ? storageError.message : 'Conflict storage could not be updated. The saved copies were kept.' }); return }
       }
       if (valid(id, ticket)) publish({ status: error instanceof Error ? error.message : 'Conflict review could not finish. Both copies were kept.' })
     }
     finally { if (valid(id, ticket)) { publish({ busy: false }); schedule() } }
   }
-  function refreshExternal() {
-    try { persistence.refresh(); if (view.accountId) { const bundle = readBundle(options.storage, view.accountId); publish({ conflicts: documents.filter((name) => !!bundle?.conflicts[name]) }) }; schedule() } catch { publish({ status: 'Saved account data could not be read. Export this visit before closing it.' }) }
+  async function refreshExternal() {
+    const id = view.accountId, ticket = epoch
+    if (!id || disposed) return
+    try { await locked(id, () => {}); if (disposed || ticket !== epoch) return; persistence.refresh(); const bundle = readBundle(accountStorage, id); publish({ conflicts: documents.filter((name) => !!bundle?.conflicts[name]) }); schedule() } catch { publish({ status: 'Saved account data could not be read. Export this visit before closing it.' }) }
   }
   async function restartReview() {
-    const id = view.session?.user?.id
+    const id = view.session?.user?.id, ticket = epoch
     if (!id || view.busy) return
     try {
-      const text = options.storage.getItem(journalKey(id))
-      if (text !== null) {
-        const recoveryKey = accountKey(id) + '.recovery.' + options.uuid()
-        options.storage.setItem(recoveryKey, text)
-        if (options.storage.getItem(recoveryKey) !== text) throw new Error('The prepared connection could not be preserved. Retry its existing verification.')
-        options.storage.removeItem(journalKey(id))
-      }
+      await locked(id, async () => {
+        if (!valid(id, ticket)) return
+        const text = accountStorage.getItem(journalKey(id))
+        if (text !== null) {
+          const recoveryKey = accountKey(id) + '.recovery.' + options.uuid()
+          await accountStorage.setItem(recoveryKey, text)
+          if (accountStorage.getItem(recoveryKey) !== text) throw new Error('The prepared connection could not be preserved. Retry its existing verification.')
+          await accountStorage.removeItem(journalKey(id))
+        }
+      }, true)
+      if (!valid(id, ticket)) return
       publish({ preview: null }); await reviewMigration()
     } catch (error) { publish({ status: error instanceof Error ? error.message : 'The prepared connection was kept.' }) }
   }
@@ -279,11 +337,11 @@ export function createCompanionAccountSync(options: { revision: string; storage:
     start, sync, reviewMigration, choose, adopt, resolve, refreshExternal, restartReview, recheckSession: () => refreshSession().then(receiveSession), cancelReview: () => { if (!view.busy) publish({ preview: null }) },
     exportOriginals: () => {
       const owner = view.session?.user?.id, prefix = owner && (!view.accountId || owner === view.accountId) ? accountKey(owner) : null
-      const recovery = prefix ? [...Array(options.storage.length)].map((_, index) => options.storage.key(index)).filter((key): key is string => !!key && (key.startsWith(prefix + '.recovery.') || key === prefix + '.migration.v1')).map((key) => ({ key, value: options.storage.getItem(key) })) : []
+      const recovery = prefix ? [...Array(accountStorage.length)].map((_, index) => accountStorage.key(index)).filter((key): key is string => !!key && (key.startsWith(prefix + '.recovery.') || key === prefix + '.migration.v1')).map((key) => ({ key, value: accountStorage.getItem(key) })) : []
       return JSON.stringify({ version: 1, raw: captureRaw(options.storage), visit: !view.accountId || view.accountId === owner ? persistence.visitStates() : {}, recovery }, null, 2)
     },
-    exportAccount: () => view.accountId ? JSON.stringify({ sourceAccountId: view.accountId, bundle: readBundle(options.storage, view.accountId), visit: persistence.visitStates() }, null, 2) : null,
-    dispose: () => { disposed = true; epoch++; unsubscribe(); if (timer) clearTimeout(timer) },
+    exportAccount: () => view.accountId ? JSON.stringify({ sourceAccountId: view.accountId, bundle: readBundle(accountStorage, view.accountId), visit: persistence.visitStates() }, null, 2) : null,
+    dispose: () => { disposed = true; epoch++; startup++; unsubscribe(); unsubscribeStorage(); accountStorage.close(); if (timer) clearTimeout(timer) },
   }
 }
 export type CompanionAccountSync = ReturnType<typeof createCompanionAccountSync>

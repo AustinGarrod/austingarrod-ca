@@ -31,6 +31,7 @@
     "test:php": "node scripts/test-php-reporting.mjs",
     "test:accounts:api": "node scripts/test-accounts-api.mjs",
     "test:accounts:browser": "node scripts/test-accounts-browser.mjs",
+    "test:accounts:large": "node scripts/test-accounts-large-browser.mjs",
     "refresh:pokedex:scan-index": "node scripts/pokedex-scan-index.mjs",
     "test:pokedex:scanner": "node scripts/test-pokedex-scanner.mjs"
   },
@@ -50,6 +51,7 @@
     "@sentry/cli": "^3.8.2",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.10.1",
+    "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.8",
     "vitest": "^4.1.10"
   }

@@ -20,32 +20,34 @@ export function AccountSyncBoundary({ revision, children }: { revision: string; 
   }, [revision])
   const view = useSyncExternalStore(controller.subscribe, controller.getState)
   const [opened, setOpened] = useState(false), [feedback, setFeedback] = useState('')
+  const previousAccountCopy = !!view.accountId && view.session !== null && view.accountId !== view.session.user?.id
   useEffect(() => setOpened(false), [view.mount])
   useEffect(() => {
     const online = () => { void refreshSession().then(() => controller.sync()).catch(() => undefined) }
-    const changed = (event: StorageEvent) => { if (event.key === null || (view.accountId && event.key === accountKey(view.accountId))) controller.refreshExternal() }
+    const changed = (event: StorageEvent) => { if (event.key === null || (view.accountId && event.key === accountKey(view.accountId))) void controller.refreshExternal() }
     window.addEventListener('online', online); window.addEventListener('storage', changed)
     const interval = setInterval(() => { if (navigator.onLine) void controller.sync() }, 30_000)
     return () => { clearInterval(interval); window.removeEventListener('online', online); window.removeEventListener('storage', changed) }
   }, [controller, view.accountId])
-  useEffect(() => { controller.start(); return () => controller.dispose() }, [controller])
+  useEffect(() => { void controller.start(); return () => controller.dispose() }, [controller])
   function exportData(account: boolean) {
     try { const text = account ? controller.exportAccount() : controller.exportOriginals(); if (text) { download(text, account ? 'idle-slayer-account-recovery.json' : 'idle-slayer-browser-originals.json'); setFeedback('Recovery copy exported. Keep this private file.') } }
     catch { setFeedback('Recovery data could not be read. Use the existing progress and reference export controls before closing this visit.') }
   }
   const controls = <section className="companion-account telemetry-private rr-block" aria-label="Account and sync">
-    <button type="button" aria-expanded={opened} onClick={() => setOpened(!opened)}>Account & sync{view.conflicts.length ? ' · Review needed' : ''}</button>
+    <button type="button" aria-expanded={opened} onClick={() => setOpened(!opened)}>Account & sync{previousAccountCopy ? ' · Previous account copy' : view.conflicts.length ? ' · Review needed' : ''}</button>
     {opened && <Dialog title="Account & sync" close={() => setOpened(false)} dismissDisabled={view.busy}><div className="companion-account-panel">
       <p role="status">{view.status}</p>
       {feedback && <p role="status">{feedback}</p>}
-      <p>{view.accountId ? 'Progress, intentions, checkpoints, and saved comparison use your account. Offline changes are kept on this device until they can sync.' : 'Your existing browser saves remain available. Signing in lets you review and connect them to one account.'} Layout and tracking preferences stay on this device.</p>
+      {previousAccountCopy && <p role="alert">A previous account’s saved device copy remains open for recovery. It cannot sync to the current login. Export this open copy and recover any unsaved changes before changing accounts.</p>}
+      <p>{previousAccountCopy ? 'The open device copy is separate from the account shown on the account page.' : view.accountId ? 'Progress, intentions, checkpoints, and saved comparison use your account. Offline changes are kept on this device until they can sync.' : 'Your existing browser saves remain available. Signing in lets you review and connect them to one account.'} Layout and tracking preferences stay on this device.</p>
       <div className="companion-account-actions">
         <a href={accountHref('/utilities/idle-slayer-companion/')}>{view.session?.user ? 'Manage account' : 'Sign in with email or Google'}</a>
         {view.accountId && <button type="button" disabled={view.busy} onClick={() => { void controller.sync() }}>Sync now</button>}
         {view.session && view.accountId !== (view.session.user?.id ?? null) && <button type="button" disabled={view.busy} onClick={() => { void controller.recheckSession().catch(() => setFeedback('Account status could not be checked. This visit was kept.')) }}>Retry account connection</button>}
         {!view.accountId && view.session?.user && view.session.migrationEnabled && !view.preview && <button type="button" disabled={view.busy} onClick={() => { void controller.reviewMigration() }}>Review and connect saved data</button>}
         <button type="button" onClick={() => exportData(false)}>Export browser originals</button>
-        {view.accountId && <button type="button" onClick={() => exportData(true)}>Export this open account’s device copy</button>}
+        {view.accountId && <button type="button" onClick={() => exportData(true)}>{previousAccountCopy ? 'Export previous account’s open device copy' : 'Export this open account’s device copy'}</button>}
       </div>
       {view.preview && <section aria-label="Review first account connection">
         <h3>Choose the copy for each document</h3>
@@ -64,5 +66,6 @@ export function AccountSyncBoundary({ revision, children }: { revision: string; 
       <p><a href="/account/">Account recovery copies</a> are available after connection. Existing JSON backup, restore, and transfer tools remain in Backup & transfer.</p>
     </div></Dialog>}
   </section>
+  if (view.loading) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening saved account data… Browser originals are kept.</p></main>
   return <AccountPersistenceContext.Provider key={view.mount} value={controller.getPersistence()}>{children(controls)}</AccountPersistenceContext.Provider>
 }

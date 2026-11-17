@@ -208,6 +208,8 @@ function accounts_database(array $config, bool $check = true): PDO
 {
     $db = new PDO($config['dsn'], $config['username'], $config['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_TIMEOUT => 3]);
     $db->exec('SET NAMES utf8mb4');
+    // TIMESTAMP reads and recovery metadata use UTC regardless of host defaults.
+    $db->exec("SET time_zone = '+00:00'");
     if ($check && (int)$db->query('SELECT MAX(version) FROM accounts_schema_migrations')->fetchColumn() !== 1) {
         throw new RuntimeException();
     }

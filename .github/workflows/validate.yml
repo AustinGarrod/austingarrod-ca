@@ -144,11 +144,19 @@ jobs:
           ACCOUNTS_TEST_USER: root
           ACCOUNTS_TEST_PASSWORD: accounts-local-test
         run: npm run test:accounts:browser
+      - name: Large Idle Slayer migration, offline replay and durable storage failures
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:large
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: accounts-browser-failure
-          path: output/accounts-browser/
+          path: |
+            output/accounts-browser/
+            output/accounts-large-browser/
           retention-days: 5
           if-no-files-found: warn
 

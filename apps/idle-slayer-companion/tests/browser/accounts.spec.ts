@@ -3,9 +3,23 @@ import { test, expect } from './fixtures'
 import { emptyCompanionProgress } from '../../src/domain/companion-progress'
 import { accountKey, ACTIVE_ACCOUNT_KEY, documentKeys, documents } from '../../src/account-storage'
 import type { RemoteDocument } from '../../../../packages/accounts/client'
+import type { Page } from '@playwright/test'
 
 const revision = (JSON.parse(readFileSync('public/catalog.json', 'utf8')) as { revision: string }).revision
 const id = '11111111-1111-4111-8111-111111111111'
+async function accountBundle(page: Page) {
+  return page.evaluate((key) => new Promise<any>((resolve, reject) => {
+    const request = indexedDB.open('idle-slayer-companion.accounts.v1', 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const db = request.result, transaction = db.transaction('records', 'readonly'), read = transaction.objectStore('records').get(key)
+      let value: string | undefined
+      read.onsuccess = () => { value = read.result }
+      transaction.oncomplete = () => { db.close(); resolve(value ? JSON.parse(value) : null) }
+      transaction.onabort = () => { db.close(); reject(transaction.error) }
+    }
+  }), accountKey(id))
+}
 test('reviews and connects existing saves without changing originals, then persists account edits through reload', async ({ page }) => {
   const initial = emptyCompanionProgress(revision); initial.modules.material = { tracked: true, records: { unknownMaterial: { count: '90071992547409931234567890', discovered: false } } }
   const original = JSON.stringify({ format: 'idle-slayer-companion-storage', version: 1, legacyBaseline: null, progress: initial })
@@ -43,10 +57,10 @@ test('reviews and connects existing saves without changing originals, then persi
   // The boundary remounts only after all account documents have been verified.
   await page.getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
   await expect.poll(() => writes.length).toBeGreaterThan(0)
-  await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).pending.progress ?? null, accountKey(id))).toBe(null)
+  await expect.poll(async () => (await accountBundle(page))?.pending.progress ?? null).toBe(null)
   await page.reload()
   await expect(page.getByRole('checkbox', { name: 'Show spoilers', exact: true })).toBeChecked()
-  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), accountKey(id))
+  const saved = await accountBundle(page)
   expect(saved.remote.progress.state.modules.material.records.unknownMaterial.count).toBe('90071992547409931234567890')
   expect(await page.evaluate((key) => localStorage.getItem(key), documentKeys.progress)).toBe(original)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

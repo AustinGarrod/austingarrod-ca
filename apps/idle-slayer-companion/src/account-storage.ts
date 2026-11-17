@@ -6,6 +6,7 @@ import { CHECKPOINT_STORAGE_KEY, emptyCheckpoints, parseCheckpoints } from './do
 import { COMPARISON_STORAGE_KEY, emptyComparison, parseComparison } from './domain/saved-comparison'
 import { PROFILE_STORAGE_KEY, parseProfileBackup } from './domain/storage'
 import type { ProfileLocks } from './domain/profile-session'
+import type { AccountRepository, DocumentStorage } from './account-repository'
 
 export const documents = ['progress', 'intentions', 'checkpoints', 'comparison'] as const
 export type DocumentName = typeof documents[number]
@@ -84,15 +85,19 @@ export function setRawDocument(raw: RawDocuments, name: DocumentName, state: unk
 }
 export function readBundle(storage: Pick<Storage, 'getItem'>, id: string): AccountBundle | null {
   const text = storage.getItem(accountKey(id)); if (text === null) return null
-  const bundle = JSON.parse(text) as AccountBundle
-  if (bundle.version !== 1 || bundle.accountId !== id || typeof bundle.clientId !== 'string' || !bundle.raw || !bundle.remote || !bundle.pending || !bundle.conflicts) throw new Error('Saved account data needs recovery. Original documents were kept.')
+  let bundle: AccountBundle | null
+  try { bundle = JSON.parse(text) as AccountBundle | null }
+  catch { throw new Error('Saved account data needs recovery. Original documents were kept.') }
+  if (!bundle || bundle.version !== 1 || bundle.accountId !== id || typeof bundle.clientId !== 'string' || !bundle.raw || !bundle.remote || !bundle.pending || !bundle.conflicts) throw new Error('Saved account data needs recovery. Original documents were kept.')
   return bundle
 }
-export function writeBundle(storage: Pick<Storage, 'getItem' | 'setItem'>, bundle: AccountBundle) {
-  const text = JSON.stringify(bundle); storage.setItem(accountKey(bundle.accountId), text)
-  if (storage.getItem(accountKey(bundle.accountId)) !== text) throw new Error('Account data could not be verified on this device.')
+export function writeBundle(storage: DocumentStorage, bundle: AccountBundle): void | Promise<void> {
+  const text = JSON.stringify(bundle), result = storage.setItem(accountKey(bundle.accountId), text)
+  const verify = () => { if (storage.getItem(accountKey(bundle.accountId)) !== text) throw new Error('Account data could not be verified on this device.') }
+  if (result && typeof result.then === 'function') return result.then(verify)
+  verify()
 }
-export interface CompanionPersistence { storage: () => Storage; locks: () => ProfileLocks | undefined; matches: (event: StorageEvent, keys: string[]) => boolean; subscribe: (listener: () => void) => () => void; refresh: () => void; registerVisit: (name: DocumentName, read: () => unknown) => () => void; visitStates: () => Partial<Record<DocumentName, unknown>> }
+export interface CompanionPersistence { storage: () => DocumentStorage; locks: () => ProfileLocks | undefined; matches: (event: StorageEvent, keys: string[]) => boolean; subscribe: (listener: () => void) => () => void; refresh: () => void; registerVisit: (name: DocumentName, read: () => unknown) => () => void; visitStates: () => Partial<Record<DocumentName, unknown>> }
 function visitRegistry() {
   const visits = new Map<DocumentName, () => unknown>()
   return { registerVisit: (name: DocumentName, read: () => unknown) => { visits.set(name, read); return () => { if (visits.get(name) === read) visits.delete(name) } }, visitStates: () => Object.fromEntries([...visits].map(([name, read]) => [name, read()])) }
@@ -101,11 +106,10 @@ export function guestPersistence(): CompanionPersistence {
   return { storage: () => localStorage, locks: () => navigator.locks, matches: (event, keys) => event.storageArea === localStorage && (event.key === null || keys.includes(event.key)), subscribe: () => () => {}, refresh: () => {}, ...visitRegistry() }
 }
 /** One atomic account bundle keeps each durable edit and its outbox entry together. */
-export function accountPersistence(options: { id: string; revision: string; storage: Storage; locks: () => ProfileLocks | undefined; uuid: () => string; changed: () => void }): CompanionPersistence {
+export function accountPersistence(options: { id: string; revision: string; storage: DocumentStorage & Partial<Pick<AccountRepository, 'reload'>>; locks: () => ProfileLocks | undefined; uuid: () => string; changed: () => void }): CompanionPersistence {
   const listeners = new Set<() => void>()
   const get = () => { const bundle = readBundle(options.storage, options.id); if (!bundle) throw new Error('Account data is unavailable.'); return bundle }
-  const adapter: Storage = {
-    get length() { return originalKeys.length }, key: (index) => originalKeys[index] ?? null,
+  const adapter: DocumentStorage = {
     getItem: (key) => get().raw[key] ?? null,
     setItem: (key, value) => {
       if (!originalKeys.includes(key)) throw new Error('Unsupported account document')
@@ -117,15 +121,16 @@ export function accountPersistence(options: { id: string; revision: string; stor
       // A possibly committed request must be replayed byte-for-byte after a lost
       // acknowledgement. Later edits live in raw until that frozen request acks.
       if (!bundle.pending[name]) bundle.pending[name] = { operationId: options.uuid(), mutationSequence: (remote?.acknowledgedSequence ?? 0) + 1, baseRevision: remote?.revision ?? 0, state }
-      writeBundle(options.storage, bundle)
+      const result = writeBundle(options.storage, bundle)
+      if (result && typeof result.then === 'function') return result.then(options.changed)
       options.changed()
-    }, removeItem: () => { throw new Error('Account documents must be cleared through their reviewed controls.') }, clear: () => { throw new Error('Account data cannot be cleared implicitly.') },
+    },
   }
   return {
     ...visitRegistry(),
     storage: () => adapter,
-    locks: () => { const locks = options.locks(); return locks ? { request: (_name, settings, callback) => locks.request(accountKey(options.id) + '.write', settings, callback) } : undefined },
-    matches: (event) => event.storageArea === options.storage && (event.key === null || event.key === accountKey(options.id)),
+    locks: () => { const locks = options.locks(); return locks ? { request: async (_name, settings, callback) => await locks.request(accountKey(options.id) + '.write', settings, async (lock) => { if (lock) await options.storage.reload?.(accountKey(options.id)); return callback(lock) }) } : undefined },
+    matches: () => false,
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     refresh: () => listeners.forEach((listener) => listener()),
   }

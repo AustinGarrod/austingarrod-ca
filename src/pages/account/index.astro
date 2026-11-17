@@ -21,7 +21,7 @@ import "@styles/account.css";
         <button type="button" class="button" id="account-retry">Try again</button>
       </div>
       <div id="account-signed-out" class="account-panel" hidden>
-        <h2>Sign in or create an account</h2>
+        <h2 id="account-sign-in-heading">Sign in or create an account</h2>
         <p id="account-google-verification" hidden>Verify this email address to finish connecting Google to your account.</p>
         <form id="account-email-form">
           <label for="account-email">Email address</label>
@@ -32,9 +32,9 @@ import "@styles/account.css";
           <label for="account-code">Six-digit code</label>
           <input id="account-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required aria-describedby="account-code-note" />
           <p id="account-code-note" class="form-note">Enter the code from your email. It expires after ten minutes.</p>
-          <button type="submit" class="button primary">Sign in</button>
+          <button type="submit" class="button primary" id="account-code-submit">Sign in</button>
         </form>
-        <div class="account-divider"><span>or</span></div>
+        <div class="account-divider" id="account-sign-in-divider"><span>or</span></div>
         <button id="account-google" class="button" type="button">Continue with Google</button>
         <p class="form-note">No password to remember. Signing in does not replace your existing saves; each utility will help you review them first.</p>
       </div>

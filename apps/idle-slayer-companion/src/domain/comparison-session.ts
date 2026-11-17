@@ -1,5 +1,6 @@
 import { COMPARISON_STORAGE_KEY, emptyComparison, exportComparison, parseComparison, type SavedComparison } from './saved-comparison'
 import type { ProfileLocks } from './profile-session'
+import type { DocumentStorage } from '../account-repository'
 
 type Snapshot = { text: string | null; list: SavedComparison | null } | null
 export interface ComparisonState {
@@ -14,7 +15,7 @@ export interface ComparisonState {
   canUseSaved: boolean
   savedList: SavedComparison | null
 }
-type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem'>
+type Storage = DocumentStorage
 
 /** Separate bounded reference storage. No profile access, native rules or telemetry. */
 export function createComparisonSession(dependencies: { storage: () => Storage; locks: () => ProfileLocks | undefined }) {
@@ -53,13 +54,14 @@ export function createComparisonSession(dependencies: { storage: () => Storage; 
     try {
       const locks = dependencies.locks()
       if (!locks) throw new Error('coordination')
-      return await locks.request(`${COMPARISON_STORAGE_KEY}.write`, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+      return await locks.request(`${COMPARISON_STORAGE_KEY}.write`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
         if (token !== generation) return false
         if (!lock) throw new Error('busy')
         const snapshot = read()
         if (!snapshot || snapshot.text !== accepted.text) { external(snapshot); return false }
         const text = exportComparison(list)
-        dependencies.storage().setItem(COMPARISON_STORAGE_KEY, text)
+        await dependencies.storage().setItem(COMPARISON_STORAGE_KEY, text)
+        if (token !== generation) return false
         baseline = observed = { text, list }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '', canUseSaved: true })
         return true

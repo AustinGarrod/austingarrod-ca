@@ -27,7 +27,7 @@ const temporary = mkdtempSync(join(root, 'tmp/accounts-browser-'));
 const output = join(root, 'output/accounts-browser');
 mkdirSync(output, { recursive: true });
 const env = { ...process.env, ACCOUNTS_TEST_DATABASE: database, REPORTING_DSN: '', REPORTING_ENVIRONMENT: 'accounts-browser-test' };
-const databaseCommand = action => execFileSync(php, [...flags, join(root, 'tests/accounts/database.php'), action], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+const databaseCommand = (action, fixture = {}) => execFileSync(php, [...flags, join(root, 'tests/accounts/database.php'), action], { env: { ...env, ...fixture }, stdio: ['ignore', 'pipe', 'pipe'] });
 const messages = [];
 const smtp = createServer(socket => {
   socket.setEncoding('utf8'); socket.write('220 localhost browser SMTP\r\n');
@@ -236,6 +236,44 @@ try {
     page.once('dialog', dialog => dialog.accept()); await row.getByRole('button', { name: 'Restore', exact: true }).click();
     await expect(page.locator('#account-status')).toContainText('Recovery copy restored');
     assert.deepEqual((await remote(desktop, 'pokedex-binder', 'binder')).state, downloaded.state);
+  });
+  await scenario('signed-in Google linking completes mailbox proof without changing saved data', async () => {
+    const before = await session(desktop);
+    const resources = [['pokedex-binder', 'binder'], ...['progress', 'intentions', 'checkpoints', 'comparison'].map(name => ['idle-slayer-companion', name])];
+    const beforeDocuments = await Promise.all(resources.map(([app, name]) => remote(desktop, app, name)));
+    const cookie = (await desktop.cookies()).find(item => item.name === '__Host-ag-session');
+    assert.ok(cookie);
+    const subject = `browser-fixture-${randomUUID()}`;
+    const fixture = { ACCOUNTS_TEST_SESSION_TOKEN: cookie.value, ACCOUNTS_TEST_GOOGLE_SUBJECT: subject };
+    const seeded = JSON.parse(databaseCommand('seed-pending-google', fixture).toString());
+    assert.equal(seeded.userId, before.user.id);
+    await page.goto(origin + '/account/?google=verify-email');
+    await expect(page.locator('#account-signed-in')).toBeVisible();
+    await expect(page.locator('#account-signed-out')).toBeVisible();
+    await expect(page.locator('#account-sign-in-heading')).toHaveText('Verify your email to connect Google');
+    await expect(page.locator('#account-email')).toHaveValue(email);
+    await expect(page.locator('#account-email')).toHaveJSProperty('readOnly', true);
+    await expect(page.locator('#account-google')).toBeHidden();
+    await expect(page.locator('#account-link-google')).toBeHidden();
+    const beforeMail = messages.length;
+    await page.locator('#account-email-submit').click();
+    await expect(page.locator('#account-code-form')).toBeVisible();
+    await expect.poll(() => messages.length).toBeGreaterThan(beforeMail);
+    const mailedCode = messages.at(-1).text.match(/code is:\s*(\d{6})/)[1];
+    await page.locator('#account-code').fill(mailedCode);
+    await page.locator('#account-code-submit').click();
+    await expect(page.locator('#account-status')).toHaveText('Google is connected to your account.');
+    await expect(page.locator('#account-signed-out')).toBeHidden();
+    await expect(page.locator('#account-signed-in')).toBeVisible();
+    await expect(page.locator('#account-email')).toHaveJSProperty('readOnly', false);
+    await expect(page.locator('#account-code')).toHaveValue('');
+    const after = await session(desktop);
+    assert.equal(after.user.id, before.user.id);
+    assert.equal(after.pendingGoogleEmail, undefined);
+    assert.equal(JSON.parse(databaseCommand('read-google-identity', fixture).toString()).userId, before.user.id);
+    assert.deepEqual(await Promise.all(resources.map(([app, name]) => remote(desktop, app, name))), beforeDocuments);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: join(output, 'google-link-verified.png'), fullPage: false });
   });
   await scenario('signing out restores each browser guest view and retains originals', async () => {
     for (const [currentPage, context, expectedRaw, count] of [[page, desktop, desktopOriginals, '1'], [phone, mobile, mobileOriginals, '1']]) {

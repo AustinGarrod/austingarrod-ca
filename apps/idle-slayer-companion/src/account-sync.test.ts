@@ -1,21 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountSession, RemoteDocument } from '../../../packages/accounts/client'
-const mocked = vi.hoisted(() => ({ session: null as AccountSession | null, listener: null as ((value: AccountSession) => void) | null, read: vi.fn(), write: vi.fn(), stage: vi.fn(), commit: vi.fn(), bound: vi.fn() }))
+import { IDBFactory } from 'fake-indexeddb'
+const mocked = vi.hoisted(() => ({ session: null as AccountSession | null, listener: null as ((value: AccountSession) => void) | null, read: vi.fn(), write: vi.fn(), stage: vi.fn(), commit: vi.fn(), bound: vi.fn(), sessionReads: vi.fn() }))
 vi.mock('../../../packages/accounts/client', async () => {
   const actual = await vi.importActual<typeof import('../../../packages/accounts/client')>('../../../packages/accounts/client')
-  return { ...actual, getSession: async () => mocked.session, refreshSession: async () => mocked.session, subscribeSession: (listener: (value: AccountSession) => void) => { mocked.listener = listener; return () => { mocked.listener = null } }, createAccountClient: (id: string) => { mocked.bound(id); return { getDocument: mocked.read, writeDocument: mocked.write, stageMigration: mocked.stage, commitMigration: mocked.commit } } }
+  return { ...actual, getSession: async () => { mocked.sessionReads(); return mocked.session }, refreshSession: async () => mocked.session, subscribeSession: (listener: (value: AccountSession) => void) => { mocked.listener = listener; return () => { mocked.listener = null } }, createAccountClient: (id: string) => { mocked.bound(id); return { getDocument: mocked.read, writeDocument: mocked.write, stageMigration: mocked.stage, commitMigration: mocked.commit } } }
 })
 import { createCompanionAccountSync, type CompanionAccountSync } from './account-sync'
 import { ACTIVE_ACCOUNT_KEY, accountKey, captureRaw, documentKeys, documents, rawForDocuments, readBundle, writeBundle, type AccountBundle, type DocumentName } from './account-storage'
 import { emptyCompanionProgress } from './domain/companion-progress'
+import { createAccountRepository, type AccountRepository } from './account-repository'
 
 function memoryStorage(): Storage { const map = new Map<string, string>(); return { get length() { return map.size }, getItem: (key) => map.get(key) ?? null, setItem: (key, value) => { map.set(key, value) }, removeItem: (key) => { map.delete(key) }, clear: () => map.clear(), key: (i) => [...map.keys()][i] ?? null } }
 function states() { return { progress: emptyCompanionProgress('test'), intentions: { format: 'idle-slayer-companion-workspace', version: 1, goals: [], recipePlans: {} }, checkpoints: { kind: 'progress-checkpoints', version: 1, entries: [] }, comparison: { kind: 'upgrade-comparison', version: 1, ids: [] } } }
 function remote(name: DocumentName, state: unknown, revision = 1, acknowledgedSequence = 0): RemoteDocument { return { resourceId: 'resource-' + name, app: 'idle-slayer-companion', document: name, schemaVersion: 1, revision, state, acknowledgedSequence } }
 const locks = { request: async <T>(_name: string, _options: unknown, callback: (lock: unknown) => T) => callback({}) }
 const active: CompanionAccountSync[] = []
-function make(storage = memoryStorage()) { let seq = 0; const controller = createCompanionAccountSync({ revision: 'test', storage, locks: () => locks, uuid: () => 'uuid-' + ++seq, enabled: true }); active.push(controller); return controller }
-async function start(controller: CompanionAccountSync) { controller.start(); await Promise.resolve(); await Promise.resolve() }
+function memoryRepository(storage: Storage): AccountRepository { return { get length() { return storage.length }, key: (index) => storage.key(index), getItem: (key) => storage.getItem(key), setItem: (key, value) => storage.setItem(key, value), removeItem: (key) => storage.removeItem(key), reload: async () => {}, subscribe: () => () => {}, close: () => {} } }
+function make(storage = memoryStorage(), accountStorage = memoryRepository(storage)) { let seq = 0; const controller = createCompanionAccountSync({ revision: 'test', storage, accountStorage, locks: () => locks, uuid: () => 'uuid-' + ++seq, enabled: true }); active.push(controller); return controller }
+async function start(controller: CompanionAccountSync) { await controller.start() }
 beforeEach(() => {
   vi.useFakeTimers(); vi.clearAllMocks()
   mocked.session = { enabled: true, migrationEnabled: true, user: { id: 'A', email: 'private@example.test' }, csrfToken: 'csrf' }
@@ -79,6 +82,7 @@ describe('recoverable account migration and sync', () => {
     const controller = make(storage); await start(controller); const syncing = controller.sync(); await Promise.resolve(); await Promise.resolve()
     expect(mocked.bound).toHaveBeenCalledWith('A')
     mocked.session = { ...mocked.session!, user: { id: 'B', email: 'other@example.test' } }; mocked.listener!(mocked.session)
+    await controller.recheckSession()
     finish(remote('progress', states().progress)); await syncing
     expect(controller.getState().accountId).toBe(null); expect(readBundle(storage, 'A')!.pending.progress?.operationId).toBe('pending-A')
     expect(storage.getItem(accountKey('B'))).toBe(null)
@@ -137,6 +141,7 @@ describe('recoverable account migration and sync', () => {
     controller.getPersistence().registerVisit('comparison', () => ({ kind: 'upgrade-comparison', version: 1, ids: ['unsaved'] }))
     const mount = controller.getState().mount
     mocked.session = { ...mocked.session!, user: { id: 'B', email: 'other@example.test' } }; mocked.listener!(mocked.session)
+    await controller.recheckSession()
     expect(controller.getState().accountId).toBe('A'); expect(controller.getState().mount).toBe(mount)
     expect(controller.getState().status).toContain('unsaved'); expect(controller.exportAccount()).toContain('unsaved')
     await controller.sync(); expect(mocked.write).not.toHaveBeenCalled()
@@ -147,7 +152,7 @@ describe('recoverable account migration and sync', () => {
     let finish!: (document: RemoteDocument) => void
     mocked.read.mockImplementation(async (_app: string, name: DocumentName) => name === 'comparison' ? new Promise<RemoteDocument>((resolve) => { finish = resolve }) : null)
     const controller = make(storage); await start(controller); const syncing = controller.sync()
-    for (let i = 0; i < 20 && !finish; i++) await Promise.resolve()
+    for (let i = 0; i < 100 && !finish; i++) await Promise.resolve()
     const advanced = readBundle(storage, 'A')!; advanced.raw = rawForDocuments({ ...states(), comparison: newer }, 'test'); advanced.remote.comparison = remote('comparison', newer, 4); writeBundle(storage, advanced)
     finish(remote('comparison', stale, 3)); await syncing
     expect(readBundle(storage, 'A')!.remote.comparison?.revision).toBe(4)
@@ -159,8 +164,53 @@ describe('recoverable account migration and sync', () => {
     const controller = make(storage); await start(controller)
     expect(controller.exportOriginals()).toContain('private-A-snapshot'); expect(controller.exportOriginals()).not.toContain('private-B-snapshot')
     mocked.session = { ...mocked.session!, user: { id: 'B', email: 'other@example.test' } }; mocked.listener!(mocked.session)
+    await controller.recheckSession()
     expect(controller.exportOriginals()).not.toContain('private-A-snapshot'); expect(controller.exportOriginals()).toContain('private-B-snapshot')
     mocked.session = { ...mocked.session!, user: null }; mocked.listener!(mocked.session)
+    await controller.recheckSession()
     expect(controller.exportOriginals()).not.toMatch(/private-[AB]-snapshot/)
+  })
+  it('never publishes another account’s prepared journal after a delayed durable reload', async () => {
+    const storage = memoryStorage(), accountStorage = memoryRepository(storage), state = states()
+    storage.setItem(accountKey('A') + '.migration.v1', JSON.stringify({ version: 1, accountId: 'A', migrationId: 'prepared-A', clientId: 'client-A', raw: Object.fromEntries([...Object.values(documentKeys), 'idle-slayer-ascension-map.profile.v1', 'idle-slayer-ascension-map.goals.v1'].map((key) => [key, null])), device: state, selected: state, remote: Object.fromEntries(documents.map((name) => [name, null])), choices: Object.fromEntries(documents.map((name) => [name, 'device'])), phase: 'prepared' }))
+    const controller = make(storage, accountStorage); await start(controller)
+    let release!: () => void, held = false
+    accountStorage.reload = async (key) => { if (key === undefined && !held) { held = true; await new Promise<void>((resolve) => { release = resolve }) } }
+    const reviewing = controller.reviewMigration()
+    for (let i = 0; i < 50 && !release; i++) await Promise.resolve()
+    mocked.session = { ...mocked.session!, user: { id: 'B', email: 'other@example.test' } }; mocked.listener!(mocked.session); await controller.recheckSession()
+    release(); await reviewing
+    expect(controller.getState().session?.user?.id).toBe('B'); expect(controller.getState().preview).toBe(null)
+    expect(mocked.stage).not.toHaveBeenCalled()
+  })
+  it('opens durable account storage before authentication and fails safely without mounting defaults', async () => {
+    const storage = memoryStorage(), accountStorage = memoryRepository(storage)
+    storage.setItem(documentKeys.comparison, JSON.stringify({ kind: 'upgrade-comparison', version: 1, ids: ['guest-original'] }))
+    accountStorage.reload = async () => { throw new DOMException('Device storage denied', 'SecurityError') }
+    const controller = make(storage, accountStorage); expect(controller.getState().loading).toBe(true); await start(controller)
+    expect(controller.getState().loading).toBe(false); expect(controller.getState().accountId).toBe(null)
+    expect(mocked.sessionReads).not.toHaveBeenCalled(); expect(mocked.read).not.toHaveBeenCalled()
+    expect(controller.exportOriginals()).toContain('guest-original')
+  })
+  it('copies unreleased localStorage account records into actual IDB without deleting originals', async () => {
+    vi.useRealTimers()
+    const storage = memoryStorage(), original = { version: 1 as const, accountId: 'A', clientId: 'old-client', raw: rawForDocuments(states(), 'test'), remote: {}, pending: {}, conflicts: {} }
+    writeBundle(storage, original); storage.setItem(ACTIVE_ACCOUNT_KEY, 'A')
+    const text = storage.getItem(accountKey('A')), repository = createAccountRepository({ factory: new IDBFactory(), broadcast: false })
+    const controller = make(storage, repository); await start(controller)
+    expect(controller.getState().accountId).toBe('A'); expect(controller.getState().loading).toBe(false)
+    expect(storage.getItem(accountKey('A'))).toBe(text); expect(readBundle(repository, 'A')).toEqual(original)
+  })
+  it('resumes a lost commit from an actual IDB journal after reopening the repository', async () => {
+    vi.useRealTimers()
+    const storage = memoryStorage(), factory = new IDBFactory(), server = new Map<string, RemoteDocument>(), selected = new Map<string, unknown>()
+    mocked.read.mockImplementation(async (_app: string, name: string) => server.get(name) ?? null)
+    mocked.stage.mockImplementation(async (body) => { if (body.variant === 'selected') selected.set(body.document, body.state); return { staged: true } })
+    let attempts = 0
+    mocked.commit.mockImplementation(async () => { for (const name of documents) server.set(name, remote(name, selected.get(name))); if (++attempts === 1) throw new Error('commit response lost'); return { documents: [...server.values()] } })
+    const one = make(storage, createAccountRepository({ factory, broadcast: false })); await start(one); await one.reviewMigration(); await one.adopt(); one.dispose()
+    const two = make(storage, createAccountRepository({ factory, broadcast: false })); await start(two); await two.reviewMigration(); expect(two.getState().preview?.prepared).toBe(true); await two.adopt()
+    expect(two.getState().accountId).toBe('A'); expect(mocked.commit.mock.calls[0][0]).toEqual(mocked.commit.mock.calls[1][0])
+    expect(storage.getItem(accountKey('A'))).toBe(null)
   })
 })

@@ -38,10 +38,14 @@ The harness checks CSRF/origin/account isolation, expired/reused/brute-forced co
 
 `npm run test:accounts:browser` uses the built `dist/`, a fresh isolated database and an actual loopback SMTP inbox to verify the account page, shared session, both utility migrations, retired legacy key, second browser, recovery and logout. It blocks external traffic and keeps screenshots/results under ignored `output/accounts-browser/`.
 
+`npm run test:accounts:large` exercises a valid progress document near the existing 4 MiB portable limit in native Chromium. It checks migration readback, unchanged guest records, offline reload, frozen retry operations, and failed IndexedDB transactions. Its isolated database, local SMTP inbox and blocked external traffic follow the same restrictions; diagnostics stay under ignored `output/accounts-large-browser/`.
+
 ## Adding another utility
 
 Register its document names and byte limits in `ACCOUNTS_DOCUMENT_LIMITS`, add a strict validator in the utility adapter section of `_validators.php`, and implement its browser storage/migration adapter using `packages/accounts/client.ts`. Complete adoption manifests are derived from that registry; authentication, sessions, CSRF, revisions, recovery, and the API routes do not change. Local entry routes under `/utilities/<slug>/` or `/apps/<slug>/` work as login return destinations. Add validation fixtures and a real migration/recovery browser scenario before enabling the adapter.
 
 The browser adapter must retain originals, keep an immutable in-flight request until acknowledgement, use per-document device sequences, fence late responses by account/resource/revision, and switch its active namespace only after durable commit and checked readback. Missing, malformed and deliberately cleared documents are distinct cases. The server accepts only registered schema versions and never assumes an arbitrary JSON object is a valid save.
+
+Idle Slayer account documents, outboxes, migration journals and recovery records use IndexedDB. Guest localStorage records keep their existing keys and formats. Account edits and their frozen outbox share one record and one transaction; the UI acknowledges a device save only after transaction completion and readback. Keep these records out of localStorage: several recovery copies of a valid 4 MiB document exceed its ordinary quota. Storage failure must leave the open visit exportable and must not authorize an upload or a switch to another account.
 
 Authentication discovery and mutations share a same-origin Web Lock across tabs to prevent a stale response from replacing a newly authenticated cookie. Account sign-in/sync requires a browser with Web Locks on HTTPS; unsupported browsers keep guest saves and backups available.

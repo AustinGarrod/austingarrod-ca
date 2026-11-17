@@ -62,6 +62,40 @@ try {
         exit;
     }
 
+    if (in_array($action, ['seed-pending-google', 'read-google-identity'], true)) {
+        // CLI-only fixtures within the generated loopback test database. The
+        // production API has no OIDC/mock-auth bypass or fixture action.
+        $subject = (string)getenv('ACCOUNTS_TEST_GOOGLE_SUBJECT');
+        if (!preg_match('/^browser-fixture-[a-f0-9-]{36}$/D', $subject)) {
+            throw new RuntimeException();
+        }
+        if ($action === 'read-google-identity') {
+            $owner = accounts_query($db, "SELECT user_id FROM accounts_identities WHERE provider='google' AND subject=?", [$subject])->fetchColumn();
+            echo json_encode(['userId' => $owner === false ? null : $owner], JSON_THROW_ON_ERROR);
+            exit;
+        }
+        $token = (string)getenv('ACCOUNTS_TEST_SESSION_TOKEN');
+        if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
+            throw new RuntimeException();
+        }
+        $sessionHash = hash('sha256', $token, true);
+        $user = accounts_query($db, 'SELECT u.id,u.email FROM accounts_sessions s JOIN accounts_users u ON u.id=s.user_id WHERE s.token_hash=?', [$sessionHash])->fetch();
+        if (!is_array($user) || !str_ends_with($user['email'], '@example.test')) {
+            throw new RuntimeException();
+        }
+        accounts_query($db, 'INSERT INTO accounts_pending_google(session_hash,subject,email,expires_at) VALUES(?,?,?,?)', [$sessionHash, $subject, $user['email'], time() + 600]);
+        $config = accounts_config(dirname(__DIR__, 2).'/public');
+        if ($config === null || !str_contains($config['dsn'], ';dbname='.$name)) {
+            throw new RuntimeException();
+        }
+        // Only advance this dummy mailbox's resend window, avoiding another
+        // minute of fixture waiting. Actual SMTP and OTP verification still run.
+        $resendBucket = hash_hmac('sha256', 'email-resend|'.$user['email'], $config['secret'], true);
+        accounts_query($db, 'DELETE FROM accounts_rate_limits WHERE bucket=?', [$resendBucket]);
+        echo json_encode(['userId' => $user['id'], 'email' => $user['email']], JSON_THROW_ON_ERROR);
+        exit;
+    }
+
     throw new RuntimeException();
 } catch (Throwable $e) {
     fwrite(STDERR, "Isolated accounts database setup failed. Check loopback DSN and permissions.\n");

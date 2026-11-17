@@ -34,7 +34,8 @@ function updateResend(): void {
   const wait = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
   const button = element<HTMLButtonElement>("account-email-submit");
   button.disabled = busy || wait > 0;
-  button.textContent = wait ? `Send another code in ${wait}s` : challengeId ? "Send another code" : "Email a sign-in code";
+  button.textContent = wait ? `Send another code in ${wait}s` : challengeId ? "Send another code"
+    : current?.pendingGoogleEmail ? "Email a verification code" : "Email a sign-in code";
 }
 window.setInterval(updateResend, 1000);
 
@@ -98,21 +99,37 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
 }
 function render(value: AccountSession): void {
   const previousId = current?.user?.id;
+  const previousPendingEmail = current?.pendingGoogleEmail;
+  const verifyingGoogle = !!value.pendingGoogleEmail;
   current = value;
+  if (previousId !== value.user?.id || previousPendingEmail !== value.pendingGoogleEmail) {
+    challengeId = ""; code.value = ""; resendAt = 0;
+    element("account-code-form").hidden = true;
+  }
   element("account-unavailable").hidden = value.enabled;
-  element("account-signed-out").hidden = !value.enabled || !!value.user;
+  // Linking an external-domain Google identity needs mailbox proof even when
+  // the account is already signed in. Keep that proof form accessible.
+  element("account-signed-out").hidden = !value.enabled || (!!value.user && !verifyingGoogle);
   element("account-signed-in").hidden = !value.user;
   element("account-recovery").hidden = !value.user;
   element("account-migration-paused").hidden = value.migrationEnabled;
-  element("account-google-verification").hidden = !value.pendingGoogleEmail;
-  if (value.pendingGoogleEmail && !value.user) email.value = value.pendingGoogleEmail;
+  element("account-google-verification").hidden = !verifyingGoogle;
+  element("account-google").hidden = verifyingGoogle;
+  element("account-link-google").hidden = verifyingGoogle;
+  element("account-sign-in-divider").hidden = verifyingGoogle;
+  element("account-sign-in-heading").textContent = verifyingGoogle ? "Verify your email to connect Google" : "Sign in or create an account";
+  element("account-code-submit").textContent = verifyingGoogle ? "Verify and connect Google" : "Sign in";
+  email.readOnly = verifyingGoogle;
+  if (value.pendingGoogleEmail) email.value = value.pendingGoogleEmail;
+  updateResend();
   if (value.user) {
     element("account-identity").textContent = value.user.email;
-    if (previousId !== value.user.id) { challengeId = ""; code.value = ""; void loadRecovery(); }
+    if (previousId !== value.user.id) void loadRecovery();
   } else {
     ++recoveryGeneration; recoveryList.replaceChildren();
   }
   if (!value.enabled) message("Account syncing is not available yet. Your local saves are unchanged.");
+  else if (verifyingGoogle) message("Verify your email address to finish connecting Google.");
   else if (previousId !== value.user?.id) message(value.user ? "You’re signed in." : "Choose how to sign in.");
 }
 subscribeSession(render);
@@ -122,7 +139,7 @@ element<HTMLFormElement>("account-email-form").addEventListener("submit", event 
   void requestEmailCode(email.value.trim(), returnTo).then(result => {
     challengeId = result.challengeId; resendAt = Date.now() + result.retryAfter * 1000;
     element("account-code-form").hidden = false;
-    message("Check your email for a sign-in code."); code.focus();
+    message(current?.pendingGoogleEmail ? "Check your email for a verification code to connect Google." : "Check your email for a sign-in code."); code.focus();
   }).catch(error => {
     if (error instanceof APIError && error.retryAfter) resendAt = Date.now() + error.retryAfter * 1000;
     failure(error);
@@ -130,9 +147,11 @@ element<HTMLFormElement>("account-email-form").addEventListener("submit", event 
 });
 element<HTMLFormElement>("account-code-form").addEventListener("submit", event => {
   event.preventDefault(); if (busy || !challengeId) return;
+  const linkingGoogle = !!current?.pendingGoogleEmail;
   setBusy(true);
   void verifyEmailCode(challengeId, code.value.trim()).then(() => {
-    code.value = ""; challengeId = ""; message("You’re signed in. Open your utility to review its saves.");
+    code.value = ""; challengeId = "";
+    message(linkingGoogle ? "Google is connected to your account." : "You’re signed in. Open your utility to review its saves.");
     if (params.has("returnTo")) location.assign(returnTo);
   }).catch(failure).finally(() => setBusy(false));
 });

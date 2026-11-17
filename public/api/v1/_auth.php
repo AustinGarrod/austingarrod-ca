@@ -152,7 +152,7 @@ function accounts_google_start(PDO $db, array $config, array $session, stdClass 
 
 function accounts_google_claims(array $claims, array $config, string $nonce): array
 {
-    if (!in_array($claims['iss'] ?? null, ['accounts.google.com', 'https://accounts.google.com'], true) || ($claims['aud'] ?? null) !== ($config['google']['clientId'] ?? null) || !is_int($claims['exp'] ?? null) || $claims['exp'] <= time() || !is_string($claims['nonce'] ?? null) || !hash_equals($nonce, $claims['nonce']) || !is_string($claims['sub'] ?? null) || !preg_match('/^[\x21-\x7e]{1,255}$/D', $claims['sub']) || ($claims['email_verified'] ?? false) !== true) {
+    if (!in_array($claims['iss'] ?? null, ['accounts.google.com', 'https://accounts.google.com'], true) || ($claims['aud'] ?? null) !== ($config['google']['clientId'] ?? null) || !is_int($claims['exp'] ?? null) || $claims['exp'] <= time() || !is_string($claims['nonce'] ?? null) || !hash_equals($nonce, $claims['nonce']) || !is_string($claims['sub'] ?? null) || !preg_match('/^[\x21-\x7e]{1,255}$/D', $claims['sub']) || (isset($claims['email_verified']) && !is_bool($claims['email_verified']))) {
         accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified. Please try again.');
     }
 
@@ -160,7 +160,9 @@ function accounts_google_claims(array $claims, array $config, string $nonce): ar
         accounts_fail(401, 'google_invalid', 'Google sign-in could not be verified.');
     }
 
-    return ['subject' => $claims['sub'], 'email' => accounts_email($claims['email'] ?? null), 'authoritative' => str_ends_with(strtolower((string)$claims['email']), '@gmail.com') || (is_string($claims['hd'] ?? null) && $claims['hd'] !== '')];
+    // An unverified or non-authoritative email needs our mailed proof before
+    // first linking. Existing identities continue to use their stable subject.
+    return ['subject' => $claims['sub'], 'email' => accounts_email($claims['email'] ?? null), 'authoritative' => ($claims['email_verified'] ?? false) === true && (str_ends_with(strtolower((string)$claims['email']), '@gmail.com') || (is_string($claims['hd'] ?? null) && $claims['hd'] !== ''))];
 }
 
 function accounts_google_callback(PDO $db, array $config, array $session, string $webroot): string
