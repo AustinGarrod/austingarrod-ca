@@ -95,6 +95,9 @@ try {
   execFileSync(process.execPath, [join(root, 'scripts/test-accounts-smtp-tls.mjs')], {
     env: { ...env, PHP_BINARY: php }, stdio: ['ignore', 'inherit', 'pipe'],
   });
+  execFileSync(process.execPath, [join(root, 'scripts/test-accounts-config-cache-http.mjs')], {
+    env: { ...env, PHP_BINARY: php }, stdio: ['ignore', 'inherit', 'pipe'],
+  });
   databaseCommand('create'); created = true;
   saveConfig(); [origin, parallel] = await Promise.all([startServer(), startServer()]); config.allowedOrigin = origin; saveConfig();
   execFileSync(php, [...flags, join(root, 'server/accounts/migrate.php'), configFile], { env, stdio: ['ignore', 'pipe', 'pipe'] });

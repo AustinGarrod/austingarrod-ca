@@ -213,7 +213,8 @@ function accounts_config(string $webroot, ?string $explicit = null): ?array
 function accounts_refresh_private_config(string $path): void
 {
     $active = filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN)
-        && (!in_array(PHP_SAPI, ['cli', 'cli-server'], true) || filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN));
+        // PHP's built-in HTTP server supports OPcache independently of enable_cli.
+        && (!in_array(PHP_SAPI, ['cli', 'phpdbg'], true) || filter_var(ini_get('opcache.enable_cli'), FILTER_VALIDATE_BOOLEAN));
     if (!$active) return;
     if (!function_exists('opcache_get_status') || !function_exists('opcache_invalidate') || !function_exists('opcache_is_script_cached')
         || !is_array(@opcache_get_status(false))) {
