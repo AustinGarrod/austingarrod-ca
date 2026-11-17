@@ -89,7 +89,13 @@ test('preview keeps hidden names and native account preferences out of the UI, s
   await page.goto('./ascension/')
   const submissions: string[] = []
   const origin = new URL(page.url()).origin
-  page.on('request', (request) => { const url = new URL(request.url()); if (request.method() !== 'GET' || url.origin !== origin || url.search) submissions.push(request.url()) })
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    // Session discovery carries no game-save data. Keep every mutation,
+    // external request and other query-bearing request under the privacy check.
+    if (request.method() === 'GET' && request.postData() === null && url.origin === origin && url.pathname === '/api/v1/auth.php' && url.search === '?action=session') return
+    if (request.method() !== 'GET' || url.origin !== origin || url.search) submissions.push(request.url())
+  })
   await openProgress(page)
   const dialog = await chooseSave(page, encodeGameSaveFixture(nativeSaveFixture({ epoch: '1', integers: { [hidden.id]: 1 }, strings: { 'Fixture account preference': 'fixture-account@example.invalid' } })))
   await expect(dialog).not.toContainText(hidden.title)
