@@ -72,19 +72,53 @@ async function send(mode, ca) {
   assert.equal(stderr, '', 'SMTP caller must not print error details');
   return JSON.parse(stdout);
 }
+function deliveredAlternatives(message) {
+  const separator = message.indexOf('\n\n');
+  assert.ok(separator >= 0, 'Delivered MIME must separate headers and body');
+  const headers = message.slice(0, separator).replace(/\n[ \t]+/g, ' ');
+  assert.match(headers, /Content-Type:\s*multipart\/alternative;/i);
+  const boundary = headers.match(/boundary="([^"\n]+)"/i)?.[1];
+  assert.ok(boundary, 'Delivered multipart MIME must declare its boundary');
+  const parts = message.slice(separator + 2).split(`--${boundary}`).slice(1).filter(part => !part.startsWith('--'));
+  assert.equal(parts.length, 2, 'Code email must deliver one plain and one HTML alternative');
+  return Object.fromEntries(parts.map(part => {
+    part = part.replace(/^\n/, '');
+    const split = part.indexOf('\n\n'); assert.ok(split >= 0, 'Each MIME alternative needs headers');
+    const head = part.slice(0, split).replace(/\n[ \t]+/g, ' '), type = head.match(/Content-Type:\s*([^;\s]+)/i)?.[1]?.toLowerCase();
+    const encoding = head.match(/Content-Transfer-Encoding:\s*(\S+)/i)?.[1]?.toLowerCase() || '7bit';
+    let body = part.slice(split + 2);
+    if (encoding === 'base64') body = Buffer.from(body.replace(/\s/g, ''), 'base64').toString('utf8');
+    else if (encoding === 'quoted-printable') body = Buffer.from(body.replace(/=\n/g, '').replace(/=([a-f0-9]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))), 'latin1').toString('utf8');
+    else assert.ok(['7bit', '8bit', 'binary'].includes(encoding), 'Unsupported MIME transfer encoding');
+    return [type, body.replace(/\r\n/g, '\n').replace(/\n+$/, '\n')];
+  }));
+}
 try {
   assert.deepEqual(await send('unmapped-baseline', certificates.trusted.certificate), { sent: false }, 'The former config spelling must fail against an implicit TLS server');
   assert.equal(messages.length, 0); assert.equal(successfulHandshakes, 0); assert.equal(commands.length, 0);
   assert.deepEqual(await send('production', certificates.trusted.certificate), { sent: true }, 'Production sender must negotiate trusted TLS and deliver a code');
   assert.equal(messages.length, 1); assert.equal(successfulHandshakes, 1);
   assert.ok(commands.includes('AUTH') && commands.includes('DATA') && commands.includes('QUIT'));
-  assert.ok(messages[0].includes('To: sink@example.test') && messages[0].includes('Your sign-in code is: 724691') && messages[0].includes('10 minutes'));
+  assert.ok(messages[0].includes('To: sink@example.test'));
+  const alternatives = deliveredAlternatives(messages[0]);
+  assert.deepEqual(Object.keys(alternatives).sort(), ['text/html', 'text/plain']);
+  const plain = 'Your sign-in code is: 024691\n\nIt expires in 10 minutes and can be used once.\nIf you did not request it, you can ignore this email.\n';
+  assert.ok(alternatives['text/plain'] === plain, 'Delivered plain alternative must preserve the original text and leading-zero code');
+  const html = alternatives['text/html'];
+  assert.ok(html.includes('024691') && html.includes('10 minutes') && html.includes('can be used once'), 'Delivered HTML must carry the same code and expiry');
+  assert.doesNotMatch(html, /<(?:img|script|iframe|object|embed|link|source|video|audio|form)\b|@import\b|\burl\s*\(/i, 'Code email must not fetch remote assets or tracking resources');
+  const urls = [...html.matchAll(/(?:href|src|action|background)\s*=\s*["']([^"']+)["']/gi)].map(match => match[1]);
+  assert.deepEqual(urls.sort(), ['https://austingarrod.ca/', 'https://austingarrod.ca/account/privacy/']);
+  assert.ok(urls.every(url => !url.includes('024691') && !new URL(url).search && !new URL(url).hash), 'Email URLs must contain no sign-in code or tracking parameters');
+  const beforeInvalid = { messages: messages.length, commands: commands.length, handshakes: successfulHandshakes };
+  assert.deepEqual(await send('invalid-code', certificates.trusted.certificate), { sent: false }, 'An invalid code must fail before SMTP transmission');
+  assert.equal(messages.length, beforeInvalid.messages); assert.equal(commands.length, beforeInvalid.commands); assert.equal(successfulHandshakes, beforeInvalid.handshakes);
   const before = { messages: messages.length, commands: commands.length };
   assert.deepEqual(await send('production', certificates.unrelated.certificate), { sent: false }, 'An untrusted server certificate must be rejected');
   assert.equal(messages.length, before.messages, 'A failed TLS verification must never transmit the code');
   assert.equal(commands.length, before.commands, 'A failed TLS verification must send neither credentials nor SMTP DATA');
   assert.ok(tlsFailures >= 1);
-  console.log('Accounts SMTP TLS: unmapped baseline rejected, authenticated trusted delivery passed, untrusted certificate rejected before credentials or code.');
+  console.log('Accounts SMTP TLS: trusted multipart HTML/plain delivery passed, leading-zero code preserved, no tracking assets or code URLs, invalid code and untrusted certificate rejected before transmission.');
 } finally {
   for (const socket of sockets) socket.destroy();
   await new Promise(resolve => server.close(resolve));

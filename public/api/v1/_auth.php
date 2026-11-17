@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require_once __DIR__.'/_common.php';
+require_once __DIR__.'/_email-template.php';
 function accounts_find_or_create(PDO $db, string $email): array
 {
     accounts_query($db, 'INSERT INTO accounts_users(id,email) VALUES(?,?) ON DUPLICATE KEY UPDATE email=email', [accounts_uuid(), $email]);
@@ -52,7 +53,10 @@ function accounts_send_code(array $config, string $webroot, string $email, strin
     $mail->setFrom((string)$smtp['from'], (string)($smtp['name'] ?? 'AustinGarrod.ca'));
     $mail->addAddress($email);
     $mail->Subject = 'Your AustinGarrod.ca sign-in code';
-    $mail->Body = "Your sign-in code is: $code\n\nIt expires in 10 minutes and can be used once.\nIf you did not request it, you can ignore this email.\n";
+    $message = accounts_code_email($code);
+    $mail->isHTML(true);
+    $mail->Body = $message['html'];
+    $mail->AltBody = $message['text'];
     $mail->send();
 }
 

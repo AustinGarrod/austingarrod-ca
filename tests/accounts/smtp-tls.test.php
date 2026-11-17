@@ -38,7 +38,9 @@ try {
         $mail->Body = 'Synthetic mapping baseline.';
         $mail->send();
     } elseif (($argv[2] ?? '') === 'production') {
-        accounts_send_code($fixture, $webroot, 'sink@example.test', '724691');
+        accounts_send_code($fixture, $webroot, 'sink@example.test', '024691');
+    } elseif (($argv[2] ?? '') === 'invalid-code') {
+        accounts_send_code($fixture, $webroot, 'sink@example.test', "024691\r\nBcc: invalid@example.test");
     } else {
         throw new RuntimeException('Invalid local SMTP test mode.');
     }
