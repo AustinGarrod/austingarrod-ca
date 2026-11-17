@@ -98,6 +98,7 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
   item.append(heading, note, actions); return item;
 }
 function render(value: AccountSession): void {
+  const firstRender = current === null;
   const previousId = current?.user?.id;
   const previousPendingEmail = current?.pendingGoogleEmail;
   const previousBootstrap = current?.requiresBootstrap === true;
@@ -132,7 +133,7 @@ function render(value: AccountSession): void {
   if (!value.enabled) message("Account syncing is not available yet. Your local saves are unchanged.");
   else if (value.requiresBootstrap) message("Your sign-in expired. Request a new email code or continue with Google to sign in again.");
   else if (verifyingGoogle) message("Verify your email address to finish connecting Google.");
-  else if (previousId !== value.user?.id) message(value.user ? "You’re signed in." : "Choose how to sign in.");
+  else if (firstRender || previousId !== value.user?.id) message(value.user ? "You’re signed in." : "Choose how to sign in.");
 }
 subscribeSession(render);
 element<HTMLFormElement>("account-email-form").addEventListener("submit", event => {

@@ -111,6 +111,7 @@ async function login(page, email, waitForCooldown = false) {
   }
   await page.goto(origin + '/account/');
   await expect(page.locator('#account-signed-out')).toBeVisible();
+  await expect(page.locator('#account-status')).toHaveText('Choose how to sign in.');
   await page.locator('#account-email').fill(email);
   const before = messages.length;
   await page.locator('#account-email-submit').click();
