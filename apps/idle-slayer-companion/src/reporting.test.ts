@@ -31,3 +31,10 @@ it('keeps portable backup contents out of errors, breadcrumbs and trace URLs', (
   expect(event.spans![0].data?.['http.url']).toBe('https://example.test/idle-slayer-companion/')
   expect(cleanReportingURL('data:text/plain,private')).toBe('[data: resource]')
 })
+
+it('excludes account request bodies, cookies, identity and authorization from diagnostics', () => {
+  const url = 'https://austingarrod.ca/api/v1/sync.php?action=write'
+  const event = cleanDiagnosticEvent({ user: { email: 'secret-user@example.test' }, request: { url, data: 'private-progress', cookies: { session: 'private-cookie' }, headers: { 'X-CSRF-Token': 'private-token', 'X-Account-ID': 'private-id' } }, extra: { nested: { email: 'private-email', requestBody: 'private-body' } }, breadcrumbs: [{ category: 'fetch', data: { url, body: 'private-payload' } }], spans: [{ trace_id: 'a'.repeat(32), span_id: 'b'.repeat(16), start_timestamp: 1, timestamp: 2, status: 'ok', data: { 'http.url': url, 'http.request.body': 'private-body' } }] })
+  expect(JSON.stringify(event)).not.toMatch(/private|secret-user/)
+  expect(event.breadcrumbs).toEqual([]); expect(event.spans).toEqual([])
+})

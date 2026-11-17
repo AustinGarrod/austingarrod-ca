@@ -44,6 +44,8 @@ test('old address forwards only reviewed public references and cleans arbitrary 
   await expect(page.locator('.details h2')).toHaveText(catalog.upgrades.find((node) => node.id === catalog.startId)!.title)
   expect(requests.filter((url) => new URL(url).pathname.startsWith(companion)).every((url) => !url.includes('synthetic-secret'))).toBe(true)
   expect(requests.some((url) => url.includes('analytics.garrod.house'))).toBe(false)
+  expect(requests.some((url) => new URL(url).pathname.startsWith('/api/v1/'))).toBe(false)
+  await expect(page.getByRole('button', { name: 'Account & sync', exact: true })).toHaveCount(0)
 })
 
 test('old private map transfer reaches the existing confirmation flow without applying', async ({ page }) => {

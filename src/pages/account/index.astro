@@ -1,0 +1,79 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { ArrowLeft, Download, LogOut, Mail, ShieldCheck } from "@lucide/astro";
+import "@styles/account.css";
+---
+
+<BaseLayout title="Your account | Austin Garrod" description="Sign in to sync your utility saves and manage recovery copies." noIndex privatePage>
+  <section class="page-hero">
+    <div class="container page-hero-inner">
+      <p class="eyebrow">One account · Your utilities</p>
+      <h1>Your saves, wherever you play.</h1>
+      <p>Sign in with an emailed code or Google to sync your utilities. You can keep using both tools without an account.</p>
+    </div>
+  </section>
+  <section class="container account-layout rr-block" data-analytics-private>
+    <div>
+      <p id="account-status" class="account-status" role="status" aria-live="polite">Checking account availability…</p>
+      <div id="account-unavailable" class="account-panel" hidden>
+        <h2>Local saves are still available</h2>
+        <p>Accounts are not available right now. You can continue using your utilities and their backup tools. No local data has been changed.</p>
+        <button type="button" class="button" id="account-retry">Try again</button>
+      </div>
+      <div id="account-signed-out" class="account-panel" hidden>
+        <h2 id="account-sign-in-heading">Sign in or create an account</h2>
+        <p id="account-google-verification" hidden>Verify this email address to finish connecting Google to your account.</p>
+        <form id="account-email-form">
+          <label for="account-email">Email address</label>
+          <input id="account-email" name="email" type="email" autocomplete="email" required maxlength="254" />
+          <button type="submit" class="button primary" id="account-email-submit"><Mail size={17} aria-hidden="true" />Email a sign-in code</button>
+        </form>
+        <form id="account-code-form" hidden>
+          <label for="account-code">Six-digit code</label>
+          <input id="account-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required aria-describedby="account-code-note" />
+          <p id="account-code-note" class="form-note">Enter the code from your email. It expires after ten minutes.</p>
+          <button type="submit" class="button primary" id="account-code-submit">Sign in</button>
+        </form>
+        <div class="account-divider" id="account-sign-in-divider"><span>or</span></div>
+        <button id="account-google" class="button" type="button">Continue with Google</button>
+        <p class="form-note">No password to remember. Signing in does not replace your existing saves; each utility will help you review them first.</p>
+      </div>
+      <div id="account-signed-in" class="account-panel" hidden>
+        <p class="eyebrow"><ShieldCheck size={16} aria-hidden="true" />Signed in</p>
+        <h2 id="account-identity"></h2>
+        <p>Open a utility to sync or review its existing saves. Each utility keeps its own progress and recovery copies.</p>
+        <div class="account-utility-links">
+          <a class="button primary" href="/utilities/pokedex-binder/">Pokédex Binder</a>
+          <a class="button" href="/utilities/idle-slayer-companion/">Idle Slayer Companion</a>
+        </div>
+        <p id="account-migration-paused" class="form-note" hidden>New save migrations are temporarily paused. Existing local saves remain available.</p>
+        <div class="account-actions">
+          <button id="account-link-google" class="button" type="button">Connect Google</button>
+          <button id="account-logout" class="button" type="button"><LogOut size={16} aria-hidden="true" />Sign out</button>
+          <button id="account-logout-all" class="button" type="button">Sign out everywhere</button>
+        </div>
+        <p class="form-note">Signing out keeps your device’s saved data. Pending changes stay associated with this account.</p>
+      </div>
+      <section id="account-recovery" class="account-panel" hidden aria-labelledby="account-recovery-heading">
+        <div class="account-recovery-heading">
+          <h2 id="account-recovery-heading">Recovery copies</h2>
+          <button id="account-recovery-refresh" class="button compact" type="button">Refresh</button>
+        </div>
+        <p>Migration and conflict copies stay here until you delete them. Restoring a copy also preserves the version it replaces.</p>
+        <p id="account-recovery-status" role="status" aria-live="polite"></p>
+        <ul id="account-recovery-list" class="account-recovery-list"></ul>
+      </section>
+      <a id="account-return" class="text-link account-return" href="/utilities/"><ArrowLeft size={17} aria-hidden="true" />Back to utilities</a>
+    </div>
+    <aside class="account-aside">
+      <h2>Keep a copy</h2>
+      <p>Your utilities’ existing JSON backup and transfer tools remain available. A downloaded backup is useful before moving devices or clearing browser storage.</p>
+      <p>Signing into an account cannot find saves in another browser. Open that browser and sign in there, or import its exported backup.</p>
+      <p><a href="/account/privacy/">How account data is used</a></p>
+      <p><Download size={17} aria-hidden="true" />Your data stays separate from other accounts on this device.</p>
+    </aside>
+  </section>
+  <script>
+    import "../../utilities/accounts/account-page";
+  </script>
+</BaseLayout>

@@ -1,6 +1,7 @@
 import { GOALS_STORAGE_KEY, parseGoals, type GoalMode } from './goals'
 import { COMPANION_SYSTEMS, type CompanionEntityRef } from './companion-types'
 import type { ProfileLocks } from './profile-session'
+import type { DocumentStorage } from '../account-repository'
 
 export const COMPANION_WORKSPACE_KEY = 'idle-slayer-companion.workspace.v1'
 export const COMPANION_WORKSPACE_WRITE_LOCK = `${COMPANION_WORKSPACE_KEY}.write`
@@ -42,7 +43,7 @@ function stored(workspace: CompanionWorkspace, legacyBaseline: string | null) {
 }
 
 /** Separate intentions document, with exact saved baselines and explicit recovery drafts. */
-export function createCompanionWorkspaceSession(options: { storage: () => Pick<Storage, 'getItem' | 'setItem'>; locks: () => ProfileLocks | undefined }) {
+export function createCompanionWorkspaceSession(options: { storage: () => DocumentStorage; locks: () => ProfileLocks | undefined }) {
   let adopted = false, operation = 0, baseline: Pair | undefined, persisted: CompanionWorkspace | undefined
   let state: CompanionWorkspaceState = { workspace: emptyCompanionWorkspace(), raw: null, legacy: null, loaded: false, pending: false, dirty: false, readable: false, conflict: false, error: '', version: 0 }
   const listeners = new Set<(state: CompanionWorkspaceState) => void>(), reviews = new WeakSet<CompanionWorkspaceReview>()
@@ -107,12 +108,13 @@ export function createCompanionWorkspaceSession(options: { storage: () => Pick<S
     try {
       const locks = options.locks()
       if (!locks) throw new Error()
-      return await locks.request(COMPANION_WORKSPACE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+      return await locks.request(COMPANION_WORKSPACE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
         if (ticket !== operation || state.version !== version) return false
         if (!lock) throw new Error()
         const current = read()
         if (current.kind === 'unavailable' || !same(current, expected)) { observe(current); return false }
-        options.storage().setItem(COMPANION_WORKSPACE_KEY, raw)
+        await options.storage().setItem(COMPANION_WORKSPACE_KEY, raw)
+        if (ticket !== operation || state.version !== version) return false
         adopted = true; baseline = { raw, legacy: expected.legacy }; persisted = workspace
         publish({ raw, legacy: expected.legacy, readable: true, conflict: false, error: '' }); return true
       })

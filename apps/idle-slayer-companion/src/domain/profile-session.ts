@@ -1,12 +1,9 @@
 import { emptyProfile, type Profile } from './types'
 import { exportProfileBackup, parseProfileBackup, PROFILE_STORAGE_KEY, type ProfileErrorKind } from './storage'
 import type { HistoryAction } from './profile-history'
+import type { DocumentStorage } from '../account-repository'
 
 export const PROFILE_WRITE_LOCK = `${PROFILE_STORAGE_KEY}.write`
-interface Storage {
-  getItem(key: string): string | null
-  setItem(key: string, value: string): void
-}
 export interface ProfileLocks {
   request<T>(name: string, options: { mode: 'exclusive'; ifAvailable: true }, callback: (lock: unknown | null) => T): Promise<T>
 }
@@ -32,7 +29,7 @@ export interface ProfileSessionState {
 }
 
 /** Supported device-persistence boundary: coordinates all profile reads and writes without changing portable v1. */
-export function createProfileSession(options: { revision: string; storage: () => Storage; locks: () => ProfileLocks | undefined }) {
+export function createProfileSession(options: { revision: string; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined }) {
   let baseline: string | null | undefined
   let persisted: Profile | undefined
   let initialized = false
@@ -111,15 +108,16 @@ export function createProfileSession(options: { revision: string; storage: () =>
     state = { ...state, pending: true }
     emit()
     try {
-      return await locks.request(PROFILE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+      return await locks.request(PROFILE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
         if (ticket !== operation || version !== state.version) return false
         if (!lock) { error('Another tab is saving progress. Current progress remains available in this session; retry saving or export a backup.', 'unavailable'); return false }
         const current = read()
         if (current.kind === 'unavailable' || current.text !== expected) { observe(current); return false }
-        try { options.storage().setItem(PROFILE_STORAGE_KEY, backup.text) } catch {
+        try { await options.storage().setItem(PROFILE_STORAGE_KEY, backup.text) } catch {
           error('Progress could not be saved on this device. Current progress remains available in this session; export a backup to keep it.', 'storage-write')
           return false
         }
+        if (ticket !== operation || version !== state.version) return false
         baseline = backup.text
         persisted = profile
         state = { ...state, conflict: null, writable: true, error: '', errorKind: undefined }

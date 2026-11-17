@@ -17,6 +17,9 @@ export interface BinderControllerOptions extends BinderStoreOptions {
   fetch?: typeof globalThis.fetch;
   store?: BinderStore;
   autoSync?: boolean;
+  /** Account adapters reuse the durable outbox without transmitting a bearer key. */
+  transport?: (method: string, body: unknown, clientId: string) => Promise<RemoteBinder | null>;
+  canSync?: () => boolean;
 }
 
 export function generateSyncKey(): string {
@@ -40,7 +43,7 @@ export function createBinderController(options: BinderControllerOptions) {
   const endpoint = options.endpoint ?? "/utilities/pokedex-binder/api/binder.php";
   const send = options.fetch ?? globalThis.fetch.bind(globalThis);
   const listeners = new Set<(snapshot: BinderSnapshot) => void>();
-  let busy = false, started = false, stopped = false;
+  let busy = false, started = false, stopped = false, retired = false;
   let error: string | null = null;
   let serial: Promise<void> = Promise.resolve();
   let interval: ReturnType<typeof setInterval> | undefined;
@@ -51,7 +54,7 @@ export function createBinderController(options: BinderControllerOptions) {
     const doc = store.read(), session = doc.session;
     const status: BinderStatus = !started ? "loading" : doc.layoutConflict ? "conflict" : error ? "error" : busy ? "syncing"
       : !session ? "local" : session.creating || session.inFlight || !sameState(doc.state, session.baseline) ? "pending" : "synced";
-    return { state: cloneState(doc.state), status, error, storageWarning: store.warning, connected: !!session, key: session?.key ?? null,
+    return { state: cloneState(doc.state), status, error, storageWarning: store.warning, connected: !!session && !retired, key: session?.key ?? null,
       layoutConflict: doc.layoutConflict ? structuredClone(doc.layoutConflict) : null };
   }
   function emit(): void { const value = snapshot(); listeners.forEach(listener => listener(value)); }
@@ -87,6 +90,21 @@ export function createBinderController(options: BinderControllerOptions) {
   }
   async function request(method: string, key: string, body?: unknown): Promise<RemoteBinder | null> {
     const clientId = store.read().clientId;
+    if (stopped || options.canSync?.() === false) throw new SyncError("Sync is paused. Your local binder is safe.", "sync_paused", 0);
+    if (options.transport) {
+      try {
+        const result = await options.transport(method, body, clientId);
+        if (stopped || options.canSync?.() === false) throw new SyncError("Sync is paused. Your local binder is safe.", "sync_paused", 0);
+        return result === null ? null : parseRemote(result);
+      } catch (cause) {
+        if (cause instanceof SyncError) throw cause;
+        if (cause instanceof Error && "code" in cause && "status" in cause) {
+          const remote = "remote" in cause && cause.remote ? parseRemote(cause.remote) : undefined;
+          throw new SyncError(cause.message, String(cause.code), Number(cause.status), remote);
+        }
+        throw cause;
+      }
+    }
     let response: Response;
     let raw: unknown;
     const abort = new AbortController(), timeout = setTimeout(() => abort.abort(), 15000);
@@ -102,7 +120,7 @@ export function createBinderController(options: BinderControllerOptions) {
     } finally { clearTimeout(timeout); }
     if (!response.ok) {
       const code = record(raw) && record(raw.error) && typeof raw.error.code === "string" ? raw.error.code : "unavailable";
-      const message = code === "binder_revoked" ? "This synced binder was deleted. Your local collection is kept here; create a new sync key to start again."
+      const message = code === "binder_revoked" ? "This key was retired or deleted. Your local collection is kept here. Sign in to review and sync it with your account, or export a backup."
         : response.status === 401 || response.status === 404 ? "This sync key was not found or is no longer valid. Your local binder is safe."
         : response.status === 429 ? "Sync is temporarily rate limited. Your local changes are safe; try again shortly."
         : code === "sequence_gap" ? "This device's sync history needs refreshing. Disconnect and reconnect with your key after exporting a backup."
@@ -111,6 +129,7 @@ export function createBinderController(options: BinderControllerOptions) {
       throw new SyncError(message, code, response.status, code === "revision_conflict" ? parseRemote(raw) : undefined);
     }
     if (method === "DELETE") return null;
+    if (stopped || options.canSync?.() === false) throw new SyncError("Sync is paused. Your local binder is safe.", "sync_paused", 0);
     return parseRemote(raw);
   }
 
@@ -131,7 +150,7 @@ export function createBinderController(options: BinderControllerOptions) {
   async function runSync(): Promise<void> {
     try { await store.refresh(); }
     catch { error = "The saved binder could not be read. Export this page's collection before refreshing."; emit(); return; }
-    if (!store.read().session || store.read().layoutConflict || stopped) return;
+    if (!store.read().session || store.read().layoutConflict || stopped || retired || options.canSync?.() === false) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) { error = null; emit(); return; }
     busy = true; error = null; emit();
     let attemptedKey: string | null = null;
@@ -139,7 +158,7 @@ export function createBinderController(options: BinderControllerOptions) {
       for (let attempt = 0; attempt < 8; attempt++) {
         let doc = store.read();
         const session = doc.session;
-        if (!session || doc.layoutConflict) break;
+        if (!session || doc.layoutConflict || stopped || options.canSync?.() === false) break;
         const key = session.key;
         attemptedKey = key;
         if (session.creating) {
@@ -169,14 +188,15 @@ export function createBinderController(options: BinderControllerOptions) {
           await store.update(current => {
             if (current.session?.key !== key || current.session.inFlight || current.layoutConflict || sameState(current.state, current.session.baseline)) return current;
             current.session.inFlight = { sequence: current.session.nextSequence, baseRevision: current.session.revision,
-              baseline: cloneState(current.session.baseline), state: cloneState(current.state) };
+              baseline: cloneState(current.session.baseline), state: cloneState(current.state), operationId: crypto.randomUUID() };
             return current;
           });
         }
         const flight = store.read().session?.inFlight;
         if (!flight) continue;
         try {
-          const remote = (await request("PATCH", key, { clientId: doc.clientId, mutationSequence: flight.sequence, baseRevision: flight.baseRevision, state: flight.state }))!;
+          const remote = (await request("PATCH", key, { clientId: doc.clientId, mutationSequence: flight.sequence, baseRevision: flight.baseRevision, state: flight.state,
+            ...(options.transport ? { operationId: flight.operationId } : {}) }))!;
           if (remote.acknowledgedSequence < flight.sequence) throw new SyncError("Sync did not acknowledge this change. Your local binder is safe; retry shortly.", "invalid_ack", 0);
           await store.update(current => {
             if (current.session?.key !== key || current.session.inFlight?.sequence !== flight.sequence || remote.revision < current.session.revision) return current;
@@ -200,9 +220,9 @@ export function createBinderController(options: BinderControllerOptions) {
     } catch (cause) {
       if (store.read().session?.key !== attemptedKey) error = null;
       else {
-        if (cause instanceof SyncError && cause.code === "binder_revoked") {
-          await store.update(doc => { if (doc.session?.key === attemptedKey) { doc.session = null; doc.layoutConflict = null; } return doc; });
-        }
+        // Retain the original baseline, identity and frozen outbox after revocation.
+        // A migrated account can still reconcile unsent work from this device.
+        if (cause instanceof SyncError && cause.code === "binder_revoked") retired = true;
         error = cause instanceof SyncError ? cause.message : "Sync could not finish. Your local binder is safe; export a backup and retry.";
       }
     }
@@ -220,6 +240,7 @@ export function createBinderController(options: BinderControllerOptions) {
   async function setSettings(settings: BinderSettings): Promise<void> { const validated = validateSettings(settings); await edit(state => ({ ...state, settings: validated })); }
   async function replaceState(state: BinderState): Promise<void> { const validated = validateState(state, options.species); await edit(() => validated); }
   async function createSync(): Promise<string> {
+    if (retired) throw new Error("This key was retired. Sign in to recover this device's collection; its original sync history has been preserved.");
     const key = await serialized(async () => {
       await store.refresh();
       if (store.read().session) return store.read().session!.key;

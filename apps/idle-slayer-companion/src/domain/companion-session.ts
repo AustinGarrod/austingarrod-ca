@@ -7,6 +7,7 @@ import { parseProfileBackup, PROFILE_STORAGE_KEY, type ProfileErrorKind } from '
 import type { Catalog, Profile } from './types'
 import { planCompanionUltraAscension } from './companion-reset'
 import { certifyCompanionReset, copyCompanionResetProof } from './companion-reset-proof'
+import type { DocumentStorage } from '../account-repository'
 
 type Baseline = { companionText: string | null; legacyText: string | null }
 export type CompanionStoredSnapshot =
@@ -20,7 +21,7 @@ export interface CompanionSessionState extends Omit<ProfileSessionState, 'histor
   redoHistory: CompanionHistoryEntry[]
   conflict: CompanionStoredSnapshot | null
 }
-type StorageAccess = Pick<Storage, 'getItem' | 'setItem'>
+type StorageAccess = DocumentStorage
 const sameBaseline = (first: Baseline, second: Baseline) => first.companionText === second.companionText && first.legacyText === second.legacyText
 
 /** One coordinated envelope, one bounded history, and a read-only legacy migration boundary. */
@@ -127,14 +128,15 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
     state = { ...state, pending: true }; emit()
     try {
       // Share the original lock so a cooperating legacy tab cannot race the first migration write.
-      return await locks.request(PROFILE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+      return await locks.request(PROFILE_WRITE_LOCK, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
         if (ticket !== operation || version !== state.version) return false
         if (!lock) { error('Another tab is saving progress. Retry saving or export a Companion backup.', 'unavailable'); return false }
         const current = read()
         if (current.kind === 'unavailable' || !sameBaseline(current, expected)) { observe(current); return false }
-        try { options.storage().setItem(COMPANION_STORAGE_KEY, backup.value) } catch (cause) { failure(cause, 'storage.write')
+        try { await options.storage().setItem(COMPANION_STORAGE_KEY, backup.value) } catch (cause) { failure(cause, 'storage.write')
           error('Companion progress could not be saved on this device. Current progress remains available in this session; export a backup to keep it.', 'storage-write'); return false
         }
+        if (ticket !== operation || version !== state.version) return false
         adoptedCompanion = true
         baseline = { companionText: backup.value, legacyText: expected.legacyText }; persisted = progress
         state = { ...state, conflict: null, writable: true, error: '', errorKind: undefined }; emit(); return true

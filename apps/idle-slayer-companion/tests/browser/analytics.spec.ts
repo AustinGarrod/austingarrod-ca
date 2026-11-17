@@ -123,6 +123,31 @@ test('saved comparison contents stay blocked in real recorder snapshots and muta
   expect(capture.unexpected).toEqual([])
 })
 
+test('account controls stay private in real recorder snapshots while functional session discovery is allowed', async ({ page, context, baseURL }) => {
+  const origin = new URL(baseURL!).origin
+  let releaseRecorder!: () => void
+  const recorderReady = new Promise<void>((resolve) => { releaseRecorder = resolve })
+  const capture = await installLocalRoutes(context, origin, { recorderReady })
+  await serveIsolatedApplication(context, origin)
+  await page.goto(`${origin}${appFixturePath}`)
+  await page.getByRole('button', { name: /^Account & sync/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
+  await expect(dialog).toBeVisible()
+  const privateMarker = 'PRIVATE_ACCOUNT_EMAIL_CODE_AND_SAVE_487206'
+  const publicMarker = 'PUBLIC_ACCOUNT_RECORDING_PROOF_487206'
+  await dialog.locator('.companion-account-panel').evaluate((node, marker) => {
+    const text = document.createElement('p'); text.textContent = marker; node.appendChild(text)
+  }, privateMarker)
+  await page.evaluate((marker) => {
+    const node = document.createElement('p'); node.id = 'account-public-proof'; node.textContent = marker; document.body.appendChild(node)
+  }, publicMarker)
+  await waitForActive(page); releaseRecorder()
+  const events = await waitForReplayEvents(capture, (values) => values.some((event) => event.type === 2 && JSON.stringify(event).includes(publicMarker)))
+  expect(JSON.stringify({ submissions: capture.submissions, replay: events })).not.toContain(privateMarker)
+  expect(blockedReplayNodes(events).some((node) => node.attributes.class.includes('companion-account') && !node.childNodes?.length)).toBe(true)
+  expect(capture.unexpected).toEqual([])
+})
+
 function applicationAssets() {
   applicationPromise ??= (async () => {
     const adapter = resolve('tests/fixtures/analytics-app-adapter.ts')
@@ -272,6 +297,12 @@ async function installLocalRoutes(context: BrowserContext, origin: string, optio
       if (request.method() !== 'POST') { capture.unexpected.push(request.url()); await route.abort(); return }
       capture.submissions.push(parseSubmission(request))
       await route.fulfill({ json: { cache: 'synthetic-local-session-cache' } })
+      return
+    }
+    // This functional, bodyless same-origin request is separate from telemetry.
+    // Every other account/API request remains unexpected in analytics fixtures.
+    if (url.pathname === '/api/v1/auth.php' && url.search === '?action=session' && request.method() === 'GET' && request.postData() === null) {
+      await route.fulfill({ json: { enabled: false, migrationEnabled: false, user: null, csrfToken: '' }, headers: { 'Cache-Control': 'no-store' } })
       return
     }
     if (url.pathname.startsWith('/api/')) { capture.unexpected.push(request.url()); await route.abort(); return }

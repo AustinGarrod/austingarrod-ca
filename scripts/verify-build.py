@@ -90,7 +90,7 @@ utilities = data["utilities"]
 public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
-unlisted_routes = ["/utilities/screen-cut-calculator/"]
+unlisted_routes = ["/utilities/screen-cut-calculator/", "/account/", "/account/privacy/"]
 routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
@@ -125,17 +125,22 @@ for route in routes:
     if canonical_match:
         check(canonical_match.group(1) == expected_canonical, f"{route} has the wrong canonical URL")
     check(len(ids) == len(set(ids)), f"{route} contains duplicate ids")
-    check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
+    if route.startswith("/account/"):
+        check(ANALYTICS_SCRIPT not in markup and ANALYTICS_RECORDER not in markup, "Account pages must not load analytics or recordings")
+        check('name="robots" content="noindex"' in markup, "Account pages must not be indexed")
+        check('data-analytics-private' in markup and 'rr-block' in markup, "Account views must be private")
+    else:
+        check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
     check(
-        'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
+        route.startswith("/account/") or 'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
         f"{route} must restrict Umami to production domains",
     )
-    check('data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
-    check('data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
-    check(markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
-    check('data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
-    check('getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
-    check('data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
+    check(route.startswith("/account/") or 'data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
+    check(route.startswith("/account/") or 'data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
+    check(route.startswith("/account/") or markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
+    check(route.startswith("/account/") or 'data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
+    check(route.startswith("/account/") or 'getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
+    check(route.startswith("/account/") or 'data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
     check(json_ld_match is not None, f"{route} is missing JSON-LD")
     if json_ld_match:
         try:

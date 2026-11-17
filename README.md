@@ -58,6 +58,8 @@ npm run generate:assets
 
 ## Utilities
 
+Optional accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Binder, Idle Slayer Companion, and future registered utilities. Account synchronization is hosted entirely on HostPapa PHP/MySQL; both utilities retain guest saves and their existing backup tools. First connection reviews and preserves browser/account copies before activation. Binder keys retire individually only after a successful atomic account migration. Account data, recovery, rollout gates and local end-to-end checks are documented in [server/accounts/README.md](server/accounts/README.md). Missing configuration keeps accounts disabled and existing guest utilities usable.
+
 `/utilities/` is the catalog for focused browser tools, including practical utilities and game planning. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
 
 Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.

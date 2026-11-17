@@ -1,0 +1,35 @@
+.account-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 48px; padding-bottom: 80px; }
+.account-layout [hidden] { display: none !important; }
+.account-panel { border: 1px solid var(--outline-variant, #c6c6cd); padding: 28px; margin-bottom: 24px; background: #fff; }
+.account-panel h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
+.account-panel p { margin-top: 12px; }
+.account-panel form { display: grid; gap: 12px; margin-top: 24px; }
+.account-panel label { font-family: "JetBrains Mono", monospace; font-size: 0.8rem; }
+.account-panel input { min-width: 0; width: 100%; min-height: 48px; border: 1px solid #76777d; padding: 12px; background: #fff; color: #0b1c30; border-radius: 0; font: inherit; }
+.account-panel input:focus-visible { outline: 2px solid #006a61; outline-offset: 2px; }
+.account-panel button { border-radius: 0; }
+.account-panel .button { justify-content: center; min-height: 44px; }
+.account-panel .button:not(.primary):not(.compact) { background: #fff; color: #0b1c30; border-color: #76777d; }
+.account-panel .button.compact { width: auto; padding: 11px 16px; white-space: nowrap; }
+.account-panel button:disabled { opacity: 0.6; cursor: wait; }
+.account-panel .eyebrow { display: flex; align-items: center; gap: 8px; }
+.account-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: #45464d; font-size: 0.85rem; }
+.account-divider::before, .account-divider::after { content: ""; flex: 1; border-top: 1px solid #c6c6cd; }
+.account-actions, .account-utility-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.account-status { min-height: 1.6em; margin-bottom: 20px; }
+.account-error { color: #ba1a1a; }
+.account-aside { padding-top: 16px; }
+.account-aside h2 { font-size: 1.2rem; }
+.account-aside p { margin-top: 16px; }
+.account-aside svg { display: inline; vertical-align: middle; margin-right: 6px; }
+.account-recovery-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+.account-recovery-list { padding: 0; margin: 20px 0 0; list-style: none; }
+.account-recovery-list li { border-top: 1px solid #c6c6cd; padding: 20px 0; overflow-wrap: anywhere; }
+.account-recovery-list h3 { font-size: 1rem; }
+.account-recovery-list p { font-size: 0.85rem; }
+.account-return { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
+@media (max-width: 767px) {
+  .account-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .account-panel { padding: 20px; }
+  .account-panel .account-actions .button, .account-panel .account-utility-links .button { width: 100%; }
+}

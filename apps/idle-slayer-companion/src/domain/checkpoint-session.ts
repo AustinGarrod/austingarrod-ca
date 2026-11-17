@@ -1,5 +1,6 @@
 import type { ProfileLocks } from './profile-session'
 import type { Profile } from './types'
+import type { DocumentStorage } from '../account-repository'
 import { CHECKPOINT_STORAGE_KEY, checkpointName, emptyCheckpoints, exportCheckpoints, MAX_CHECKPOINTS, parseCheckpoints, type CheckpointVault } from './checkpoints'
 
 type Snapshot = { text: string | null; vault: CheckpointVault | null } | null
@@ -9,7 +10,7 @@ export interface CheckpointState {
 }
 
 /** Reducer commands always start from the current adopted document, never a render's full-list copy. */
-export function createCheckpointSession(options: { revision: string; storage: () => Pick<Storage, 'getItem' | 'setItem'>; locks: () => ProfileLocks | undefined; id: () => string }) {
+export function createCheckpointSession(options: { revision: string; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined; id: () => string }) {
   let state: CheckpointState = { vault: emptyCheckpoints(), savedVault: null, version: 0, loaded: false, pending: false, dirty: false, saved: false, conflict: false, error: '' }
   let baseline: Snapshot = null, observed: Snapshot = null, generation = 0
   const listeners = new Set<(state: CheckpointState) => void>()
@@ -35,12 +36,13 @@ export function createCheckpointSession(options: { revision: string; storage: ()
     try {
       const locks = options.locks()
       if (!locks) throw new Error('coordination')
-      return await locks.request(`${CHECKPOINT_STORAGE_KEY}.write`, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+      return await locks.request(`${CHECKPOINT_STORAGE_KEY}.write`, { mode: 'exclusive', ifAvailable: true }, async (lock) => {
         if (token !== generation) return false
         if (!lock) throw new Error('busy')
         const snapshot = read()
         if (!snapshot || snapshot.text !== accepted.text) { external(snapshot); return false }
-        options.storage().setItem(CHECKPOINT_STORAGE_KEY, text)
+        await options.storage().setItem(CHECKPOINT_STORAGE_KEY, text)
+        if (token !== generation) return false
         baseline = observed = { text, vault: state.vault }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '' })
         return true

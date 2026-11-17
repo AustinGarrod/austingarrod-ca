@@ -27,10 +27,11 @@ export interface CompanionShellProps {
   onInstall?: () => void
   status?: ReactNode
   notice?: ReactNode
+  accountControls?: ReactNode
 }
 
 /** Navigation owns no player data. Keeping the map mounted preserves its visit-only state. */
-export function CompanionShell({ section, onNavigate, children, ascension, onImport, onBackup, onSettings, onHelp, onInstall, status, notice }: CompanionShellProps) {
+export function CompanionShell({ section, onNavigate, children, ascension, onImport, onBackup, onSettings, onHelp, onInstall, status, notice, accountControls }: CompanionShellProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobile, setMobile] = useState(() => matchMedia('(max-width: 900px)').matches)
@@ -96,6 +97,7 @@ export function CompanionShell({ section, onNavigate, children, ascension, onImp
       </button>
       <span className="companion-unofficial">Unofficial</span>
       <div className="companion-global-actions">
+        {accountControls}
         <button type="button" className="companion-import" onClick={onImport}><span aria-hidden="true">↥</span> Import save</button>
         <button type="button" onClick={onBackup}><span aria-hidden="true">⇄</span> <span className="companion-backup-label">Backup & transfer</span><span className="companion-backup-short">Backup</span></button>
       </div>

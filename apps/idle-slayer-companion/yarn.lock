@@ -751,6 +751,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fake-indexeddb@npm:6.2.8":
+  version: 6.2.8
+  resolution: "fake-indexeddb@npm:6.2.8"
+  checksum: 10c0/69a85018a3a714e81ae88d9294ab54ed73f83a23dd28b926d41dabf892a939dd029207e8f2dca1238ed5ebde75f1971a7a8ab14f773d5fad396923e117b6e8fe
+  languageName: node
+  linkType: hard
+
 "fdir@npm:^6.5.0":
   version: 6.5.0
   resolution: "fdir@npm:6.5.0"
@@ -813,6 +820,7 @@ __metadata:
     "@types/react-dom": "npm:19.2.7"
     "@vitejs/plugin-react": "npm:6.1.1"
     "@xyflow/react": "npm:12.12.0"
+    fake-indexeddb: "npm:6.2.8"
     qrcode-generator: "patch:qrcode-generator@npm%3A2.0.4#~/.yarn/patches/qrcode-generator-npm-2.0.4-763b3d6a6b.patch"
     react: "npm:19.2.8"
     react-dom: "npm:19.2.8"

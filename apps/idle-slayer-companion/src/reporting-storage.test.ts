@@ -20,4 +20,34 @@ describe('diagnostic browser storage adapter', () => {
     expect(() => storage.getItem('key')).toThrow(cause)
     expect(reportFailure).toHaveBeenLastCalledWith(cause, 'storage.read', { document: 'intentions' })
   })
+  it('waits for an asynchronous write and rethrows the original rejection without recording stored text', async () => {
+    const cause = new DOMException('Synthetic IDB abort', 'AbortError')
+    let reject!: (error: unknown) => void
+    const native = { getItem: () => 'old private data', setItem: () => new Promise<void>((_resolve, fail) => { reject = fail }) }
+    const storage = diagnosticStorage('progress', () => native)()
+    vi.mocked(reportFailure).mockClear()
+    let settled = false
+    const write = Promise.resolve(storage.setItem('key', 'private snapshot')).finally(() => { settled = true })
+    const assertion = expect(write).rejects.toBe(cause)
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(reportFailure).not.toHaveBeenCalled()
+    reject(cause)
+    await assertion
+    expect(settled).toBe(true)
+    expect(reportFailure).toHaveBeenCalledExactlyOnceWith(cause, 'storage.write', { document: 'progress', bytes: 16 })
+  })
+  it('keeps a successful asynchronous write pending until its durable promise resolves', async () => {
+    let commit!: () => void
+    const native = { getItem: () => null, setItem: () => new Promise<void>(resolve => { commit = resolve }) }
+    const storage = diagnosticStorage('comparison', () => native)()
+    vi.mocked(reportFailure).mockClear()
+    let settled = false
+    const write = Promise.resolve(storage.setItem('key', 'private reference')).then(() => { settled = true })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    commit(); await write
+    expect(settled).toBe(true)
+    expect(reportFailure).not.toHaveBeenCalled()
+  })
 })
