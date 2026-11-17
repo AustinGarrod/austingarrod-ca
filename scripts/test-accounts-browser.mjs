@@ -209,7 +209,11 @@ try {
   });
   const mobile = await makeContext('mobile', { width: 390, height: 844 }); const phone = await mobile.newPage(); let mobileOriginals;
   await scenario('separate mobile browser logs into the same account', async () => {
-    await openBinder(phone); await phone.locator('#owned-grid-3').check(); await openSlayer(phone); mobileOriginals = await originals(phone);
+    await openBinder(phone); await phone.locator('#owned-grid-3').check();
+    // The fixture must be durably saved before leaving the page, just as the
+    // desktop seed above waits for the post-transaction collection count.
+    await expect(phone.locator('#owned-count')).toHaveText('1');
+    await openSlayer(phone); mobileOriginals = await originals(phone);
     await login(phone, email, true); assert.equal((await session(mobile)).user.id, accountId);
     await phone.evaluate(() => window.scrollTo(0, 0));
     await phone.screenshot({ path: join(output, 'mobile-account.png'), fullPage: true });
