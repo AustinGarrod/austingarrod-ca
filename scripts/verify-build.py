@@ -6,6 +6,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from zipfile import ZipFile
 
 from PIL import Image
 from pypdf import PdfReader
@@ -90,7 +91,7 @@ utilities = data["utilities"]
 public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
-unlisted_routes = ["/utilities/screen-cut-calculator/", "/account/", "/account/privacy/"]
+unlisted_routes = ["/utilities/screen-cut-calculator/", "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
@@ -226,7 +227,12 @@ untracked_download_links = re.findall(
     combined_html,
 )
 check(not untracked_external_links, "Built HTML contains untracked external links")
-check(not untracked_download_links, "Built HTML contains untracked file downloads")
+expected_private_downloads = {
+    f'/account/assistant-skills/{name}.zip' for name in ("pokedex-binder", "idle-slayer-companion")
+}
+for link in untracked_download_links:
+    href = re.search(r'\bhref="([^"]+)"', link)
+    check(bool(href and href.group(1) in expected_private_downloads), "Built HTML contains untracked file downloads")
 
 for required_event in [
     "contact-form-",
@@ -576,6 +582,28 @@ if resume_path.is_file():
         "Freelance; concurrent with teaching from May 2018" in resume_text,
         "Resume PDF must clarify the verified freelance and teaching overlap",
     )
+
+for required in [
+    "api/v1/mcp.php",
+    "api/v1/_mcp-data/.htaccess",
+    "api/v1/_mcp-data/companion-reset-rules.json",
+    "api/v1/_mcp-data/wiki-priorities.json",
+    "api/v1/_mcp-vendor/.htaccess",
+    "api/v1/_mcp-vendor/autoload.php",
+    "account/assistant-skills/pokedex-binder.zip",
+    "account/assistant-skills/idle-slayer-companion.zip",
+]:
+    check((DIST / required).is_file(), f"Missing utility MCP release file {required}")
+
+for name in ("pokedex-binder", "idle-slayer-companion"):
+    bundle = DIST / "account" / "assistant-skills" / f"{name}.zip"
+    if bundle.is_file():
+        with ZipFile(bundle) as zip_skill:
+            entry = f"{name}/SKILL.md"
+            check(zip_skill.namelist() == [entry], f"Unexpected files in skill ZIP {name}")
+            source = ROOT / "plugins" / name / "skills" / entry
+            check(entry in zip_skill.namelist() and zip_skill.read(entry) == source.read_bytes(),
+                  f"Skill ZIP {name} differs from its plugin source")
 
 for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess"]:
     check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")

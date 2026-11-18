@@ -4,6 +4,11 @@
 return [
     'enabled' => false,
     'migrationEnabled' => false,
+    // On HostPapa, an optional sibling utility-mcp.json overrides these flags.
+    'mcp' => [
+        'pokedex-binder' => ['enabled' => false, 'previewAccounts' => []],
+        'idle-slayer-companion' => ['enabled' => false, 'previewAccounts' => []],
+    ],
     // Temporary operator-only live checks; exact REMOTE_ADDR IP literals only.
     // Clear these addresses and disable preview after the public rollout.
     'preview' => ['enabled' => false, 'migrationEnabled' => false, 'addresses' => []],

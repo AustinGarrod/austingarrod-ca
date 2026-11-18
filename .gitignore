@@ -10,6 +10,7 @@ coverage/
 .ds-sync/
 ds-bundle/
 public/reporting/vendor/
+public/api/v1/_mcp-vendor/
 public/reporting/build.php
 src/reporting/build.json
 public/utilities/pokedex-binder/scanner-assets/

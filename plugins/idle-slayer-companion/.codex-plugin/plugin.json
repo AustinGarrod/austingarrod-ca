@@ -1,0 +1,15 @@
+{
+  "name": "idle-slayer-companion",
+  "version": "1.0.0",
+  "description": "Look up Idle Slayer entries, advise from synced Companion progress, and review or update that progress.",
+  "author": {
+    "name": "Austin Garrod"
+  },
+  "homepage": "https://austingarrod.ca/account/assistants/",
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Idle Slayer Companion",
+    "shortDescription": "Look up Idle Slayer entries, advise from synced Companion progress, and review or update that progress."
+  }
+}

@@ -1,5 +1,7 @@
 import { APIError, beginLogin, createAccountClient, refreshSession, requestEmailCode, safeReturnTo, signOut, startGoogle, subscribeSession, verifyEmailCode, type AccountSession, type RecoverySnapshot } from "../../../packages/accounts/client";
 
+import { assistantRequest, type AssistantConnection } from "./assistant-client";
+
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const status = element("account-status");
 const recoveryStatus = element("account-recovery-status");
@@ -16,6 +18,7 @@ let challengeId = "";
 let busy = false;
 let resendAt = 0;
 let recoveryGeneration = 0;
+let assistantGeneration = 0;
 const clientId = crypto.randomUUID();
 
 function message(value: string, error = false): void {
@@ -97,6 +100,53 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
   });
   item.append(heading, note, actions); return item;
 }
+async function loadAssistants(session: AccountSession): Promise<void> {
+  const panel = element("account-assistants");
+  const notice = element("account-assistants-status");
+  const list = element("account-assistants-list");
+  const generation = ++assistantGeneration;
+  panel.hidden = true;
+  list.replaceChildren();
+  try {
+    const data = await assistantRequest<{ connections: AssistantConnection[]; available: string[] }>("connections", session);
+    if (generation !== assistantGeneration) return;
+    for (const connection of data.connections) {
+      const item = document.createElement("li");
+      const heading = document.createElement("h3");
+      heading.textContent = connection.client + " · " + connection.utility;
+      const permissions = document.createElement("p");
+      permissions.textContent = connection.canWrite ? "Read and write" : "Read only";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "button compact";
+      button.textContent = "Revoke access";
+      button.setAttribute("aria-label", "Revoke " + connection.client + " access to " + connection.utility);
+      button.addEventListener("click", async () => {
+        if (generation !== assistantGeneration) return;
+        button.disabled = true;
+        try {
+          await assistantRequest("connections", session, { id: connection.id });
+          if (generation !== assistantGeneration) return;
+          item.remove();
+          notice.textContent = "Assistant access revoked.";
+        } catch (error) {
+          if (generation === assistantGeneration) notice.textContent = error instanceof Error ? error.message : "Could not revoke access.";
+        } finally {
+          button.disabled = false;
+        }
+      });
+      item.append(heading, permissions, button);
+      list.append(item);
+    }
+    notice.textContent = data.connections.length ? "" : "No assistants are connected.";
+    panel.hidden = data.connections.length === 0 && data.available.length === 0;
+  } catch (error) {
+    if (generation !== assistantGeneration) return;
+    panel.hidden = false;
+    notice.textContent = error instanceof Error ? error.message : "Assistant access is temporarily unavailable.";
+  }
+}
+
 function render(value: AccountSession): void {
   const firstRender = current === null;
   const previousId = current?.user?.id;
@@ -126,9 +176,14 @@ function render(value: AccountSession): void {
   updateResend();
   if (value.user) {
     element("account-identity").textContent = value.user.email;
-    if (previousId !== value.user.id) void loadRecovery();
+    if (previousId !== value.user.id) {
+      void loadRecovery();
+      void loadAssistants(value);
+    }
   } else {
     ++recoveryGeneration; recoveryList.replaceChildren();
+    ++assistantGeneration; element("account-assistants").hidden = true;
+    element("account-assistants-list").replaceChildren();
   }
   if (!value.enabled) message("Account syncing is not available yet. Your local saves are unchanged.");
   else if (value.requiresBootstrap) message("Your sign-in expired. Request a new email code or continue with Google to sign in again.");
@@ -165,7 +220,7 @@ function google(link: boolean): void {
 element("account-google").addEventListener("click", () => google(false));
 element("account-link-google").addEventListener("click", () => google(true));
 function logout(everywhere: boolean): void {
-  if (busy || (everywhere && !window.confirm("Sign out all devices? Their local saves and pending changes will be retained."))) return;
+  if (busy || (everywhere && !window.confirm("Sign out all devices and revoke connected assistants? Local saves and pending changes will be retained."))) return;
   setBusy(true);
   void signOut(everywhere).then(() => message(everywhere ? "Signed out everywhere. Local saves are retained." : "Signed out. Local saves are retained."))
     .catch(failure).finally(() => setBusy(false));

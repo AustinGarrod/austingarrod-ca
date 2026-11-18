@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "idle-slayer-companion": {
+      "type": "http",
+      "url": "https://austingarrod.ca/api/v1/mcp/idle-slayer-companion"
+    }
+  }
+}

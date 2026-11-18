@@ -1,0 +1,10 @@
+{
+  "name": "pokedex-binder",
+  "version": "1.0.0",
+  "description": "Find Pokémon and card printings, review a synced collection, or update owned National Dex entries.",
+  "author": {
+    "name": "Austin Garrod"
+  },
+  "homepage": "https://austingarrod.ca/account/assistants/",
+  "displayName": "Pokédex Binder"
+}
