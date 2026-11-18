@@ -497,6 +497,18 @@ if radius_htaccess_path.is_file():
     ]:
         check(directive in radius_htaccess, f"Radius Map .htaccess is missing: {directive}")
 
+for config, filename in [
+    (".htaccess", "contact.php"),
+    ("utilities/radius-map/api/.htaccess", "geocode.php"),
+    ("utilities/pokedex-binder/api/.htaccess", "binder.php"),
+]:
+    config_path = DIST / config
+    handler = f'<Files "{filename}">\n  SetHandler application/x-httpd-alt-php84___lsphp\n</Files>'
+    check(
+        config_path.is_file() and handler in config_path.read_text(encoding="utf-8"),
+        f"Missing scoped HostPapa PHP 8.4 handler for {filename} in {config}",
+    )
+
 geocode_path = DIST / "utilities" / "radius-map" / "api" / "geocode.php"
 check(geocode_path.is_file(), "Missing Radius Map PHP geocoder")
 if geocode_path.is_file():

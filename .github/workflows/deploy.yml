@@ -1,78 +1,159 @@
-name: Deploy to HostPapa
+name: Portfolio CI and HostPapa deploy
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   workflow_dispatch:
+    inputs:
+      task:
+        description: "Deploy main or run all browser checks"
+        type: choice
+        options: [deploy, browser]
+        default: deploy
+
+permissions:
+  contents: read
 
 concurrency:
-  group: hostpapa-production
-  cancel-in-progress: false
+  group: ${{ github.ref == 'refs/heads/main' && inputs.task != 'browser' && 'hostpapa-production' || format('portfolio-{0}-{1}', github.ref, inputs.task == 'browser' && 'browser' || 'build') }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  validate:
-    uses: ./.github/workflows/validate.yml
-    with:
-      upload-symbols: true
-    secrets: inherit
-  deploy:
-    needs: validate
-    runs-on: ubuntu-latest
+  portfolio:
+    if: github.repository == 'AustinGarrod/austingarrod-ca' && github.event.deleted != true
+    runs-on: [self-hosted, Linux, X64, austingarrod-ca]
+    timeout-minutes: 65
+    defaults:
+      run:
+        shell: bash
     env:
-      FTP_HOST: ${{ secrets.HOSTPAPA_FTP_HOST }}
-      FTP_USER: ${{ secrets.HOSTPAPA_FTP_USER }}
-      FTP_PASSWORD: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
-      FTP_REMOTE_DIR: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
+      DEPLOY_TO_HOSTPAPA: ${{ github.ref == 'refs/heads/main' && inputs.task != 'browser' && 'true' || 'false' }}
+      RUN_BROWSER_CHECKS: ${{ inputs.task == 'browser' && 'true' || 'false' }}
     steps:
+      - name: Require main for manual deployments
+        if: github.event_name == 'workflow_dispatch' && inputs.task == 'deploy' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Select main to deploy to HostPapa."
+          exit 1
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Download the exact validated distribution
-        uses: actions/download-artifact@v8
+      - name: Install website and Companion dependencies
+        id: frontend
+        run: |
+          npm ci
+          npm run install:companion
+      - name: Install and check PHP 8.4 dependencies
+        id: php
+        run: |
+          php -r 'if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4) { fwrite(STDERR, "Expected PHP 8.4, got " . PHP_VERSION . PHP_EOL); exit(1); }'
+          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp audit --locked
+          git ls-files -z -- '*.php' | xargs -0 -r -n1 php -l
+          npm run test:php
+          node scripts/test-accounts-runtime.mjs
+      - name: Generate deployment assets
+        id: assets
+        run: |
+          python3 -m venv "$RUNNER_TEMP/portfolio-python"
+          "$RUNNER_TEMP/portfolio-python/bin/python" -m pip install -r requirements.txt
+          echo "$RUNNER_TEMP/portfolio-python/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/portfolio-python/bin/python" scripts/generate-assets.py
+      - name: Check website, Companion, and MCP rules
+        id: tests
+        run: |
+          npm test
+          npm run test:mcp:parity
+      - name: Build the combined site
+        id: build
+        run: npm run build
+      - name: Install both Playwright Chromium revisions
+        if: env.RUN_BROWSER_CHECKS == 'true'
+        run: |
+          node node_modules/playwright/cli.js install chromium
+          (cd apps/idle-slayer-companion && node .yarn/releases/yarn-4.13.0.cjs playwright install chromium)
+      - name: Run database-backed account checks
+        id: account-tests
+        run: |
+          bash scripts/with-ci-database.sh bash -e -c '
+            npm run test:accounts:api
+            if [[ "$RUN_BROWSER_CHECKS" == true ]]; then
+              npm run test:accounts:browser
+              npm run test:mcp
+              npm run test:accounts:large
+            fi
+          '
+      - name: Upload source maps for the production build
+        if: env.DEPLOY_TO_HOSTPAPA == 'true'
+        id: source-maps
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.REPORTS_AUTH_TOKEN }}
+        run: npm run reporting:upload
+      - name: Verify the deployable distribution
+        id: distribution
+        run: |
+          node scripts/strip-public-maps.mjs
+          npm run write:deployment-manifest
+          npm run verify:dist
+      - name: Run local scanner and Companion browser checks
+        if: env.RUN_BROWSER_CHECKS == 'true'
+        run: |
+          node scripts/serve-dist.mjs > "$RUNNER_TEMP/portfolio-preview.log" 2>&1 &
+          preview_pid=$!
+          PORT=4331 POKEDEX_SCANNER_HEADERS=1 node scripts/serve-dist.mjs > "$RUNNER_TEMP/scanner-preview.log" 2>&1 &
+          scanner_pid=$!
+          trap 'kill "$preview_pid" "$scanner_pid" 2>/dev/null || true; wait "$preview_pid" "$scanner_pid" 2>/dev/null || true' EXIT
+          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4321/ > /dev/null
+          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4331/utilities/pokedex-binder/ > /dev/null
+          npm run test:pokedex:scanner
+          PLAYWRIGHT_BASE_URL=http://127.0.0.1:4321/utilities/idle-slayer-companion/ npm run test:companion:e2e -- --workers=3 --retries=1
+      - name: Retain browser failure diagnostics
+        if: failure() && env.RUN_BROWSER_CHECKS == 'true'
+        uses: actions/upload-artifact@v7
         with:
-          name: website-dist
-          path: dist/
+          name: browser-failure
+          path: |
+            output/accounts-browser/
+            output/accounts-large-browser/
+            output/pokedex-scanner/
+            apps/idle-slayer-companion/playwright-report/
+            apps/idle-slayer-companion/test-results/
+          retention-days: 5
+          if-no-files-found: ignore
       - name: Check deployment secrets
+        if: env.DEPLOY_TO_HOSTPAPA == 'true'
         id: deploy-secrets
-        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.HOSTPAPA_FTP_HOST }}
+          FTP_USER: ${{ secrets.HOSTPAPA_FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
+          FTP_REMOTE_DIR: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
         run: |
           if [[ -n "$FTP_HOST" && -n "$FTP_USER" && -n "$FTP_PASSWORD" && -n "$FTP_REMOTE_DIR" ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping HostPapa deploy because required repository secrets are missing."
           fi
       - name: Upload validated dist to HostPapa
         id: ftps-upload
         if: steps.deploy-secrets.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
-          server: ${{ env.FTP_HOST }}
-          username: ${{ env.FTP_USER }}
-          password: ${{ env.FTP_PASSWORD }}
+          server: ${{ secrets.HOSTPAPA_FTP_HOST }}
+          username: ${{ secrets.HOSTPAPA_FTP_USER }}
+          password: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
           port: 21
           protocol: ftps
           security: loose
           local-dir: ./dist/
-          server-dir: ${{ env.FTP_REMOTE_DIR }}
-      - name: Skip deploy notice
-        if: steps.deploy-secrets.outputs.ready != 'true'
-        run: echo "Skipping HostPapa deploy because required repository secrets are not configured."
+          server-dir: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
       - name: Report failed deployment
-        if: failure()
+        if: failure() && env.DEPLOY_TO_HOSTPAPA == 'true'
+        continue-on-error: true
         env:
           REPORTING_STEPS: ${{ toJson(steps) }}
-        run: node scripts/report-deployment-failure.mjs
-  report-validation-failure:
-    needs: validate
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - name: Report failed predeployment validation
-        env:
-          REPORTING_STEPS: '{"validation":{"outcome":"failure"}}'
         run: node scripts/report-deployment-failure.mjs
