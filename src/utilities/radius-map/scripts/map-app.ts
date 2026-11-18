@@ -1,5 +1,7 @@
 import L, { type Circle, type LatLngBounds, type LatLngExpression, type Marker } from "leaflet";
 import { reportFailure, reportState } from "../../../reporting/browser";
+import { bindRadiusAccountControls } from "./account-controls";
+import { toSavedMeasurements } from "../lib/account-measurements";
 import {
   convertDisplayedMeasurement,
   formatMeasurement,
@@ -15,10 +17,6 @@ import {
   type SavedMeasurement,
   type SavedMeasurementInput,
 } from "../lib/measurements";
-import {
-  LocalMeasurementStorageError,
-  LocalMeasurementsStore,
-} from "../lib/local-measurements-store";
 import {
   triangulateBestFit,
   type TriangulationInput,
@@ -36,7 +34,6 @@ interface AppState {
   kind: MeasurementKind;
   unit: DistanceUnit;
   saved: SavedMeasurement[];
-  libraryLoaded: boolean;
   editingId: string | null;
   result: TriangulationResult | null;
 }
@@ -109,12 +106,10 @@ export function initializeRadiusMap(): void {
   const saveMeasurementButton = element<HTMLButtonElement>("save-measurement-button");
   const cancelEditButton = element<HTMLButtonElement>("cancel-edit-button");
   const librarySearch = element<HTMLInputElement>("library-search");
-  const libraryLoading = element<HTMLDivElement>("library-loading");
   const libraryEmpty = element<HTMLDivElement>("library-empty");
   const libraryNoResults = element<HTMLDivElement>("library-no-results");
   const savedList = element<HTMLDivElement>("saved-list");
   const libraryStatus = element<HTMLParagraphElement>("library-status");
-  const refreshLibraryButton = element<HTMLButtonElement>("refresh-library-button");
   const triangulateButton = element<HTMLButtonElement>("triangulate-button");
   const triangulationHint = element<HTMLParagraphElement>("triangulation-hint");
   const triangulationResult = element<HTMLDivElement>("triangulation-result");
@@ -144,7 +139,6 @@ export function initializeRadiusMap(): void {
     kind: "radius",
     unit: "km",
     saved: [],
-    libraryLoaded: false,
     editingId: null,
     result: null,
   };
@@ -185,17 +179,43 @@ export function initializeRadiusMap(): void {
   let resultMarker: Marker | null = null;
   const savedLayers = new Map<string, SavedLayer>();
   let saveDialogMode: SaveDialogMode = "save";
-  let renameTargetId: string | null = null;
-  let deleteTargetId: string | null = null;
-  let measurementStore: LocalMeasurementsStore | null = null;
-  let measurementStoreError: unknown;
-  try {
-    measurementStore = new LocalMeasurementsStore(window.localStorage);
-  } catch (error) {
-    measurementStoreError = error;
-    reportFailure(error, "storage.initialize");
-    measurementStore = null;
-  }
+  let editOriginal: SavedMeasurement | undefined;
+  let dialogOriginal: SavedMeasurement | undefined;
+  let deleteOriginal: SavedMeasurement | undefined;
+  let accountId: string | null = null;
+  let accountSnapshot = "";
+  const accounts = bindRadiusAccountControls(view => {
+    const previousAccount = accountId;
+    const switched = view.accountId !== previousAccount;
+    accountId = view.accountId;
+    if (switched && previousAccount) {
+      state.saved = [];
+      editOriginal = dialogOriginal = deleteOriginal = undefined;
+      saveDialog.close();
+      deleteDialog.close();
+      saveDialogSummary.textContent = deleteDialogCopy.textContent = measurementName.value = "";
+      saveDialogError.hidden = deleteDialogError.hidden = true;
+      librarySearch.value = "";
+      setLibraryStatus("");
+      clearDraft();
+      closeSearchResults();
+      map.setView([25, 0], 2, { animate: false });
+    }
+    if (!view.library) {
+      accountSnapshot = "";
+      renderLibrary();
+      return;
+    }
+    const snapshot = JSON.stringify(view.library);
+    if (!switched && snapshot === accountSnapshot) return;
+    accountSnapshot = snapshot;
+    state.saved = toSavedMeasurements(view.library);
+    clearResult();
+    renderLibrary();
+    renderSavedLayers();
+    if (switched) refreshMeasurement();
+    if (switched && state.saved.some(measurement => measurement.visible)) fitVisibleCircles();
+  });
 
   function setStatus(message: string): void {
     appStatus.textContent = message;
@@ -323,7 +343,7 @@ export function initializeRadiusMap(): void {
       }
       if (options.fit) fitDraftCircle();
     }
-    saveMeasurementButton.disabled = !state.center;
+    saveMeasurementButton.disabled = !accountId || !state.center;
     updateTriangulationAvailability();
     return true;
   }
@@ -377,6 +397,7 @@ export function initializeRadiusMap(): void {
     state.center = null;
     state.centerLabel = "";
     state.editingId = null;
+    editOriginal = undefined;
     centerChip.hidden = true;
     mapHint.classList.remove("is-hidden");
     searchInput.value = "";
@@ -445,19 +466,6 @@ export function initializeRadiusMap(): void {
     updateTriangulationAvailability();
   }
 
-  function sortSaved(): void {
-    state.saved.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  }
-
-  function replaceSaved(measurement: SavedMeasurement): void {
-    const index = state.saved.findIndex((item) => item.id === measurement.id);
-    if (index >= 0) state.saved[index] = measurement;
-    else state.saved.push(measurement);
-    sortSaved();
-    renderLibrary();
-    renderSavedLayers();
-  }
-
   function measurementSummary(measurement: SavedMeasurement): string {
     return `${formatMeasurement(measurement.value)} ${measurement.unit} ${measurement.kind}`;
   }
@@ -469,8 +477,9 @@ export function initializeRadiusMap(): void {
     const matches = state.saved.filter((measurement) =>
       measurement.name.toLowerCase().includes(query) || measurement.locationLabel.toLowerCase().includes(query),
     );
-    libraryEmpty.hidden = state.saved.length !== 0 || !state.libraryLoaded;
-    libraryNoResults.hidden = query.length === 0 || matches.length !== 0;
+    librarySearch.disabled = !accountId;
+    libraryEmpty.hidden = !accountId || state.saved.length !== 0;
+    libraryNoResults.hidden = !accountId || query.length === 0 || matches.length !== 0;
 
     matches.forEach((measurement) => {
       const index = state.saved.findIndex((item) => item.id === measurement.id);
@@ -522,31 +531,19 @@ export function initializeRadiusMap(): void {
     });
   }
 
-  function requireMeasurementStore(): LocalMeasurementsStore {
-    if (!measurementStore) {
-      throw new LocalMeasurementStorageError("This browser is blocking access to saved measurements.", { cause: measurementStoreError });
-    }
-    return measurementStore;
-  }
-
   async function updateVisibility(measurement: SavedMeasurement, visible: boolean): Promise<void> {
-    const previous = measurement.visible;
-    measurement.visible = visible;
-    clearResult();
-    renderLibrary();
-    renderSavedLayers();
-    if (visible) fitVisibleCircles();
+    const namespace = accountId;
     try {
-      const updated = requireMeasurementStore().setVisibility(measurement.id, visible);
-      if (!updated) throw new Error("Measurement not found.");
-      replaceSaved(updated);
+      await accounts.change({ ...measurement, visible }, measurement);
+      if (namespace !== accountId) return;
+      clearResult();
+      if (visible) fitVisibleCircles();
       setLibraryStatus(`${measurement.name} is now ${visible ? "shown" : "hidden"}.`);
       window.umami?.track("radius-map-visibility-result", { outcome: "success", visibility: visible ? "shown" : "hidden" });
     } catch (error) {
-      reportFailure(error, "measurement.visibility", { visible, savedCount: state.saved.length });
-      measurement.visible = previous;
+      if (namespace !== accountId) return;
+      reportMeasurementFailure("visibility");
       renderLibrary();
-      renderSavedLayers();
       setLibraryStatus(error instanceof Error ? error.message : "Visibility could not be updated.");
       window.umami?.track("radius-map-visibility-result", { outcome: "error" });
     }
@@ -560,7 +557,6 @@ export function initializeRadiusMap(): void {
     savedTab.setAttribute("aria-selected", String(!createActive));
     createPanel.hidden = !createActive;
     savedPanel.hidden = createActive;
-    if (!createActive && !state.libraryLoaded) void loadLibrary();
     requestAnimationFrame(updateMobilePanelInset);
   }
 
@@ -577,6 +573,7 @@ export function initializeRadiusMap(): void {
 
   function beginEdit(measurement: SavedMeasurement): void {
     state.editingId = measurement.id;
+    editOriginal = measurement;
     setMeasurementControls(measurement.kind, measurement.unit, measurement.value);
     renderSavedLayers();
     setCenter(measurement.center, measurement.locationLabel, `Editing ${measurement.name}.`);
@@ -591,14 +588,15 @@ export function initializeRadiusMap(): void {
   }
 
   function openSaveDialog(): void {
+    if (!accountId) return;
     const draft = currentDraftInput();
     if (!draft) {
       setStatus("Choose a centre and valid measurement before saving.");
       return;
     }
     saveDialogMode = "save";
-    renameTargetId = null;
     const editing = state.editingId ? state.saved.find((item) => item.id === state.editingId) : null;
+    dialogOriginal = editOriginal;
     saveDialogTitle.textContent = editing ? "Update measurement" : "Save measurement";
     saveDialogSubmit.textContent = editing ? "Update" : "Save";
     measurementName.value = editing?.name ?? draft.name;
@@ -610,7 +608,7 @@ export function initializeRadiusMap(): void {
 
   function openRenameDialog(measurement: SavedMeasurement): void {
     saveDialogMode = "rename";
-    renameTargetId = measurement.id;
+    dialogOriginal = measurement;
     saveDialogTitle.textContent = "Rename measurement";
     saveDialogSubmit.textContent = "Rename";
     measurementName.value = measurement.name;
@@ -621,6 +619,7 @@ export function initializeRadiusMap(): void {
   }
 
   async function submitSaveDialog(): Promise<void> {
+    const namespace = accountId;
     const operation = saveDialogMode === "rename" ? "rename" : state.editingId ? "update" : "create";
     const name = measurementName.value.trim();
     if (name.length === 0 || name.length > 80) {
@@ -633,22 +632,16 @@ export function initializeRadiusMap(): void {
     saveDialogError.hidden = true;
     try {
       if (saveDialogMode === "rename") {
-        const measurement = state.saved.find((item) => item.id === renameTargetId);
-        if (!measurement) throw new Error("Measurement not found.");
-        const updated = requireMeasurementStore().update(measurement.id, { ...measurement, name });
-        if (!updated) throw new Error("Measurement not found.");
-        replaceSaved(updated);
+        if (!dialogOriginal) throw new Error("Measurement not found.");
+        await accounts.change({ ...dialogOriginal, name }, dialogOriginal);
+        if (namespace !== accountId) return;
         setLibraryStatus(`Renamed to ${name}.`);
       } else {
         const draft = currentDraftInput(name);
         if (!draft) throw new Error("Choose a centre and valid measurement before saving.");
-        const editingId = state.editingId;
-        const saved = editingId
-          ? requireMeasurementStore().update(editingId, draft)
-          : requireMeasurementStore().create(draft);
-        if (!saved) throw new Error("Measurement not found.");
-        replaceSaved(saved);
-        clearDraft(`${saved.name} saved on this device. Choose a centre to add another measurement.`);
+        await accounts.change(draft, dialogOriginal);
+        if (namespace !== accountId) return;
+        clearDraft(`${name} saved. Choose a centre to add another measurement.`);
       }
       saveDialog.close();
       window.umami?.track("radius-map-save-result", {
@@ -657,8 +650,9 @@ export function initializeRadiusMap(): void {
         ...(operation === "rename" ? {} : { kind: state.kind, unit: state.unit }),
       });
     } catch (error) {
+      if (namespace !== accountId) return;
       saveDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be saved.";
-      reportFailure(error, `measurement.${operation}`, { kind: state.kind, unit: state.unit, savedCount: state.saved.length });
+      reportMeasurementFailure(operation);
       saveDialogError.hidden = false;
       window.umami?.track("radius-map-save-result", { operation, outcome: "error" });
     } finally {
@@ -667,31 +661,30 @@ export function initializeRadiusMap(): void {
   }
 
   function openDeleteDialog(measurement: SavedMeasurement): void {
-    deleteTargetId = measurement.id;
-    deleteDialogCopy.textContent = `“${measurement.name}” will be removed from this browser.`;
+    deleteOriginal = measurement;
+    deleteDialogCopy.textContent = `“${measurement.name}” will be removed from your account library when it syncs.`;
     deleteDialogError.hidden = true;
     openDialog(deleteDialog);
   }
 
   async function submitDeleteDialog(): Promise<void> {
-    const measurement = state.saved.find((item) => item.id === deleteTargetId);
+    const namespace = accountId;
+    const measurement = deleteOriginal;
     if (!measurement) return;
     deleteDialogSubmit.disabled = true;
     deleteDialogError.hidden = true;
     try {
-      const deleted = requireMeasurementStore().delete(measurement.id);
-      if (!deleted) throw new Error("Measurement not found.");
-      state.saved = state.saved.filter((item) => item.id !== measurement.id);
+      await accounts.change(null, measurement);
+      if (namespace !== accountId) return;
       if (state.editingId === measurement.id) clearDraft();
       clearResult();
-      renderLibrary();
-      renderSavedLayers();
       setLibraryStatus(`${measurement.name} deleted.`);
       deleteDialog.close();
       window.umami?.track("radius-map-delete-result", { outcome: "success" });
     } catch (error) {
+      if (namespace !== accountId) return;
       deleteDialogError.textContent = error instanceof Error ? error.message : "Measurement could not be deleted.";
-      reportFailure(error, "measurement.delete", { savedCount: state.saved.length });
+      reportMeasurementFailure("delete");
       deleteDialogError.hidden = false;
       window.umami?.track("radius-map-delete-result", { outcome: "error" });
     } finally {
@@ -762,30 +755,8 @@ export function initializeRadiusMap(): void {
     window.umami?.track("radius-map-centre-selected", { method: "best-fit" });
   }
 
-  async function loadLibrary(force = false): Promise<void> {
-    if (state.libraryLoaded && !force) return;
-    libraryLoading.hidden = false;
-    refreshLibraryButton.disabled = true;
-    setLibraryStatus("");
-    try {
-      const result = requireMeasurementStore().load();
-      if (result.warning) reportFailure(new Error(result.warning), "measurement.recovery", { recoveredCount: result.measurements.length });
-      state.saved = result.measurements;
-      sortSaved();
-      state.libraryLoaded = true;
-      renderLibrary();
-      renderSavedLayers();
-      if (state.saved.some((measurement) => measurement.visible)) fitVisibleCircles();
-      setLibraryStatus(result.warning ?? (force ? "Saved measurements refreshed from this device." : ""));
-      if (force) window.umami?.track("radius-map-library-refresh-result", { outcome: result.warning ? "warning" : "success" });
-    } catch (error) {
-      setLibraryStatus(error instanceof Error ? error.message : "Your measurements could not be loaded.");
-      reportFailure(error, "measurement.load", { force });
-      window.umami?.track("radius-map-library-load-error", { source: force ? "refresh" : "initial" });
-    } finally {
-      libraryLoading.hidden = true;
-      refreshLibraryButton.disabled = false;
-    }
+  function reportMeasurementFailure(operation: string): void {
+    reportFailure(new Error("Account measurement change could not be saved"), `measurement.${operation}`);
   }
 
   function closeSearchResults(): void {
@@ -964,7 +935,6 @@ export function initializeRadiusMap(): void {
     window.umami?.track("radius-map-workspace-change", { workspace: "saved" });
   });
   librarySearch.addEventListener("input", renderLibrary);
-  refreshLibraryButton.addEventListener("click", () => void loadLibrary(true));
   triangulateButton.addEventListener("click", calculateBestFit);
   useResultButton.addEventListener("click", useBestFitResult);
   cancelEditButton.addEventListener("click", () => {
@@ -1016,5 +986,5 @@ export function initializeRadiusMap(): void {
   updateMobilePanelInset();
   renderLibrary();
   refreshMeasurement();
-  void loadLibrary();
+  accounts.start();
 }

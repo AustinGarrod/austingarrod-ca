@@ -8,6 +8,7 @@ const ACCOUNTS_SYSTEMS = ['achievement', 'craft', 'material', 'quest', 'village'
 const ACCOUNTS_DOCUMENT_LIMITS = [
     'pokedex-binder' => ['binder' => 65536, 'master-sets' => 4194304],
     'idle-slayer-companion' => ['progress' => 4194304, 'intentions' => 65536, 'checkpoints' => 4194304, 'comparison' => 4096],
+    'radius-map' => ['measurements' => 4194304],
 ];
 function accounts_invalid(): never
 {
@@ -56,6 +57,55 @@ function accounts_registry(string $app, string $document): int
     return ACCOUNTS_DOCUMENT_LIMITS[$app][$document];
 }
 
+function accounts_radius_text(mixed $value, int $limit): bool
+{
+    // Match the browser's String.trim() character set.
+    $space = '[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]';
+    return is_string($value) && $value !== '' && preg_match('/^'.$space.'|'.$space.'$/uD', $value) === 0
+        && strlen(mb_convert_encoding($value, 'UTF-16LE', 'UTF-8')) <= 2 * $limit;
+}
+
+function accounts_radius_timestamp(mixed $value): bool
+{
+    if (!is_string($value) || !preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/D', $value)) {
+        return false;
+    }
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s.v\Z', $value, new DateTimeZone('UTC'));
+    return $date !== false && $date->format('Y-m-d\TH:i:s.v\Z') === $value;
+}
+
+function accounts_radius_number(mixed $value): bool
+{
+    return (is_int($value) || is_float($value)) && is_finite((float)$value);
+}
+
+function accounts_radius_measurements(mixed $state): void
+{
+    if (!accounts_fields($state, ['version', 'measurements']) || $state->version !== 1 || !is_array($state->measurements)) {
+        accounts_invalid();
+    }
+
+    $ids = [];
+    foreach ($state->measurements as $item) {
+        if (!accounts_fields($item, ['id', 'name', 'locationLabel', 'center', 'value', 'kind', 'unit', 'visible', 'createdAt', 'updatedAt'])
+            || !accounts_radius_text($item->id, 128) || isset($ids[$item->id])
+            || !accounts_radius_text($item->name, 80) || !accounts_radius_text($item->locationLabel, 240)
+            || !accounts_fields($item->center, ['lat', 'lng'])
+            || !accounts_radius_number($item->center->lat) || abs($item->center->lat) > 90
+            || !accounts_radius_number($item->center->lng) || abs($item->center->lng) > 180
+            || !accounts_radius_number($item->value) || $item->value <= 0
+            || !in_array($item->kind, ['radius', 'diameter'], true) || !in_array($item->unit, ['mi', 'km'], true)
+            || !is_bool($item->visible) || !accounts_radius_timestamp($item->createdAt) || !accounts_radius_timestamp($item->updatedAt)) {
+            accounts_invalid();
+        }
+        $radius = $item->value * ($item->unit === 'km' ? 1000 : 1609.344) / ($item->kind === 'diameter' ? 2 : 1);
+        if ($radius > 20000000) {
+            accounts_invalid();
+        }
+        $ids[$item->id] = true;
+    }
+}
+
 function accounts_validate(string $app, string $document, mixed $version, mixed $state, string $webroot): string
 {
     $limit = accounts_registry($app, $document);
@@ -72,6 +122,12 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
         master_validate($state, $webroot);
         return $encoded;
     }
+
+    if ($app === 'radius-map') {
+        accounts_radius_measurements($state);
+        return $encoded;
+    }
+
     if ($app === 'pokedex-binder') {
         if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds']) || $state->schemaVersion !== 1 || !accounts_fields($state->settings, ['columns', 'rows', 'useBackSides', 'leadingBlankPockets']) || !is_array($state->ownedDexIds)) {
             accounts_invalid();

@@ -1,6 +1,6 @@
 const PRIVATE_TOKEN = /pdx_[A-Za-z0-9_-]{43}/g;
 const PRIVATE_FIELDS = new Set(["x-pokedex-key", "authorization", "cookie", "set-cookie", "x-csrf-token", "x-account-id"]);
-const COLLECTION_FIELDS = new Set(["body", "data", "request_body", "response_body", "ownedDexIds", "settings", "state", "baseline", "key", "image", "frame", "preview", "ocrText", "rawText", "scanResult", "signature", "email", "code", "csrfToken", "challengeId", "token", "idToken", "accessToken", "refreshToken", "nonce", "accountId", "documents", "snapshots", "snapshot", "user"]);
+const COLLECTION_FIELDS = new Set(["body", "data", "request_body", "response_body", "ownedDexIds", "settings", "state", "baseline", "key", "image", "frame", "preview", "ocrText", "rawText", "scanResult", "signature", "email", "code", "csrfToken", "challengeId", "token", "idToken", "accessToken", "refreshToken", "nonce", "accountId", "documents", "snapshots", "snapshot", "user", "measurements", "locationLabel", "center"]);
 
 /** Keep operation/status diagnostics while excluding access keys and collection payloads. */
 export function redactReporting<T>(value: T, binderPage = false): T {
@@ -8,9 +8,11 @@ export function redactReporting<T>(value: T, binderPage = false): T {
     if (/data:image\//i.test(value) || (binderPage && /blob:/.test(value))) return "[private scanner image]" as T;
     if (value.includes('"ownedDexIds"') || value.includes('"X-Pokedex-Key"')) return "[private binder data]" as T;
     if (value.includes('"csrfToken"') || value.includes('"challengeId"') || value.includes('"mutationSequence"')) return "[private account data]" as T;
+    if (value.includes('"measurements"') || value.includes('"locationLabel"')) return "[private measurement data]" as T;
     return value.replace(PRIVATE_TOKEN, "[private sync key]")
       .replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[private email]")
       .replace(/(\/api\/v1\/[^?\s"']*)\?[^\s"']*/g, "$1")
+      .replace(/(https?:\/\/tile\.openstreetmap\.org)\/[^\s"']*/g, "$1")
       .replace(/(\/utilities\/radius-map\/api\/geocode\.php)\?[^\s"']*/g, "$1")
       .replace(/(\/utilities\/pokedex-binder\/api\/[^?\s"']*)\?[^\s"']*/g, "$1") as T;
   }

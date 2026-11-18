@@ -356,10 +356,12 @@ for required_radius_map_behavior in [
     'id="locate-button"',
     'id="save-measurement-button"',
     'id="saved-panel"',
+    'id="radius-review-dialog"',
+    'id="radius-sync-now"',
     'id="triangulate-button"',
     '/utilities/radius-map/manifest.webmanifest',
     '/utilities/radius-map/icons/icon-192.png',
-    'Saved on this device',
+    'id="radius-sign-in-to-save"',
 ]:
     check(required_radius_map_behavior in radius_map_markup, f"Radius Map is missing: {required_radius_map_behavior}")
 for retired_radius_map_behavior in ["signin-with-chatgpt", "signout-with-chatgpt", "/api/session", "/api/measurements"]:
@@ -442,9 +444,11 @@ if radius_worker_path.is_file():
     radius_worker = radius_worker_path.read_text(encoding="utf-8")
     for behavior in [
         'const APP_PATH = "/utilities/radius-map/"',
+        'url.pathname.startsWith("/api/v1/")',
+        'const PUBLIC_SHELL = new Set(PRECACHE_URLS)',
         'url.origin !== self.location.origin',
         'url.pathname.startsWith(APP_PATH + "api/")',
-        'caches.match(APP_PATH)',
+        '.match(APP_PATH)',
     ]:
         check(behavior in radius_worker, f"Radius Map service worker is missing behavior: {behavior}")
 

@@ -37,5 +37,8 @@ describe("Radius Map PWA assets", () => {
     expect(registration).toContain('register("/utilities/radius-map/sw.js", { scope: "/utilities/radius-map/" })');
     expect(generator).toContain('url.origin !== self.location.origin');
     expect(generator).toContain('url.pathname.startsWith(APP_PATH + "api/")');
+    expect(generator).toContain('url.pathname.startsWith("/api/v1/")');
+    expect(generator).toContain('!PUBLIC_SHELL.has(url.pathname)');
+    expect(generator).not.toContain('cache.put(request');
   });
 });

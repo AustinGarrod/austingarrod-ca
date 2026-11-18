@@ -60,7 +60,7 @@ async function loadRecovery(): Promise<void> {
 function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIElement {
   const item = document.createElement("li");
   const heading = document.createElement("h3");
-  const app = ({ "pokedex-binder": "Pokédex Binder", "idle-slayer-companion": "Idle Slayer Companion" } as Record<string, string>)[snapshot.app] ?? snapshot.app;
+  const app = ({ "pokedex-binder": "Pokédex Binder", "idle-slayer-companion": "Idle Slayer Companion", "radius-map": "Radius Map" } as Record<string, string>)[snapshot.app] ?? snapshot.app;
   heading.textContent = `${app} · ${snapshot.document}`;
   const note = document.createElement("p");
   const date = new Date(snapshot.createdAt);

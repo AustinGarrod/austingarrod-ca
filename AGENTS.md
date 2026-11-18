@@ -17,8 +17,8 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 - `src/components/` contains reusable layout and content components.
 - `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, utility cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
 - `apps/idle-slayer-companion/` contains the independently built React/Vite companion. Use its pinned Yarn launcher and preserve its catalog, storage, privacy, license and release checks. It is assembled at `/utilities/idle-slayer-companion/`; its worker must remain scoped there. The `legacy-migration` build is only for the GitHub Pages compatibility host.
-- `src/utilities/` contains browser utility logic. Radius Map measurements are device-local and its service worker must remain scoped to `/utilities/radius-map/`.
-- `packages/accounts/client.ts` is the shared browser account/sync client. `public/api/v1/` and `server/accounts/` contain the PHP 8.4/MySQL backend and additive setup. Read `server/accounts/README.md` before account changes; preserve migration snapshots, account namespaces, frozen outboxes, revision guards and revoked-key records. Private configuration and database backups must remain outside the webroot and deployment artifact. Radius Map is not an account adapter.
+- `src/utilities/` contains browser utility logic. Radius Map requires a shared account to save measurements and keeps an account-scoped copy for offline editing. Its shell-only service worker must remain scoped to `/utilities/radius-map/`.
+- `packages/accounts/` contains the shared browser account client and IndexedDB repository. `public/api/v1/` and `server/accounts/` contain the PHP 8.4/MySQL backend and additive setup. Read `server/accounts/README.md` before account changes; preserve migration snapshots, account namespaces, frozen outboxes, revision guards and revoked-key records. Private configuration and database backups must remain outside the webroot and deployment artifact.
 - `src/styles/global.css` contains the visual system and responsive layout.
 - `scripts/generate-assets.py` generates `public/og-image.png` and `public/austin-garrod-resume.pdf`.
 - `public/contact.php` is the HostPapa/cPanel contact handler and must continue to work without Node on the server.
@@ -67,7 +67,7 @@ PHP CLI is not required for local Astro work; the contact form still needs a Hos
 - Use lucide icons through `@lucide/astro` when an icon is needed.
 - Preserve responsive behavior for desktop, mobile, and the full mobile navigation panel.
 - Keep utility controls readable over their primary workspace. Radius Map uses a compact utility header and a map-first layout rather than the full portfolio header/footer.
-- Do not add account, D1, OpenAI Sites, or cross-device synchronization code to Radius Map; saved measurements remain local to the browser.
+- Use the shared HostPapa accounts system as the Radius Map save store. Exclude account traffic, the geocoder, and map tiles from the offline cache.
 
 ## Deployment
 
@@ -93,6 +93,6 @@ For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the log
 - Run `npm run generate:assets` after changing the asset generator, resume content, or OG image.
 - Run `npm run build` before committing.
 - For visual changes, preview locally and check Home, About, Projects, Utilities, Radius Map, Contact, 404, and the mobile menu.
-- For Radius Map changes, exercise search, coordinates, on-demand geolocation, map placement, measurement conversion, device-local CRUD, visibility, triangulation, installability, and offline-shell behavior without caching map tiles.
+- For Radius Map changes, exercise search, coordinates, on-demand geolocation, map placement, measurement conversion, signed-out drawing, account CRUD, visibility, triangulation, installability, and offline-shell behavior.
 - Check for horizontal overflow, cramped buttons/inputs, broken links, resume download, image loading, and contact form markup.
 - After HostPapa deployment, verify `https://austingarrod.ca`, HTTPS, resume download, contact form delivery, and that old content is replaced.

@@ -66,6 +66,7 @@ while (pending.length > 0) {
 
   for (const match of references) {
     const assetUrl = absoluteAssetUrl(match[1], sourceUrl);
+    if (assetUrl?.startsWith("/api/") || assetUrl?.startsWith(appPath + "api/")) continue;
     if (!assetUrl || !(await isFile(localFileForUrl(assetUrl)))) continue;
     if (!urls.has(assetUrl)) {
       urls.add(assetUrl);
@@ -89,6 +90,11 @@ const cacheName = `austingarrod-radius-map-${hash.digest("hex").slice(0, 12)}`;
 const serviceWorker = `const CACHE_NAME = ${JSON.stringify(cacheName)};
 const APP_PATH = ${JSON.stringify(appPath)};
 const PRECACHE_URLS = ${JSON.stringify(precacheUrls, null, 2)};
+const PUBLIC_SHELL = new Set(PRECACHE_URLS);
+
+self.addEventListener("message", (event) => {
+  if (event.data === "radius-map-account-cache-policy") event.ports[0]?.postMessage("public-shell-only");
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -115,25 +121,17 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith(APP_PATH + "api/")) return;
+  if (url.origin !== self.location.origin || url.pathname.startsWith(APP_PATH + "api/")
+    || url.pathname.startsWith("/api/v1/")) return;
 
   if (request.mode === "navigate") {
-    if (!url.pathname.startsWith(APP_PATH)) return;
-    event.respondWith(fetch(request).catch(async () => (await caches.match(APP_PATH)) || Response.error()));
+    if (url.pathname !== APP_PATH) return;
+    event.respondWith(fetch(request).catch(async () => (await (await caches.open(CACHE_NAME)).match(APP_PATH)) || Response.error()));
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(async (cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      const response = await fetch(request);
-      if (response.ok && response.type === "basic") {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put(request, response.clone());
-      }
-      return response;
-    }),
-  );
+  if (!PUBLIC_SHELL.has(url.pathname) || url.search || request.cache === "no-store") return;
+  event.respondWith(caches.open(CACHE_NAME).then(async (cache) => (await cache.match(request)) || fetch(request)));
 });
 `;
 

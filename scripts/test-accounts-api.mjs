@@ -250,7 +250,46 @@ try {
   for (let i = 0; i < 100; i++) largeProgress.modules.material.records[`unknown-${i}`] = { count: '9'.repeat(1024), discovered: false };
   response = await request(a, 'sync', 'write', { app: 'idle-slayer-companion', document: 'progress', schemaVersion: 1, state: largeProgress, baseRevision: 1, clientId, mutationSequence: 1, operationId: randomUUID() });
   assert.equal(response.status, 200); assert.equal(response.data.document.state.modules.material.records['unknown-99'].count.length, 1024);
-  assert.equal((await request(a, 'sync', 'read', undefined, { app: 'radius-map', document: 'measurements', clientId })).status, 422);
+  const radiusPair = { app: 'radius-map', document: 'measurements' };
+  const radiusRead = { ...radiusPair, clientId };
+  const timestamp = '2026-11-18T17:08:09.123Z';
+  const measurement = {
+    id: randomUUID(), name: 'Ridge 🏔', locationLabel: 'Radius test centre', center: { lat: 43.651073, lng: -79.347015 },
+    value: 9.25, kind: 'diameter', unit: 'mi', visible: false, createdAt: timestamp, updatedAt: timestamp,
+  };
+  const radius = measurements => ({ version: 1, measurements });
+  const radiusWrite = { ...radiusRead, schemaVersion: 1, baseRevision: 0, operationId: randomUUID(), mutationSequence: 1 };
+  assert.equal((await request(a, 'sync', 'read', undefined, radiusRead)).data.document, null);
+  for (const invalid of [
+    radius([{ ...measurement, center: { lat: 91, lng: 0 } }]),
+    radius([{ ...measurement, value: '9.25' }]),
+    radius([{ ...measurement, value: 100_000 }]),
+    radius([{ ...measurement, visible: 'false' }]),
+    radius([{ ...measurement, createdAt: '2026-02-30T17:08:09.123Z' }]),
+    radius([{ ...measurement, name: '🏔'.repeat(41) }]),
+    radius([measurement, measurement]),
+    radius([{ ...measurement, radiusMeters: 123 }]),
+  ]) {
+    const rejected = await request(a, 'sync', 'write', { ...radiusWrite, state: invalid });
+    assert.equal(rejected.status, 422);
+    assert.equal(rejected.data.error.code, 'invalid_state');
+  }
+  const validWrite = { ...radiusWrite, state: radius([measurement]) };
+  const radiusSaved = await request(a, 'sync', 'write', validWrite);
+  assert.equal(radiusSaved.status, 200, JSON.stringify(radiusSaved.data));
+  assert.deepEqual(radiusSaved.data.document.state, validWrite.state);
+  assert.match(radiusSaved.headers.get('cache-control'), /no-store/);
+  assert.equal((await request(a, 'sync', 'write', validWrite)).data.document.revision, 1);
+  assert.equal((await request(b, 'sync', 'read', undefined, radiusRead)).data.document, null);
+  assert.equal((await request(a, 'sync', 'read', undefined, { ...radiusRead, document: 'another' })).status, 422);
+  const cleared = await request(a, 'sync', 'write', {
+    ...radiusWrite, baseRevision: 1, mutationSequence: 2, operationId: randomUUID(), state: radius([]),
+  });
+  assert.deepEqual(cleared.data.document.state, radius([]));
+  const radiusCopies = await request(a, 'sync', 'recovery-list', undefined, { app: radiusPair.app });
+  assert.equal(radiusCopies.data.snapshots.length, 1);
+  const copy = await request(a, 'sync', 'recovery-read', undefined, { id: radiusCopies.data.snapshots[0].id });
+  assert.deepEqual(copy.data.snapshot.state, validWrite.state);
   async function startGoogle(client = a) {
     const main = client.cookies.get('__Host-ag-session');
     const oauth = await request(client, 'auth', 'google-start', { returnTo: '//external.example/' });
