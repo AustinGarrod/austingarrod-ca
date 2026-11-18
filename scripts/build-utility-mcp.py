@@ -1,4 +1,4 @@
-"""Bundle rule inputs from the Companion and skill ZIPs from the plugins."""
+"""Bundle Companion rule inputs and assistant installation ZIPs."""
 from pathlib import Path
 from shutil import copyfile
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
@@ -18,8 +18,17 @@ if vendor.is_dir():
 
 bundles = dist / "account/assistant-skills"
 bundles.mkdir(parents=True, exist_ok=True)
+
+
+def write_bundle(filename, source, entries):
+    with ZipFile(bundles / filename, "w") as archive:
+        for path in entries:
+            entry = ZipInfo(path, (2026, 1, 1, 0, 0, 0))
+            archive.writestr(entry, (source / path).read_bytes(), compress_type=ZIP_DEFLATED)
+
+
 for name in ("pokedex-binder", "idle-slayer-companion"):
-    skill = root / "plugins" / name / "skills" / name / "SKILL.md"
-    entry = ZipInfo(f"{name}/SKILL.md", (2026, 1, 1, 0, 0, 0))
-    with ZipFile(bundles / f"{name}.zip", "w") as archive:
-        archive.writestr(entry, skill.read_bytes(), compress_type=ZIP_DEFLATED)
+    plugin = root / "plugins" / name
+    skill = f"{name}/SKILL.md"
+    write_bundle(f"{name}.zip", plugin / "skills", [skill])
+    write_bundle(f"{name}-plugin.zip", plugin, [".claude-plugin/plugin.json", ".mcp.json", f"skills/{skill}"])

@@ -228,7 +228,9 @@ untracked_download_links = re.findall(
 )
 check(not untracked_external_links, "Built HTML contains untracked external links")
 expected_private_downloads = {
-    f'/account/assistant-skills/{name}.zip' for name in ("pokedex-binder", "idle-slayer-companion")
+    f'/account/assistant-skills/{name}{suffix}.zip'
+    for name in ("pokedex-binder", "idle-slayer-companion")
+    for suffix in ("", "-plugin")
 }
 for link in untracked_download_links:
     href = re.search(r'\bhref="([^"]+)"', link)
@@ -590,20 +592,24 @@ for required in [
     "api/v1/_mcp-data/wiki-priorities.json",
     "api/v1/_mcp-vendor/.htaccess",
     "api/v1/_mcp-vendor/autoload.php",
-    "account/assistant-skills/pokedex-binder.zip",
-    "account/assistant-skills/idle-slayer-companion.zip",
 ]:
     check((DIST / required).is_file(), f"Missing utility MCP release file {required}")
 
 for name in ("pokedex-binder", "idle-slayer-companion"):
-    bundle = DIST / "account" / "assistant-skills" / f"{name}.zip"
-    if bundle.is_file():
-        with ZipFile(bundle) as zip_skill:
-            entry = f"{name}/SKILL.md"
-            check(zip_skill.namelist() == [entry], f"Unexpected files in skill ZIP {name}")
-            source = ROOT / "plugins" / name / "skills" / entry
-            check(entry in zip_skill.namelist() and zip_skill.read(entry) == source.read_bytes(),
-                  f"Skill ZIP {name} differs from its plugin source")
+    source = ROOT / "plugins" / name
+    skill = f"{name}/SKILL.md"
+    for filename, bundle_source, entries in (
+        (f"{name}.zip", source / "skills", [skill]),
+        (f"{name}-plugin.zip", source, [".claude-plugin/plugin.json", ".mcp.json", f"skills/{skill}"]),
+    ):
+        bundle = DIST / "account" / "assistant-skills" / filename
+        check(bundle.is_file(), f"Missing utility assistant ZIP {filename}")
+        if bundle.is_file():
+            with ZipFile(bundle) as archive:
+                check(archive.namelist() == entries, f"Unexpected files in {filename}")
+                for entry in entries:
+                    check(entry in archive.namelist() and archive.read(entry) == (bundle_source / entry).read_bytes(),
+                          f"{entry} in {filename} differs from its plugin source")
 
 for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess"]:
     check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")
