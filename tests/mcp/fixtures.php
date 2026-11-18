@@ -37,6 +37,9 @@ foreach (['one', 'two'] as $name) {
         'ownedDexIds' => [$name === 'one' ? 1 : 4]];
     accounts_save_document($db, $user, 'pokedex-binder', 'binder', 1, accounts_encode($binder), null);
     if ($name === 'one') {
+        $set = (object)['id'=>accounts_uuid(),'name'=>'151 Master','setId'=>'sv03.5','goal'=>'variants','order'=>'together','settings'=>$binder->settings,'specialties'=>[],'extras'=>[],'owned'=>[]];
+        $copy = clone $set; $copy->id=accounts_uuid(); $copy->name='151 Trade';
+        accounts_save_document($db,$user,'pokedex-binder','master-sets',1,accounts_encode((object)['schemaVersion'=>1,'binders'=>[$set,$copy]]),null);
         $progress = mcp_slayer_progress(null, $map->revision);
         $progress->ascension->showSpoilers = true;
         $defaults = [

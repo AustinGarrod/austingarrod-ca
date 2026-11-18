@@ -11,6 +11,7 @@ try {
     const errors = [];
     let user = { id: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa', email: 'binder@example.test' }, revision = 1;
     let cloud = { schemaVersion: 1, settings: { rows: 3, columns: 4, useBackSides: true, leadingBlankPockets: 0 }, ownedDexIds: [25] };
+    let masterRemote=null;
     const stages = new Map(), acks = new Map(), snapshots = [];
     const remote = clientId => ({ resourceId: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb', app: 'pokedex-binder', document: 'binder', schemaVersion: 1, revision, state: cloud, acknowledgedSequence: acks.get(clientId) ?? 0 });
     await context.route('**/*', async route => {
@@ -20,10 +21,11 @@ try {
       if (url.pathname === '/api/v1/auth.php') return route.fulfill({ json: { enabled: true, migrationEnabled: true, user, csrfToken: 'fixture' } });
       if (url.pathname === '/api/v1/sync.php') {
         if (!user || request.headers()['x-account-id'] !== user.id) return route.fulfill({ status: 401, json: { error: { code: 'unauthorized', message: 'Sign in again.' } } });
-        if (action === 'read') return route.fulfill({ json: { document: remote(url.searchParams.get('clientId')) } });
-        if (action === 'migration-stage') { stages.set(body.variant, body); return route.fulfill({ json: { staged: true } }); }
+        if (action === 'read') return route.fulfill({ json: { document: url.searchParams.get('document')==='master-sets'?masterRemote:remote(url.searchParams.get('clientId')) } });
+        if (action === 'migration-stage') { stages.set(body.document+':'+body.variant, body); return route.fulfill({ json: { staged: true } }); }
         if (action === 'migration-commit') {
-          snapshots.push(cloud, stages.get('device').state); cloud = stages.get('selected').state; revision++;
+          masterRemote={...remote(body.clientId),document:'master-sets',state:stages.get('master-sets:selected').state};
+          snapshots.push(cloud, stages.get('binder:device').state); cloud = stages.get('binder:selected').state; revision++;
           return route.fulfill({ json: { documents: [remote(body.clientId)] } });
         }
         if (action === 'write') {

@@ -17,6 +17,18 @@ try {
     $database = new PDO($adminDsn, getenv('POKEDEX_TEST_USER') ?: 'root', getenv('POKEDEX_TEST_PASSWORD') ?: '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     $action = $argv[1] ?? '';
     if ($action === 'drop') { $database->exec('DROP DATABASE IF EXISTS `' . $name . '`'); exit; }
+    if ($action === 'retire-fixture') {
+        $database->exec('USE `' . $name . '`');
+        $database->exec("INSERT INTO pokedex_binders(key_hash,revision,state_json,deleted_at) VALUES (UNHEX(SHA2('active',256)),1,'{}',NULL),(UNHEX(SHA2('deleted',256)),2,NULL,NOW()),(UNHEX(SHA2('migrated',256)),3,'{}',NOW())");
+        $database->exec("INSERT INTO pokedex_binder_clients SELECT id,UUID(),1 FROM pokedex_binders WHERE state_json IS NOT NULL");
+        $sql = file_get_contents(dirname(__DIR__).'/server/pokedex-binder/retire-keys.sql');
+        for ($run=0; $run<2; $run++) {
+            $database->exec($sql);
+            $rows=$database->query('SELECT revision,state_json,deleted_at IS NOT NULL AS revoked FROM pokedex_binders ORDER BY id')->fetchAll(PDO::FETCH_NUM);
+            if (json_encode($rows) !== '[[2,null,1],[2,null,1],[3,"{}",1]]' || (int)$database->query('SELECT COUNT(*) FROM pokedex_binder_clients')->fetchColumn() !== 1) throw new RuntimeException('Unexpected retirement state');
+        }
+        exit;
+    }
     if ($action === 'audit') {
         $database->exec('USE `' . $name . '`');
         echo json_encode([

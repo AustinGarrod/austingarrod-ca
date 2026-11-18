@@ -30,6 +30,20 @@ export class BinderRecovery {
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
     });
   }
+  async update<T>(key: string, apply: (current: T | undefined) => T): Promise<T> {
+    const database = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction("records", "readwrite"), store = tx.objectStore("records");
+      const request = store.get(key);
+      let value: T;
+      request.onsuccess = () => {
+        try { value = apply(request.result as T | undefined); store.put(value, key); }
+        catch (error) { tx.abort(); reject(error); }
+      };
+      tx.oncomplete = () => resolve(value);
+      tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error ?? new Error("Set binders could not be saved."));
+    });
+  }
   async all(): Promise<{ key: string; value: unknown }[]> {
     const database = await this.open();
     return new Promise((resolve, reject) => {

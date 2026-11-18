@@ -172,6 +172,21 @@ try {
     await page.locator('#scan-next').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
     await page.locator('#scan-close').click(); await ctx.close();
   });
+  await scenario('set scanner reads a card locally and requires explicit number and finish confirmation', async () => {
+    const ctx=await context();const page=await open(ctx);
+    await page.locator('#master-new').click();await page.locator('#master-set').fill('sv03.5');await page.locator('#master-name').fill('151 Camera');
+    await page.locator('#master-form button.dex-primary').click();await page.locator('#master-scan').click();
+    await page.evaluate(()=>{window.__setGuide({x:360,y:0,width:560,height:720});window.__setCard('Bulbasaur','001/165');});
+    await page.locator('#master-camera').click();await expect(page.locator('#master-video')).toBeVisible();
+    await expect.poll(()=>page.locator('#master-video').evaluate(v=>v.videoWidth)).toBeGreaterThan(0);
+    await page.locator('#master-capture').click();
+    await expect(page.locator('#master-scan-status')).toContainText('Confirm the printed number',{timeout:60000});
+    await expect(page.locator('#master-candidates option[value="001:reverse"]')).toHaveCount(1);
+    await expect(page.locator('#master-confirm-scan')).toBeDisabled();await page.locator('#master-candidates').selectOption('001:reverse');
+    await page.locator('#master-confirm-scan').click();await expect(page.locator('[data-key="001:reverse"]')).toBeChecked();
+    await expect(page.locator('[data-key="001:normal"]')).not.toBeChecked();await expect.poll(()=>page.evaluate(()=>window.__cameraCount)).toBe(0);
+    await ctx.close();
+  });
   assert.deepEqual(allErrors, []);
 } catch (error) { console.error(error.message); throw error; }
 finally { await writeFile(`${output}/browser-results.json`, JSON.stringify({ completed, errors: allErrors }, null, 2)); await browser.close(); }

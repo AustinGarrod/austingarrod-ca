@@ -181,6 +181,11 @@ if scanner_manifest.is_file():
         check(metadata["version"] == expected_version, f"Unexpected scanner package version: {name}")
 check((scanner_assets / "ATTRIBUTION.txt").is_file(), "Missing scanner attribution")
 check((DIST / "utilities/pokedex-binder/catalog/scan-index.json").is_file(), "Missing scanner name index")
+master_catalog = DIST / "utilities/pokedex-binder/catalog/master-sets"
+master_index = json.loads((master_catalog / "index.json").read_text(encoding="utf-8"))
+for entry in master_index:
+    shard = master_catalog / (entry["id"] + ".json")
+    check(shard.is_file() and sha256(shard) == entry["digest"], f"Invalid set checklist: {entry['id']}")
 scanner_headers = (DIST / "utilities/pokedex-binder/.htaccess").read_text(encoding="utf-8")
 check("camera=(self)" in scanner_headers and "worker-src 'self'" in scanner_headers
       and "'wasm-unsafe-eval'" in scanner_headers, "Scanner camera/worker policy is incomplete")

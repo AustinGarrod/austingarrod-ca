@@ -1,0 +1,44 @@
+<section class="master-switch dex-toolbar" aria-label="Your binders">
+  <label>Open binder <select id="master-switch"><option value="">National Pokédex</option></select></label>
+  <button id="master-new">New set binder</button>
+</section>
+<p id="master-message" role="status" class="dex-help"></p>
+<button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>
+<section id="master-workspace" hidden aria-labelledby="master-title">
+  <div class="dex-section-heading"><h2 id="master-title"></h2><button id="master-settings">Binder settings</button></div>
+  <div class="dex-progress"><div><span class="dex-label">Goal progress</span><strong id="master-progress"></strong></div><div><span class="dex-label">Optional extras</span><strong id="master-optional"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress></div></div>
+  <div class="dex-toolbar master-controls">
+    <label>Find a card<input type="search" id="master-search" placeholder="Name or collector number" /></label>
+    <label>Show<select id="master-status"><option value="all">All cards</option><option value="missing">Missing</option><option value="owned">Owned</option></select></label>
+    <label>View<select id="master-view"><option value="pages">Binder pages</option><option value="list">Checklist</option></select></label>
+    <button id="master-scan">Scan a card</button><button id="master-add-extra">Add extra</button>
+  </div>
+  <div class="dex-page-heading" id="master-paging"><h3 id="master-page-name"></h3><label>Page <select id="master-page"></select></label></div>
+  <div id="master-slots"></div>
+  <div class="dex-actions dex-export-bar"><button id="master-csv">Export missing CSV</button><button id="master-print">Print missing list</button></div>
+</section>
+<dialog id="master-editor" class="dex-dialog"><form id="master-form">
+  <h2 id="master-editor-title">New set binder</h2>
+  <label>English set<input id="master-set" list="master-catalog" required autocomplete="off" placeholder="Search set name or code" /></label><datalist id="master-catalog"></datalist>
+  <label>Binder name<input id="master-name" required maxlength="100" /></label>
+  <label>Completion goal<select id="master-goal"><option value="variants">Every selected variant</option><option value="numbers">One of each number</option></select></label>
+  <label>Pocket order<select id="master-order"><option value="together">Finishes together by number</option><option value="sections">Parallel finishes after the numbered set</option></select></label>
+  <details id="master-specialty-section"><summary>Specialty printings to include</summary><div id="master-specialties"></div></details>
+  <div class="dex-form-grid"><label>Columns<input id="master-columns" type="number" min="1" max="6" required /></label><label>Rows<input id="master-rows" type="number" min="1" max="6" required /></label></div>
+  <label>Reserved starting pockets<input id="master-blanks" type="number" min="0" max="1000" required /></label>
+  <label><input id="master-backs" type="checkbox" /> Use both sides of each sheet</label>
+  <details id="master-extra-options" hidden><summary>Custom extras</summary><div id="master-extra-options-list"></div></details>
+  <p id="master-form-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary">Save binder</button></div>
+</form></dialog>
+<dialog id="master-extra-dialog" class="dex-dialog"><form id="master-extra-form"><h2>Add a custom extra</h2>
+  <label>Name or printing description<input id="master-extra-name" required maxlength="100" /></label><label>Collector number (optional)<input id="master-extra-number" maxlength="32" /></label>
+  <label><input type="checkbox" id="master-extra-required" /> Count toward completion</label><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button>Add extra</button></div>
+</form></dialog>
+<dialog id="master-scanner" class="dex-dialog"><h2>Scan a set card</h2><p>Recognition stays on this device. Confirm the card number and finish before marking it owned.</p>
+  <video id="master-video" playsinline autoplay muted hidden></video>
+  <div class="dex-actions"><button id="master-camera">Start camera</button><button id="master-capture" hidden>Capture card</button></div>
+  <label>Use a photo<input id="master-photo" type="file" accept="image/*" capture="environment" /></label>
+  <label>Find or correct the card<input id="master-scan-search" type="search" placeholder="Name or number" /></label>
+  <label>Card and finish<select id="master-candidates"></select></label><p id="master-scan-status" role="status"></p>
+  <div class="dex-dialog-actions"><button data-close-dialog>Close</button><button id="master-confirm-scan">Confirm collected</button></div>
+</dialog>

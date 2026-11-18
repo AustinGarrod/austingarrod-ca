@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { writeMasterCatalog } from "./pokedex-master-catalog.mjs";
 import { buildScanIndex } from "./pokedex-scan-index.mjs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -284,6 +285,7 @@ export async function refreshCatalog() {
       await writeFile(path.join(stage, "sprites", `${entry.id}.png`), sprite);
       if ((index + 1) % 200 === 0) console.log(`  ${index + 1}/${catalog.species.length} species assets`);
     });
+    await writeMasterCatalog(source.cards, path.join(stage, "catalog/master-sets"));
     const index = {
       schemaVersion: 1, generatedAt: new Date().toISOString(),
       sources: {
@@ -304,7 +306,7 @@ export async function refreshCatalog() {
       + "Pokémon names, characters, card artwork, and sprites belong to their respective owners.\n"
       + "Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https://tcgdex.dev/), MIT licensed.\n"
       + "Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.\n"
-      + "Card coverage reflects the pinned catalog snapshot and may be incomplete. Ownership is tracked by species, not a particular printing.\n");
+      + "Card coverage reflects the pinned catalog snapshot and may be incomplete. National Dex ownership is tracked by species. Set binders track card numbers and printings.\n");
     await publishDirectories(stage);
     console.log(`Published ${catalog.species.length} species, ${Object.keys(catalog.sets).length} sets, ${catalog.audit.indexedCards} printings.`);
     console.log(`Audit: ${catalog.audit.missingDexIdCards.length} cards without species IDs; ${catalog.audit.missingSetCodes.length} sets without codes.`);

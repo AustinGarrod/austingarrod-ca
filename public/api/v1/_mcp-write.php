@@ -240,6 +240,7 @@ function mcp_slayer_change(
 
 function mcp_operation_document(string $app, string $operation): string
 {
+    if ($app === 'pokedex-binder' && $operation === 'set_slot_ownership') return 'master-sets';
     if ($app === 'pokedex-binder' && $operation === 'set_ownership') {
         return 'binder';
     }
@@ -318,7 +319,7 @@ function mcp_plan_change(PDO $db, array $grant, string $root, string $operation,
         $document = mcp_operation_document($app, $operation);
     }
     $row = accounts_document($db, $user, $app, $document, true);
-    $primary = $app === 'pokedex-binder' ? 'binder' : 'progress';
+    $primary = $app === 'pokedex-binder' ? $document : 'progress';
     $primaryRow = $primary === $document ? $row : accounts_document($db, $user, $app, $primary, true);
     if ($primaryRow === null || $row === null) {
         mcp_missing_save();
@@ -332,7 +333,7 @@ function mcp_plan_change(PDO $db, array $grant, string $root, string $operation,
         $state = mcp_state($snapshot);
         $summary = ['recoveryCopy' => accounts_recovery_metadata($snapshot), 'replacesRevision' => (int)$row['revision']];
     } elseif ($app === 'pokedex-binder') {
-        $summary = mcp_binder_change($root, $state, $input);
+        $summary = $document === 'master-sets' ? master_change($root, $state, $input) : mcp_binder_change($root, $state, $input);
     } else {
         [$map, $catalog] = mcp_slayer_catalogs($root);
         $progress = mcp_slayer_progress($primaryRow, $map->revision);
@@ -358,7 +359,7 @@ function mcp_plan_change(PDO $db, array $grant, string $root, string $operation,
 
 function mcp_preview_catalog(string $root, string $app): string
 {
-    $files = $app === 'pokedex-binder' ? ['utilities/pokedex-binder/catalog/index.json'] : [
+    $files = $app === 'pokedex-binder' ? ['utilities/pokedex-binder/catalog/index.json','utilities/pokedex-binder/catalog/master-sets/index.json'] : [
         'utilities/idle-slayer-companion/catalog.json', 'utilities/idle-slayer-companion/companion-catalog.json',
         'api/v1/_mcp-data/companion-reset-rules.json',
     ];

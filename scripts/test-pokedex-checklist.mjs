@@ -10,7 +10,9 @@ const browser = await chromium.launch({ headless: true, ...(process.platform ===
 try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
-    let remoteState, revision = 1, acknowledgedSequence = 0, holdPatch = null;
+    const documents=new Map(), staged=new Map();
+    let holdPatch=null;
+    const user={id:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',email:'checklist@example.test'};
     let numberRequests = 0;
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
@@ -19,14 +21,22 @@ try {
         numberRequests++;
         if (width === 390 && numberRequests === 1) return route.fulfill({ status: 503 });
       }
-      if (!url.pathname.endsWith('/api/binder.php')) return route.continue();
-      const method = route.request().method(), body = route.request().postDataJSON();
-      if (method === 'POST') remoteState = body.state;
-      if (method === 'PATCH') {
-        if (holdPatch) await holdPatch;
-        remoteState = body.state; revision++; acknowledgedSequence = body.mutationSequence;
+      if(url.pathname==='/api/v1/auth.php')return route.fulfill({json:{enabled:true,migrationEnabled:true,user,csrfToken:'fixture'}});
+      if(url.pathname!=='/api/v1/sync.php')return route.continue();
+      const action=url.searchParams.get('action'), body=route.request().postDataJSON();
+      if(action==='read')return route.fulfill({json:{document:documents.get(url.searchParams.get('document'))??null}});
+      if(action==='migration-stage'){if(body.variant==='selected')staged.set(body.document,body.state);return route.fulfill({json:{staged:true}});}
+      if(action==='migration-commit'){
+        for(const [document,state] of staged)documents.set(document,{app:'pokedex-binder',document,resourceId:user.id,schemaVersion:1,revision:1,acknowledgedSequence:0,state});
+        return route.fulfill({json:{documents:[...documents.values()]}});
       }
-      return route.fulfill({ json: { schemaVersion: 1, revision, acknowledgedSequence, state: remoteState } });
+      if(action==='write'){
+        if(holdPatch)await holdPatch;
+        const doc=documents.get(body.document);
+        if(body.mutationSequence>doc.acknowledgedSequence){doc.revision++;doc.state=body.state;doc.acknowledgedSequence=body.mutationSequence;}
+        return route.fulfill({json:{document:doc}});
+      }
+      return route.fulfill({status:400,json:{error:{code:'unknown_action'}}});
     });
     const page = await context.newPage();
     const errors = [];
@@ -38,7 +48,9 @@ try {
     await expect(page.locator('.dex-intro')).not.toContainText('Fill the gaps');
     assert.equal(await page.locator('#dex-filter').evaluate(node => getComputedStyle(node).appearance), 'none');
     await page.locator('#sync-open').click();
-    await page.locator('#create-sync').click();
+    await page.locator('#binder-account-review').click();
+    await page.locator('#binder-migration-layout').selectOption('device');
+    await page.locator('#binder-migration-form button[type=submit]').click();
     await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device');
     await page.keyboard.press('Escape');
     await page.locator('#view-checklist').click();

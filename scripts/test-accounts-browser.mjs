@@ -179,12 +179,15 @@ try {
   browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
   const desktop = await makeContext('desktop', { width: 1440, height: 1000 });
   const page = await desktop.newPage(); const email = `browser-${randomBytes(4).toString('hex')}@example.test`;
-  let desktopOriginals, accountId, legacyKey;
+  let desktopOriginals, accountId;
   await scenario('guest datasets exist before signup', async () => {
     await openBinder(page); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
-    await page.locator('#sync-open').click(); await page.locator('#create-sync').click();
-    await expect(page.locator('#sync-connected')).toBeVisible(); await expect(page.locator('#dex-status')).toContainText('Synced'); legacyKey = await page.locator('#sync-key-display').inputValue(); assert.match(legacyKey, /^pdx_/);
-    await page.keyboard.press('Escape');
+    await page.locator('#master-new').click();
+    await page.locator('#master-set').fill('sv03.5');
+    await page.locator('#master-name').fill('My 151');
+    await page.locator('#master-form button.dex-primary').click();
+    await page.locator('[data-key="001:reverse"]').check();
+    await page.locator('#master-switch').selectOption('');
     await openSlayer(page); await expect(page.getByRole('dialog', { name: 'Account & sync', exact: true })).toContainText('Sign in'); desktopOriginals = await originals(page);
   });
   await scenario('desktop account page verifies a real emailed code', async () => {
@@ -197,9 +200,10 @@ try {
     await page.locator('#sync-open').click(); await expect(page.locator('#binder-account-status')).toContainText(email); await page.keyboard.press('Escape');
     await adoptBinder(page, false); await page.locator('#owned-grid-2').check();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.ownedDexIds.join(',')).toBe('1,2');
-    const oldKey = await desktop.request.get(origin + '/utilities/pokedex-binder/api/binder.php', { headers: { 'X-Pokedex-Key': legacyKey } });
+    const oldKey = await desktop.request.get(origin + '/utilities/pokedex-binder/api/binder.php', { headers: { 'X-Pokedex-Key': 'retired' } });
     assert.equal(oldKey.status(), 410, 'The migrated private key must be permanently revoked');
-    assert.equal((await oldKey.json()).error.code, 'binder_revoked');
+    assert.equal((await oldKey.json()).error.code, 'key_sync_retired');
+    assert.deepEqual((await remote(desktop,'pokedex-binder','master-sets')).state.binders[0].owned,['001:reverse']);
     await page.screenshot({ path: join(output, 'desktop-binder-synced.png'), fullPage: false });
   });
   await scenario('Idle Slayer shares login and adopts all four real documents', async () => {
@@ -224,6 +228,11 @@ try {
   });
   await scenario('mobile browser retrieves both utilities without another sign-in', async () => {
     await openBinder(phone); await adoptBinder(phone, true); await expect(phone.locator('#owned-count')).toHaveText('2');
+    const setOption=phone.locator('#master-switch option').filter({hasText:'My 151'});
+    await expect(setOption).toHaveCount(1);await phone.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
+    await expect(phone.locator('[data-key="001:reverse"]')).toBeChecked();
+    await phone.locator('[data-key="001:normal"]').check();
+    await expect.poll(async()=>(await remote(mobile,'pokedex-binder','master-sets')).state.binders[0].owned).toContain('001:normal');
     await openSlayer(phone); await adoptSlayer(phone, true); assert.deepEqual(await originals(phone), mobileOriginals);
     await expect(phone.getByRole('dialog', { name: 'Account & sync', exact: true }).getByRole('button', { name: 'Sync now', exact: true })).toBeVisible();
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Mobile utility horizontal overflow');
@@ -240,7 +249,7 @@ try {
   });
   await scenario('signed-in Google linking completes mailbox proof without changing saved data', async () => {
     const before = await session(desktop);
-    const resources = [['pokedex-binder', 'binder'], ...['progress', 'intentions', 'checkpoints', 'comparison'].map(name => ['idle-slayer-companion', name])];
+    const resources = [['pokedex-binder', 'binder'], ['pokedex-binder','master-sets'], ...['progress', 'intentions', 'checkpoints', 'comparison'].map(name => ['idle-slayer-companion', name])];
     const beforeDocuments = await Promise.all(resources.map(([app, name]) => remote(desktop, app, name)));
     const cookie = (await desktop.cookies()).find(item => item.name === '__Host-ag-session');
     assert.ok(cookie);

@@ -152,20 +152,6 @@ function accounts_migration_stage(PDO $db, string $user, stdClass $body, string 
     });
 }
 
-function accounts_legacy_key(mixed $key): string
-{
-    if (!is_string($key) || !preg_match('/^pdx_[A-Za-z0-9_-]{43}$/D', $key)) {
-        accounts_fail(401, 'invalid_key', 'Enter the complete private sync key.');
-    }
-
-    $encoded = substr($key, 4);
-    $bytes = base64_decode(strtr($encoded, '-_', '+/').'=', true);
-    if ($bytes === false || strlen($bytes) !== 32 || rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=') !== $encoded) {
-        accounts_fail(401, 'invalid_key', 'Enter a valid private sync key.');
-    }
-    return hash('sha256', $key, true);
-}
-
 function accounts_migration_commit(PDO $db, string $user, stdClass $body, string $webroot, ?string $legacyKey): array
 {
     if (!accounts_fields($body, ['migrationId', 'app', 'clientId', 'documents'], ['legacy', 'purpose']) || !is_string($body->app) || !is_array($body->documents)) {
@@ -195,25 +181,19 @@ function accounts_migration_commit(PDO $db, string $user, stdClass $body, string
     }
 
     ksort($manifest);
-    if ($manifest === [] || (!$conflict && array_keys($manifest) !== $expected)) {
+    // Earlier Binder clients only know the National Dex document. Their writes leave set collections intact.
+    $dexOnly = $app === 'pokedex-binder' && array_keys($manifest) === ['binder'];
+    if ($manifest === [] || (!$conflict && !$dexOnly && array_keys($manifest) !== $expected)) {
         accounts_fail(422, 'invalid_request', 'Review every application document before first adoption.');
     }
 
-    $legacyRevision = null;
-    $keyHash = null;
-    if (property_exists($body, 'legacy')) {
-        if ($conflict || $app !== 'pokedex-binder' || !accounts_fields($body->legacy, ['revision'])) {
-            accounts_fail(422, 'invalid_request', 'The legacy collection request is invalid.');
-        }
-        $legacyRevision = accounts_number($body->legacy->revision);
-        $keyHash = accounts_legacy_key($legacyKey);
-    } elseif ($legacyKey !== null) {
-        accounts_fail(422, 'invalid_request', 'Review the key collection before migrating it.');
+    if (property_exists($body, 'legacy') || $legacyKey !== null) {
+        accounts_fail(410, 'key_sync_retired', 'Private-key sync has retired. Review the saved device copy.');
     }
 
-    // Hash the proof digest, never the bearer key itself, into the operation identity.
-    $hash = hash('sha256', accounts_encode($body).'|'.($keyHash === null ? '' : bin2hex($keyHash)), true);
-    return accounts_transaction($db, function () use ($db, $user, $app, $migration, $client, $manifest, $conflict, $legacyRevision, $keyHash, $hash) {
+    // Preserve operation identity for replay of existing device-only migrations.
+    $hash = hash('sha256', accounts_encode($body).'|', true);
+    return accounts_transaction($db, function () use ($db, $user, $app, $migration, $client, $manifest, $conflict, $hash) {
         accounts_lock_user($db, $user);
         $previous = accounts_operation($db, $user, $migration, 'migration', $hash);
         if ($previous !== null) {
@@ -256,23 +236,6 @@ function accounts_migration_commit(PDO $db, string $user, stdClass $body, string
             accounts_fail(409, 'migration_incomplete', 'Preserve each device copy before finishing migration.');
         }
 
-        $legacy = null;
-        if ($keyHash !== null) {
-            $legacy = accounts_query($db, 'SELECT * FROM pokedex_binders WHERE key_hash=? FOR UPDATE', [$keyHash])->fetch();
-            if (!is_array($legacy) || $legacy['deleted_at'] !== null) {
-                accounts_fail(410, 'legacy_key_revoked', 'This key was revoked or moved to an account. Sign in to that account; your device copy is still available.');
-            }
-
-            if ((int)$legacy['revision'] !== $legacyRevision) {
-                accounts_fail(409, 'legacy_revision_conflict', 'The key collection changed. Refresh it and review the migration again.');
-            }
-
-            $clients = accounts_query($db, 'SELECT client_id,last_applied_sequence FROM pokedex_binder_clients WHERE binder_id=?', [$legacy['id']])->fetchAll();
-            $archive = ['revision' => (int)$legacy['revision'], 'state' => json_decode($legacy['state_json'], false, 64, JSON_THROW_ON_ERROR), 'clients' => $clients];
-            accounts_query($db, 'INSERT INTO accounts_legacy_claims(key_hash,user_id,migration_id,legacy_binder_id,archive_json) VALUES(?,?,?,?,?)', [$keyHash, $user, $migration, $legacy['id'], json_encode($archive, JSON_THROW_ON_ERROR)]);
-            accounts_snapshot($db, $user, $app, 'binder', 'Legacy key collection', 1, (int)$legacy['revision'], $legacy['state_json']);
-        }
-
         $documents = [];
         foreach ($manifest as $name => $base) {
             $row = accounts_document($db, $user, $app, $name, true);
@@ -288,11 +251,6 @@ function accounts_migration_commit(PDO $db, string $user, stdClass $body, string
             accounts_snapshot($db, $user, $app, $name, 'Migration selection', 1, 0, $selected[$name]['state_json']);
             $row = accounts_save_document($db, $user, $app, $name, 1, $selected[$name]['state_json'], $row);
             $documents[] = accounts_remote($db, $row, $client);
-        }
-
-        // Retain legacy state and acknowledgments. Old versions already reject this tombstone.
-        if ($legacy !== null) {
-            accounts_query($db, 'UPDATE pokedex_binders SET deleted_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?', [$legacy['id']]);
         }
 
         $result = ['documents' => $documents];

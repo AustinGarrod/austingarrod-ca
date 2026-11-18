@@ -202,6 +202,17 @@ try {
   await edit(binder, writer, 'restore_recovery', { id: result.recoveryCopyId });
   assert.deepEqual((await tool(binder, writer, 'get_collection', { status: 'owned' })).items.map(item => item.id), [1]);
 
+  const sets = await tool(binder, writer, 'list_set_binders', {query:'151'});
+  assert.equal(sets.total,2);
+  const binderId=sets.items[0].binderId;
+  const readSet=(id,status)=>tool(binder,writer,'get_set_binder',{binderId:id,status,query:'Bulbasaur'});
+  const slot=(await readSet(binderId,'missing')).items.find(s=>s.key==='001:reverse');
+  assert.equal(slot.pocket,2);
+  await edit(binder,writer,'set_slot_ownership',{binderId,key:slot.key,owned:true});
+  assert.equal((await readSet(binderId,'owned')).items[0].key,slot.key);
+  assert.equal((await readSet(sets.items[1].binderId,'owned')).total,0);
+  await tool(binder,reader,'get_set_binder',{binderId},'binder_not_found');
+
   stage = 'synced Slayer operations';
   const recommendation = (await tool(slayer, slayerWriter, 'recommend_upgrades', { limit: 1 })).suggestions[0];
   assert.ok(recommendation?.id);

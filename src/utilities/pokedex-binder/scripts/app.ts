@@ -1,3 +1,5 @@
+import { createMasterUI } from "./master-ui";
+import { validateMaster } from "../lib/master";
 import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
@@ -63,7 +65,17 @@ async function initialize() {
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  function backup() { download(exportBackup(snapshot.state), "pokedex-binder-backup.json", "application/json"); }
+  const master = createMasterUI(controller.masters, download);
+  async function backup() {
+    const state = snapshot.state, scope=controller.restoreScope();
+    let sets;
+    try { sets=await master.backup(); } catch {
+      download(exportBackup(state),"pokedex-national-dex-backup.json","application/json");
+      throw new Error("National Dex backup downloaded. Set binder storage could not be read.");
+    }
+    if(scope!==controller.restoreScope()) throw new Error("The account changed. Download the current backup again.");
+    download(JSON.stringify({utility:"pokedex-binder",schemaVersion:2,exportedAt:new Date().toISOString(),state,masterSets:sets}), "pokedex-binder-backup.json", "application/json");
+  }
   function confirmAction(title: string, text: string, label: string): Promise<boolean> {
     const dialog = el<HTMLDialogElement>("confirm-dialog");
     el("confirm-title").textContent = title; el("confirm-text").textContent = text; el("confirm-accept").textContent = label;
@@ -98,6 +110,7 @@ async function initialize() {
     const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
       .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
     const owned = new Set(snapshot.state.ownedDexIds), count = owned.size;
+    master.dex(count,species.length);
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
     renderFeedback();
@@ -267,7 +280,6 @@ async function initialize() {
   }
   function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view = "binder"; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
   function renderSync() {
-    el("sync-connected").hidden = !snapshot.connected || account.mode === "account"; el("sync-disconnected").hidden = snapshot.connected || account.mode === "account";
     el("binder-account-panel").hidden = !account.enabled;
     el<HTMLAnchorElement>("binder-account-link").href = accountHref(root);
     el("binder-account-link").textContent = account.user ? "Manage account & recovery" : "Sign in with email or Google";
@@ -279,10 +291,7 @@ async function initialize() {
     el("binder-account-sync").hidden = account.mode !== "account";
     el("binder-account-recheck").hidden = !account.storageNeedsRecovery;
     el("binder-recovery-download").hidden = !account.user;
-    el("binder-legacy-input").hidden = !account.user || !account.migrationEnabled || account.mode === "account";
     el("sync-message").textContent = snapshot.error ?? (snapshot.storageWarning ? "Browser storage is unavailable. Export a backup before leaving this page." : statusLabels[snapshot.status]);
-    const display = el<HTMLInputElement>("sync-key-display");
-    if (!display.hidden && display.value !== (snapshot.key ?? "")) display.value = snapshot.key ?? "";
   }
   controller.subscribe(value => {
     const changed = !sameState(snapshot.state, value.state); snapshot = value;
@@ -290,8 +299,9 @@ async function initialize() {
     else { renderFeedback(); renderSync(); }
     scanner?.refresh();
   });
-  controller.subscribeAccount(value => { account = value; renderSync(); });
+  controller.subscribeAccount(value => { account = value; master.account(value); renderSync(); });
   await controller.start();
+  void master.start().catch(error=>{el("master-message").textContent=error.message;});
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", async event => {
     const button = event.currentTarget as HTMLButtonElement; button.disabled = true;
@@ -364,13 +374,19 @@ async function initialize() {
       el<HTMLDialogElement>("layout-dialog").close();
     });
   });
-  el("sync-open").addEventListener("click", () => { el("sync-error").textContent = ""; renderSync(); syncDialog.showModal(); });
+  el("sync-open").addEventListener("click", () => { el("sync-error").textContent = ""; renderSync(); syncDialog.showModal();
+    el("previous-restore").hidden=true;
+    void controller.previousRestore().then(saved=>{el("previous-restore").hidden=!saved;}).catch(()=>{});
+    el("resume-restore").hidden=true;
+    void controller.pendingRestore().then(pending=>{el("resume-restore").hidden=!pending;}).catch(()=>{});
+  });
+  el("previous-restore").addEventListener("click",()=>void action(async()=>{const backup=await controller.previousRestore();if(backup)download(JSON.stringify(backup),"pokedex-before-restore.json","application/json");}));
+  el("resume-restore").addEventListener("click",()=>void action(async()=>{await controller.resumeRestore();await master.restored();el("resume-restore").hidden=true;}));
   el("binder-account-review").addEventListener("click", event => void action(async () => {
-    migrationPreview = await controller.previewMigration(el<HTMLInputElement>("binder-migration-key").value);
+    migrationPreview = await controller.previewMigration();
     const preview = migrationPreview;
-    el("binder-migration-summary").textContent = `This device: ${preview.device.ownedDexIds.length} collected. Private-key binder: ${preview.legacy ? preview.legacy.ownedDexIds.length + " collected" : "none"}. Account: ${preview.account ? preview.account.ownedDexIds.length + " collected" : "new binder"}.`;
+    el("binder-migration-summary").textContent = `This device: ${preview.device.ownedDexIds.length} collected. Named binders: ${preview.sets?.device.binders.length ?? 0} on this device, ${preview.sets?.account.binders.length ?? 0} on the account. Conflicting copies are kept separately. Account: ${preview.account ? preview.account.ownedDexIds.length + " collected" : "new binder"}.`;
     const layout = el<HTMLSelectElement>("binder-migration-layout"), collection = el<HTMLSelectElement>("binder-migration-collection");
-    layout.querySelector<HTMLOptionElement>('option[value="legacy"]')!.disabled = !preview.legacy;
     layout.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
     collection.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
     layout.value = preview.layoutConflict ? "" : "device"; collection.value = "combine";
@@ -385,50 +401,33 @@ async function initialize() {
       try {
         const selectedState = combineMigrationSources(migrationPreview, el<HTMLSelectElement>("binder-migration-layout").value as "device" | "legacy" | "account", el<HTMLSelectElement>("binder-migration-collection").value as "combine" | "device" | "account");
         await controller.migrate(migrationPreview, selectedState);
-        el<HTMLInputElement>("binder-migration-key").value = "";
         el<HTMLDialogElement>("binder-migration-dialog").close();
       } catch (error) { el("binder-migration-error").textContent = error instanceof Error ? error.message : "Migration could not finish. Your original copies are preserved."; throw error; }
     }, button);
   });
   el("binder-account-resume").addEventListener("click", event => void action(() => controller.resumeMigration(), event.currentTarget as HTMLButtonElement));
-  el("binder-account-sync").addEventListener("click", event => void action(() => controller.sync(), event.currentTarget as HTMLButtonElement));
+  el("binder-account-sync").addEventListener("click", event => void action(() => Promise.all([controller.sync(),master.sync()]), event.currentTarget as HTMLButtonElement));
   el("binder-account-recheck").addEventListener("click", event => void action(() => controller.recheckConnection(), event.currentTarget as HTMLButtonElement));
   el("binder-recovery-download").addEventListener("click", event => void action(async () => download(await controller.recoveryBackups(), "pokedex-binder-migration-backups.json", "application/json"), event.currentTarget as HTMLButtonElement));
-  syncDialog.addEventListener("close", () => { el<HTMLInputElement>("sync-key-input").value = ""; el<HTMLInputElement>("sync-key-display").value = ""; el("sync-key-display").hidden = true; el("reveal-key").textContent = "Show key"; });
-  el("create-sync").addEventListener("click", event => void action(async () => {
-    await controller.createSync();
-    if (!snapshot.error) { el("sync-key-display").hidden = false; el<HTMLInputElement>("sync-key-display").value = snapshot.key ?? ""; el("reveal-key").textContent = "Hide key"; }
-  }, event.currentTarget as HTMLButtonElement));
-  el("connect-form").addEventListener("submit", event => {
-    event.preventDefault(); const key = el<HTMLInputElement>("sync-key-input").value.trim();
-    void action(async () => {
-      await controller.checkKey(key);
-      if (await confirmAction("Open synced binder?", "This will replace the collection shown on this device with the synced binder. Download a backup first if you want to keep this local collection.", "Open synced binder")) { await controller.connect(key); el<HTMLInputElement>("sync-key-input").value = ""; }
-    });
-  });
-  el("copy-key").addEventListener("click", () => void action(async () => {
-    if (!snapshot.key) return;
-    try { await navigator.clipboard.writeText(snapshot.key); el("sync-message").textContent = "Private key copied. Save it somewhere private."; }
-    catch { el("sync-key-display").hidden = false; el<HTMLInputElement>("sync-key-display").value = snapshot.key; el<HTMLInputElement>("sync-key-display").select(); el("sync-message").textContent = "Copy the selected private key."; }
-  }));
-  el("reveal-key").addEventListener("click", () => { const input = el<HTMLInputElement>("sync-key-display"); input.hidden = !input.hidden; input.value = input.hidden ? "" : snapshot.key ?? ""; el("reveal-key").textContent = input.hidden ? "Show key" : "Hide key"; });
-  el("sync-now").addEventListener("click", () => void action(() => controller.sync()));
-  el("disconnect-sync").addEventListener("click", () => void action(async () => {
-    if (await confirmAction("Disconnect this device?", "Your collection stays on this device. Pending changes will no longer upload. Keep your private key to reconnect later, and download a backup if anything is unsynced.", "Disconnect device")) await controller.disconnect();
-  }));
-  el("delete-cloud").addEventListener("click", () => void action(async () => {
-    if (await confirmAction("Delete synced binder?", "Permanently delete the server copy and invalidate this key for every paired device. Your current local collection stays here. Download a backup before deleting.", "Delete synced binder")) await controller.deleteCloud();
-  }));
   el("conflict-local").addEventListener("click", () => void action(() => controller.resolveLayout("local")));
   el("conflict-remote").addEventListener("click", () => void action(() => controller.resolveLayout("remote")));
-  el("export-json").addEventListener("click", backup); el("confirm-backup").addEventListener("click", backup);
+  el("export-json").addEventListener("click", () => void action(backup)); el("confirm-backup").addEventListener("click", () => void action(backup));
   el("export-csv").addEventListener("click", () => download(exportCsv(species, snapshot.state, true), "pokedex-missing.csv", "text/csv;charset=utf-8"));
   el("import-json").addEventListener("change", event => void action(async () => {
     const input = event.target as HTMLInputElement, file = input.files?.[0]; if (!file) return;
     try {
-      if (file.size > 65536) throw new Error("This file is too large for a Pokédex Binder backup.");
-      const state: BinderState = importBackup(await file.text(), species);
-      if (await confirmAction("Restore this backup?", "Replace your current collection and layout with this backup. If connected, the restored collection will also sync to your other devices. Download your current backup first if needed.", "Restore backup")) await controller.replaceState(state);
+      if (file.size > 5 * 1024 * 1024) throw new Error("This file is too large for a Pokédex Binder backup.");
+      const scope=controller.restoreScope();
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const combined = parsed?.utility === "pokedex-binder" && parsed.schemaVersion === 2;
+      const sets = combined ? validateMaster(parsed.masterSets) : null;
+      const state: BinderState = combined ? importBackup(JSON.stringify({utility:"pokedex-binder",schemaVersion:1,state:parsed.state}),species) : importBackup(text,species);
+      if(sets) await master.checkBackup(sets);
+      if (await confirmAction("Restore this backup?", "Replace your current collection and layout with this backup. If connected, the restored collection will also sync to your other devices. Download your current backup first if needed.", "Restore backup")) {
+        if(scope!==controller.restoreScope()) throw new Error("The active account changed. Review the backup again.");
+        if(sets) { await controller.restoreCollections(state,sets,scope);await master.restored(); } else await controller.replaceState(state);
+      }
     } finally { input.value = ""; }
   }));
   el("print-missing").addEventListener("click", () => {
@@ -436,7 +435,7 @@ async function initialize() {
     el("print-content").innerHTML = `<h1>Pokédex Binder · Missing Pokémon</h1><p>${missing.length} still to find · ${snapshot.state.settings.columns} × ${snapshot.state.settings.rows} pockets per side</p><table><thead><tr><th>Pokédex</th><th>Pokémon</th><th>Page</th><th>Sheet / side</th><th>Row / column</th></tr></thead><tbody>${missing.map(item => { const loc = locationFor(item.id, snapshot.state.settings); return `<tr><td>☐ ${dex(item.id)}</td><td>${escape(item.name)}</td><td>${loc.page}</td><td>${loc.sheet} / ${loc.side}</td><td>${loc.row} / ${loc.column}</td></tr>`; }).join("")}</tbody></table>`;
     window.print();
   });
-  window.addEventListener("pagehide", event => { if (!event.persisted) controller.stop(); });
+  window.addEventListener("pagehide", event => { if (!event.persisted) { master.close(); controller.stop(); } });
   window.addEventListener("pageshow", event => { if (event.persisted) void controller.sync(); });
 }
 

@@ -26,6 +26,7 @@ function mcp_change_schema(string $app): array
     $boolean = ['type' => 'boolean'];
     $defs = ['restore_recovery' => [['id' => $id], ['id']]];
     if ($app === 'pokedex-binder') {
+        $defs['set_slot_ownership'] = [['binderId'=>$id,'key'=>['type'=>'string','maxLength'=>256],'owned'=>$boolean],['binderId','key','owned']];
         $defs['set_ownership'] = [[
             'dexIds' => ['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 1], 'minItems' => 1, 'maxItems' => 50, 'uniqueItems' => true],
             'owned' => $boolean,
@@ -87,6 +88,11 @@ function mcp_tools(string $app): array
     if ($app === 'pokedex-binder') {
         $set = ['setId' => ['type' => 'string', 'maxLength' => 64]];
         $tools += [
+            'list_set_binders' => ['List named set binders', 'Find synced binder IDs and progress by binder or expansion name.', $page + $query],
+            'get_set_binder' => ['Read a set binder', 'Find cards, printing keys, finishes and physical locations in a named binder.', $page + $query + [
+                'binderId' => ['type'=>'string','maxLength'=>36],
+                'status' => ['type'=>'string','enum'=>['all','owned','missing']],
+            ], ['binderId']],
             'search_catalog' => ['Search the Pokédex catalog', 'Search English physical card sets or National Dex species by name or ID.', $page + $query + $set + [
                 'kind' => ['type' => 'string', 'enum' => ['species', 'sets']],
             ]],
@@ -163,6 +169,7 @@ function mcp_call(PDO $db, array $config, array $grant, string $root, string $to
     return match ($tool) {
         'preview_change' => mcp_preview_change($db, $config, $grant, $root, $args['operation'], (object)$args['input']),
         'apply_change' => mcp_apply_change($db, $config, $grant, $root, $args['previewId']),
+        'list_set_binders', 'get_set_binder' => master_read($tool,$root,accounts_document($db,$user,$app,'master-sets'),$args),
         'list_recovery' => mcp_recovery_list($db, $user, $app, $args['offset'] ?? 0, $args['limit'] ?? 20),
         default => $app === 'pokedex-binder'
             ? mcp_binder_read($tool, $root, $tool === 'get_collection' ? accounts_document($db, $user, $app, 'binder') : null, $args)

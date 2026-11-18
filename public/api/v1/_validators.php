@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 require_once __DIR__.'/_common.php';
+require_once __DIR__.'/_master-sets.php';
 const ACCOUNTS_SYSTEMS = ['achievement', 'craft', 'material', 'quest', 'village', 'enemy', 'divinity'];
 // The registry also defines complete migration manifests for each application.
 const ACCOUNTS_DOCUMENT_LIMITS = [
-    'pokedex-binder' => ['binder' => 65536],
+    'pokedex-binder' => ['binder' => 65536, 'master-sets' => 4194304],
     'idle-slayer-companion' => ['progress' => 4194304, 'intentions' => 65536, 'checkpoints' => 4194304, 'comparison' => 4096],
 ];
 function accounts_invalid(): never
@@ -67,6 +68,10 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
         accounts_fail(413, 'document_too_large', 'The document exceeds its supported size.');
     }
 
+    if ($app === 'pokedex-binder' && $document === 'master-sets') {
+        master_validate($state, $webroot);
+        return $encoded;
+    }
     if ($app === 'pokedex-binder') {
         if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds']) || $state->schemaVersion !== 1 || !accounts_fields($state->settings, ['columns', 'rows', 'useBackSides', 'leadingBlankPockets']) || !is_array($state->ownedDexIds)) {
             accounts_invalid();

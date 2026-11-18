@@ -1,3 +1,5 @@
+import { adoptSets, emptyMaster, sameSave, validateMaster, type MasterState } from "./master";
+import { MasterStore, documentName } from "./master-store";
 import { createAccountClient, getSession, refreshSession, subscribeSession, type AccountSession } from "../../../../packages/accounts/client";
 import { cloneState, mergeStates, sameSettings, sameState, validateState, type BinderState } from "./model";
 import { BinderStore, STORAGE_NAME, type BinderStoreOptions, type StoredBinder } from "./store";
@@ -9,14 +11,19 @@ type AccountClient = ReturnType<typeof createAccountClient>;
 type Remote = RemoteBinder & { resourceId: string; app: string; document: string };
 export interface MigrationPreview {
   id: string; accountId: string; device: BinderState; legacy: BinderState | null; account: BinderState | null;
+  sets?: {device: MasterState; account: MasterState; revision: number};
   layoutConflict: boolean; accountRevision: number; legacyRevision: number | null;
 }
 interface MigrationJournal {
   id: string; accountId: string; before: StoredBinder; rawBefore: unknown; device: BinderState;
   selected: BinderState; accountRevision: number; legacyRevision: number | null; legacyKey: string | null;
+  sets?: {device: MasterState; selected: MasterState; revision: number};
   phase: "prepared" | "committed" | "complete" | "review";
 }
-export interface BinderAccountState { user: AccountSession["user"]; enabled: boolean; migrationEnabled: boolean; mode: "guest" | "account"; pendingMigration: boolean; offline: boolean; retainedAccount: { id: string; email: string } | null; storageNeedsRecovery: boolean }
+interface RestoreJournal {
+  id: string; scope: string; previous: BinderState; previousSets: MasterState; next: BinderState; nextSets: MasterState;
+}
+export interface BinderAccountState { boundAccountId: string | null; user: AccountSession["user"]; enabled: boolean; migrationEnabled: boolean; mode: "guest" | "account"; pendingMigration: boolean; offline: boolean; retainedAccount: { id: string; email: string } | null; storageNeedsRecovery: boolean }
 export interface UnifiedBinderOptions extends BinderStoreOptions {
   autoSync?: boolean; fetch?: typeof fetch;
   accounts?: { getSession: typeof getSession; refreshSession?: typeof refreshSession; subscribeSession: typeof subscribeSession; client: (id: string) => AccountClient };
@@ -33,23 +40,24 @@ export function combineMigrationSources(preview: Pick<MigrationPreview, "device"
 export function createUnifiedBinderController(options: UnifiedBinderOptions) {
   const accounts = options.accounts ?? { getSession, refreshSession, subscribeSession, client: createAccountClient };
   const recovery = new BinderRecovery(options.indexedDB === undefined ? globalThis.indexedDB : options.indexedDB);
+  const masters = new MasterStore(recovery);
   const guestStore = new BinderStore(options);
-  let session: AccountSession | null = null, stopped = false, migrationBusy = false, guestRetired = false, verifiedSession = false;
+  let session: AccountSession | null = null, stopped = false, migrationBusy = false, verifiedSession = false;
   let mode: "guest" | "account" = "guest", accountId: string | null = null;
   let retainedAccount: { id: string; email: string } | null = null, activeAccountEmail = "", retryingStorage = false;
   let activeStore = guestStore, accountController: BinderController | null = null;
-  const guest = createBinderController({ ...options, store: guestStore, canSync: () => !stopped && mode === "guest" && !migrationBusy && !guestRetired });
+  const guest = createBinderController({ ...options, store: guestStore, canSync: () => false, autoSync: false });
   let active = guest, unsubscribeActive: (() => void) | undefined, unsubscribeSession: (() => void) | undefined;
   const listeners = new Set<(value: BinderSnapshot) => void>(), accountListeners = new Set<(value: BinderAccountState) => void>();
   let pendingMigration = false;
-  let previewKey: string | null = null, currentPreview: MigrationPreview | null = null;
+  let currentPreview: MigrationPreview | null = null;
   let switching: Promise<void> = Promise.resolve();
   const currentUser = () => session?.user?.id ?? null;
   function requireAccount(id = currentUser()): string {
     if (!id || id !== currentUser() || stopped) throw new Error("Sign in again before syncing. Your binder stays on this device.");
     return id;
   }
-  function accountState(): BinderAccountState { return { user: session?.user ?? null, enabled: session?.enabled ?? false, migrationEnabled: session?.migrationEnabled ?? false, mode, pendingMigration, offline: mode === "account" && !verifiedSession, retainedAccount, storageNeedsRecovery: mode === "account" && !activeStore.persistent }; }
+  function accountState(): BinderAccountState { return { boundAccountId: accountId, user: session?.user ?? null, enabled: session?.enabled ?? false, migrationEnabled: session?.migrationEnabled ?? false, mode, pendingMigration, offline: mode === "account" && !verifiedSession, retainedAccount, storageNeedsRecovery: mode === "account" && !activeStore.persistent }; }
   function snapshot(): BinderSnapshot {
     const value = active.snapshot();
     return mode === "account" ? { ...value, key: null, connected: true, status: !verifiedSession && value.status === "synced" ? "pending" : value.status } : value;
@@ -145,6 +153,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
   }
   async function start(): Promise<void> {
     attach(guest); await guest.start();
+    if (guestStore.read().session) await guest.disconnect();
     unsubscribeSession = accounts.subscribeSession(next => {
       session = next; verifiedSession = true; // Fence an in-flight transport immediately, before awaiting storage.
       switching = switching.then(() => onSession(next)).catch(() => undefined);
@@ -173,21 +182,16 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       const doc = activeStore.read();
       if (doc.layoutConflict || doc.session?.inFlight || doc.session && !sameState(doc.state, doc.session.baseline)) throw new Error("Finish syncing this account binder before reviewing another device.");
     }
-    // Settle a frozen legacy request before using its source revision, including lost acknowledgments.
-    await guest.sync();
-    requireAccount(id);
+    if (key?.trim()) throw new Error("Private-key sync has retired.");
     const before = await guestStore.refresh();
-    if (!guestStore.persistent) throw new Error("Browser storage needs attention. Export a backup before migrating.");
-    if (before.layoutConflict) throw new Error("Choose the legacy binder layout before connecting your account.");
-    previewKey = key?.trim() || (guest.snapshot().connected ? before.session?.key ?? null : null);
-    if (before.session && guest.snapshot().connected && (before.session.creating || before.session.inFlight || !sameState(before.state, before.session.baseline))) throw new Error("The existing key has unsynced changes. Reconnect and sync it before migrating.");
-    let legacy: RemoteBinder | null = null;
-    if (previewKey) legacy = await guest.checkKey(previewKey);
+    if (!guestStore.persistent) throw new Error("Export a backup before connecting an account on this device.");
+    const deviceSets = (await masters.read("guest")).state;
+    const accountSets = await accounts.client(id).getDocument<MasterState>(APP, documentName, before.clientId);
     const remote = await readRemote(accounts.client(id), activeStore.read().clientId);
     requireAccount(id);
-    const states = [before.state, legacy?.state, remote?.state].filter((value): value is BinderState => !!value);
-    currentPreview = { id: crypto.randomUUID(), accountId: id, device: cloneState(before.state), legacy: legacy?.state ?? null, account: remote?.state ?? null,
-      accountRevision: remote?.revision ?? 0, legacyRevision: legacy?.revision ?? null, layoutConflict: states.some(state => !sameSettings(state.settings, states[0].settings)) };
+    const states = [before.state, remote?.state].filter((value): value is BinderState => !!value);
+    currentPreview = { id: crypto.randomUUID(), accountId: id, device: cloneState(before.state), legacy: null, account: remote?.state ?? null,
+      accountRevision: remote?.revision ?? 0, legacyRevision: null, sets: {device: deviceSets, account: accountSets ? validateMaster(accountSets.state) : emptyMaster(), revision: accountSets?.revision ?? 0}, layoutConflict: states.some(state => !sameSettings(state.settings, states[0].settings)) };
     return structuredClone(currentPreview);
   }
   async function finishJournal(journal: MigrationJournal): Promise<void> {
@@ -199,8 +203,22 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
         requireAccount(id);
         await client.stageMigration({ migrationId: journal.id, app: APP, document: DOCUMENT, variant: "selected", schemaVersion: 1, state: journal.selected, baseRevision: journal.accountRevision });
         requireAccount(id);
-        await client.commitMigration({ migrationId: journal.id, app: APP, clientId: journal.before.clientId,
-          documents: [{ document: DOCUMENT, baseRevision: journal.accountRevision }], ...(journal.legacyRevision === null ? {} : { legacy: { revision: journal.legacyRevision } }) }, journal.legacyKey ?? undefined);
+        const documents = [{ document: DOCUMENT, baseRevision: journal.accountRevision }];
+        if (journal.sets) {
+          for (const variant of ["device","selected"] as const) {
+            await client.stageMigration({migrationId:journal.id, app:APP, document:documentName, variant, schemaVersion:1, state:journal.sets[variant], baseRevision:journal.sets.revision});
+            requireAccount(id);
+          }
+          documents.push({document:documentName,baseRevision:journal.sets.revision});
+        }
+        if (journal.legacyKey) {
+          journal.phase = "review";
+          await recovery.put(`backup:${journal.id}`,journal);
+          await recovery.put(`migration:${id}`,journal);
+          pendingMigration=false;
+          throw new Error("Private-key sync has retired. Review your device and account copies again.");
+        }
+        await client.commitMigration({migrationId:journal.id, app:APP, clientId:journal.before.clientId, documents});
         journal.phase = "committed"; await recovery.put(`migration:${id}`, journal);
       }
       requireAccount(id);
@@ -208,7 +226,15 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       const remote = await readRemote(client, guestStore.read().clientId);
       requireAccount(id);
       if (!remote) throw new Error("Migration was saved but its account copy could not be verified. Retry to finish; your device copy is unchanged.");
-      if (journal.legacyKey) guestRetired = true;
+      if (journal.sets) {
+        const local = await masters.read(id);
+        const saved = await client.getDocument<MasterState>(APP, documentName, local.clientId);
+        requireAccount(id);
+        if (!saved || saved.app !== APP || saved.document !== documentName || saved.revision <= journal.sets.revision) throw new Error("Set binder adoption needs account readback.");
+        const confirmed = validateMaster(saved.state);
+        if (saved.revision === journal.sets.revision+1 && !sameSave(confirmed,journal.sets.selected)) throw new Error("The saved set binders differ from the reviewed collection.");
+        await masters.adopt(id,saved,local.clientId,journal.sets.device);
+      }
       await recovery.put(`backup:${journal.id}`, journal);
       await openAccount(id, remote, journal.device);
       await recovery.put(`binding:${id}`, { resourceId: remote.resourceId });
@@ -216,7 +242,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       pendingMigration = false; currentPreview = null;
     } catch (error) {
       if (journal.phase === "prepared" && error && typeof error === "object" && "code" in error
-        && ["revision_conflict", "legacy_revision_conflict", "legacy_key_revoked", "migration_stage_reused", "migration_preview_changed"].includes(String(error.code))) {
+        && ["revision_conflict", "legacy_revision_conflict", "legacy_key_revoked", "key_sync_retired", "migration_stage_reused", "migration_preview_changed"].includes(String(error.code))) {
         // These transactional rejections did not commit. Preserve the failed preview and allow a fresh review.
         journal.phase = "review"; await recovery.put(`backup:${journal.id}`, journal); await recovery.put(`migration:${id}`, journal);
         pendingMigration = false; currentPreview = null;
@@ -230,9 +256,10 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     if (currentPreview?.id !== preview.id) throw new Error("Review the device and account copies again before connecting.");
     await guestStore.refresh();
     if (!sameState(guestStore.read().state, preview.device)) throw new Error("The device binder changed while you reviewed it. Review again; no data was replaced.");
+    if (preview.sets && !sameSave((await masters.read("guest")).state,preview.sets.device)) throw new Error("Set binders changed. Review the copies again.");
     const before = guestStore.read();
     const journal: MigrationJournal = { id: preview.id, accountId: id, before, rawBefore: await guestStore.rawDocument(), device: cloneState(preview.device),
-      selected: validateState(selected, options.species), accountRevision: preview.accountRevision, legacyRevision: preview.legacyRevision, legacyKey: previewKey, phase: "prepared" };
+      selected: validateState(selected, options.species), accountRevision: preview.accountRevision, legacyRevision: preview.legacyRevision, legacyKey: null, sets: preview.sets ? {device:preview.sets.device,selected:adoptSets(preview.sets.device,preview.sets.account),revision:preview.sets.revision} : undefined, phase: "prepared" };
     await recovery.put(`migration:${id}`, journal);
     await finishJournal(journal);
   }
@@ -241,7 +268,51 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     if (!journal || !["prepared", "committed"].includes(journal.phase)) throw new Error("No unfinished migration was found on this device.");
     await finishJournal(journal);
   }
-  function requireGuest(): void { if (mode !== "guest") throw new Error("This binder syncs through your account. Manage account recovery from your account page."); }
+  const restoreScope = () => mode === "account" ? accountId! : "guest";
+  async function applyRestore(journal: RestoreJournal): Promise<void> {
+    const target = active, scope = journal.scope;
+    const checkScope = () => {
+      if (scope !== restoreScope() || target !== active || retainedAccount || stopped) throw new Error("Reopen the original binder to finish restoring this backup.");
+    };
+    checkScope();
+    const original = target.snapshot().state;
+    if (!sameState(original,journal.previous) && !sameState(original,journal.next)) throw new Error("Your National Dex changed after this restore began. Export the current copy and review the backup again.");
+    await masters.update(scope, save => {
+      checkScope();
+      if (!sameSave(save.state,journal.previousSets) && !sameSave(save.state,journal.nextSets)) throw new Error("Your set binders changed after this restore began. Export the current copy and review the backup again.");
+      save.state=journal.nextSets;
+    });
+    checkScope();
+    if (!sameState(original,journal.next)) await target.replaceState(journal.next);
+    checkScope();
+    if (!activeStore.persistent || !sameState(target.snapshot().state,journal.next)) throw new Error("Restore is saved for retry. Reopen Sync & backup to finish.");
+    await recovery.put("restore-backup:"+journal.id,journal);
+    await recovery.put("last-restore:"+scope,journal.id);
+    await recovery.put("restore:"+scope,null);
+  }
+  async function restoreCollections(next: BinderState, nextSets: MasterState, scope: string): Promise<void> {
+    if (scope !== restoreScope() || retainedAccount) throw new Error("The active account changed. Review the backup again.");
+    const previous=cloneState(active.snapshot().state);
+    const previousSets=(await masters.read(scope)).state;
+    const journal: RestoreJournal={id:crypto.randomUUID(),scope,previous,previousSets,next:validateState(next,options.species),nextSets:validateMaster(nextSets)};
+    const pending=await recovery.get<RestoreJournal>("restore:"+scope);
+    if(pending) await recovery.put("restore-backup:"+pending.id,pending);
+    await recovery.put("restore:"+scope,journal);
+    await applyRestore(journal);
+  }
+  async function previousRestore() {
+    const scope=restoreScope();
+    const pending=await recovery.get<RestoreJournal>("restore:"+scope);
+    const last=await recovery.get<string>("last-restore:"+scope);
+    const saved=pending ?? (last ? await recovery.get<RestoreJournal>("restore-backup:"+last) : null);
+    if (!saved || saved.scope!==restoreScope()) return null;
+    return {utility:APP,schemaVersion:2,state:saved.previous,masterSets:saved.previousSets};
+  }
+  async function pendingRestore() { return !!await recovery.get<RestoreJournal>("restore:"+restoreScope()); }
+  async function resumeRestore() {
+    const journal=await recovery.get<RestoreJournal>("restore:"+restoreScope());
+    if(journal) await applyRestore(journal);
+  }
   function editable(): BinderController {
     if (retryingStorage) throw new Error("The open binder is being saved. Retry this edit when saving finishes.");
     return active;
@@ -256,13 +327,11 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     } finally { retryingStorage = false; emit(); }
   }
   return {
-    start, snapshot, accountState, previewMigration, migrate, resumeMigration, recheckConnection,
+    masters, restoreScope, restoreCollections, previousRestore, pendingRestore, resumeRestore, start, snapshot, accountState, previewMigration, migrate, resumeMigration, recheckConnection,
     subscribe(listener: (value: BinderSnapshot) => void) { listeners.add(listener); listener(snapshot()); return () => listeners.delete(listener); },
     subscribeAccount(listener: (value: BinderAccountState) => void) { accountListeners.add(listener); listener(accountState()); return () => accountListeners.delete(listener); },
     setOwned: (id: number, owned: boolean) => editable().setOwned(id, owned), setSettings: (settings: BinderState["settings"]) => editable().setSettings(settings), replaceState: (state: BinderState) => editable().replaceState(state),
-    resolveLayout: (choice: "local" | "remote") => active.resolveLayout(choice), sync: () => active.sync(),
-    createSync() { requireGuest(); return guest.createSync(); }, checkKey: (key: string) => guest.checkKey(key),
-    connect(key: string) { requireGuest(); return guest.connect(key); }, disconnect() { requireGuest(); return guest.disconnect(); }, deleteCloud() { requireGuest(); return guest.deleteCloud(); },
+    resolveLayout: (choice: "local" | "remote") => active.resolveLayout(choice), sync: async () => { await switching; return active.sync(); },
     async recoveryBackups(): Promise<string> {
       // Portable recovery intentionally omits private keys and authentication metadata.
       const id = requireAccount();
@@ -270,7 +339,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       requireAccount(id);
       return JSON.stringify({ utility: APP, recoveryVersion: 1, backups: records.filter(row => (row.key.startsWith("backup:") || row.key.startsWith("migration:")) && (row.value as MigrationJournal).accountId === id).map(row => {
         const value = row.value as MigrationJournal;
-        return { migrationId: value.id, device: value.device, selected: value.selected, phase: value.phase };
+        return { migrationId: value.id, device: value.device, selected: value.selected, sets:value.sets, phase: value.phase };
       }) }, null, 2);
     },
     stop() { stopped = true; unsubscribeSession?.(); unsubscribeActive?.(); accountController?.stop(); guest.stop(); recovery.close(); listeners.clear(); accountListeners.clear(); }

@@ -16,6 +16,7 @@ function service(initial: BinderState | null = null) {
   const listeners = new Set<(session: AccountSession) => void>();
   const documents = new Map<string, RemoteDocument<BinderState>>();
   if (initial) documents.set("account-a", { resourceId: "resource-a", app: "pokedex-binder", document: "binder", schemaVersion: 1, revision: 1, state: initial, acknowledgedSequence: 0 });
+  const setDocs = new Map<string, RemoteDocument>();
   const acks = new Map<string, number>(), stages = new Map<string, Map<string, MigrationStage<BinderState>>>(), committed = new Set<string>();
   const legacy = new Map<string, { revision: number; state: BinderState; acks: Map<string, number>; revoked: boolean }>();
   const calls: { account: string; operation: string; body?: unknown }[] = [];
@@ -26,6 +27,7 @@ function service(initial: BinderState | null = null) {
     return {
       async getDocument(_app: string, _document: string, clientId: string) {
         assertAccount(id); calls.push({ account: id, operation: "read" });
+        if (_document === "master-sets") return structuredClone(setDocs.get(id) ?? null);
         const value = documents.get(id);
         return value ? structuredClone({ ...value, acknowledgedSequence: acks.get(`${id}:${clientId}`) ?? 0 }) : null;
       },
@@ -45,7 +47,7 @@ function service(initial: BinderState | null = null) {
         assertAccount(id); calls.push({ account: id, operation: "stage", body });
         const key = `${id}:${body.migrationId}`;
         if (!stages.has(key)) stages.set(key, new Map());
-        stages.get(key)!.set(body.variant, structuredClone(body));
+        stages.get(key)!.set(body.document+":"+body.variant, structuredClone(body));
         return { staged: true };
       },
       async commitMigration(body: MigrationCommit, legacyKey?: string) {
@@ -56,10 +58,12 @@ function service(initial: BinderState | null = null) {
           if ((prior?.revision ?? 0) !== body.documents[0].baseRevision || legacySource && legacySource.revision !== body.legacy?.revision) throw new APIError("Copies changed. Review again.", "revision_conflict", 409);
           if (prior) snapshots.push(cloneState(prior.state));
           if (legacySource) snapshots.push(cloneState(legacySource.state));
-          snapshots.push(cloneState(staged.get("device")!.state));
+          snapshots.push(cloneState(staged.get("binder:device")!.state));
           documents.set(id, { resourceId: `resource-${id}`, app: "pokedex-binder", document: "binder", schemaVersion: 1, revision: (prior?.revision ?? 0) + 1,
-            state: cloneState(staged.get("selected")!.state), acknowledgedSequence: 0 });
+            state: cloneState(staged.get("binder:selected")!.state), acknowledgedSequence: 0 });
           if (legacySource) legacySource.revoked = true;
+          const sets = staged.get("master-sets:selected");
+          if (sets) setDocs.set(id,{ resourceId:"set-doc-"+id, app:"pokedex-binder",document:"master-sets",schemaVersion:1, revision:(setDocs.get(id)?.revision??0)+1, state:structuredClone(sets.state),acknowledgedSequence:0 });
           committed.add(migrationKey);
         }
         if (heldCommit) { const held = heldCommit; heldCommit = null; await held; }
@@ -124,18 +128,28 @@ describe("optional Binder accounts and non-destructive migration", () => {
     expect(api.snapshots).toContainEqual(state([25], 3));
     expect(await app.recoveryBackups()).not.toContain("pdx_");
   });
-  it("reconciles a frozen legacy request after a lost acknowledgment before retiring the key", async () => {
-    const api = service(), indexedDB = new IDBFactory(), key = generateSyncKey();
-    api.legacy.set(key, { revision: 1, state: state([]), acks: new Map(), revoked: false });
-    const app = await controller(api, indexedDB); await app.connect(key);
-    await app.setOwned(7, true); api.loseNextLegacyPatch(); await app.sync();
-    expect(app.snapshot().status).toBe("error");
+  it("rebases guest set edits made during adoption without discarding exact finishes", async () => {
+    const api=service(), app=await controller(api);
+    const { newBinder }=await import("../../src/utilities/pokedex-binder/lib/master");
+    const b=newBinder("sv03.5","151");
+    await app.masters.update("guest",s=>s.state.binders.push(b));
+    const preview=await app.previewMigration(),release=api.holdCommit();
+    const pending=app.migrate(preview,combineMigrationSources(preview,"device"));
+    while(!api.calls.some(c=>c.operation==="commit"))await tick();
+    await app.masters.update("guest",s=>{s.state.binders[0].owned=["001:reverse"];});
+    release();await pending;
+    const account=await app.masters.read("account-a");
+    expect(account.state.binders[0].owned).toEqual(["001:reverse"]);
+    expect(account.baseline.binders[0].owned).toEqual([]);
+  });
+  it("retains unsynced local marks when upgrading a device with a retired key", async () => {
+    const api = service(), indexedDB = new IDBFactory();
+    const old = new BinderStore({species,indexedDB,broadcast:false}); await old.open();
+    await old.update(doc=>{doc.state=state([7]);doc.session={key:generateSyncKey(),revision:1,baseline:state([]),creating:false,nextSequence:1,inFlight:null};return doc;});old.close();
+    const app=await controller(api,indexedDB);
+    expect(app.snapshot().state.ownedDexIds).toEqual([7]); expect(app.snapshot().connected).toBe(false);
     await migrate(app);
     expect(api.documents.get("account-a")!.state.ownedDexIds).toEqual([7]);
-    expect(api.legacy.get(key)!.revoked).toBe(true);
-    const original = new BinderStore({ species, indexedDB, broadcast: false }); await original.open();
-    expect(original.read().session?.key).toBe(key);
-    expect(original.read().session?.revision).toBe(2); original.close();
   });
   it("resumes the same committed migration after its response is lost without overwriting copies", async () => {
     const api = service(state([25])), app = await controller(api);

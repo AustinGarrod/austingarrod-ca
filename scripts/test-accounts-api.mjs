@@ -190,41 +190,25 @@ try {
   assert.deepEqual(races.map(r => r.status).sort(), [200, 409]);
   const current = (await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document; assert.equal(current.revision, 2);
   assert.equal((await request(a, 'sync', 'write', first)).data.document.revision, 2, 'Lost response replay must read current state');
-  // Actual legacy key creation, then atomic account conversion and permanent revocation.
-  const key = `pdx_${randomBytes(32).toString('base64url')}`;
-  const legacyConfig = join(temporary, 'pokedex-config.php');
-  writeFileSync(legacyConfig, `<?php\nreturn json_decode(base64_decode('${Buffer.from(JSON.stringify({ ...config, rateLimitDirectory: join(temporary, 'limits'), rateLimitSecret: config.secret })).toString('base64')}'), true);\n`);
-  // A small CLI fixture creates an ordinary legacy row without bypassing any account auth.
-  const fixture = join(temporary, 'legacy-fixture.php');
-  writeFileSync(fixture, `<?php\n$c=require $argv[1]; $db=new PDO($c['dsn'],$c['username'],$c['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]); $q=$db->prepare('INSERT INTO pokedex_binders(key_hash,revision,state_json) VALUES(?,1,?)');$q->execute([hash('sha256',$argv[2],true),$argv[3]]);\n`);
-  execFileSync(php, [...flags, fixture, configFile, key, JSON.stringify(binder([25]))], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const key = 'pdx_'+randomBytes(32).toString('base64url');
   const migrationId = randomUUID(), stage = { migrationId, app, document, schemaVersion: 1, baseRevision: current.revision };
   assert.equal((await request(a, 'sync', 'migration-stage', { ...stage, variant: 'selected', state: binder([1, 2, 25]) })).status, 200);
   assert.equal((await request(a, 'sync', 'migration-stage', { ...stage, variant: 'selected', state: binder([1]) })).status, 409);
-  const commit = { migrationId, app, clientId, documents: [{ document, baseRevision: current.revision }], legacy: { revision: 1 } };
+  const commit = { migrationId, app, clientId, documents: [{ document, baseRevision: current.revision }] };
   const beforeMissingDevice = JSON.parse(databaseCommand('audit').toString());
-  response = await request(a, 'sync', 'migration-commit', commit, {}, { 'X-Pokedex-Key': key });
+  response = await request(a, 'sync', 'migration-commit', commit);
   assert.equal(response.status, 409); assert.equal(response.data.error.code, 'migration_incomplete');
   assert.deepEqual(JSON.parse(databaseCommand('audit').toString()), beforeMissingDevice, 'Missing device stage must not claim/revoke a key or create replacement recovery state');
   assert.deepEqual((await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document, current, 'Missing device stage must not replace the account binder');
   assert.equal((await request(a, 'sync', 'migration-stage', { ...stage, variant: 'device', state: binder([1, 2]) })).status, 200);
-  assert.equal((await request(a, 'sync', 'migration-commit', { ...commit, legacy: { revision: 2 } }, {}, { 'X-Pokedex-Key': key })).status, 409);
-  response = await request(a, 'sync', 'migration-commit', commit, {}, { 'X-Pokedex-Key': key }); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.documents[0].revision, 3);
-  assert.equal((await request(a, 'sync', 'migration-commit', commit, {}, { 'X-Pokedex-Key': key })).status, 200);
-  const legacyReadFixture = join(temporary, 'legacy-read-fixture.php');
-  writeFileSync(legacyReadFixture, `<?php\nrequire $argv[1]; $c=require $argv[2]; $db=pokedex_database($c); try { pokedex_handle($db,'GET',hash('sha256',$argv[3],true),null,null,[1=>true,2=>true,25=>true]); echo json_encode(['status'=>200]); } catch (PokedexApiError $e) { echo json_encode(['status'=>$e->status,'code'=>$e->errorCode]); }\n`);
-  const legacyRead = JSON.parse(execFileSync(php, [...flags, legacyReadFixture, join(root, 'public/utilities/pokedex-binder/api/_library.php'), legacyConfig, key], { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
-  assert.deepEqual(legacyRead, { status: 410, code: 'binder_revoked' }, 'An old client must recognize migrated-key revocation without exposing retained state');
-  const claimant = { ...commit, migrationId: randomUUID(), documents: [{ document, baseRevision: 0 }] };
-  await request(b, 'sync', 'migration-stage', { ...stage, migrationId: claimant.migrationId, baseRevision: 0, variant: 'device', state: binder([25]) });
-  await request(b, 'sync', 'migration-stage', { ...stage, migrationId: claimant.migrationId, baseRevision: 0, variant: 'selected', state: binder([25]) });
-  assert.equal((await request(b, 'sync', 'migration-commit', claimant, {}, { 'X-Pokedex-Key': key })).status, 410);
-  const audit = JSON.parse(databaseCommand('audit').toString()); assert.equal(audit.claims, 1); assert.equal(audit.retainedLegacy, 1);
-  let snapshots = (await request(a, 'sync', 'recovery-list')).data.snapshots; assert.ok(snapshots.some(s => s.label === 'Legacy key collection')); assert.ok(snapshots.some(s => s.label === 'Device before migration')); assert.match(snapshots[0].createdAt, /Z$/);
-  const saved = snapshots.find(s => s.label === 'Legacy key collection');
+  assert.equal((await request(a, 'sync', 'migration-commit', { ...commit, legacy: { revision: 2 } }, {}, { 'X-Pokedex-Key': key })).status, 410);
+  response = await request(a, 'sync', 'migration-commit', commit); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.documents[0].revision, 3);
+  assert.equal((await request(a, 'sync', 'migration-commit', commit)).status, 200);
+  let snapshots = (await request(a, 'sync', 'recovery-list')).data.snapshots; assert.ok(snapshots.some(s => s.label === 'Device before migration')); assert.match(snapshots[0].createdAt, /Z$/);
+  const saved = snapshots.find(s => s.label === 'Device before migration');
   assert.equal((await request(b, 'sync', 'recovery-read', undefined, { id: saved.id })).status, 404);
   assert.equal((await request(b, 'sync', 'recovery-restore', { id: saved.id, baseRevision: 0, clientId, operationId: randomUUID() })).status, 404);
-  response = await request(a, 'sync', 'recovery-restore', { id: saved.id, baseRevision: 3, clientId, operationId: randomUUID() }); assert.equal(response.status, 200); assert.deepEqual(response.data.document.state.ownedDexIds, [25]);
+  response = await request(a, 'sync', 'recovery-restore', { id: saved.id, baseRevision: 3, clientId, operationId: randomUUID() }); assert.equal(response.status, 200); assert.deepEqual(response.data.document.state.ownedDexIds, [1, 2]);
   assert.equal((await request(a, 'sync', 'recovery-delete', { id: saved.id })).status, 200); assert.equal((await request(a, 'sync', 'recovery-read', undefined, { id: saved.id })).status, 404);
   // Every Slayer document is staged separately; all activate in one database transaction.
   const profile = { version: 1, catalogRevision: 'fixture', epoch: 0, purchases: {}, milestones: {}, showSpoilers: false };
@@ -339,7 +323,7 @@ try {
   try { assert.equal(await callback(a, flow), '/account/?google=failed', 'Missing private config must also clear an OAuth proof'); }
   finally { renameSync(unavailableConfig, configFile); }
   assert.ok(!phpOutput.includes(key), 'A key entered server diagnostics'); assert.ok(!phpOutput.includes(proof.code), 'An email code entered server diagnostics'); assert.ok(!phpOutput.includes('one@example.test'), 'Email entered server diagnostics');
-  console.log('Accounts API: real email-code login, signed-token validation, CSRF, isolation, concurrent revisions, staged migration/revocation, recovery, and logout passed.');
+  console.log('Accounts API: real email-code login, signed-token validation, CSRF, isolation, concurrent revisions, staged migration, retired-key rejection, recovery, and logout passed.');
 } finally {
   for (const child of processes) child.kill();
   await Promise.all(processes.map(child => new Promise(resolve => { if (child.exitCode !== null) resolve(); else child.once('exit', resolve); })));

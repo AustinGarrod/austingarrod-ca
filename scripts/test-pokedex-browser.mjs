@@ -80,22 +80,6 @@ async function go(page, id) {
   await expect(page.locator(`#open-grid-${id}`)).toBeVisible();
   await page.locator('#dex-search').fill('');
 }
-async function sync(page) {
-  await closeDialogs(page);
-  await page.locator('#sync-open').click();
-  await page.locator('#sync-now').click();
-  await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device', { timeout: 15000 });
-  await closeDialogs(page);
-}
-async function connect(page, key) {
-  await page.locator('#sync-open').click();
-  await page.locator('#sync-key-input').fill(key);
-  await page.locator('#connect-form button[type=submit]').click();
-  await expect(page.locator('#confirm-dialog')).toBeVisible();
-  await page.locator('#confirm-accept').click();
-  await expect(page.locator('#sync-connected')).toBeVisible();
-  await closeDialogs(page);
-}
 async function layout(page, values) {
   await closeDialogs(page);
   await page.locator('#layout-open').click();
@@ -116,7 +100,7 @@ try {
   const desktop = await context();
   const page = await open(desktop);
   await page.screenshot({ path: join(output, 'initial-4x4.png'), fullPage: true });
-  let key, backup;
+  let backup;
   await scenario('4 by 4 boundaries and ownership survive reload', async () => {
     await expect(page.locator('#binder-grid .dex-pocket')).toHaveCount(16);
     await expect(page.locator('#open-grid-16')).toHaveAttribute('aria-label', /row 4, column 4/);
@@ -240,51 +224,80 @@ try {
     await expect(page.locator('#layout-dialog')).not.toBeVisible();
     await expect(page.locator('#layout-open')).toBeFocused();
   });
-  await scenario('private key creates copies and connects a second device', async () => {
-    await page.locator('#sync-open').click(); await page.locator('#create-sync').click();
-    await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device', { timeout: 15000 });
-    key = await page.locator('#sync-key-display').inputValue();
-    assert.match(key, /^pdx_[A-Za-z0-9_-]{43}$/);
-    await page.locator('#copy-key').click();
-    assert.equal(await page.evaluate(() => window.__pokedexCopiedKey), key);
-    assert.equal(new URL(page.url()).search, ''); assert.equal(new URL(page.url()).hash, '');
-    await closeDialogs(page);
-  });
-  const second = await context(); const other = await open(second);
-  await connect(other, key);
-  await expect(other.locator('#owned-count')).toHaveText('1');
-  await scenario('independent device edits merge after a transient network failure', async () => {
-    controls.get(desktop).offlineApi = true;
-    await go(page, 1); await page.locator('#owned-grid-1').check();
-    await expect(page.locator('#owned-count')).toHaveText('2');
-    await go(other, 2); await other.locator('#owned-grid-2').check(); await sync(other);
-    controls.get(desktop).offlineApi = false;
-    await sync(page); await sync(other);
-    await expect(page.locator('#owned-count')).toHaveText('3');
-    await expect(other.locator('#owned-count')).toHaveText('3');
-  });
   const sibling = await open(desktop);
   await scenario('same device tabs serialize independent checkbox edits', async () => {
     await go(page, 3); await go(sibling, 4);
     await Promise.all([page.locator('#owned-grid-3').check(), sibling.locator('#owned-grid-4').check()]);
-    await expect(page.locator('#owned-count')).toHaveText('5');
-    await expect(sibling.locator('#owned-count')).toHaveText('5');
-    await sync(page); await sync(other);
-    await expect(other.locator('#owned-count')).toHaveText('5');
+    await expect(page.locator('#owned-count')).toHaveText('3');
+    await expect(sibling.locator('#owned-count')).toHaveText('3');
+    await sibling.reload(); await expect(sibling.locator('#owned-count')).toHaveText('3');
   });
-  await scenario('offline edits survive a page reload and resume synchronization', async () => {
-    controls.get(desktop).offlineApi = true;
-    await go(page, 5); await page.locator('#owned-grid-5').check();
-    await expect(page.locator('#owned-count')).toHaveText('6');
-    await page.reload(); await expect(page.locator('#owned-count')).toHaveText('6');
-    controls.get(desktop).offlineApi = false;
-    await sync(page); await sync(other);
-    await expect(other.locator('#owned-count')).toHaveText('6');
-  });
+  async function exerciseSets(page) {
+    const save = async () => {
+      await page.locator('#master-form button.dex-primary').click();
+      await expect(page.locator('#master-editor')).not.toBeVisible();
+    };
+    const slot = key => page.locator(`[data-key="${key}"]`);
+    for (const name of ['151 Master', '151 Trade']) {
+      await page.locator('#master-new').click();
+      await page.locator('#master-set').fill('sv03.5');
+      await page.locator('#master-name').fill(name);
+      await save();
+      await expect(page.locator('#master-title')).toContainText(name);
+      if (name === '151 Master') await slot('001:reverse').check();
+    }
+    await expect(slot('001:reverse')).not.toBeChecked();
+    const master = await page.locator('#master-switch option').filter({ hasText: '151 Master' }).getAttribute('value');
+    await page.locator('#master-switch').selectOption(master);
+    await expect(slot('001:reverse')).toBeChecked();
+
+    await page.locator('#master-settings').click();
+    await page.locator('#master-goal').selectOption('numbers');
+    await save();
+    await expect(slot('001:*')).toBeChecked();
+    await slot('002:*').check();
+    await page.locator('#master-settings').click();
+    await page.locator('#master-goal').selectOption('variants');
+    await page.locator('#master-order').selectOption('sections');
+    await page.locator('#master-specialty-section > summary').click();
+    const specialty = page.locator('#master-specialties details').filter({
+      has: page.locator('input[value="001:normal+stamp=set-logo"]'),
+    });
+    await specialty.locator('summary').click();
+    await specialty.locator('input[value="001:normal+stamp=set-logo"]').check();
+    await save();
+    await page.locator('#master-workspace').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: join(output, `master-set-${page.viewportSize().width}.png`) });
+    await page.locator('#master-view').selectOption('list');
+    await expect(slot('001:reverse')).toBeChecked();
+    await expect(slot('001:normal+stamp=set-logo')).not.toBeChecked();
+    await expect(slot('004:normal+stamp=set-logo')).toHaveCount(0);
+    await expect(slot('002:normal')).not.toBeChecked();
+
+    await page.locator('#master-add-extra').click();
+    await page.locator('#master-extra-name').fill('Shop promo');
+    await page.locator('#master-extra-form button').last().click();
+    await expect(page.locator('#master-optional')).toHaveText('0 / 1');
+    await page.locator('#master-scan').click();
+    await page.locator('#master-scan-search').fill('001');
+    await page.locator('#master-candidates').selectOption('001:normal');
+    await page.locator('#master-confirm-scan').click();
+    await expect(slot('001:normal')).toBeChecked();
+    await page.locator('#master-print').click();
+    await expect(page.locator('#print-content')).toContainText('Shop promo');
+    const exported = page.waitForEvent('download');
+    await page.locator('#master-csv').click();
+    const csv = readFileSync(await (await exported).path(), 'utf8');
+    assert.ok(csv.includes('Shop promo') && !csv.includes('"001","Bulbasaur","Regular"'));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    await page.locator('#master-switch').selectOption('');
+  }
+  await scenario('independent named master sets, placement, scanner confirmation and exports',()=>exerciseSets(page));
   await page.screenshot({ path: join(output, 'desktop.png'), fullPage: true });
   await scenario('mobile details and dense layouts avoid horizontal overflow', async () => {
     const mobile = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const phone = await open(mobile);
+    await exerciseSets(phone);
     await go(phone, 17);
     await phone.locator('#open-grid-17').click();
     await expect(phone.locator('#pokemon-details h2')).toHaveText('Pidgeotto');
