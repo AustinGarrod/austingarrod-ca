@@ -11,9 +11,14 @@ try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
     let remoteState, revision = 1, acknowledgedSequence = 0, holdPatch = null;
+    let numberRequests = 0;
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
+      if (url.pathname.endsWith('/catalog/collector-numbers.json')) {
+        numberRequests++;
+        if (width === 390 && numberRequests === 1) return route.fulfill({ status: 503 });
+      }
       if (!url.pathname.endsWith('/api/binder.php')) return route.continue();
       const method = route.request().method(), body = route.request().postDataJSON();
       if (method === 'POST') remoteState = body.state;
@@ -54,10 +59,25 @@ try {
     await page.locator('#checklist-sort').selectOption('dex-desc');
     await expect(rows.first()).toContainText('Pecharunt');
     await page.locator('#checklist-sort').selectOption('name');
+    assert.equal(numberRequests, 0, 'Unfiltered checklist does not fetch numbers');
     await page.locator('#checklist-set').fill('151 (MEW)');
     await expect(page.locator('#checklist-count')).toContainText('151 Pokémon');
     await expect(rows.first()).toContainText('Abra');
     const abra = page.locator('#checklist-row-63');
+    const cardNumbers = '.dex-checklist-card-numbers';
+    if (width === 390) {
+      await expect(page.locator('#checklist-number-status')).toHaveText('Card numbers couldn’t load.');
+      await page.locator('#checklist-number-retry').click();
+    }
+    await expect(abra.locator(cardNumbers)).toHaveText('Card #063');
+    await expect(page.locator('#checklist-row-6').locator(cardNumbers)).toHaveText('Cards #006, #183, #199');
+    await page.locator('#checklist-set').fill('Base Set');
+    await expect(abra.locator(cardNumbers)).toHaveText('Card #43');
+    await page.locator('#checklist-set').fill('base');
+    await expect(abra.locator(cardNumbers)).toBeHidden();
+    await page.locator('#checklist-set').fill('151 (MEW)');
+    await expect(abra.locator(cardNumbers)).toHaveText('Card #063');
+    assert.equal(numberRequests, width === 390 ? 2 : 1, 'Set switches reuse the loaded lookup');
     await abra.locator('.dex-checklist-name').click();
     await expect(abra).toHaveClass(/selected/);
     let releasePatch;
@@ -123,6 +143,7 @@ try {
     await page.locator('#checklist-clear-set').click();
     await expect(page.locator('#checklist-set')).toHaveValue('');
     await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
+    await expect(abra.locator(cardNumbers)).toBeHidden();
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Passed checklist sorting, set/name/ownership/generation filters and stable locations at ${width}px`);

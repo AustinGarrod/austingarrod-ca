@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checklistSpecies } from "../../src/utilities/pokedex-binder/lib/checklist";
+import { filterChecklist, type ChecklistSort } from "../../src/utilities/pokedex-binder/lib/checklist";
 import { DEFAULT_SETTINGS, locationFor } from "../../src/utilities/pokedex-binder/lib/model";
 
 const species = [
@@ -13,6 +13,8 @@ const sets = {
   unknown: { id: "unknown", name: "Pokémon promos", code: null },
 };
 const index = { base1: [1, 25, 63], base4: [25], unknown: [63] };
+const checklistSpecies = (items: typeof species, available: typeof sets, setSpecies: typeof index, query: string, sort: ChecklistSort) =>
+  filterChecklist(items, available, setSpecies, query, sort).species;
 
 describe("checklist sorting and set filtering", () => {
   it("sorts both directions without moving binder slots or changing catalog order", () => {
@@ -37,6 +39,8 @@ describe("checklist sorting and set filtering", () => {
   });
   it("prefers an exact set code over partial matches in other set names", () => {
     const moreSets = { ...sets, collision: { id: "collision", name: "Obsidian Flames", code: "OBF" } };
-    expect(checklistSpecies(species, moreSets, { ...index, base1: [1], collision: [25] }, "bs", "dex").map(item => item.id)).toEqual([1]);
+    const result = filterChecklist(species, moreSets, { ...index, base1: [1], collision: [25] }, "bs", "dex");
+    expect(result.species.map(item => item.id)).toEqual([1]);
+    expect(result.sets).toEqual([sets.base1]);
   });
 });

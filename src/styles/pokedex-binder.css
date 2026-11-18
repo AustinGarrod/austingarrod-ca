@@ -158,6 +158,7 @@
 .dex-checklist-row.selected { outline: 2px solid var(--ink); outline-offset: -2px; background: #edf3fa; }
 .dex-checklist-row.selected.owned { background: #dfefe9; }
 .dex-checklist-identity { min-width: 0; }
+.dex-checklist-card-numbers { display: block; color: var(--secondary); font-weight: 600; overflow-wrap: anywhere; }
 .pokedex-page .dex-checklist-name { display: block; min-height: 28px; padding: 2px 0; border: 0; background: transparent; font-size: 14px; text-align: left; overflow-wrap: anywhere; }
 .pokedex-page .dex-checklist-name:hover { background: transparent; text-decoration: underline; }
 .dex-collected-label { color: #176050; font-size: 11px; font-weight: 700; }

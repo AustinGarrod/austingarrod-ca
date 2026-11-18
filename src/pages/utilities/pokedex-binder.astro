@@ -65,6 +65,8 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
       <div class="dex-checklist-options"><label><input id="checklist-hide-collected" type="checkbox" /> Hide collected Pokémon</label><span class="dex-help">Click a row to highlight it.</span></div>
       <nav id="checklist-letters" class="dex-letter-jump" aria-label="Jump to starting letter" hidden>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}</nav>
       <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
+      <p id="checklist-number-status" class="dex-help" role="status" hidden></p>
+      <button id="checklist-number-retry" type="button" hidden>Retry card numbers</button>
       <div id="checklist-list"></div><button id="checklist-more" hidden>Show more Pokémon</button>
     </section>
 
