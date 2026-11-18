@@ -75,9 +75,8 @@ Production is static files plus PHP. HostPapa does not build Node code.
 
 GitHub Actions:
 
-- `.github/workflows/ci.yml` runs build checks.
-- `.github/workflows/deploy.yml` runs automatically on every push to `main`, builds `dist/`, and uploads the contents of `dist/` over explicit FTPS when all HostPapa secrets are present.
-- The deploy workflow can also be run manually from GitHub Actions via `workflow_dispatch`.
+- `.github/workflows/deploy.yml` validates branch pushes on the portfolio runner on `gh-runner-1` with PHP 8.4. Successful `main` builds upload `dist/` over explicit FTPS when all HostPapa secrets are present.
+- For a manual release, choose `deploy` on `main`. Choose `browser` to run the full browser suite on the runner against localhost.
 
 Required repository secrets:
 

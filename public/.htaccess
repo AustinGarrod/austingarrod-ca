@@ -1,5 +1,9 @@
 ErrorDocument 404 /404.html
 
+<Files "contact.php">
+  SetHandler application/x-httpd-alt-php84___lsphp
+</Files>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
 

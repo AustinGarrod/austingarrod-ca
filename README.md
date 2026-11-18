@@ -139,9 +139,9 @@ Saved Umami goals track `contact-form-sent` (Contact message sent), `file-downlo
 
 ## GitHub Actions Deployment
 
-CI runs on every push and pull request through a reusable combined validation workflow. Deployment runs automatically on pushes to `main`: both applications must pass their checks and all four desktop/mobile browser shards. HostPapa then receives the exact tested artifact over explicit FTPS, without rebuilding.
+Branch pushes run one validation job on the portfolio's self-hosted runner on `gh-runner-1`. It runs the website and Companion checks, PHP 8.4, MCP parity, and account API tests against a disposable localhost MariaDB instance. On `main` the same job uploads source maps, verifies the distribution and publishes it to HostPapa over explicit FTPS.
 
-The deploy workflow can also be started manually from the GitHub Actions tab via `workflow_dispatch`.
+In GitHub Actions, choose **Run workflow** with `deploy` on `main` to deploy manually. Choose `browser` on a repository branch to run the full account, MCP, scanner, and Companion desktop and mobile browser suites against localhost. The runner is reserved for trusted repository workflows.
 
 Required repository secrets:
 
@@ -156,7 +156,7 @@ The deployment uploads the contents of `dist/`, including static pages, scoped `
 
 ## HostPapa Notes
 
-This project avoids server-side Node in production. HostPapa serves static files and executes PHP for contact, geocoding, Binder and the shared account/sync APIs. Accounts use MySQL and the scoped PHP 8.4 handler described in [the account runbook](server/accounts/README.md). If cPanel Git deployment is used later, keep the Git checkout separate from `public_html` and deploy only the built files.
+HostPapa serves the static site and runs Contact, Radius Map geocoding, the Binder API, and the shared account and MCP APIs on PHP 8.4. The site's `.htaccess` files select the HostPapa handler for those endpoints. See [the account runbook](server/accounts/README.md) for database and runtime requirements. If cPanel Git deployment is used later, keep the Git checkout separate from `public_html` and deploy only the built files.
 
 `public/.htaccess` defines canonical HTTPS/apex redirects, HSTS, security headers, the custom 404, asset caching, and the web-manifest MIME type. HostPapa places nginx in front of the document root on some plans, so `.htaccess` alone is not proof that redirects or headers are active. After each deployment, verify the public response and configure the equivalent canonical redirect in cPanel or through HostPapa support if nginx serves the request before Apache.
 

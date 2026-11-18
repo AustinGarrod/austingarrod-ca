@@ -1,0 +1,3 @@
+<Files "geocode.php">
+  SetHandler application/x-httpd-alt-php84___lsphp
+</Files>

@@ -15,7 +15,13 @@ declare global {
 const mapMilestones = (JSON.parse(readFileSync('public/catalog.json', 'utf8')) as { milestones: { id: string }[] }).milestones.map((item) => item.id)
 const companionItems = (JSON.parse(readFileSync('public/companion-catalog.json', 'utf8')) as { entities: { system: string; id: string }[] }).entities.filter((item) => item.system === 'craft' || item.system === 'village').map((item) => item.id)
 
-export async function installProfileTestHelpers(context: import('@playwright/test').BrowserContext) {
+export async function installProfileTestHelpers(context: import('@playwright/test').BrowserContext, appServiceWorkers = false) {
+if (!appServiceWorkers) await context.addInitScript(() => {
+  // Keep PWA precaching out of isolated tests, including manually created contexts.
+  // Block the app registration without probing sandboxed iframes.
+  if (window.self !== window.top || !['http:', 'https:'].includes(location.protocol) || !isSecureContext || !('serviceWorker' in navigator)) return
+  navigator.serviceWorker.register = async () => { throw new DOMException('App workers are disabled in this isolated test.', 'SecurityError') }
+})
 // Assertion and deliberate external-update helpers only. Application storage
 // APIs are untouched; fresh addInitScript profile seeds still test migration.
 await context.addInitScript(({ companionKey, legacyKey, goalsKey, workspaceKey, mapMilestones, companionItems }) => {
@@ -63,13 +69,7 @@ await context.addInitScript(({ companionKey, legacyKey, goalsKey, workspaceKey, 
 export const test = base.extend<{ browserErrors: void; appServiceWorkers: boolean }>({
   appServiceWorkers: [false, { option: true }],
   context: async ({ context, appServiceWorkers }, use) => {
-    await installProfileTestHelpers(context)
-    if (!appServiceWorkers) await context.addInitScript(() => {
-      // Playwright's global worker blocker probes sandboxed iframes too. Keep
-      // those frames opaque, and block only the app's top-level registration.
-      if (window.self !== window.top || !['http:', 'https:'].includes(location.protocol) || !isSecureContext || !('serviceWorker' in navigator)) return
-      navigator.serviceWorker.register = async () => { throw new DOMException('App workers are disabled in this isolated test.', 'SecurityError') }
-    })
+    await installProfileTestHelpers(context, appServiceWorkers)
     await use(context)
   },
   browserErrors: [async ({ context }, use) => {
