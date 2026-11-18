@@ -206,8 +206,10 @@ try {
   await edit(slayer, slayerWriter, 'record_purchase', { id: recommendation.id });
   await edit(slayer, slayerWriter, 'set_goal', { system: 'ascension', id: recommendation.id, enabled: true });
   assert.equal((await tool(slayer, slayerWriter, 'get_workspace')).goals[0].ref.id, recommendation.id);
-  await edit(slayer, slayerWriter, 'capture_checkpoint', { name: 'First checkpoint' });
+  await preview(slayer, slayerWriter, 'capture_checkpoint', { name: '😀'.repeat(33) }, 'invalid_checkpoint_name');
+  await edit(slayer, slayerWriter, 'capture_checkpoint', { name: '  Cafe\u0301\u2002  checkpoint  ' });
   const checkpoint = (await tool(slayer, slayerWriter, 'list_checkpoints')).checkpoints[0];
+  assert.equal(checkpoint.name, 'Café checkpoint');
   assert.equal((await tool(slayer, slayerWriter, 'get_checkpoint', { id: checkpoint.id })).checkpoint.id, checkpoint.id);
   await edit(slayer, slayerWriter, 'rename_checkpoint', { id: checkpoint.id, name: 'Renamed checkpoint' });
   assert.equal((await tool(slayer, slayerWriter, 'list_checkpoints')).checkpoints[0].name, 'Renamed checkpoint');
@@ -259,10 +261,14 @@ try {
   const logout = await request('/api/v1/auth.php?action=logout-all', { method: 'POST', body: '{}', headers: browserHeaders(users.one) });
   assert.equal(logout.status, 200);
   assert.equal((await rpc(binder, fresh.access_token, 'tools/list')).status, 401);
-  config.mcp[binder].enabled = false;
-  writeConfig();
+  const sidecar = join(scratch, 'utility-mcp.json');
+  writeFileSync(sidecar, JSON.stringify({ [binder]: { enabled: false }, [slayer]: { previewAccounts: [users.one.id] } }));
   assert.equal((await rpc(binder, null, 'tools/list')).status, 503);
   assert.equal((await rpc(slayer, null, 'tools/list')).status, 401);
+  const limited = await begin(slayer);
+  assert.equal((await consent(users.two, limited.flow, limited.proof, 'read')).status, 400);
+  writeFileSync(sidecar, '{invalid JSON');
+  assert.equal((await rpc(slayer, null, 'tools/list')).status, 503);
   console.log('Utility MCP: discovery, OAuth, grant isolation, real tool calls, save previews, replay, recovery, browser consent and revocation passed.');
 } catch (error) {
   console.error('Utility MCP failed at ' + stage + '.');

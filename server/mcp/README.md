@@ -18,7 +18,10 @@ remote URLs and the skill ZIPs generated from those plugins.
    twice. Grant the account runtime its ordinary DML privileges on the four
    `accounts_mcp_*` tables. The runtime needs no DDL.
 3. Use the current HostPapa FTPS workflow to deploy with both utility entries
-   disabled in the private accounts config. Check the manifest commit, the
+   disabled. Keep production switches in a private sibling file named
+   \`utility-mcp.json\` beside \`accounts.php\`. Its utility objects use the same
+   keys as the \`mcp\` block in the example account config. An absent file uses
+   the embedded config. An invalid file disables the MCP utility endpoints. Check the manifest commit, the
    canonical routes, and the scoped PHP handler. Direct web requests for
    `_mcp-data` and `_mcp-vendor` must be denied.
 4. For a pilot, retain `enabled: false` on each MCP utility and put the test

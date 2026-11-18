@@ -26,6 +26,7 @@ try {
         .(($port = parse_url($config['allowedOrigin'], PHP_URL_PORT)) === null ? '' : ':'.$port)) {
         accounts_fail(403, 'host_not_allowed', 'Use the published utility endpoint.');
     }
+    $config = mcp_runtime_config($config, $root);
     if ($method === 'GET' && $route === '/.well-known/oauth-authorization-server') {
         accounts_json(mcp_metadata($config, null));
         exit;

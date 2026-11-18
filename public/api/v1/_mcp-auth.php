@@ -19,6 +19,42 @@ const MCP_ACCESS_SECONDS = 900;
 const MCP_REFRESH_SECONDS = 30 * 86400;
 const MCP_GRANT_SECONDS = 90 * 86400;
 
+/** Optional sidecar keeps pilot switches separate from account credentials. */
+function mcp_runtime_config(array $config, string $root): array
+{
+    $home = getenv('HOME') ?: getenv('USERPROFILE') ?: dirname($root);
+    $accounts = getenv('ACCOUNTS_CONFIG') ?: $home.'/private/accounts.php';
+    $path = dirname($accounts).'/utility-mcp.json';
+    clearstatcache(true, $path);
+    if (!is_file($path) && !is_link($path)) {
+        return $config;
+    }
+    $config['mcp'] = [];
+    if (!accounts_private_path($path, $root)) {
+        return $config;
+    }
+    $raw = file_get_contents($path, false, null, 0, 16385);
+    if ($raw === false || strlen($raw) > 16384) {
+        return $config;
+    }
+    $flags = json_decode($raw, true, 16);
+    if (is_array($flags)) {
+        foreach (MCP_APPS as $app => $_title) {
+            $settings = $flags[$app] ?? null;
+            if (!is_array($settings)) {
+                continue;
+            }
+            $users = $settings['previewAccounts'] ?? [];
+            $config['mcp'][$app] = [
+                'enabled' => ($settings['enabled'] ?? false) === true,
+                'previewAccounts' => array_is_list((array)$users) ? array_filter((array)$users,
+                    fn($id) => is_string($id) && preg_match('/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/D', $id)) : [],
+            ];
+        }
+    }
+    return $config;
+}
+
 function mcp_resource(array $config, string $app): string
 {
     return $config['allowedOrigin'].MCP_ROOT.'/'.$app;

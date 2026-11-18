@@ -18,11 +18,13 @@ foreach ($cases->scenarios as $scenario) {
             'buy' => slayer_purchase($map, $profile, $scenario->id, $scenario->choices, $visible),
             'remove' => slayer_remove($map, $profile, $scenario->id, $scenario->milestone ?? false),
             'activate' => slayer_activate(array_column($map->upgrades, null, 'id')[$scenario->id], $profile),
+            'portable' => mcp_check_portable_size($scenario->progress),
             'reset' => slayer_reset($map, $catalog, $cases->rules, $scenario->progress),
             'observe' => mcp_observe($map, $scenario->progress, $visible, $scenario->input, $scenario->observedAt),
         };
         $result[] = match ($scenario->action) {
             'buy', 'remove', 'activate' => ['kind' => 'ready', 'profile' => $profile],
+            'portable' => ['ok' => true],
             'reset' => ['ok' => true, 'progress' => $scenario->progress, 'warnings' => $actual],
             'observe' => ['ok' => true, 'progress' => $scenario->progress],
             'visible' => (object)$actual,
@@ -30,7 +32,7 @@ foreach ($cases->scenarios as $scenario) {
         };
     } catch (AccountsError $error) {
         $result[] = match ($scenario->action) {
-            'reset' => ['ok' => false],
+            'reset', 'portable' => ['ok' => false],
             default => $error->errorCode === 'prerequisite_choice' ? ['kind' => 'choice', 'key' => $error->extra['choiceKey'], 'options' => count($error->extra['options'])] : ['kind' => 'blocked'],
         };
     }

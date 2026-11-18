@@ -109,6 +109,31 @@ for (const { system, id } of catalog.entities.filter(item => item.system === 'cr
   add('observe', owned, { ok: true, progress: outcome.progress }, { input, observedAt });
 }
 
+const large = structuredClone(empty);
+const records = large.modules.material.records;
+const limit = 4 * 1024 * 1024;
+const retainedKey = index => 'retained-' + String(index).padStart(5, '0');
+records[retainedKey(0)] = { count: '9'.repeat(1024) };
+const oneRecordBytes = Buffer.byteLength(JSON.stringify(large, null, 2));
+records[retainedKey(1)] = { count: '9'.repeat(1024) };
+const twoRecordBytes = Buffer.byteLength(JSON.stringify(large, null, 2));
+const extraRecordBytes = twoRecordBytes - oneRecordBytes;
+const count = 2 + Math.floor((limit - twoRecordBytes - 200) / extraRecordBytes);
+for (let i = 2; i < count; i++) records[retainedKey(i)] = { count: '9'.repeat(1024) };
+records.tail = { count: '' };
+const tailBytes = limit - Buffer.byteLength(JSON.stringify(large, null, 2));
+assert.ok(tailBytes > 0);
+const tailName = 'tail' + 'x'.repeat(Math.max(0, tailBytes - 1024));
+delete records.tail;
+records[tailName] = { count: '9'.repeat(Math.min(1024, tailBytes)) };
+const emptyTail = large;
+assert.equal(Buffer.byteLength(JSON.stringify(emptyTail, null, 2)), limit);
+add('portable', emptyTail, { ok: true });
+const tooLarge = structuredClone(emptyTail);
+tooLarge.modules.material.records.extra = { count: '1' };
+assert.ok(Buffer.byteLength(JSON.stringify(tooLarge)) <= limit);
+add('portable', tooLarge, { ok: false });
+
 const php = process.env.PHP_BINARY || 'php';
 const phpDir = execFileSync(php, ['-r', 'echo dirname(PHP_BINARY);'], { encoding: 'utf8' }).trim();
 const extensions = execFileSync(php, ['-r', 'echo implode(",", get_loaded_extensions());'], { encoding: 'utf8' }).split(',');

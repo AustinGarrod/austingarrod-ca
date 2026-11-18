@@ -100,6 +100,19 @@ function mcp_observe(stdClass $map, stdClass $progress, array $visible, stdClass
     $module->observedAt = $observedAt;
 }
 
+function mcp_checkpoint_name(mixed $value): string
+{
+    if (!is_string($value) || preg_match('/[\x00-\x1f\x7f]/', $value)) {
+        accounts_fail(422, 'invalid_checkpoint_name', 'Use a checkpoint name from 1 to 64 characters.');
+    }
+    $normalized = Normalizer::normalize($value, Normalizer::FORM_C);
+    $name = $normalized === false ? '' : trim(preg_replace('/[\x{0020}\x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]+/u', ' ', $normalized));
+    if ($name === '' || strlen(mb_convert_encoding($name, 'UTF-16LE', 'UTF-8')) > 128) {
+        accounts_fail(422, 'invalid_checkpoint_name', 'Use a checkpoint name from 1 to 64 characters.');
+    }
+    return $name;
+}
+
 function mcp_slayer_change(
     string $root, string $operation, stdClass $input, stdClass $state, stdClass $progress, stdClass $map, stdClass $catalog,
     array $visible, string $previewId, string $observedAt
@@ -111,6 +124,7 @@ function mcp_slayer_change(
     }
     if ($operation === 'ultra_ascension') {
         mcp_change_fields($input, []);
+        mcp_check_portable_size($state);
         $rules = mcp_file($root, 'api/v1/_mcp-data/companion-reset-rules.json');
         return ['warnings' => slayer_reset($map, $catalog, $rules, $state)];
     }
@@ -204,13 +218,7 @@ function mcp_slayer_change(
     }
 
     mcp_change_fields($input, $operation === 'capture_checkpoint' ? ['name'] : ($operation === 'rename_checkpoint' ? ['id', 'name'] : ['id']));
-    $name = null;
-    if ($operation !== 'delete_checkpoint') {
-        $name = is_string($input->name) ? trim($input->name) : '';
-        if ($name === '' || mb_strlen($name, 'UTF-8') > 64 || preg_match('/[\x00-\x1f\x7f]/', $name)) {
-            accounts_fail(422, 'invalid_checkpoint_name', 'Use a checkpoint name from 1 to 64 characters.');
-        }
-    }
+    $name = $operation === 'delete_checkpoint' ? null : mcp_checkpoint_name($input->name);
     if ($operation === 'capture_checkpoint') {
         $state->entries[] = (object)['id' => $previewId, 'name' => $name, 'capturedRevision' => $map->revision, 'profile' => $progress->ascension];
         return ['id' => $previewId, 'name' => $name, 'ultraAscensions' => $progress->ascension->epoch];
@@ -279,6 +287,21 @@ function mcp_progress_diff(stdClass $before, stdClass $after, array $visible, ar
     ];
 }
 
+/** Match the Companion's UTF-8 portable JSON limit at two spaces per nesting level. */
+function mcp_check_portable_size(stdClass $state): void
+{
+    $pretty = json_encode($state, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+        | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_LINE_TERMINATORS);
+    if (strlen($pretty) <= 4 * 1024 * 1024) {
+        return;
+    }
+    preg_match_all('/^ +/m', $pretty, $matches);
+    $indentBytes = array_sum(array_map('strlen', $matches[0]));
+    if (strlen($pretty) - intdiv($indentBytes, 2) > 4 * 1024 * 1024) {
+        accounts_fail(413, 'portable_save_too_large', 'The resulting save exceeds the Companion’s 4 MiB portable limit.');
+    }
+}
+
 function mcp_plan_change(PDO $db, array $grant, string $root, string $operation, stdClass $input, string $id, int $now): array
 {
     $app = $grant['app'];
@@ -325,6 +348,9 @@ function mcp_plan_change(PDO $db, array $grant, string $root, string $operation,
         }
     }
     $json = accounts_validate($app, $document, 1, $state, $root);
+    if ($app === 'idle-slayer-companion' && in_array($document, ['progress', 'checkpoints'], true)) {
+        mcp_check_portable_size($state);
+    }
     $changed = $json !== accounts_encode(mcp_state($row));
     $summary['hasChanges'] = $changed;
     return compact('row', 'document', 'snapshot', 'revisions', 'json', 'summary', 'changed');

@@ -4,6 +4,7 @@
 return [
     'enabled' => false,
     'migrationEnabled' => false,
+    // On HostPapa, an optional sibling utility-mcp.json overrides these flags.
     'mcp' => [
         'pokedex-binder' => ['enabled' => false, 'previewAccounts' => []],
         'idle-slayer-companion' => ['enabled' => false, 'previewAccounts' => []],
