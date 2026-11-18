@@ -1,0 +1,21 @@
+{
+  "name": "austingarrod-utilities",
+  "owner": {
+    "name": "Austin Garrod"
+  },
+  "metadata": {
+    "description": "Connect Codex or Claude to your AustinGarrod.ca utility account."
+  },
+  "plugins": [
+    {
+      "name": "pokedex-binder",
+      "source": "./plugins/pokedex-binder",
+      "description": "Find Pokémon and card printings, review a synced collection, or update owned National Dex entries."
+    },
+    {
+      "name": "idle-slayer-companion",
+      "source": "./plugins/idle-slayer-companion",
+      "description": "Look up Idle Slayer entries, advise from synced Companion progress, and review or update that progress."
+    }
+  ]
+}

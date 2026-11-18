@@ -3,6 +3,8 @@
 .account-panel { border: 1px solid var(--outline-variant, #c6c6cd); padding: 28px; margin-bottom: 24px; background: #fff; }
 .account-panel h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
 .account-panel p { margin-top: 12px; }
+.account-panel pre { overflow-x: auto; margin: 16px 0; padding: 12px; border: 1px solid #c6c6cd; }
+.account-panel .account-recovery-list input { margin: 8px 0; }
 .account-panel form { display: grid; gap: 12px; margin-top: 24px; }
 .account-panel label { font-family: "JetBrains Mono", monospace; font-size: 0.8rem; }
 .account-panel input { min-width: 0; width: 100%; min-height: 48px; border: 1px solid #76777d; padding: 12px; background: #fff; color: #0b1c30; border-radius: 0; font: inherit; }

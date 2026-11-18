@@ -37,6 +37,7 @@ jobs:
           php -l public/utilities/radius-map/api/geocode.php
           php -l public/api/v1/auth.php
           php -l public/api/v1/sync.php
+          php -l public/api/v1/mcp.php
           node scripts/test-php-reporting.mjs
           node scripts/test-accounts-runtime.mjs
   accounts-api:
@@ -85,6 +86,8 @@ jobs:
       - name: Bundle and lint PHP
         run: |
           composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp audit --locked
           php -l public/reporting/bootstrap.php
           php -l public/contact.php
           php -l public/utilities/radius-map/api/geocode.php
@@ -92,6 +95,7 @@ jobs:
       - run: npm run generate:assets
       - name: Website, catalog, domain, storage, tools and license checks
         run: npm test
+      - run: npm run test:mcp:parity
       - run: npm run build
       - name: Upload both applications' symbols before publication
         if: inputs.upload-symbols
@@ -144,6 +148,12 @@ jobs:
           ACCOUNTS_TEST_USER: root
           ACCOUNTS_TEST_PASSWORD: accounts-local-test
         run: npm run test:accounts:browser
+      - name: Utility MCP OAuth, save writes, and consent browser
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:mcp
       - name: Large Idle Slayer migration, offline replay and durable storage failures
         env:
           ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4

@@ -1,0 +1,14 @@
+{
+  "name": "austingarrod/utility-mcp",
+  "require": {
+    "php": "~8.4.0",
+    "mcp/sdk": "^0.10.0",
+    "nyholm/psr7": "^1.8",
+    "nyholm/psr7-server": "^1.1"
+  },
+  "config": {
+    "platform": {"php": "8.4.0"},
+    "vendor-dir": "../../public/api/v1/_mcp-vendor",
+    "sort-packages": true
+  }
+}

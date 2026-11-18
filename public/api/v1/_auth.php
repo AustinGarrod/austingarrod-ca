@@ -138,6 +138,8 @@ function accounts_logout(PDO $db, array $config, array $session, bool $everywher
         accounts_rate($db, $config, 'auth-ip', (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 120, 60);
         if ($everywhere && $live['user_id'] !== null) {
             accounts_query($db, 'DELETE FROM accounts_sessions WHERE user_id=?', [$live['user_id']]);
+            require_once __DIR__.'/_mcp-auth.php';
+            mcp_revoke_user($db, $live['user_id']);
         }
         return accounts_prepare_session($db, null, $live['token_hash']);
     });

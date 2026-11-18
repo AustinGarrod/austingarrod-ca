@@ -13,6 +13,12 @@ ErrorDocument 404 /404.html
   RewriteCond %{HTTPS} !=on [OR]
   RewriteCond %{HTTP_HOST} !^austingarrod\.ca$ [NC]
   RewriteRule ^ https://austingarrod.ca%{REQUEST_URI} [R=301,L,NE]
+
+  # Dispatch only the public MCP routes to the scoped account PHP handler.
+  RewriteRule ^api/v1/_(?:mcp-vendor|mcp-data)(?:/|$) - [F,L,NC]
+  RewriteRule ^api/v1/mcp/ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  RewriteRule ^api/v1/mcp/(?:pokedex-binder|idle-slayer-companion|connections|oauth/(?:authorize|token|consent))$ api/v1/mcp.php [L]
+  RewriteRule ^\.well-known/(?:oauth-authorization-server|oauth-protected-resource/api/v1/mcp/(?:pokedex-binder|idle-slayer-companion))$ api/v1/mcp.php [L]
 </IfModule>
 
 <IfModule mod_mime.c>

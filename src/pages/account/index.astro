@@ -54,6 +54,14 @@ import "@styles/account.css";
         </div>
         <p class="form-note">Signing out keeps your device’s saved data. Pending changes stay associated with this account.</p>
       </div>
+      <section id="account-assistants" class="account-panel" hidden aria-labelledby="account-assistants-heading">
+        <div class="account-recovery-heading">
+          <h2 id="account-assistants-heading">Connected assistants</h2>
+          <a class="text-link" href="/account/assistants/">Set up Codex or Claude</a>
+        </div>
+        <p id="account-assistants-status" role="status" aria-live="polite"></p>
+        <ul id="account-assistants-list" class="account-recovery-list"></ul>
+      </section>
       <section id="account-recovery" class="account-panel" hidden aria-labelledby="account-recovery-heading">
         <div class="account-recovery-heading">
           <h2 id="account-recovery-heading">Recovery copies</h2>
