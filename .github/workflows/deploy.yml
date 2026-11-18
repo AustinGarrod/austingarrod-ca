@@ -2,12 +2,21 @@ name: Deploy to HostPapa
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: hostpapa-production
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+    with:
+      upload-symbols: true
+    secrets: inherit
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     env:
       FTP_HOST: ${{ secrets.HOSTPAPA_FTP_HOST }}
@@ -15,36 +24,15 @@ jobs:
       FTP_PASSWORD: ${{ secrets.HOSTPAPA_FTP_PASSWORD }}
       FTP_REMOTE_DIR: ${{ secrets.HOSTPAPA_REMOTE_DIR }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install asset generator dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Generate assets
-        run: npm run generate:assets
-
-      - name: Test utilities
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Write deployment manifest
-        run: npm run write:deployment-manifest
-
-      - name: Verify deployment output
-        run: npm run verify:dist
-
+      - name: Download the exact validated distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: website-dist
+          path: dist/
       - name: Check deployment secrets
         id: deploy-secrets
         shell: bash
@@ -54,8 +42,8 @@ jobs:
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Upload dist to HostPapa
+      - name: Upload validated dist to HostPapa
+        id: ftps-upload
         if: steps.deploy-secrets.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -67,7 +55,24 @@ jobs:
           security: loose
           local-dir: ./dist/
           server-dir: ${{ env.FTP_REMOTE_DIR }}
-
       - name: Skip deploy notice
         if: steps.deploy-secrets.outputs.ready != 'true'
         run: echo "Skipping HostPapa deploy because required repository secrets are not configured."
+      - name: Report failed deployment
+        if: failure()
+        env:
+          REPORTING_STEPS: ${{ toJson(steps) }}
+        run: node scripts/report-deployment-failure.mjs
+  report-validation-failure:
+    needs: validate
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Report failed predeployment validation
+        env:
+          REPORTING_STEPS: '{"validation":{"outcome":"failure"}}'
+        run: node scripts/report-deployment-failure.mjs

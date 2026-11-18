@@ -1,0 +1,86 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { spawn, execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { resolve, join } from "node:path";
+const deliver = process.argv.includes("--deliver");
+const origin = "http://127.0.0.1:4398";
+assert.equal(JSON.parse(readFileSync("src/reporting/build.json", "utf8")).environment, "reporting-verification", "Build with PUBLIC_REPORTING_ENVIRONMENT=reporting-verification first");
+const phpBinary = process.env.PHP_BINARY || "php";
+const phpDirectory = execFileSync(phpBinary, ["-r", "echo dirname(PHP_BINARY);"], { encoding: "utf8" });
+const phpOptions = process.platform === "win32" ? ["-d", `extension_dir=${join(phpDirectory, "ext")}`, "-d", "extension=openssl", "-d", "extension=curl", "-d", "extension=mbstring"] : [];
+const tempDirectory = resolve("tmp", `reporting-${Date.now()}`);
+mkdirSync(tempDirectory, { recursive: true });
+const php = spawn(phpBinary, [...phpOptions, "-d", `sys_temp_dir=${tempDirectory}`, "-d", "display_errors=0", "-d", "disable_functions=mail", "-S", "127.0.0.1:4398", "-t", "dist"], { env: { ...process.env, REPORTING_DSN: deliver ? "https://8b561c6564244066bd2960053ed220cd@reports.garrod.house/8" : "", REPORTING_DEBUG: "1", REPORTING_ENVIRONMENT: "reporting-verification" }, stdio: ["ignore", "ignore", "pipe"] });
+let phpOutput = "";
+php.stderr.on("data", data => { phpOutput += data.toString(); });
+let browser;
+const envelopes = [];
+try {
+  for (let n=0;n<50;n++) { try { if ((await fetch(origin)).ok) break; } catch {} await new Promise(r=>setTimeout(r,100)); }
+  browser = await chromium.launch({ channel: process.platform === "win32" ? "msedge" : undefined, headless: true });
+  const page = await browser.newPage();
+  await page.route("https://analytics.garrod.house/**", route => route.fulfill({ body: "", contentType: "application/javascript" }));
+  await page.route("https://tile.openstreetmap.org/**", route => route.abort());
+  await page.route("https://reports.garrod.house/**", async route => {
+    envelopes.push(route.request().postData() ?? "");
+    if (deliver) await route.continue(); else await route.fulfill({ body: "{}", contentType: "application/json" });
+  });
+  await page.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Verification: storage unavailable", "SecurityError"); } }));
+  await page.goto(origin+"/utilities/radius-map/", { waitUntil: "networkidle" });
+  await page.evaluate(() => {
+    console.warn("Reporting verification console breadcrumb");
+    setTimeout(() => { throw new Error("Verification unhandled browser error", { cause: new Error("Verification original cause") }); }, 0);
+    setTimeout(() => { void Promise.reject(new Error("Verification unhandled rejection")); }, 0);
+    const img = document.createElement("img"); img.src = "/verification-missing-image.png"; document.body.append(img);
+  });
+  await page.waitForTimeout(2500);
+  const cacheDirectory = join(tempDirectory, "austingarrod-radius-map");
+  writeFileSync(cacheDirectory, "force a local cache-directory failure");
+  await page.locator('#location-search').fill("geocode-query-must-not-be-logged");
+  const geocodeResponse = page.waitForResponse(response => response.url().includes("/api/geocode.php"));
+  await page.locator('#search-button').click();
+  const geocode = await geocodeResponse;
+  assert.equal(geocode.status(), 503);
+  assert.ok(geocode.headers()["x-request-id"]);
+  assert.match((await geocode.request().allHeaders())["sentry-trace"] ?? "", /^[a-f0-9]{32}-/);
+  await page.waitForTimeout(500);
+  await page.goto(origin+"/contact/", { waitUntil: "networkidle" });
+  await page.locator('[name="name"]').fill("Local reporting verification");
+  await page.locator('[name="email"]').fill("verification@example.invalid");
+  await page.locator('[name="subject"]').fill("Local transport test");
+  await page.locator('[name="message"]').fill("This local test has mail disabled and sends no contact email.");
+  const contactResponse = page.waitForResponse(response => response.url() === origin+"/contact.php");
+  await page.locator('.contact-form button[type="submit"]').click();
+  const response = await contactResponse;
+  assert.ok(response.headers()["x-request-id"]);
+  assert.match(new URLSearchParams(response.request().postData()).get("reporting_trace") ?? "", /^[a-f0-9]{32}-[a-f0-9]{16}-[01]$/);
+  await page.waitForURL(origin+"/contact/?status=error");
+  await page.waitForTimeout(1500);
+  const all = envelopes.join("\n");
+  assert.ok(!all.includes("geocode-query-must-not-be-logged"));
+  mkdirSync("output", { recursive: true });
+  writeFileSync("output/reporting-envelopes.json", JSON.stringify(envelopes, null, 2));
+  for (const expected of ["Verification unhandled browser error", "Verification original cause", "Verification unhandled rejection", "storage.initialize", "resource.load", "geocode.search", '"debug_meta"']) assert.ok(all.includes(expected), `Missing ${expected}`);
+  const normal = await browser.newPage();
+  const unexpected = [];
+  normal.on("pageerror", error => unexpected.push(error.message));
+  await normal.route("**/*", route => route.request().url().startsWith(origin) ? route.continue() : route.fulfill({ body: "", status: 200 }));
+  for (const path of ["/", "/about/", "/projects/", "/utilities/", "/utilities/radius-map/", "/contact/", "/404.html", "/utilities/screen-cut-calculator/"]) {
+    await normal.goto(origin+path, { waitUntil: "networkidle" });
+    assert.equal(await normal.locator("main").count(), 1);
+    assert.ok(await normal.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1), `Overflow at ${path}`);
+  }
+  await normal.locator("#opening-width").fill("500");
+  await normal.locator("#opening-height").fill("700");
+  await normal.locator('#screen-cut-form button[type="submit"]').click();
+  assert.ok(await normal.locator("#result-content").isVisible());
+  await normal.setViewportSize({ width: 390, height: 844 });
+  await normal.goto(origin, { waitUntil: "networkidle" });
+  await normal.locator(".menu-toggle").click();
+  assert.equal(await normal.locator(".menu-toggle").getAttribute("aria-expanded"), "true");
+  assert.ok(await normal.locator("#mobile-nav").isVisible());
+  assert.deepEqual(unexpected, []);
+  await normal.close();
+  console.log(JSON.stringify({ localOrigin: origin, delivery: deliver, envelopes: envelopes.length, checks: "errors, rejection, cause chain, storage, resource, debug IDs, contact correlation" }));
+} finally { await browser?.close(); php.kill(); mkdirSync("output", { recursive: true }); writeFileSync("output/reporting-php.log", phpOutput); }

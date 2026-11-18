@@ -1,0 +1,5 @@
+Pokédex Binder is an unofficial fan utility, unaffiliated with Nintendo, Creatures, GAME FREAK, or The Pokémon Company.
+Pokémon names, characters, card artwork, and sprites belong to their respective owners.
+Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https://tcgdex.dev/), MIT licensed.
+Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.
+Card coverage reflects the pinned catalog snapshot and may be incomplete. Ownership is tracked by species, not a particular printing.

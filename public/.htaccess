@@ -4,6 +4,8 @@ ErrorDocument 404 /404.html
   RewriteEngine On
 
   # Collapse explicit index.html URLs directly to the canonical HTTPS route.
+  # Companion precache verifies physical HTML entries without following redirects.
+  RewriteCond %{REQUEST_URI} !^/utilities/idle-slayer-companion/ [NC]
   RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html(?:[?\s]) [NC]
   RewriteRule ^(.*/)?index\.html$ https://austingarrod.ca/$1 [R=301,L,NE]
 
@@ -11,6 +13,12 @@ ErrorDocument 404 /404.html
   RewriteCond %{HTTPS} !=on [OR]
   RewriteCond %{HTTP_HOST} !^austingarrod\.ca$ [NC]
   RewriteRule ^ https://austingarrod.ca%{REQUEST_URI} [R=301,L,NE]
+
+  # Dispatch only the public MCP routes to the scoped account PHP handler.
+  RewriteRule ^api/v1/_(?:mcp-vendor|mcp-data)(?:/|$) - [F,L,NC]
+  RewriteRule ^api/v1/mcp/ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  RewriteRule ^api/v1/mcp/(?:pokedex-binder|idle-slayer-companion|connections|oauth/(?:authorize|token|consent))$ api/v1/mcp.php [L]
+  RewriteRule ^\.well-known/(?:oauth-authorization-server|oauth-protected-resource/api/v1/mcp/(?:pokedex-binder|idle-slayer-companion))$ api/v1/mcp.php [L]
 </IfModule>
 
 <IfModule mod_mime.c>
@@ -24,7 +32,7 @@ ErrorDocument 404 /404.html
   # Only this site and its private Umami dashboard may embed heatmap previews.
   Header unset X-Frame-Options
   Header set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house https://reports.garrod.house; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
 
   <Files "austin-garrod-resume.pdf">

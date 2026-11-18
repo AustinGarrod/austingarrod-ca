@@ -1,3 +1,4 @@
+import { reportFailure } from "../../../reporting/browser";
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
@@ -23,6 +24,7 @@ export function initializePwa(): void {
   if (import.meta.env.PROD && "serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       void navigator.serviceWorker.register("/utilities/radius-map/sw.js", { scope: "/utilities/radius-map/" }).catch((error: unknown) => {
+        reportFailure(error, "pwa.register");
         console.warn("Radius Map could not register its offline worker.", error);
       });
     });
@@ -51,7 +53,8 @@ export function initializePwa(): void {
       .then(({ outcome }) => {
         window.umami?.track("radius-map-install-result", { outcome: outcome === "accepted" ? "accepted" : "dismissed" });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        reportFailure(error, "pwa.install");
         window.umami?.track("radius-map-install-result", { outcome: "error" });
       });
   });

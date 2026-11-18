@@ -1,0 +1,354 @@
+<?php
+
+declare(strict_types=1);
+require_once __DIR__.'/_validators.php';
+function accounts_lock_user(PDO $db, string $user): void
+{
+    accounts_query($db, 'SELECT id FROM accounts_users WHERE id=? FOR UPDATE', [$user])->fetch();
+}
+
+function accounts_document(PDO $db, string $user, string $app, string $document, bool $lock = false): ?array
+{
+    $row = accounts_query($db, 'SELECT * FROM accounts_documents WHERE user_id=? AND app=? AND document=?'.($lock ? ' FOR UPDATE' : ''), [$user, $app, $document])->fetch();
+    return is_array($row) ? $row : null;
+}
+
+function accounts_remote(PDO $db, ?array $row, string $client): ?array
+{
+    if ($row === null) {
+        return null;
+    }
+    $ack = accounts_query($db, 'SELECT acknowledged_sequence FROM accounts_document_clients WHERE resource_id=? AND client_id=?', [$row['id'], $client])->fetchColumn();
+    return ['resourceId' => $row['id'], 'app' => $row['app'], 'document' => $row['document'], 'schemaVersion' => (int)$row['schema_version'], 'revision' => (int)$row['revision'], 'state' => json_decode($row['state_json'], false, 64, JSON_THROW_ON_ERROR), 'acknowledgedSequence' => $ack === false ? 0 : (int)$ack];
+}
+
+function accounts_snapshot(PDO $db, string $user, string $app, string $document, string $label, int $version, int $revision, string $json): string
+{
+    $id = accounts_uuid();
+    accounts_query($db, 'INSERT INTO accounts_recovery(id,user_id,app,document,label,schema_version,revision,state_json) VALUES(?,?,?,?,?,?,?,?)', [$id, $user, $app, $document, $label, $version, $revision, $json]);
+    return $id;
+}
+
+function accounts_precondition(PDO $db, ?array $row, int $revision, string $client): void
+{
+    if (($row === null ? 0 : (int)$row['revision']) !== $revision) {
+        accounts_fail(409, 'revision_conflict', 'This document changed on another device. Review both copies before saving.', ['remote' => accounts_remote($db, $row, $client)]);
+    }
+
+}
+
+function accounts_operation(PDO $db, string $user, string $id, string $kind, string $hash): ?array
+{
+    $row = accounts_query($db, 'SELECT * FROM accounts_operations WHERE user_id=? AND operation_id=?', [$user, $id])->fetch();
+    if (!is_array($row)) {
+        return null;
+    }
+
+    if ($row['kind'] !== $kind || !hash_equals($row['payload_hash'], $hash)) {
+        accounts_fail(409, 'operation_reused', 'This operation identifier was already used for different data.');
+    }
+    return json_decode($row['result_json'], true, 64, JSON_THROW_ON_ERROR);
+}
+
+function accounts_record_operation(PDO $db, string $user, string $id, string $kind, string $hash, array $result): void
+{
+    accounts_query($db, 'INSERT INTO accounts_operations(user_id,operation_id,kind,payload_hash,result_json) VALUES(?,?,?,?,?)', [$user, $id, $kind, $hash, json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+}
+
+function accounts_save_document(PDO $db, string $user, string $app, string $document, int $version, string $json, ?array $row): array
+{
+    if ($row === null) {
+        $id = accounts_uuid();
+        accounts_query($db, 'INSERT INTO accounts_documents(id,user_id,app,document,schema_version,revision,state_json) VALUES(?,?,?,?,?,1,?)', [$id, $user, $app, $document, $version, $json]);
+    } else {
+        accounts_query($db, 'UPDATE accounts_documents SET schema_version=?,revision=revision+1,state_json=? WHERE id=?', [$version, $json, $row['id']]);
+    }
+
+    return accounts_document($db, $user, $app, $document, true);
+}
+
+function accounts_document_pair(mixed $app, mixed $document): array
+{
+    if (!is_string($app) || !is_string($document)) {
+        accounts_fail(422, 'invalid_document', 'The application document is invalid.');
+    }
+    accounts_registry($app, $document);
+    return [$app, $document];
+}
+
+function accounts_write(PDO $db, string $user, stdClass $body, string $webroot): array
+{
+    if (!accounts_fields($body, ['app', 'document', 'schemaVersion', 'state', 'baseRevision', 'clientId', 'mutationSequence', 'operationId'])) {
+        accounts_fail(422, 'invalid_request', 'The sync request is invalid.');
+    }
+
+    [$app,$document] = accounts_document_pair($body->app, $body->document);
+    $json = accounts_validate($app, $document, $body->schemaVersion, $body->state, $webroot);
+    $base = accounts_number($body->baseRevision);
+    $sequence = accounts_number($body->mutationSequence);
+    if ($sequence < 1) {
+        accounts_fail(422, 'invalid_sequence', 'The mutation sequence is invalid.');
+    }
+    $client = accounts_id($body->clientId);
+    $operation = accounts_id($body->operationId);
+    $hash = accounts_hash($body);
+    return accounts_transaction($db, function () use ($db, $user, $app, $document, $json, $base, $sequence, $client, $operation, $hash) {
+        accounts_lock_user($db, $user);
+        $row = accounts_document($db, $user, $app, $document, true);
+        if (accounts_operation($db, $user, $operation, 'write', $hash) !== null) {
+            return ['document' => accounts_remote($db, $row, $client)];
+        }
+
+        $ack = $row === null ? 0 : (accounts_remote($db, $row, $client)['acknowledgedSequence']);
+        if ($sequence <= $ack) {
+            return ['document' => accounts_remote($db, $row, $client)];
+        }
+
+        if ($sequence !== $ack + 1) {
+            accounts_fail(409, 'sequence_gap', 'This device needs to recover its sync session.', ['remote' => accounts_remote($db, $row, $client)]);
+        }
+
+        accounts_precondition($db, $row, $base, $client);
+        if ($row !== null) {
+            accounts_snapshot($db, $user, $app, $document, 'Before sync', 1, (int)$row['revision'], $row['state_json']);
+        }
+
+        $row = accounts_save_document($db, $user, $app, $document, 1, $json, $row);
+        accounts_query($db, 'INSERT INTO accounts_document_clients(resource_id,client_id,acknowledged_sequence) VALUES(?,?,?) ON DUPLICATE KEY UPDATE acknowledged_sequence=VALUES(acknowledged_sequence)', [$row['id'], $client, $sequence]);
+        $result = ['document' => accounts_remote($db, $row, $client)];
+        accounts_record_operation($db, $user, $operation, 'write', $hash, $result);
+        return $result;
+    });
+}
+
+function accounts_migration_stage(PDO $db, string $user, stdClass $body, string $webroot): array
+{
+    if (!accounts_fields($body, ['migrationId', 'app', 'document', 'variant', 'schemaVersion', 'state', 'baseRevision']) || !in_array($body->variant, ['selected', 'device'], true)) {
+        accounts_fail(422, 'invalid_request', 'The migration stage is invalid.');
+    }
+
+    $migration = accounts_id($body->migrationId);
+    [$app,$document] = accounts_document_pair($body->app, $body->document);
+    $json = accounts_validate($app, $document, $body->schemaVersion, $body->state, $webroot);
+    $revision = accounts_number($body->baseRevision);
+    $hash = accounts_hash($body);
+    return accounts_transaction($db, function () use ($db, $user, $migration, $app, $document, $json, $revision, $hash, $body) {
+        accounts_lock_user($db, $user);
+        $old = accounts_query($db, 'SELECT payload_hash FROM accounts_migration_stages WHERE user_id=? AND migration_id=? AND app=? AND document=? AND variant=?', [$user, $migration, $app, $document, $body->variant])->fetchColumn();
+        if ($old !== false) {
+            if (!hash_equals($old, $hash)) {
+                accounts_fail(409, 'migration_stage_reused', 'The migration preview changed. Review it again before continuing.');
+            }
+            return ['staged' => true];
+        }
+
+        if (accounts_query($db, 'SELECT operation_id FROM accounts_operations WHERE user_id=? AND operation_id=?', [$user, $migration])->fetchColumn() !== false) {
+            accounts_fail(409, 'migration_completed', 'This migration was already completed.');
+        }
+
+        // Stages are durable recovery material, never silently expired.
+        accounts_query($db, 'INSERT INTO accounts_migration_stages(user_id,migration_id,app,document,variant,schema_version,base_revision,state_json,payload_hash) VALUES(?,?,?,?,?,1,?,?,?)', [$user, $migration, $app, $document, $body->variant, $revision, $json, $hash]);
+        return ['staged' => true];
+    });
+}
+
+function accounts_legacy_key(mixed $key): string
+{
+    if (!is_string($key) || !preg_match('/^pdx_[A-Za-z0-9_-]{43}$/D', $key)) {
+        accounts_fail(401, 'invalid_key', 'Enter the complete private sync key.');
+    }
+
+    $encoded = substr($key, 4);
+    $bytes = base64_decode(strtr($encoded, '-_', '+/').'=', true);
+    if ($bytes === false || strlen($bytes) !== 32 || rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=') !== $encoded) {
+        accounts_fail(401, 'invalid_key', 'Enter a valid private sync key.');
+    }
+    return hash('sha256', $key, true);
+}
+
+function accounts_migration_commit(PDO $db, string $user, stdClass $body, string $webroot, ?string $legacyKey): array
+{
+    if (!accounts_fields($body, ['migrationId', 'app', 'clientId', 'documents'], ['legacy', 'purpose']) || !is_string($body->app) || !is_array($body->documents)) {
+        accounts_fail(422, 'invalid_request', 'The migration request is invalid.');
+    }
+
+    $app = $body->app;
+    $expected = array_keys(ACCOUNTS_DOCUMENT_LIMITS[$app] ?? []);
+    sort($expected, SORT_STRING);
+    if ($expected === []) {
+        accounts_fail(422, 'unknown_document', 'This application is not registered.');
+    }
+
+    $migration = accounts_id($body->migrationId);
+    $client = accounts_id($body->clientId);
+    $conflict = property_exists($body, 'purpose');
+    if ($conflict && $body->purpose !== 'conflict') {
+        accounts_fail(422, 'invalid_request', 'The migration purpose is invalid.');
+    }
+    $manifest = [];
+    foreach ($body->documents as $entry) {
+        if (!accounts_fields($entry, ['document', 'baseRevision']) || !is_string($entry->document) || isset($manifest[$entry->document])) {
+            accounts_fail(422, 'invalid_request', 'The document manifest is invalid.');
+        }
+        accounts_registry($app, $entry->document);
+        $manifest[$entry->document] = accounts_number($entry->baseRevision);
+    }
+
+    ksort($manifest);
+    if ($manifest === [] || (!$conflict && array_keys($manifest) !== $expected)) {
+        accounts_fail(422, 'invalid_request', 'Review every application document before first adoption.');
+    }
+
+    $legacyRevision = null;
+    $keyHash = null;
+    if (property_exists($body, 'legacy')) {
+        if ($conflict || $app !== 'pokedex-binder' || !accounts_fields($body->legacy, ['revision'])) {
+            accounts_fail(422, 'invalid_request', 'The legacy collection request is invalid.');
+        }
+        $legacyRevision = accounts_number($body->legacy->revision);
+        $keyHash = accounts_legacy_key($legacyKey);
+    } elseif ($legacyKey !== null) {
+        accounts_fail(422, 'invalid_request', 'Review the key collection before migrating it.');
+    }
+
+    // Hash the proof digest, never the bearer key itself, into the operation identity.
+    $hash = hash('sha256', accounts_encode($body).'|'.($keyHash === null ? '' : bin2hex($keyHash)), true);
+    return accounts_transaction($db, function () use ($db, $user, $app, $migration, $client, $manifest, $conflict, $legacyRevision, $keyHash, $hash) {
+        accounts_lock_user($db, $user);
+        $previous = accounts_operation($db, $user, $migration, 'migration', $hash);
+        if ($previous !== null) {
+            $documents = [];
+            foreach (array_keys($manifest) as $name) {
+                $documents[] = accounts_remote($db, accounts_document($db, $user, $app, $name, true), $client);
+            }
+            return ['documents' => $documents];
+        }
+
+        if ($conflict) {
+            foreach (array_keys($manifest) as $name) {
+                if (accounts_document($db, $user, $app, $name, true) === null) {
+                    accounts_fail(422, 'conflict_document_missing', 'An account document must exist before resolving its conflict.');
+                }
+            }
+        }
+
+        $stages = accounts_query($db, 'SELECT * FROM accounts_migration_stages WHERE user_id=? AND migration_id=? ORDER BY app,document,variant', [$user, $migration])->fetchAll();
+        $selected = [];
+        $device = [];
+        foreach ($stages as $stage) {
+            if ($stage['app'] !== $app || !array_key_exists($stage['document'], $manifest) || (int)$stage['base_revision'] !== $manifest[$stage['document']]) {
+                accounts_fail(409, 'migration_preview_changed', 'The migration preview no longer matches. Review it again.');
+            }
+            if ($stage['variant'] === 'selected') {
+                $selected[$stage['document']] = $stage;
+            } else {
+                $device[$stage['document']] = $stage;
+            }
+
+        }
+
+        ksort($selected);
+        if (array_keys($selected) !== array_keys($manifest)) {
+            accounts_fail(409, 'migration_incomplete', 'Upload and verify every selected document before finishing migration.');
+        }
+        ksort($device);
+        if (array_keys($device) !== array_keys($manifest)) {
+            accounts_fail(409, 'migration_incomplete', 'Preserve each device copy before finishing migration.');
+        }
+
+        $legacy = null;
+        if ($keyHash !== null) {
+            $legacy = accounts_query($db, 'SELECT * FROM pokedex_binders WHERE key_hash=? FOR UPDATE', [$keyHash])->fetch();
+            if (!is_array($legacy) || $legacy['deleted_at'] !== null) {
+                accounts_fail(410, 'legacy_key_revoked', 'This key was revoked or moved to an account. Sign in to that account; your device copy is still available.');
+            }
+
+            if ((int)$legacy['revision'] !== $legacyRevision) {
+                accounts_fail(409, 'legacy_revision_conflict', 'The key collection changed. Refresh it and review the migration again.');
+            }
+
+            $clients = accounts_query($db, 'SELECT client_id,last_applied_sequence FROM pokedex_binder_clients WHERE binder_id=?', [$legacy['id']])->fetchAll();
+            $archive = ['revision' => (int)$legacy['revision'], 'state' => json_decode($legacy['state_json'], false, 64, JSON_THROW_ON_ERROR), 'clients' => $clients];
+            accounts_query($db, 'INSERT INTO accounts_legacy_claims(key_hash,user_id,migration_id,legacy_binder_id,archive_json) VALUES(?,?,?,?,?)', [$keyHash, $user, $migration, $legacy['id'], json_encode($archive, JSON_THROW_ON_ERROR)]);
+            accounts_snapshot($db, $user, $app, 'binder', 'Legacy key collection', 1, (int)$legacy['revision'], $legacy['state_json']);
+        }
+
+        $documents = [];
+        foreach ($manifest as $name => $base) {
+            $row = accounts_document($db, $user, $app, $name, true);
+            accounts_precondition($db, $row, $base, $client);
+            if ($row !== null) {
+                accounts_snapshot($db, $user, $app, $name, 'Before migration', 1, (int)$row['revision'], $row['state_json']);
+            }
+
+            if (isset($device[$name])) {
+                accounts_snapshot($db, $user, $app, $name, 'Device before migration', 1, 0, $device[$name]['state_json']);
+            }
+
+            accounts_snapshot($db, $user, $app, $name, 'Migration selection', 1, 0, $selected[$name]['state_json']);
+            $row = accounts_save_document($db, $user, $app, $name, 1, $selected[$name]['state_json'], $row);
+            $documents[] = accounts_remote($db, $row, $client);
+        }
+
+        // Retain legacy state and acknowledgments. Old versions already reject this tombstone.
+        if ($legacy !== null) {
+            accounts_query($db, 'UPDATE pokedex_binders SET deleted_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?', [$legacy['id']]);
+        }
+
+        $result = ['documents' => $documents];
+        accounts_record_operation($db, $user, $migration, 'migration', $hash, $result);
+        return $result;
+    });
+}
+
+function accounts_recovery_metadata(array $row): array
+{
+    return ['id' => $row['id'], 'app' => $row['app'], 'document' => $row['document'], 'label' => $row['label'], 'schemaVersion' => (int)$row['schema_version'], 'revision' => (int)$row['revision'], 'createdAt' => gmdate('Y-m-d\TH:i:s\Z', strtotime($row['created_at'].' UTC'))];
+}
+
+function accounts_recovery_get(PDO $db, string $user, string $id, bool $lock = false): array
+{
+    $row = accounts_query($db, 'SELECT * FROM accounts_recovery WHERE id=? AND user_id=?'.($lock ? ' FOR UPDATE' : ''), [$id, $user])->fetch();
+    if (!is_array($row)) {
+        accounts_fail(404, 'snapshot_not_found', 'This recovery copy was not found.');
+    }
+    return $row;
+}
+
+function accounts_recovery_restore(PDO $db, string $user, stdClass $body, string $webroot): array
+{
+    if (!accounts_fields($body, ['id', 'baseRevision', 'clientId', 'operationId'])) {
+        accounts_fail(422, 'invalid_request', 'The restore request is invalid.');
+    }
+
+    $id = accounts_id($body->id);
+    $client = accounts_id($body->clientId);
+    $operation = accounts_id($body->operationId);
+    $revision = accounts_number($body->baseRevision);
+    $hash = accounts_hash($body);
+    return accounts_transaction($db, function () use ($db, $user, $id, $client, $operation, $revision, $hash, $webroot) {
+        accounts_lock_user($db, $user);
+        $previous = accounts_operation($db, $user, $operation, 'restore', $hash);
+        if ($previous !== null) {
+            $old = $previous['document'];
+            return ['document' => accounts_remote($db, accounts_document($db, $user, $old['app'], $old['document'], true), $client)];
+        }
+
+        $snapshot = accounts_recovery_get($db, $user, $id, true);
+        $app = $snapshot['app'];
+        $name = $snapshot['document'];
+        $state = json_decode($snapshot['state_json'], false, 64, JSON_THROW_ON_ERROR);
+        $json = accounts_validate($app, $name, (int)$snapshot['schema_version'], $state, $webroot);
+        $row = accounts_document($db, $user, $app, $name, true);
+        accounts_precondition($db, $row, $revision, $client);
+        if ($row !== null) {
+            accounts_snapshot($db, $user, $app, $name, 'Before restore', 1, (int)$row['revision'], $row['state_json']);
+        }
+
+        accounts_snapshot($db, $user, $app, $name, 'Restored copy', 1, (int)$snapshot['revision'], $json);
+        $row = accounts_save_document($db, $user, $app, $name, 1, $json, $row);
+        $result = ['document' => accounts_remote($db,$row,$client)];
+        accounts_record_operation($db,$user,$operation,'restore',$hash,$result);
+        return $result;
+    });
+}

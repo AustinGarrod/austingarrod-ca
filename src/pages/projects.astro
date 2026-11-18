@@ -5,18 +5,22 @@ import { profile, projects } from "@data/profile";
 import { createProjectsStructuredData, PROJECTS_ITEM_LIST_ID } from "@data/seo";
 
 const projectOrder = new Map([
+  ["junkin-electric", -1],
   ["honour-our-veterans-banner-platform", 0],
   ["cadence", 1],
-  ["spools", 2],
-  ["charity-data-scraper", 3],
-  ["austingarrod-ca", 4],
-  ["campaign-static-site", 5],
-  ["kids-tv-controller", 6]
+  ["idle-slayer-companion", 2],
+  ["spools", 3],
+  ["charity-data-scraper", 4],
+  ["austingarrod-ca", 5],
+  ["campaign-static-site", 6],
+  ["kids-tv-controller", 7]
 ]);
 const orderedProjects = [...projects].sort(
   (a, b) => (projectOrder.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (projectOrder.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
 );
-const projectsStructuredData = createProjectsStructuredData(orderedProjects);
+const screenshotProjects = orderedProjects.filter((project) => project.visual === "screenshot" && project.screenshot);
+const otherProjects = orderedProjects.filter((project) => !screenshotProjects.includes(project));
+const projectsStructuredData = createProjectsStructuredData([...screenshotProjects, ...otherProjects]);
 ---
 
 <BaseLayout
@@ -33,14 +37,30 @@ const projectsStructuredData = createProjectsStructuredData(orderedProjects);
       <p class="eyebrow">Case studies</p>
       <h1>Full-stack engineering projects</h1>
       <p>
-        A selection of product, civic, and local software projects. The case studies explain the architecture, technical decisions, and current state of each project.
+        A selection of product, business, civic, and local software projects. The case studies explain the architecture, technical decisions, and current state of each project.
       </p>
     </div>
   </section>
 
-  <section class="container content-section projects-list-section">
-    <div class="project-grid all-projects">
-      {orderedProjects.map((project, index) => <ProjectCard project={project} featured={index === 0} headingLevel={2} />)}
-    </div>
-  </section>
+  <div class="container content-section projects-list-section">
+    <section aria-labelledby="selected-projects-title">
+      <div class="projects-group-heading">
+        <h2 id="selected-projects-title">Selected projects</h2>
+        <p>Public websites and products you can explore.</p>
+      </div>
+      <div class="project-grid project-gallery">
+        {screenshotProjects.map((project) => <ProjectCard project={project} />)}
+      </div>
+    </section>
+
+    <section aria-labelledby="more-case-studies-title">
+      <div class="projects-group-heading">
+        <h2 id="more-case-studies-title">More case studies</h2>
+        <p>Private work, prototypes, archived applications, and the engineering behind this site.</p>
+      </div>
+      <div class="project-grid project-case-studies">
+        {otherProjects.map((project) => <ProjectCard project={project} showVisual={false} />)}
+      </div>
+    </section>
+  </div>
 </BaseLayout>

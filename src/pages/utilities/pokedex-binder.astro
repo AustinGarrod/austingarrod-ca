@@ -1,0 +1,121 @@
+---
+import { BookOpen, ChevronLeft, ChevronRight, Download, Settings2, Search, Cloud, ListChecks, Camera, Check } from "@lucide/astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { utilities } from "@data/profile";
+import { createUtilityApplicationSchema } from "@data/seo";
+import "../../styles/pokedex-binder.css";
+
+const utility = utilities.find((item) => item.slug === "pokedex-binder");
+if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
+---
+
+<BaseLayout shell="utility" title="Pokédex Binder | Austin Garrod" description={utility.summary} breadcrumbLabel="Pokédex Binder" structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
+  <header class="dex-header">
+    <a href="/" class="dex-brand" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
+    <nav aria-label="Utility breadcrumb"><a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a><span aria-hidden="true">/</span><span aria-current="page">Pokédex Binder</span></nav>
+  </header>
+
+  <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
+    <section class="dex-intro">
+      <h1><BookOpen size={30} aria-hidden="true" /> Pokédex Binder</h1>
+      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open"><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
+    </section>
+
+    <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
+    <div id="dex-warning" class="dex-notice" role="alert" hidden></div>
+    <div id="dex-conflict" class="dex-notice" role="alert" hidden><p>Your binder layout changed on another device. Choose which layout to keep; your Pokémon marks will be merged.</p><button id="conflict-local">Keep this layout</button><button id="conflict-remote">Use synced layout</button></div>
+
+    <section class="dex-progress" aria-label="Collection progress">
+      <div><span class="dex-label">Collected</span><strong id="owned-count">—</strong></div>
+      <div><span class="dex-label">Still to find</span><strong id="missing-count">—</strong></div>
+      <div class="dex-completion"><span class="dex-label" id="completion-label">Your National Pokédex</span><progress id="completion-bar" value="0" max="100" aria-labelledby="completion-label"></progress><span id="completion-detail">All species · Any card counts</span></div>
+    </section>
+
+    <section class="dex-toolbar" aria-label="Find Pokémon">
+      <label class="dex-search" for="dex-search"><Search size={19} aria-hidden="true" /><span class="sr-only">Search Pokémon name or Pokédex number</span><input id="dex-search" type="search" placeholder="Find a Pokémon or #0001" autocomplete="off" /></label>
+      <label class="dex-field-inline" for="dex-filter"><span>Show</span><select id="dex-filter"><option value="all">All Pokémon</option><option value="missing">Missing</option><option value="owned">Owned</option></select></label>
+      <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
+      <div class="dex-view-toggle" aria-label="View"><button id="view-binder" aria-pressed="true"><BookOpen size={16} aria-hidden="true" /> Binder</button><button id="view-checklist" aria-pressed="false"><ListChecks size={16} aria-hidden="true" /> Checklist</button></div>
+    </section>
+    <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label"></p><div id="results-list"></div></section>
+
+    <div id="binder-view" class="dex-workspace">
+      <aside class="dex-overview" aria-label="Binder overview">
+        <div class="dex-section-heading"><h2>Pages</h2><span id="page-total" class="dex-label"></span></div>
+        <div id="page-overview" class="dex-page-overview"></div>
+        <p id="capacity-summary" class="dex-help"></p>
+        <details class="dex-generation-progress"><summary>Progress by generation</summary><div id="generation-progress"></div></details>
+      </aside>
+      <section class="dex-binder" aria-labelledby="page-heading">
+        <div class="dex-page-heading"><div><p id="sheet-label" class="dex-eyebrow">Sheet 1 · Front</p><h2 id="page-heading">Page 1</h2><p id="page-progress" class="dex-help"></p></div><div class="dex-pagination"><button id="page-prev" aria-label="Previous page"><ChevronLeft size={19} aria-hidden="true" /></button><label for="page-select" class="sr-only">Go to page</label><select id="page-select"></select><button id="page-next" aria-label="Next page"><ChevronRight size={19} aria-hidden="true" /></button></div></div>
+        <div id="binder-grid" class="dex-binder-grid" aria-label="Binder pockets"></div>
+        <p class="dex-help dex-page-tip">Open a Pokémon for card references. Check its box when you have a card for that slot.</p>
+      </section>
+      <aside id="pokemon-details" class="dex-details" aria-label="Pokémon details" hidden></aside>
+    </div>
+
+    <section id="checklist-view" class="dex-checklist" aria-labelledby="checklist-heading" hidden>
+      <div class="dex-section-heading"><h2 id="checklist-heading">Your checklist</h2><span id="checklist-count" class="dex-label" role="status"></span></div>
+      <div class="dex-checklist-controls">
+        <label for="checklist-set">Filter by set<input id="checklist-set" type="search" list="checklist-sets" placeholder="All sets · Search set name or code" autocomplete="off" aria-describedby="checklist-filter-help" /></label>
+        <datalist id="checklist-sets"></datalist>
+        <button id="checklist-clear-set">Clear set filter</button>
+        <label for="checklist-sort">Sort checklist<select id="checklist-sort"><option value="dex">Pokédex number ↑</option><option value="dex-desc">Pokédex number ↓</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="collector">Set card number ↑</option><option value="collector-desc">Set card number ↓</option></select></label>
+      </div>
+      <div class="dex-checklist-options"><label><input id="checklist-hide-collected" type="checkbox" /> Hide collected Pokémon</label><span class="dex-help">Click a row to highlight it.</span></div>
+      <nav id="checklist-letters" class="dex-letter-jump" aria-label="Jump to starting letter" hidden>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}</nav>
+      <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
+      <p id="checklist-number-status" class="dex-help" role="status" hidden></p>
+      <button id="checklist-number-retry" type="button" hidden>Retry card numbers</button>
+      <div id="checklist-list"></div><button id="checklist-more" hidden>Show more Pokémon</button>
+    </section>
+
+    <section class="dex-export-bar" aria-label="Collection exports"><div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div></section>
+    <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
+  </div>
+  <noscript><p class="container">Pokédex Binder needs JavaScript to display your collection and save progress.</p></noscript>
+
+  <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
+
+  <dialog id="sync-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="sync-title"><div class="dex-section-heading"><h2 id="sync-title">Sync & backup</h2><button type="button" data-close-dialog aria-label="Close sync and backup">×</button></div><p>Your binder saves in this browser. Account sync is optional; existing private keys keep working until you migrate them.</p>
+    <section id="binder-account-panel" hidden>
+      <h3>One account for your utilities</h3><p id="binder-account-status" class="dex-help"></p>
+      <a id="binder-account-link" href="/account/?returnTo=%2Futilities%2Fpokedex-binder%2F">Sign in with email or Google</a>
+      <label id="binder-legacy-input" hidden>Import a private key from another device (optional)<input id="binder-migration-key" type="password" autocomplete="off" spellcheck="false" placeholder="Leave blank to use this device's key" /></label>
+      <div class="dex-actions"><button id="binder-account-review" hidden>Review & connect account</button><button id="binder-account-resume" hidden>Resume saved migration</button><button id="binder-account-sync" hidden>Sync account now</button><button id="binder-account-recheck" hidden>Retry saving & account connection</button><button id="binder-recovery-download" hidden>Download migration backups</button></div>
+      <p class="dex-help">Connecting keeps recovery copies of your device and account data. A migrated private key is retired only after the account copy is saved.</p>
+    </section><p id="sync-message" class="dex-notice" role="status"></p><section id="sync-disconnected"><button id="create-sync" class="dex-primary">Create sync key</button><form id="connect-form"><label for="sync-key-input">Already have a key?</label><input id="sync-key-input" type="password" placeholder="Paste your private key" autocomplete="off" spellcheck="false" /><button type="submit">Connect existing binder</button></form></section><section id="sync-connected" hidden><p class="dex-label">Connected to your synced binder</p><button id="copy-key">Copy private key</button><button id="reveal-key">Show key</button><input id="sync-key-display" type="text" aria-label="Private sync key" readonly hidden /><p class="dex-help">Anyone with this key can read and change this binder. Save it privately: there is no email recovery. Another paired device can still show the key.</p><div class="dex-actions"><button id="sync-now">Sync now</button><button id="disconnect-sync">Disconnect this device</button></div><button id="delete-cloud" class="dex-danger">Delete synced binder</button></section><section class="dex-backups"><h3>Collection backup</h3><p>Download a copy before clearing browser data. Backups contain your collection and layout, without your private key.</p><div class="dex-backup-actions"><button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button><label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label></div></section><p id="sync-error" class="dex-error" role="alert"></p></dialog>
+  <dialog id="binder-migration-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="binder-migration-title">
+    <form id="binder-migration-form"><div class="dex-section-heading"><h2 id="binder-migration-title">Review your binder copies</h2><button type="button" data-close-dialog aria-label="Close migration review">×</button></div>
+      <div id="binder-migration-summary" role="status"></div>
+      <p>Every original copy is kept for recovery. Combining keeps a Pokémon collected if any copy has it marked.</p>
+      <label>Collection<select id="binder-migration-collection"><option value="combine">Combine all collected Pokémon</option><option value="device">Use this device's collection</option><option value="account">Use the account collection</option></select></label>
+      <label>Binder layout<select id="binder-migration-layout" required><option value="">Choose a layout</option><option value="device">This device</option><option value="legacy">Private-key binder</option><option value="account">Account binder</option></select></label>
+      <p id="binder-migration-error" class="dex-error" role="alert"></p>
+      <div class="dex-dialog-actions"><button type="button" data-close-dialog>Keep using this device</button><button type="submit" class="dex-primary">Preserve copies & connect</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="confirm-title"><h2 id="confirm-title">Replace this binder?</h2><p id="confirm-text"></p><button id="confirm-backup">Download current backup</button><div class="dex-dialog-actions"><button id="confirm-cancel">Cancel</button><button id="confirm-accept" class="dex-primary">Continue</button></div></dialog>
+  <dialog id="scan-dialog" class="dex-scan-dialog rr-block" data-analytics-private aria-labelledby="scan-title">
+    <header class="dex-scan-heading"><h2 id="scan-title"><Camera size={21} aria-hidden="true" /> <span id="scan-title-label">Scan cards</span></h2><button id="scan-close" aria-label="Close scanner">Close</button></header>
+    <p id="scan-status" class="dex-scan-status" role="status" aria-live="polite">Preparing scanner…</p>
+    <p class="dex-scan-privacy">Recognition stays on this device. Photos aren’t saved or uploaded.</p>
+    <p id="scan-notice" class="dex-scan-notice" role="alert"></p>
+    <div id="scan-camera" class="dex-scan-camera"><video id="scan-video" autoplay muted playsinline aria-label="Live card camera"></video><div id="scan-guide" class="dex-scan-guide" aria-hidden="true"><span>Card name at the top</span></div></div>
+    <div id="scan-camera-actions" class="dex-scan-actions"><button id="scan-capture">Capture now</button><button id="scan-manual">Search manually</button><button id="scan-rescan">Rescan same card</button></div>
+    <section id="scan-result" class="dex-scan-result" aria-label="Scanned card result" hidden>
+      <div id="scan-result-hero" class="dex-scan-result-hero"><canvas id="scan-preview" class="dex-scan-preview" role="img" aria-label="Captured card preview" hidden></canvas>
+        <div id="scan-result-details" hidden><div class="dex-scan-species"><img id="scan-pokemon-sprite" width="64" height="64" alt="" /><div><span id="scan-dex-number" class="dex-label"></span><h3 id="scan-pokemon-name"></h3><strong id="scan-owned-status"></strong></div></div></div>
+      </div>
+      <div class="dex-scan-result-body"><p id="scan-choice-help"></p><div id="scan-candidates" class="dex-scan-candidates" aria-label="Choose Pokémon"></div>
+        <section id="scan-placement" class="dex-scan-placement" aria-label="Binder position" hidden><div class="dex-scan-placement-heading"><h3>Binder position</h3><span id="scan-sheet"></span></div><div id="scan-location" class="dex-scan-location" role="group"><div><span>Page</span><strong id="scan-location-page"></strong></div><div><span>Row</span><strong id="scan-location-row"></strong></div><div><span>Column</span><strong id="scan-location-column"></strong></div></div></section>
+        <button id="scan-correct" class="dex-scan-correct">Change Pokémon</button>
+        <div id="scan-search-panel" hidden><label for="scan-search">Search Pokémon name or Pokédex number</label><input id="scan-search" type="search" autocomplete="off" placeholder="Name or #0001" /><div id="scan-search-results" class="dex-scan-search-results"></div></div>
+      </div>
+      <footer class="dex-scan-result-actions"><button id="scan-mark" class="dex-primary" hidden><Check size={17} aria-hidden="true" /> Mark collected</button><button id="scan-next">Scan next <ChevronRight size={17} aria-hidden="true" /></button></footer>
+    </section>
+    <section id="scan-recovery" class="dex-scan-recovery" hidden><p id="scan-recovery-text"></p><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
+  </dialog>
+  <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable missing Pokémon"></section>
+  <script>import "../../utilities/pokedex-binder/scripts/app";</script>
+</BaseLayout>

@@ -1,0 +1,15 @@
+.migration-guide { flex: 0 0 auto; margin: 0; padding: 12px 20px; border-bottom: 0; color: #45464d; background: #eff4ff; font-size: .875rem; line-height: 1.6; }
+.migration-guide details { max-width: 1100px; }
+.migration-guide summary { width: fit-content; min-height: 44px; display: list-item; padding: 4px 0; cursor: pointer; color: #006a61; font-weight: 600; }
+.migration-guide summary:focus-visible, .migration-open:focus-visible { outline: 2px solid #006a61; outline-offset: 4px; }
+.migration-instructions { max-width: 1000px; padding: 4px 0 8px; }
+.migration-instructions p { margin: 8px 0; }
+.migration-instructions ol { margin: 8px 0; padding-left: 24px; }
+.migration-instructions li { margin: 6px 0; }
+.migration-notice { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 1100px; }
+.migration-notice p { margin: 4px 0 8px; }
+.migration-notice h2 { margin: 0; font: 600 1.125rem/1.4 Inter, sans-serif; color: #0b1c30; }
+.migration-notice .migration-eyebrow { margin: 0 0 4px; color: #006a61; font: 500 .75rem/1.4 'JetBrains Mono', monospace; }
+.migration-open { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid #000; color: #fff; background: #000; font-weight: 600; text-decoration: none; }
+.migration-open:hover { color: #fff; background: #131b2e; }
+@media (max-width: 640px) { .migration-guide { padding: 12px 16px; } .migration-notice { align-items: flex-start; flex-direction: column; gap: 8px; } }

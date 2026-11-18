@@ -8,14 +8,15 @@ interface Props {
   project: Project;
   featured?: boolean;
   headingLevel?: 2 | 3;
+  showVisual?: boolean;
 }
 
-const { project, featured = false, headingLevel = 3 } = Astro.props;
+const { project, featured = false, headingLevel = 3, showVisual = true } = Astro.props;
 const projectPath = getProjectPath(project);
 ---
 
-<article id={project.slug} class:list={["project-card", featured && "featured"]}>
-  <ProjectVisual project={project} />
+<article id={project.slug} class:list={["project-card", featured && "featured", !showVisual && "project-card-text"]}>
+  {showVisual && <ProjectVisual project={project} />}
   <div class="project-content">
     <div class="project-meta">
       <span>{project.status}</span>

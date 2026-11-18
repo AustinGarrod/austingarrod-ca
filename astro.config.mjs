@@ -39,6 +39,7 @@ export default defineConfig({
   site: "https://austingarrod.ca",
   output: "static",
   vite: {
+    build: { sourcemap: "hidden", assetsInlineLimit: 0 },
     plugins: [radiusMapGeocodeDevProxy()]
   }
 });

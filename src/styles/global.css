@@ -158,7 +158,6 @@ button {
 }
 
 .desktop-nav,
-.nav-actions,
 .footer-links,
 .button-row,
 .project-actions,
@@ -191,11 +190,6 @@ button {
 .mobile-link:hover,
 .mobile-link.active {
   color: var(--primary);
-}
-
-.nav-actions {
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .icon-button {
@@ -254,16 +248,6 @@ button {
   color: #ffffff;
   background: var(--primary);
   border-color: var(--primary);
-}
-
-.mobile-resume {
-  width: 100%;
-  margin-top: 12px;
-}
-
-.mobile-resume-download {
-  justify-content: center;
-  min-height: 44px;
 }
 
 .button {
@@ -403,11 +387,6 @@ button {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 36px;
-}
-
-.resume-download-link {
-  min-height: 44px;
-  padding-inline: 4px;
 }
 
 .eyebrow {
@@ -574,6 +553,44 @@ button {
   gap: 24px;
 }
 
+.projects-list-section {
+  display: grid;
+  gap: clamp(48px, 6vw, 80px);
+}
+
+.projects-group-heading {
+  margin-bottom: 24px;
+}
+
+.projects-group-heading h2 {
+  margin: 0 0 8px;
+  scroll-margin-top: 110px;
+  color: var(--ink);
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.projects-group-heading p {
+  max-width: 65ch;
+  margin: 0;
+  color: var(--muted);
+}
+
+.project-gallery {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.project-gallery .project-content,
+.project-card-text .project-content {
+  padding: 24px;
+}
+
+.project-gallery .project-actions,
+.project-card-text .project-actions {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
 .project-card {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -582,6 +599,10 @@ button {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
+}
+
+.project-card-text {
+  grid-template-rows: 1fr;
 }
 
 .project-card.featured {
@@ -647,6 +668,31 @@ button {
   width: 100%;
   height: 100%;
   min-height: 164px;
+}
+
+.visual-screenshot {
+  aspect-ratio: 3 / 2;
+  min-height: 0;
+  background: var(--surface);
+}
+
+.project-card.featured .visual-screenshot {
+  aspect-ratio: auto;
+}
+
+.visual-screenshot .visual-stage {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+}
+
+.visual-screenshot .project-screenshot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: left top;
 }
 
 .visual-portfolio {
@@ -1227,6 +1273,11 @@ button {
   letter-spacing: 0;
 }
 
+.project-gallery .project-card h3,
+.project-card-text h3 {
+  font-size: clamp(1.6rem, 2.2vw, 2rem);
+}
+
 .project-card h2 a:hover,
 .project-card h3 a:hover {
   color: var(--secondary);
@@ -1721,6 +1772,11 @@ textarea:focus-visible {
   border: 1px solid var(--line);
 }
 
+.project-detail-main .visual-screenshot {
+  aspect-ratio: var(--screenshot-ratio);
+  min-height: 0;
+}
+
 .project-detail-main h2 {
   max-width: 880px;
   margin: 0 0 18px;
@@ -1789,10 +1845,6 @@ textarea:focus-visible {
     display: inline-grid;
   }
 
-  .nav-actions .button.compact {
-    display: none;
-  }
-
   .mobile-nav:not([hidden]) {
     position: fixed;
     top: 98px;
@@ -1807,10 +1859,6 @@ textarea:focus-visible {
     margin: 0;
     padding: 18px;
     overflow: auto;
-  }
-
-  .mobile-resume {
-    margin-top: 10px;
   }
 
   .metrics-grid,

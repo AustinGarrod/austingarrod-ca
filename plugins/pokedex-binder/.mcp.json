@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pokedex-binder": {
+      "type": "http",
+      "url": "https://austingarrod.ca/api/v1/mcp/pokedex-binder"
+    }
+  }
+}

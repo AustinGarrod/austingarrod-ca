@@ -1,0 +1,15 @@
+.upgrade-discovery .discovery-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: .8125rem; }
+.upgrade-discovery select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; font: inherit; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 0; }
+.upgrade-discovery .discovery-controls small { grid-column: 1 / -1; font-size: .75rem; }
+.upgrade-discovery .search-result { align-items: flex-start; }
+.upgrade-discovery .discovery-title { display: block; }
+.upgrade-discovery .discovery-state.available { color: var(--bright-gold); }
+.upgrade-discovery .discovery-state.purchased { color: var(--complete); }
+.upgrade-discovery .discovery-state.pending { color: var(--ink); }
+.upgrade-discovery .discovery-identity { font-size: .75rem; }
+.upgrade-discovery .discovery-effect { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.upgrade-discovery .discovery-list > p { margin: 14px; font-size: .875rem; color: var(--muted); }
+
+.search-box > .search-toggle { position: relative; grid-area: 1 / 1; justify-self: start; z-index: 1; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--frame); font-size: clamp(24px, 1.5rem, 32px); line-height: 1; }
+.search-box > input { padding-left: 52px; }
+.upgrade-discovery .search-result[aria-current="true"] { outline: 2px solid var(--bright-gold); outline-offset: -2px; }

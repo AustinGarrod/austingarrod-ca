@@ -1,0 +1,28 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import "@styles/account.css";
+---
+
+<BaseLayout title="Connect an assistant | Austin Garrod" description="Review assistant access to a utility." noIndex privatePage>
+  <section class="container account-layout assistant-layout rr-block" data-analytics-private>
+    <div class="account-panel">
+      <h1>Connect an assistant</h1>
+      <p id="assistant-status" role="status" aria-live="polite">Loading permissions…</p>
+      <a id="assistant-sign-in" class="button primary" href="/account/" hidden>Sign in</a>
+      <div id="assistant-permissions" hidden>
+        <p><strong id="assistant-client-name"></strong> is requesting access to <strong id="assistant-utility-name"></strong> for <strong id="assistant-account-name"></strong>.</p>
+        <p>Read access lets the assistant see catalog entries and your synced data. The assistant receives the information it uses to answer your requests.</p>
+        <p id="assistant-write-description">Write access also lets it edit your synced saves.</p>
+        <p>You can revoke access from your account. After your decision, you’ll return to <strong id="assistant-destination"></strong>.</p>
+        <div class="account-actions">
+          <button type="button" class="button primary" value="read">Allow read access</button>
+          <button type="button" class="button" value="write">Allow read and write</button>
+          <button type="button" class="button" value="deny">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script>
+    import "../../utilities/accounts/assistant-consent";
+  </script>
+</BaseLayout>

@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "reviewedPlatform": "Windows Steam",
+  "reviewedGameVersion": "7.3.4",
+  "steamBuild": "25810322",
+  "unityVersion": "6000.3.14f1",
+  "catalogSha256": "b9ec818c797f959bb3e65b95aba031364c818b88274f5470f525aa639fc67f77",
+  "nativeInputs": {
+    "gameAssemblySha256": "ab968489df8032a895898d9b90ee3e583f416d4fbc97c427d935efa457bfb38a",
+    "metadataSha256": "55ecb5240daa99e1b6f7ffa4225b257e5b37e4c5ccc88c7fab28d1f3202d8011",
+    "metadataVersion": 39
+  },
+  "tool": "Cpp2IL 2022.1.0-pre-release.21+58fc404ac503f4e512055cafc48c03088fc6e224",
+  "method": "Offline declaration, IL2CPP metadata and mapped PE method-range review. No game execution or player-save input used for this receipt.",
+  "format": {
+    "fileNames": [
+      "savedata.sav",
+      "backup.sav"
+    ],
+    "directory": "Application.persistentDataPath",
+    "encoding": "UTF-8 without BOM emitted by StreamWriter(string path)",
+    "payload": "Unity JsonUtility JSON passed through a symmetric repeating-key XOR over UTF-16 code units",
+    "xorKeyLengthUtf16": 78,
+    "xorKeySha256Utf8": "db3a2920820ea229c00d4fd063611f49108dfd3fecb1e1254f99417a2da5fcfc",
+    "xorFormula": "outputCodeUnit[i] = inputCodeUnit[i] XOR keyCodeUnit[i % keyLength]",
+    "nativeWriteAppendsLineEnding": false,
+    "nativeReadTrimsScrambledPayload": false,
+    "modelArrays": {
+      "StringData": {
+        "Key": "string",
+        "Value": "string reference; null is structurally possible"
+      },
+      "IntData": {
+        "Key": "string",
+        "Value": "int32"
+      },
+      "FloatData": {
+        "Key": "string",
+        "Value": "float32"
+      },
+      "BoolData": {
+        "Key": "string",
+        "Value": "bool"
+      }
+    },
+    "nativeCrossTypeDuplicateKeys": "Allowed; GetValueFromKey dispatches by the requested default value type.",
+    "nativeWithinTypeDuplicateKeys": "First matching key wins; importer rejects ambiguity.",
+    "versionKey": {
+      "array": "StringData",
+      "key": "Last Played Version",
+      "source": "Application.version written by PlayerInventory.Awake"
+    },
+    "ultraAscensionCount": {
+      "array": "StringData",
+      "key": "Ultra Ascensions",
+      "nativeType": "double",
+      "missingOrEmptyDefault": "0",
+      "nativeParse": "Replace comma with decimal dot, remove plus signs and Unicode category C, then Double.Parse with InvariantCulture."
+    }
+  },
+  "stateSemantics": {
+    "upgradeIdentity": "AscensionSkill inherits DataObject.id; this same stable ID is the IntData key.",
+    "ascensionOwnership": "Value >= 1",
+    "astralLockActivatedFlag": "Value >= 2",
+    "active": "Owned and either not an Astral lock or activated flag is set.",
+    "normalPurchaseWriter": "Value = 1",
+    "ultraAscensionActivationWriter": "Value = 2 only for a bought Astral with astralLock set and astralLockUnlocked unset.",
+    "receivedMilestone": "Upgrade.bought and PermanentCraftableItem.unlocked use Value == 1.",
+    "retention": "Astral ownership survives Ultra Ascension. Four active-source rules retain existing target purchases and do not award absent targets.",
+    "perUpgradeEpoch": "No per-upgrade purchase epoch or timestamp is read or written by the inspected purchase, Init and activation paths."
+  },
+  "milestoneMappings": [
+    {
+      "id": "cpxhw229fs2kgh2zgs0c",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "iwqw3uscrm8nbeibqtpz",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "jal6x8iarlhjjeujvy5e",
+      "nativeClass": "PermanentCraftableItem",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "nnbcwhliklxqxvhhot4b",
+      "nativeClass": "PermanentCraftableItem",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "otkuywjipoknt3x4wrpf",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "qjmm49gzsenrcbpcunbs",
+      "nativeClass": "PermanentCraftableItem",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "sxfhaw7yth9yevc5ti2w",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "wqg7vf0pk6gdwx64nhl5",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    },
+    {
+      "id": "xob1yba3zntx0ul0bn71",
+      "nativeClass": "Upgrade",
+      "array": "IntData",
+      "receivedPredicate": "Value == 1"
+    }
+  ],
+  "verification": {
+    "codecNativeSemantics": true,
+    "modelNativeSemantics": true,
+    "stableIdMapping": true,
+    "ownershipAndActivation": true,
+    "ultraAscensionCounter": true,
+    "allNineMilestoneMappings": true,
+    "retentionNativeSemantics": true,
+    "historicalPurchaseEpochsRecovered": false,
+    "playerSaveUsedForReceipt": false,
+    "gameMethodsInvoked": false
+  },
+  "methods": [
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "DataScrambler",
+      "rva": "0x2CBA00",
+      "length": 346,
+      "rawOffset": 2927104,
+      "nativeBodySha256": "479f52a4f2eae7811f14951cfb238b7cc0b141603fdc36b9738234130ad06cf9"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "WriteToSaveFile",
+      "rva": "0x2CD0E0",
+      "length": 924,
+      "rawOffset": 2932960,
+      "nativeBodySha256": "0426f5cd0703c17b14f05a5931bdaee729fc9c092f1cc26f326799756eb5418a"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "ManualySave",
+      "rva": "0x2CCCA0",
+      "length": 190,
+      "rawOffset": 2931872,
+      "nativeBodySha256": "26cf18768d7be21ca3b75dcf7a08a4020188dc1c8af3ee03db1250d336bf49c5"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetFileBasedPrefsSaveFileModel",
+      "rva": "0x2CC330",
+      "length": 820,
+      "rawOffset": 2929456,
+      "nativeBodySha256": "8512c201af6a42737c83644b3507813c4b3e5408484283cea95f674b49d6700e"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetSaveFilePath",
+      "rva": "0x2CC860",
+      "length": 143,
+      "rawOffset": 2930784,
+      "nativeBodySha256": "f882a909b4f0814b12a466bd2f1388cd2153144609d65622b270918d3db200ac"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefs",
+      "method": "GetBackupSaveFilePath",
+      "rva": "0x2CC180",
+      "length": 143,
+      "rawOffset": 2929024,
+      "nativeBodySha256": "4c360ae6bbf8ab4dbd03789e05b19c25a2be7ab2841af12705d9c5dde2b4e761"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefsSaveFileModel",
+      "method": ".ctor",
+      "rva": "0x2CB710",
+      "length": 208,
+      "rawOffset": 2926352,
+      "nativeBodySha256": "7f77629112ab7f608298bce30341a9542300aa293d22b7c936e4e772cc7ae830"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefsSaveFileModel",
+      "method": "GetValueFromKey",
+      "rva": "0x2CA520",
+      "length": 905,
+      "rawOffset": 2921760,
+      "nativeBodySha256": "e1bb263d5724414a31e17484c2bb184a6bcd150473f48461c03552b839edfabb"
+    },
+    {
+      "assembly": "Assembly-CSharp-firstpass",
+      "type": "FileBasedPrefsSaveFileModel",
+      "method": "HasKeyFromObject",
+      "rva": "0x2CA8B0",
+      "length": 631,
+      "rawOffset": 2922672,
+      "nativeBodySha256": "31cc50d1094ebd1b9f3da991693729f834b30ba66ac6311d73c882242125e065"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "SaveManager",
+      "method": "GetInt",
+      "rva": "0x3B6690",
+      "length": 76,
+      "rawOffset": 3888784,
+      "nativeBodySha256": "f1e6b69b5c54da06d88a322607361b3b37c8d1bab74178e87a4213af9f21af38"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "SaveManager",
+      "method": "GetString",
+      "rva": "0x3B66E0",
+      "length": 93,
+      "rawOffset": 3888864,
+      "nativeBodySha256": "c9d5f94c5f3e59c14511b8c76bc109d0d6f2ecace645320118e643c0e82bd92a"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "AscensionSkill",
+      "method": "Init",
+      "rva": "0x3A50A0",
+      "length": 248,
+      "rawOffset": 3817632,
+      "nativeBodySha256": "bd39c2a357a0502db1b473ba0d210899e5598e81404e6b12f3941ddea50c9ae3"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "AscensionSkill",
+      "method": "IsActive",
+      "rva": "0x3A51A0",
+      "length": 65,
+      "rawOffset": 3817888,
+      "nativeBodySha256": "c20d2f0186a193ea080c54c66610dc4f714428799d37f926714cdefb0afaa9c4"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "SkillTreeManager",
+      "method": "BuyAscensionSkill",
+      "rva": "0x3C1BE0",
+      "length": 4229,
+      "rawOffset": 3935200,
+      "nativeBodySha256": "5e5b2db6a12fea0f2b6dc6f26ecb55c3c62113caceb2d600e2e488414e06ae56"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Upgrade",
+      "method": "Init",
+      "rva": "0x3C9450",
+      "length": 471,
+      "rawOffset": 3966032,
+      "nativeBodySha256": "aafc944800577d6461cb9fae968086808883da10788e195bac188d9f35cffdb8"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PermanentCraftableItem",
+      "method": "AdditionalInit",
+      "rva": "0x3B9BC0",
+      "length": 210,
+      "rawOffset": 3902400,
+      "nativeBodySha256": "9e259168d7419cda6e94a8090923b917db20aedd7514f7cec0ef97d9ae713af0"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PermanentCraftableItem",
+      "method": "IsActive",
+      "rva": "0x3BA4A0",
+      "length": 8,
+      "rawOffset": 3904672,
+      "nativeBodySha256": "f735d0fc9d977dae4106869f19103860041ce8fe3fcea5a380c84ac3a66f7df4"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PlayerInventory",
+      "method": "Awake",
+      "rva": "0x4F2640",
+      "length": 260,
+      "rawOffset": 5183040,
+      "nativeBodySha256": "6adabae34cdb66cad35c89b8f60fdeda9dadf652d232fa95942bf594ec3472d3"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "PlayerInventory",
+      "method": "LoadPrefs",
+      "rva": "0x4FAE10",
+      "length": 7436,
+      "rawOffset": 5217808,
+      "nativeBodySha256": "2d832145be1f30c5bdf06e7f0de0a1a021f6916792f1309117b274645898979b"
+    },
+    {
+      "assembly": "Assembly-CSharp",
+      "type": "Utils",
+      "method": "ParseDouble",
+      "rva": "0x406570",
+      "length": 257,
+      "rawOffset": 4216176,
+      "nativeBodySha256": "090e4976f39c479b1549abbf3d2e046f6b71f4cf3b35fed799cb78eb7558b88f"
+    },
+    {
+      "type": "AscensionManager",
+      "method": "<Ascend>b__0",
+      "rva": "0x2E2CE0",
+      "length": 6424,
+      "nativeBodySha256": "321f4fcc9be10143813d1c79d1e348049285781bd0ae6717b249f7443ed1dd67",
+      "assembly": "Assembly-CSharp",
+      "rawOffset": 3022048
+    },
+    {
+      "assembly": "mscorlib",
+      "type": "System.IO.StreamWriter",
+      "method": ".ctor(string path)",
+      "rva": "0x1275E90",
+      "length": 166,
+      "rawOffset": 19353232,
+      "nativeBodySha256": "3324041c18999b05ade6fddf2abeb6cb608f77943ef045b7bbfe4de97ab81b46"
+    }
+  ],
+  "companionSemanticsReceipt": "data/companion-native-method-receipt.json",
+  "companionImportAllowlist": "data/companion-native-rules.json"
+}

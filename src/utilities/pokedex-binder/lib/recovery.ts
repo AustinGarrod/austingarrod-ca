@@ -1,0 +1,43 @@
+/** A separate journal leaves the original guest IndexedDB schema and bytes intact. */
+export class BinderRecovery {
+  private database: IDBDatabase | null = null;
+  constructor(private readonly factory: IDBFactory | null | undefined = globalThis.indexedDB) {}
+  private async open(): Promise<IDBDatabase> {
+    if (this.database) return this.database;
+    if (!this.factory) throw new Error("Browser storage is unavailable. Export a backup before connecting an account.");
+    this.database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = this.factory!.open("austingarrod.utilities.pokedex-binder.recovery.v1", 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("records");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error("Close other binder windows before reviewing migration."));
+    });
+    this.database.onversionchange = () => { this.database?.close(); this.database = null; };
+    return this.database;
+  }
+  async get<T>(key: string): Promise<T | undefined> {
+    const database = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction("records", "readonly"), request = tx.objectStore("records").get(key);
+      request.onsuccess = () => resolve(request.result as T | undefined); request.onerror = () => reject(request.error);
+    });
+  }
+  async put(key: string, value: unknown): Promise<void> {
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const tx = database.transaction("records", "readwrite");
+      tx.objectStore("records").put(value, key);
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+  }
+  async all(): Promise<{ key: string; value: unknown }[]> {
+    const database = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = database.transaction("records", "readonly"), request = tx.objectStore("records").openCursor();
+      const result: { key: string; value: unknown }[] = [];
+      request.onsuccess = () => { const cursor = request.result; if (cursor) { result.push({ key: String(cursor.key), value: cursor.value }); cursor.continue(); } };
+      tx.oncomplete = () => resolve(result); tx.onerror = () => reject(tx.error);
+    });
+  }
+  close(): void { this.database?.close(); this.database = null; }
+}

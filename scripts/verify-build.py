@@ -6,6 +6,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from zipfile import ZipFile
 
 from PIL import Image
 from pypdf import PdfReader
@@ -90,7 +91,7 @@ utilities = data["utilities"]
 public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
-unlisted_routes = ["/utilities/screen-cut-calculator/"]
+unlisted_routes = ["/utilities/screen-cut-calculator/", "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
@@ -101,6 +102,14 @@ for route in routes:
         continue
 
     markup = path.read_text(encoding="utf-8")
+    if route == "/utilities/idle-slayer-companion/":
+        # The standalone React utility owns fragment cleanup and its telemetry lifecycle.
+        check(f'href="{PRODUCTION_ORIGIN}{route}"' in markup, "Companion canonical URL is incorrect")
+        check('application/ld+json' in markup and 'WebApplication' in markup, "Companion application metadata is missing")
+        check('data-domains="austingarrod.ca,www.austingarrod.ca"' not in markup, "Companion must not load the portfolio tracker")
+        check('id="root"' in markup, "Companion application entry is missing")
+        check(not list((DIST / "utilities/idle-slayer-companion").rglob("*.map")), "Companion exposes source maps")
+        continue
     all_html.append(markup)
     expected_canonical = f"{PRODUCTION_ORIGIN}{route}"
     canonical_match = re.search(r'<link rel="canonical" href="([^"]+)"', markup)
@@ -117,17 +126,22 @@ for route in routes:
     if canonical_match:
         check(canonical_match.group(1) == expected_canonical, f"{route} has the wrong canonical URL")
     check(len(ids) == len(set(ids)), f"{route} contains duplicate ids")
-    check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
+    if route.startswith("/account/"):
+        check(ANALYTICS_SCRIPT not in markup and ANALYTICS_RECORDER not in markup, "Account pages must not load analytics or recordings")
+        check('name="robots" content="noindex"' in markup, "Account pages must not be indexed")
+        check('data-analytics-private' in markup and 'rr-block' in markup, "Account views must be private")
+    else:
+        check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
     check(
-        'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
+        route.startswith("/account/") or 'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
         f"{route} must restrict Umami to production domains",
     )
-    check('data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
-    check('data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
-    check(markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
-    check('data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
-    check('getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
-    check('data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
+    check(route.startswith("/account/") or 'data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
+    check(route.startswith("/account/") or 'data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
+    check(route.startswith("/account/") or markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
+    check(route.startswith("/account/") or 'data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
+    check(route.startswith("/account/") or 'getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
+    check(route.startswith("/account/") or 'data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
     check(json_ld_match is not None, f"{route} is missing JSON-LD")
     if json_ld_match:
         try:
@@ -138,9 +152,45 @@ for route in routes:
             failures.append(f"{route} contains invalid JSON-LD")
 
 combined_html = "\n".join(all_html)
+combined_client = combined_html + "\n" + "\n".join(
+    path.read_text(encoding="utf-8") for path in (DIST / "_astro").glob("*.js")
+)
+
+# OCR models/workers must be complete, pinned and same-origin. Camera access is utility-scoped.
+scanner_assets = DIST / "utilities/pokedex-binder/scanner-assets/v1"
+scanner_manifest = scanner_assets / "assets.json"
+check(scanner_manifest.is_file(), "Missing scanner asset manifest")
+if scanner_manifest.is_file():
+    scanner_files = json.loads(scanner_manifest.read_text(encoding="utf-8"))
+    check(scanner_files.get("schemaVersion") == 1, "Unknown scanner asset manifest version")
+    scanner_files = scanner_files.get("files", {})
+    required_scanner_files = {
+        "worker.min.js", "worker.min.js.LICENSE.txt", "tesseract.js-LICENSE.txt",
+        "tesseract.js-core-LICENSE.txt", "eng.traineddata.gz", "README.md",
+        *[f"tesseract-core{variant}-lstm.wasm.js" for variant in ["", "-simd", "-relaxedsimd"]],
+    }
+    check(set(scanner_files) == required_scanner_files, "Unexpected scanner assets or missing notices")
+    for name, metadata in scanner_files.items():
+        check(Path(name).name == name, "Scanner asset filename must be local")
+        asset = scanner_assets / Path(name).name
+        check(asset.is_file(), f"Missing scanner asset: {name}")
+        if asset.is_file():
+            check(asset.stat().st_size == metadata["bytes"] and sha256(asset) == metadata["sha256"],
+                  f"Scanner asset does not match pinned manifest: {name}")
+        expected_version = "1.0.0" if metadata["package"] == "@tesseract.js-data/eng" else "7.0.0"
+        check(metadata["version"] == expected_version, f"Unexpected scanner package version: {name}")
+check((scanner_assets / "ATTRIBUTION.txt").is_file(), "Missing scanner attribution")
+check((DIST / "utilities/pokedex-binder/catalog/scan-index.json").is_file(), "Missing scanner name index")
+scanner_headers = (DIST / "utilities/pokedex-binder/.htaccess").read_text(encoding="utf-8")
+check("camera=(self)" in scanner_headers and "worker-src 'self'" in scanner_headers
+      and "'wasm-unsafe-eval'" in scanner_headers, "Scanner camera/worker policy is incomplete")
+check("'unsafe-eval'" not in scanner_headers, "Scanner must not enable JavaScript eval")
+check("camera=()" in (DIST / ".htaccess").read_text(encoding="utf-8"), "Root camera restriction must remain")
+check(not (DIST / "utilities/pokedex-binder/sw.js").exists(), "Binder must not install a service worker")
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
+    "/utilities/pokedex-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content"],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
@@ -177,14 +227,20 @@ untracked_download_links = re.findall(
     combined_html,
 )
 check(not untracked_external_links, "Built HTML contains untracked external links")
-check(not untracked_download_links, "Built HTML contains untracked file downloads")
+expected_private_downloads = {
+    f'/account/assistant-skills/{name}{suffix}.zip'
+    for name in ("pokedex-binder", "idle-slayer-companion")
+    for suffix in ("", "-plugin")
+}
+for link in untracked_download_links:
+    href = re.search(r'\bhref="([^"]+)"', link)
+    check(bool(href and href.group(1) in expected_private_downloads), "Built HTML contains untracked file downloads")
 
 for required_event in [
     "contact-form-",
     "contact-form-submit",
     "contact-link-click",
     "cta-click",
-    "file-download",
     "mobile-menu-toggle",
     "outbound-link-click",
     "project-case-study-view",
@@ -192,11 +248,10 @@ for required_event in [
     "utility-navigation",
     "radius-map-search",
     "radius-map-save",
-    "resume-view",
 ]:
     check(
-        f'data-umami-event="{required_event}"' in combined_html or required_event in combined_html,
-        f"Built HTML is missing Umami event coverage: {required_event}",
+        required_event in combined_client,
+        f"Built client assets are missing Umami event coverage: {required_event}",
     )
 
 for stale_phrase in [
@@ -228,14 +283,43 @@ check(
 )
 
 projects_markup = route_file("/projects/").read_text(encoding="utf-8")
-project_heading_links = re.findall(r'<h2><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
-check(len(project_heading_links) == len(projects), "Projects index must use one h2 per project card")
+project_heading_links = re.findall(r'<h3><a href="/projects/[^\"]+/"[^>]*>', projects_markup)
+check(len(project_heading_links) == len(projects), "Projects index must use one h3 per project beneath its section heading")
+check('id="selected-projects-title"' in projects_markup, "Projects index is missing the screenshot gallery heading")
+check('id="more-case-studies-title"' in projects_markup, "Projects index is missing the additional case studies heading")
+check('class="visual-header"' not in projects_markup, "Projects index must not mix illustrations with its screenshot gallery")
+check(
+    bool(project_heading_links) and 'href="/projects/junkin-electric/"' in project_heading_links[0],
+    "Projects index must feature Junkin Electric first",
+)
 check("Private prototype" in projects_markup, "Projects index must label the NFC project as a prototype")
+check("github.com/Junkin-Electric/" not in combined_html, "Public pages must not expose the private client repository")
+
+for project in projects:
+    if project["visual"] != "screenshot":
+        continue
+    screenshot = project.get("screenshot")
+    check(bool(screenshot), f"{project['title']} is missing screenshot metadata")
+    if not screenshot:
+        continue
+    screenshot_path = DIST / screenshot["path"].lstrip("/")
+    check(screenshot_path.is_file(), f"Missing project screenshot: {screenshot['path']}")
+    if screenshot_path.is_file():
+        with Image.open(screenshot_path) as image:
+            check(
+                image.size == (screenshot["width"], screenshot["height"]),
+                f"{project['title']} screenshot dimensions do not match its metadata",
+            )
+    check(bool(screenshot.get("alt", "").strip()), f"{project['title']} screenshot needs descriptive alt text")
+    detail_markup = route_file(f"/projects/{project['slug']}/").read_text(encoding="utf-8")
+    for markup, placement in [(projects_markup, "Projects index"), (detail_markup, "case study")]:
+        check(f'src="{screenshot["path"]}"' in markup, f"{placement} is missing {project['title']} screenshot")
 
 utilities_markup = route_file("/utilities/").read_text(encoding="utf-8")
 utility_heading_links = re.findall(r'<h2><a href="/utilities/[^\"]+/"[^>]*>', utilities_markup)
 check(len(utility_heading_links) == len(utilities), "Utilities index must use one h2 per utility card")
 check('href="/utilities/radius-map/"' in utilities_markup, "Utilities index must link to Radius Map")
+check('href="/utilities/idle-slayer-companion/"' in utilities_markup, "Utilities index must link to Idle Slayer Companion")
 check(
     "/utilities/screen-cut-calculator/" not in utilities_markup,
     "Utilities index and structured data must not expose the unlisted Screen Cut Calculator",
@@ -277,14 +361,23 @@ for retired_radius_map_behavior in ["signin-with-chatgpt", "signout-with-chatgpt
     check(retired_radius_map_behavior not in radius_map_markup, f"Radius Map still contains Sites account behavior: {retired_radius_map_behavior}")
 
 featured_paths = [
-    "/projects/honour-our-veterans-banner-platform/",
+    "/projects/junkin-electric/",
     "/projects/cadence/",
-    "/projects/spools/",
+    "/projects/idle-slayer-companion/",
 ]
 home_markup = route_file("/").read_text(encoding="utf-8")
 featured_positions = [home_markup.find(f'href="{path}"') for path in featured_paths]
 check(all(position >= 0 for position in featured_positions), "Homepage is missing an intended featured project")
 check(featured_positions == sorted(featured_positions), "Homepage featured projects are in the wrong order")
+for project in projects:
+    if f"/projects/{project['slug']}/" not in featured_paths:
+        continue
+    check(project["visual"] == "screenshot", f"Featured project {project['title']} must use a real screenshot")
+    screenshot = project.get("screenshot", {})
+    check(
+        bool(screenshot.get("path")) and f'src="{screenshot.get("path")}"' in home_markup,
+        f"Homepage is missing {project['title']} screenshot",
+    )
 
 not_found_path = DIST / "404.html"
 check(not_found_path.is_file(), "Missing 404.html")
@@ -369,6 +462,7 @@ if htaccess_path.is_file():
     htaccess = htaccess_path.read_text(encoding="utf-8")
     for directive in [
         "RewriteEngine On",
+        "RewriteCond %{REQUEST_URI} !^/utilities/idle-slayer-companion/ [NC]",
         "https://austingarrod.ca%{REQUEST_URI}",
         "Strict-Transport-Security",
         "application/manifest+json",
@@ -491,6 +585,37 @@ if resume_path.is_file():
         "Resume PDF must clarify the verified freelance and teaching overlap",
     )
 
+for required in [
+    "api/v1/mcp.php",
+    "api/v1/_mcp-data/.htaccess",
+    "api/v1/_mcp-data/companion-reset-rules.json",
+    "api/v1/_mcp-data/wiki-priorities.json",
+    "api/v1/_mcp-vendor/.htaccess",
+    "api/v1/_mcp-vendor/autoload.php",
+]:
+    check((DIST / required).is_file(), f"Missing utility MCP release file {required}")
+
+for name in ("pokedex-binder", "idle-slayer-companion"):
+    source = ROOT / "plugins" / name
+    skill = f"{name}/SKILL.md"
+    for filename, bundle_source, entries in (
+        (f"{name}.zip", source / "skills", [skill]),
+        (f"{name}-plugin.zip", source, [".claude-plugin/plugin.json", ".mcp.json", f"skills/{skill}"]),
+    ):
+        bundle = DIST / "account" / "assistant-skills" / filename
+        check(bundle.is_file(), f"Missing utility assistant ZIP {filename}")
+        if bundle.is_file():
+            with ZipFile(bundle) as archive:
+                check(archive.namelist() == entries, f"Unexpected files in {filename}")
+                for entry in entries:
+                    check(entry in archive.namelist() and archive.read(entry) == (bundle_source / entry).read_bytes(),
+                          f"{entry} in {filename} differs from its plugin source")
+
+for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess"]:
+    check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")
+for config in [DIST / ".htaccess", DIST / "utilities/radius-map/.htaccess"]:
+    check("https://reports.garrod.house" in config.read_text(encoding="utf-8"), f"Reporting is blocked by CSP in {config}")
+
 if failures:
     print("Deployment verification failed:")
     for failure in failures:
@@ -499,5 +624,5 @@ if failures:
 
 print(
     f"Verified {len(routes)} routes, {len(projects)} projects, the deployment manifest and headers, "
-    "Open Graph artwork, and the linked one-page resume."
+    "Open Graph artwork, and the one-page resume asset."
 )

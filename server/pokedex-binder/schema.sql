@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS pokedex_schema_migrations (
+    version INT UNSIGNED NOT NULL PRIMARY KEY,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS pokedex_binders (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    key_hash BINARY(32) NOT NULL UNIQUE,
+    revision BIGINT UNSIGNED NOT NULL,
+    state_json TEXT NULL,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pokedex_binder_clients (
+    binder_id BIGINT UNSIGNED NOT NULL,
+    client_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    last_applied_sequence BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (binder_id, client_id),
+    CONSTRAINT pokedex_client_binder FOREIGN KEY (binder_id) REFERENCES pokedex_binders(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO pokedex_schema_migrations (version) VALUES (1);

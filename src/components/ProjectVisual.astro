@@ -17,18 +17,36 @@ const iconMap = {
   layers: Layers
 };
 const Icon = iconMap[project.icon];
+const screenshot = project.visual === "screenshot" ? project.screenshot : undefined;
 ---
 
-<div class:list={["project-visual", `visual-${project.visual}`]} aria-hidden="true">
-  <div class="visual-header">
-    <div class="visual-leds">
-      <span></span>
-      <span></span>
-      <span></span>
+<div
+  class:list={["project-visual", `visual-${project.visual}`]}
+  aria-hidden={screenshot ? undefined : "true"}
+  style={screenshot ? `--screenshot-ratio: ${screenshot.width} / ${screenshot.height}` : undefined}
+>
+  {!screenshot && (
+    <div class="visual-header" aria-hidden="true">
+      <div class="visual-leds">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <Icon size={22} />
     </div>
-    <Icon size={22} />
-  </div>
+  )}
   <div class="visual-stage">
+    {screenshot && (
+      <img
+        class="project-screenshot"
+        src={screenshot.path}
+        alt={screenshot.alt}
+        width={screenshot.width}
+        height={screenshot.height}
+        loading="lazy"
+        decoding="async"
+      />
+    )}
     {project.visual === "portfolio" && (
       <div class="visual-workspace">
         <div class="visual-toolrail">

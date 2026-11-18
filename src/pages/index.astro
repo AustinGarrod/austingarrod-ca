@@ -1,10 +1,10 @@
 ---
-import { ArrowRight, Download, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
+import { ArrowRight, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
 import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { highlights, profile, projects, skills } from "@data/profile";
 
-const featuredProjectSlugs = ["honour-our-veterans-banner-platform", "cadence", "spools"];
+const featuredProjectSlugs = ["junkin-electric", "cadence", "idle-slayer-companion"];
 const featuredProjects = featuredProjectSlugs
   .map((slug) => projects.find((project) => project.slug === slug))
   .filter((project): project is (typeof projects)[number] => Boolean(project));
@@ -33,28 +33,6 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
           >
             View work
             <ArrowRight size={18} aria-hidden="true" />
-          </a>
-          <a
-            class="button secondary"
-            href={profile.resume}
-            rel="noreferrer"
-            target="_blank"
-            data-umami-event="resume-view"
-            data-umami-event-placement="home-hero"
-          >
-            View resume
-            <Download size={18} aria-hidden="true" />
-          </a>
-          <a
-            class="text-link resume-download-link"
-            href={profile.resume}
-            download="Austin-Garrod-Resume.pdf"
-            data-umami-event="file-download"
-            data-umami-event-file="austin-garrod-resume.pdf"
-            data-umami-event-placement="home-hero"
-          >
-            Download PDF
-            <Download size={16} aria-hidden="true" />
           </a>
         </div>
         <div class="hero-tech" aria-label="Core technologies">

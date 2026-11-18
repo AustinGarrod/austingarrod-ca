@@ -24,8 +24,8 @@ export interface MeasurementLoadResult {
 }
 
 export class LocalMeasurementStorageError extends Error {
-  constructor(message = "This browser could not save measurements on this device.") {
-    super(message);
+  constructor(message = "This browser could not save measurements on this device.", options?: ErrorOptions) {
+    super(message, options);
     this.name = "LocalMeasurementStorageError";
   }
 }
@@ -85,8 +85,8 @@ export class LocalMeasurementsStore {
     let raw: string | null;
     try {
       raw = this.storage.getItem(RADIUS_MAP_STORAGE_KEY);
-    } catch {
-      throw new LocalMeasurementStorageError("This browser is blocking access to saved measurements.");
+    } catch (cause) {
+      throw new LocalMeasurementStorageError("This browser is blocking access to saved measurements.", { cause });
     }
     if (!raw) return { measurements: [], warning: null };
 
@@ -173,8 +173,8 @@ export class LocalMeasurementsStore {
     };
     try {
       this.storage.setItem(RADIUS_MAP_STORAGE_KEY, JSON.stringify(document));
-    } catch {
-      throw new LocalMeasurementStorageError();
+    } catch (cause) {
+      throw new LocalMeasurementStorageError(undefined, { cause });
     }
   }
 }

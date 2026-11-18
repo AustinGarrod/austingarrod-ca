@@ -1,0 +1,22 @@
+{
+  "name": "austingarrod-utilities",
+  "interface": {
+    "displayName": "AustinGarrod.ca Utilities"
+  },
+  "plugins": [
+    {
+      "name": "pokedex-binder",
+      "source": {
+        "source": "local",
+        "path": "./plugins/pokedex-binder"
+      }
+    },
+    {
+      "name": "idle-slayer-companion",
+      "source": {
+        "source": "local",
+        "path": "./plugins/idle-slayer-companion"
+      }
+    }
+  ]
+}

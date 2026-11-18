@@ -1,0 +1,231 @@
+name: Validate combined website
+
+on:
+  workflow_call:
+    inputs:
+      upload-symbols:
+        type: boolean
+        default: false
+    secrets:
+      REPORTS_AUTH_TOKEN:
+        required: false
+
+jobs:
+  php-compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1', '8.4']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring
+          tools: composer:v2
+      - name: Install reporting SDK on supported PHP
+        if: matrix.php != '7.4'
+        run: composer install --no-dev --prefer-dist --no-interaction
+      - name: Verify PHP handlers and optional reporting failures
+        run: |
+          php -l public/reporting/bootstrap.php
+          php -l public/contact.php
+          php -l public/utilities/radius-map/api/geocode.php
+          php -l public/api/v1/auth.php
+          php -l public/api/v1/sync.php
+          php -l public/api/v1/mcp.php
+          node scripts/test-php-reporting.mjs
+          node scripts/test-accounts-runtime.mjs
+  accounts-api:
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: accounts-local-test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, pdo_mysql, openssl
+          tools: composer:v2
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - name: Real local authentication, transaction and recovery checks
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:api
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:companion
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring
+          tools: composer:v2
+      - name: Bundle and lint PHP
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          composer -d server/mcp audit --locked
+          php -l public/reporting/bootstrap.php
+          php -l public/contact.php
+          php -l public/utilities/radius-map/api/geocode.php
+      - run: python -m pip install -r requirements.txt
+      - run: npm run generate:assets
+      - name: Website, catalog, domain, storage, tools and license checks
+        run: npm test
+      - run: npm run test:mcp:parity
+      - run: npm run build
+      - name: Upload both applications' symbols before publication
+        if: inputs.upload-symbols
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.REPORTS_AUTH_TOKEN }}
+        run: npm run reporting:upload
+      - name: Exclude public source maps
+        run: node scripts/strip-public-maps.mjs
+      - run: npm run write:deployment-manifest
+      - run: npm run verify:dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: website-dist
+          path: dist/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+  accounts-browser:
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: accounts-local-test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, pdo_mysql, openssl
+      - uses: actions/download-artifact@v8
+        with:
+          name: website-dist
+          path: dist/
+      - run: node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Shared login and non-destructive migrations in real local browsers
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:browser
+      - name: Utility MCP OAuth, save writes, and consent browser
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:mcp
+      - name: Large Idle Slayer migration, offline replay and durable storage failures
+        env:
+          ACCOUNTS_TEST_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+          ACCOUNTS_TEST_USER: root
+          ACCOUNTS_TEST_PASSWORD: accounts-local-test
+        run: npm run test:accounts:large
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: accounts-browser-failure
+          path: |
+            output/accounts-browser/
+            output/accounts-large-browser/
+          retention-days: 5
+          if-no-files-found: warn
+
+  browser:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run install:companion
+      - uses: actions/download-artifact@v8
+        with:
+          name: website-dist
+          path: dist/
+      - name: Restore byte-identical app output for its release/migration checks
+        run: node scripts/companion.mjs restore-build
+      - name: Install local browser
+        working-directory: apps/idle-slayer-companion
+        run: node .yarn/releases/yarn-4.13.0.cjs playwright install --with-deps chromium
+      - name: Install the website scanner's pinned browser
+        if: matrix.shard == 1
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Serve assembled static output on localhost
+        run: node scripts/serve-dist.mjs > /tmp/portfolio-preview.log 2>&1 &
+      - name: Serve scanner with its production camera and WASM policies
+        if: matrix.shard == 1
+        run: PORT=4331 POKEDEX_SCANNER_HEADERS=1 node scripts/serve-dist.mjs > /tmp/scanner-preview.log 2>&1 &
+      - name: On-device scanner regressions against local synthetic video
+        if: matrix.shard == 1
+        id: scanner-checks
+        run: npm run test:pokedex:scanner
+      - name: Desktop and mobile regressions against the combined artifact
+        id: browser-checks
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4321/utilities/idle-slayer-companion/
+        run: npm run test:companion:e2e -- --shard=${{ matrix.shard }}/4 --workers=2
+      - name: Retain synthetic failure diagnostics
+        if: ${{ !cancelled() && steps.browser-checks.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failure-${{ matrix.shard }}
+          path: |
+            apps/idle-slayer-companion/playwright-report/
+            apps/idle-slayer-companion/test-results/
+          retention-days: 5
+          if-no-files-found: warn
+      - name: Retain synthetic scanner failure diagnostics
+        if: ${{ !cancelled() && steps.scanner-checks.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: scanner-failure
+          path: output/pokedex-scanner/
+          retention-days: 5
+          if-no-files-found: warn

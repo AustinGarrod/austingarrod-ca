@@ -22,6 +22,7 @@ interface Props {
   ogImageWidth?: number;
   ogImageHeight?: number;
   bodyClass?: string;
+  privatePage?: boolean;
 }
 
 const defaultSchemaType: SchemaPageType = Astro.url.pathname === "/" ? "ProfilePage" : "WebPage";
@@ -41,7 +42,8 @@ const {
   ogImageAlt = `${profile.name} - ${profile.title}`,
   ogImageWidth = 1200,
   ogImageHeight = 630,
-  bodyClass
+  bodyClass,
+  privatePage = false
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, "https://austingarrod.ca").toString();
@@ -62,13 +64,16 @@ const jsonLd = JSON.stringify({
     ...structuredDataItems
   ]
 }).replace(/</g, "\\u003c");
-const analyticsEnabled = import.meta.env.PROD;
+const analyticsEnabled = import.meta.env.PROD && !privatePage;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      import "../reporting/browser";
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />

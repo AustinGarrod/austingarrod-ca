@@ -16,7 +16,9 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 - `src/pages/` contains Astro routes for Home, About, Projects, Utilities, Contact, 404, sitemap, and robots.
 - `src/components/` contains reusable layout and content components.
 - `src/data/profile.json` is the canonical content source for profile, navigation, skills, experience, project cards, utility cards, generated assets, and sitemap dates. `src/data/profile.ts` defines and exports its TypeScript contract.
+- `apps/idle-slayer-companion/` contains the independently built React/Vite companion. Use its pinned Yarn launcher and preserve its catalog, storage, privacy, license and release checks. It is assembled at `/utilities/idle-slayer-companion/`; its worker must remain scoped there. The `legacy-migration` build is only for the GitHub Pages compatibility host.
 - `src/utilities/` contains browser utility logic. Radius Map measurements are device-local and its service worker must remain scoped to `/utilities/radius-map/`.
+- `packages/accounts/client.ts` is the shared browser account/sync client. `public/api/v1/` and `server/accounts/` contain the PHP 8.4/MySQL backend and additive setup. Read `server/accounts/README.md` before account changes; preserve migration snapshots, account namespaces, frozen outboxes, revision guards and revoked-key records. Private configuration and database backups must remain outside the webroot and deployment artifact. Radius Map is not an account adapter.
 - `src/styles/global.css` contains the visual system and responsive layout.
 - `scripts/generate-assets.py` generates `public/og-image.png` and `public/austin-garrod-resume.pdf`.
 - `public/contact.php` is the HostPapa/cPanel contact handler and must continue to work without Node on the server.
@@ -27,6 +29,7 @@ This repo is Austin Garrod's personal/professional portfolio site. It is a stati
 
 ```powershell
 npm install
+npm run install:companion
 python -m pip install -r requirements.txt
 npm run generate:assets
 npm test
@@ -34,13 +37,14 @@ npm run build
 npm run preview
 ```
 
-Use `npm run build` as the main verification command. It runs `astro check`, `astro build`, and generates the scoped Radius Map service worker.
+Use `npm run build` as the main verification command. It builds/checks Astro, generates the scoped Radius Map service worker, builds and validates the companion, and assembles both distributions. `npm test` runs the separate website and companion unit/tooling/license checks. Run `npm run test:companion:e2e` for the companion desktop/mobile browser suite; keep automated checks local.
 
 If PHP is available locally, also run:
 
 ```powershell
 php -l public/contact.php
 php -l public/utilities/radius-map/api/geocode.php
+npm run test:php
 ```
 
 PHP CLI is not required for local Astro work; the contact form still needs a HostPapa-side smoke test after deployment.

@@ -9,6 +9,9 @@ Personal and professional portfolio site for Austin Garrod. Built as a static As
 - CSS with the light International Precision visual direction from the proper Stitch export
 - PHP contact and utility handlers for cPanel shared hosting
 - GitHub Actions for CI and FTPS deployment
+- GlitchTip browser/PHP errors, logs and performance traces at reports.garrod.house
+
+Reporting setup, source-map uploads, local verification and operational limits are documented in [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md). Install the PHP bundle with `composer install --no-dev --prefer-dist` before building a deployment.
 
 ## Design Source
 
@@ -22,6 +25,7 @@ The current visual system is light, precise, and Swiss/corporate: sharp corners,
 
 ```powershell
 npm install
+npm run install:companion
 python -m pip install -r requirements.txt
 npm run generate:assets
 npm test
@@ -34,7 +38,7 @@ Build the production site:
 npm run build:deploy
 ```
 
-`build:deploy` regenerates the resume and social image, builds Astro and the Radius Map offline shell, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact.
+`build:deploy` regenerates the resume and social image, builds Astro, the Radius Map offline shell, and the independently validated Idle Slayer Companion, uploads source maps with `SENTRY_AUTH_TOKEN`, writes `dist/deployment-manifest.json`, and runs the deployment verifier across every route and generated artifact. Install the Composer bundle first; ordinary `npm run build` remains available without reporting credentials.
 
 Preview the built output:
 
@@ -54,11 +58,37 @@ npm run generate:assets
 
 ## Utilities
 
-`/utilities/` is the catalog for focused browser tools. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
+Optional accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Binder, Idle Slayer Companion, and future registered utilities. Account synchronization is hosted entirely on HostPapa PHP/MySQL; both utilities retain guest saves and their existing backup tools. First connection reviews and preserves browser/account copies before activation. Binder keys retire individually only after a successful atomic account migration. Account data, recovery, rollout gates and local end-to-end checks are documented in [server/accounts/README.md](server/accounts/README.md). Missing configuration keeps accounts disabled and existing guest utilities usable.
+
+`/utilities/` is the catalog for focused browser tools, including practical utilities and game planning. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
 
 Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.
 
+Pokédex Binder is available at `/utilities/pokedex-binder/`. It tracks one slot per National Pokédex species, with configurable page dimensions, front/back use, reserved starting pockets, card references, missing-list exports, and JSON backups. Progress saves in IndexedDB; optional shared-account sync and unmigrated private keys use same-origin PHP/MySQL APIs. It is a normal website without a service worker. Collection backups exclude the access key. [Database setup and local integration checks](server/pokedex-binder/README.md) describe the private configuration and schema; missing configuration leaves local collection tracking usable.
+
+Run `npm run refresh:pokedex` explicitly to rebuild the committed species/card catalog and local sprites from the source revisions pinned in `scripts/refresh-pokedex-catalog.mjs`. It requires Node, the existing TypeScript dependency, `tar` for source archive extraction, and network access. Ordinary builds use the committed snapshot. Source revisions, asset hash, snapshot timestamp, omitted unmapped cards, and unknown set codes are recorded in the catalog index; source/artwork notices ship beside it. Review the audit before accepting a refreshed snapshot. Run `npm run test:pokedex:api` against an isolated localhost MySQL/MariaDB for transaction tests.
+
+The checklist supports Pokédex-number and alphabetical sorting in either direction, plus set name/code filtering using a compact index derived from the committed printing shards. These combine with search, ownership, and generation filters without moving binder slots. After building, start `npm run preview` and run `npm run test:pokedex:checklist` (set `POKEDEX_CHECKLIST_ORIGIN` if needed) for focused desktop/mobile checks without MySQL; the script rejects remote origins and blocks third-party requests.
+
+**Scan cards** opens the rear camera on supported HTTPS browsers and automatically reads an upright English card after a short steady hold. Recognition runs on the device with Tesseract.js; camera frames and OCR text are transient and never uploaded or saved. Only the confirmed species mark enters the existing collection/sync path. Results show collected status and the current binder location; **Mark collected** or **Scan next** returns to the camera. Multi-species cards require choosing one slot. Uncertain matches, glare, unusual fonts, and non-Pokémon cards can require correction or manual search. This identifies species, not a particular printing. Closing or backgrounding stops the camera and worker; resuming is explicit. No PWA or service worker is added.
+
+The first scan downloads the same-origin English OCR model and core; later scans may reuse the model cache. Builds copy version-checked assets and license notices from the exact npm lockfile dependencies with `scripts/prepare-pokedex-scanner.mjs` and produce an asset hash manifest. Normal builds make no upstream catalog/model requests. `npm run refresh:pokedex:scan-index` regenerates the committed name-to-species index from existing printing shards; a full catalog refresh also updates it.
+
+For production-policy scanner checks, build first, start `$env:PORT='4331'; $env:POKEDEX_SCANNER_HEADERS='1'; node scripts/serve-dist.mjs`, then run `npm run test:pokedex:scanner`. The localhost-only harness exercises the real OCR worker against generated canvas video, lifecycle/permission recovery, duplicate suppression, correction, multi-species selection, persistence, and desktop/mobile layouts. Screenshots and test results stay in ignored `output/pokedex-scanner/`. Physical-device evidence is separate: the USB Pixel 6 Pro (Android 17, Chrome) automatically read a real Furret card, showed its correct location, returned to the camera after marking, and retained the mark after reload. iPhone Safari camera acceptance remains to be performed before claiming iPhone validation.
+
+After building, `npm run test:pokedex:browser` uses the same localhost database settings to exercise the built utility through PHP in desktop/mobile browsers, with telemetry and remote artwork blocked. With the Composer bundle installed, `php tests/pokedex-binder/reporting.test.php` verifies private sync requests are scrubbed at the reporting SDK boundary. Test diagnostics are saved only in ignored `output/` and `tmp/` directories.
+
 Place searches use `public/utilities/radius-map/api/geocode.php`, a same-origin HostPapa proxy with submit-only search, input validation, a one-request-per-second upstream limit, and temporary hash-keyed response caching. The cache does not store raw search terms or associate searches with saved measurements.
+
+## Idle Slayer Companion
+
+The complete maintained companion lives under `apps/idle-slayer-companion/` and is served at `/utilities/idle-slayer-companion/`. It retains its pinned Yarn launcher, lockfile, reviewed catalogs, provenance, licenses, tests, and browser-only progress. Root npm and companion Yarn remain separate packages; root scripts orchestrate them without sharing test discovery.
+
+`npm run build` validates the app release and copies its output byte-for-byte into the combined `dist/`. The deployment manifest is generated only after assembly and reporting-symbol uploads. The standalone app owns its tracking/privacy startup, and keeps its existing separate Umami and GlitchTip projects. Its worker cannot control Radius Map or portfolio pages.
+
+Run `npm run test:companion:e2e` for desktop/mobile regression checks. For checks against the assembled website, start `node scripts/serve-dist.mjs` and set `PLAYWRIGHT_BASE_URL` to `http://127.0.0.1:4321/utilities/idle-slayer-companion/`. Automated browser checks must remain local; production confirmation is manual.
+
+`npm run prepare:companion-migration` generates `.cache/site-migration` inside the app using the explicit `legacy-migration` target, with the original GitHub paths and installation identity and no telemetry. It is for the existing user-site compatibility repository, never HostPapa. See the app's migration runbook. Existing users transfer Companion progress, intentions, checkpoints, and saved comparison through their separate existing JSON exports, then choose layout, spoilers, and tracking preferences again. Old browser data is retained.
 
 ## Contact Form
 
@@ -78,9 +108,10 @@ Local PHP CLI is optional. If PHP is installed, check syntax with:
 ```powershell
 php -l public/contact.php
 php -l public/utilities/radius-map/api/geocode.php
+npm run test:php
 ```
 
-Otherwise, smoke test the form after upload on HostPapa.
+Otherwise, smoke test the form after upload on HostPapa. Core handlers retain compatible PHP syntax; optional server reporting requires PHP 8.1+, cURL, and mbstring and safely stays off when those requirements are unavailable. Browser reporting remains independent.
 
 ## Analytics
 
@@ -107,7 +138,7 @@ Saved Umami goals track `contact-form-sent` (Contact message sent), `file-downlo
 
 ## GitHub Actions Deployment
 
-CI runs on every push and pull request. Deployment runs automatically on every push to `main`: GitHub Actions installs dependencies, regenerates assets, builds `dist/`, and uploads the contents of `dist/` to HostPapa over explicit FTPS.
+CI runs on every push and pull request through a reusable combined validation workflow. Deployment runs automatically on pushes to `main`: both applications must pass their checks and all four desktop/mobile browser shards. HostPapa then receives the exact tested artifact over explicit FTPS, without rebuilding.
 
 The deploy workflow can also be started manually from the GitHub Actions tab via `workflow_dispatch`.
 
@@ -120,11 +151,11 @@ Required repository secrets:
 
 For the current HostPapa FTP user, `HOSTPAPA_REMOTE_DIR` is `./` because the account lands directly in `public_html`. If the FTP user changes later, confirm the login directory before changing this value.
 
-The deployment uploads the contents of `dist/`, including static pages, scoped `.htaccess` files, PHP endpoints, the resume PDF, utility PWA assets, generated images, and `deployment-manifest.json`. The manifest records the exact Git commit plus the SHA-256 hash and byte size of every other deployed file. After deployment, compare the public manifest at `https://austingarrod.ca/deployment-manifest.json` with the workflow commit and public asset hashes. If a deploy needs to be rolled back, rerun the workflow for an earlier commit or manually upload the previous `dist/` package through cPanel File Manager.
+The deployment uploads the contents of `dist/`, including static pages, scoped `.htaccess` files, PHP endpoints, the resume PDF, utility PWA assets, generated images, and `deployment-manifest.json`. The manifest records the exact Git commit plus the SHA-256 hash and byte size of every other deployed file. After deployment, compare the public manifest at `https://austingarrod.ca/deployment-manifest.json` with the workflow commit and public asset hashes. For an account rollback, disable account mutations through the private rollout flags first and verify the disabled response. Keep compatible APIs, all account/recovery data and revoked-key records; never restore an older database over newer saves. Restore earlier frontend assets only when compatible with the retained backend and browser queues; see [the account runbook](server/accounts/README.md).
 
 ## HostPapa Notes
 
-This project avoids server-side Node in production. HostPapa only needs to serve static files and execute PHP for the contact form. If cPanel Git deployment is used later, keep the Git checkout separate from `public_html` and deploy only the built files.
+This project avoids server-side Node in production. HostPapa serves static files and executes PHP for contact, geocoding, Binder and the shared account/sync APIs. Accounts use MySQL and the scoped PHP 8.4 handler described in [the account runbook](server/accounts/README.md). If cPanel Git deployment is used later, keep the Git checkout separate from `public_html` and deploy only the built files.
 
 `public/.htaccess` defines canonical HTTPS/apex redirects, HSTS, security headers, the custom 404, asset caching, and the web-manifest MIME type. HostPapa places nginx in front of the document root on some plans, so `.htaccess` alone is not proof that redirects or headers are active. After each deployment, verify the public response and configure the equivalent canonical redirect in cPanel or through HostPapa support if nginx serves the request before Apache.
 

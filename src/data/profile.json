@@ -13,16 +13,16 @@
   },
   "pageMetadata": {
     "/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-10-22"
     },
     "/about/": {
       "lastModified": "2026-10-17"
     },
     "/projects/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-11-13"
     },
     "/utilities/": {
-      "lastModified": "2026-10-17"
+      "lastModified": "2026-11-13"
     },
     "/contact/": {
       "lastModified": "2026-10-17"
@@ -54,22 +54,50 @@
     {
       "title": "Frontend engineering",
       "summary": "React, Next.js, TypeScript, state management, accessible interfaces, and component systems that stay maintainable as product scope grows.",
-      "items": ["React", "Next.js", "TypeScript", "React Native", "Redux", "Accessibility"]
+      "items": [
+        "React",
+        "Next.js",
+        "TypeScript",
+        "React Native",
+        "Redux",
+        "Accessibility"
+      ]
     },
     {
       "title": "Backend and data",
       "summary": "APIs, relational and document databases, background jobs, rate-limited workers, and progress dashboards for long-running tasks.",
-      "items": ["Node.js", "Express", "MongoDB", "SQL", "Redis", "REST APIs"]
+      "items": [
+        "Node.js",
+        "Express",
+        "MongoDB",
+        "SQL",
+        "Redis",
+        "REST APIs"
+      ]
     },
     {
       "title": "Native and platform work",
       "summary": "Mobile and platform development with Kotlin Multiplatform, Android, C#/.NET, Python, Docker, and local device integrations.",
-      "items": ["Kotlin", "Android", "C#/.NET", "Python", "Docker", "MQTT"]
+      "items": [
+        "Kotlin",
+        "Android",
+        "C#/.NET",
+        "Python",
+        "Docker",
+        "MQTT"
+      ]
     },
     {
       "title": "Engineering practice",
       "summary": "Technical direction, architecture decisions, code review, CI/CD, documentation, and mentoring, with tests and clear reasoning behind changes.",
-      "items": ["Technical leadership", "Architecture", "Code review", "CI/CD", "Documentation", "Mentorship"]
+      "items": [
+        "Technical leadership",
+        "Architecture",
+        "Code review",
+        "CI/CD",
+        "Documentation",
+        "Mentorship"
+      ]
     }
   ],
   "experience": [
@@ -140,6 +168,22 @@
   ],
   "utilities": [
     {
+      "slug": "pokedex-binder",
+      "title": "Pokédex Binder",
+      "label": "Pokémon collection planner",
+      "summary": "Build a binder with one of every Pokémon. Track what you own, find each Pokémon’s pocket, and browse English card printings and set codes.",
+      "capabilities": [
+        "Visualize binder pages with custom pocket dimensions and reserved spaces",
+        "Track owned and missing Pokémon in National Pokédex order",
+        "Browse physical English cards, collector numbers, and set codes",
+        "Save locally, back up progress, or sync devices with a private key"
+      ],
+      "stack": ["Astro", "TypeScript", "IndexedDB", "PHP", "MySQL"],
+      "status": "Available",
+      "icon": "book-open",
+      "lastModified": "2026-11-13"
+    },
+    {
       "slug": "radius-map",
       "title": "Radius Map",
       "label": "Geographic distance utility",
@@ -150,13 +194,105 @@
         "Save measurements on this device and compare several circles",
         "Calculate a best-fit point from three or more visible circles"
       ],
-      "stack": ["Astro", "TypeScript", "Leaflet", "PHP", "OpenStreetMap"],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "Leaflet",
+        "PHP",
+        "OpenStreetMap"
+      ],
       "status": "Available",
       "icon": "map-pinned",
       "lastModified": "2026-08-19"
+    },
+    {
+      "slug": "idle-slayer-companion",
+      "title": "Idle Slayer Companion",
+      "label": "Game progress and planning",
+      "summary": "An unofficial Idle Slayer companion with an interactive Ascension Map, local progress tracking, and planning tools.",
+      "capabilities": [
+        "Track achievements, crafting, quests, Bestiary, and Divinities.",
+        "Explore upgrade requirements and plan progression with spoilers hidden by default.",
+        "Import supported saves locally, back up progress, and reopen offline."
+      ],
+      "stack": [
+        "React",
+        "TypeScript",
+        "React Flow",
+        "PWA"
+      ],
+      "status": "Available",
+      "icon": "swords",
+      "lastModified": "2026-11-13"
     }
   ],
   "projects": [
+    {
+      "slug": "junkin-electric",
+      "title": "Junkin Electric",
+      "label": "Business website and owner-managed content",
+      "summary": "A website for a Kawartha Lakes electrical contractor, with an owner editor for content and photos, draft publishing, and quote enquiries.",
+      "role": "Developer across the public website, owner editor, and deployment",
+      "details": [
+        "Built a responsive public website around electrical services, the service area, and direct call, email, and quote enquiry options.",
+        "Created an integrated owner editor for copy, services, photos, and business details, with separate Save draft and Publish actions.",
+        "Uses Astro and TypeScript for static public pages, with Cloudflare D1 holding draft and published content and Pages Functions handling editing and enquiries.",
+        "Publishing queues a Cloudflare Pages rebuild; a failed build leaves the previous live website available."
+      ],
+      "cardHighlights": [
+        "An integrated owner editor keeps content and photos editable without changing the layout or code.",
+        "Static Astro pages connect to Cloudflare Functions for publishing and Turnstile-protected quote enquiries."
+      ],
+      "caseStudySections": [
+        {
+          "title": "Problem",
+          "points": [
+            "Visitors need a clear view of the contractor's services and service area, with straightforward ways to get in touch.",
+            "The owner needs to update copy, services, photos, and business details without editing source code."
+          ]
+        },
+        {
+          "title": "Approach",
+          "points": [
+            "Build responsive public pages with direct call and email links alongside a quote enquiry form.",
+            "Provide an integrated owner editor with separate draft and publish actions, keeping editable content separate from layout and styling."
+          ]
+        },
+        {
+          "title": "System Shape",
+          "points": [
+            "Astro and TypeScript build static public pages from published content in Cloudflare D1, served through Cloudflare Pages.",
+            "Pages Functions handle owner editing, sign-in sessions, and quote enquiries, with server-side Turnstile verification and origin checks on the enquiry endpoint."
+          ]
+        },
+        {
+          "title": "Current State",
+          "points": [
+            "The public website is live at junkinelectric.ca; the client source repository remains private.",
+            "Publishing snapshots the saved draft and queues a rebuild. The previous live deployment remains available if the build fails."
+          ]
+        }
+      ],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "Cloudflare Pages",
+        "Pages Functions",
+        "D1",
+        "Turnstile"
+      ],
+      "status": "Public",
+      "visual": "screenshot",
+      "icon": "globe",
+      "href": "https://junkinelectric.ca/",
+      "screenshot": {
+        "path": "/images/projects/junkin-electric-clean.webp",
+        "alt": "Junkin Electric homepage showing electrical services in Kawartha Lakes, the company logo, and a quote enquiry link.",
+        "width": 1425,
+        "height": 1000
+      },
+      "lastModified": "2026-10-22"
+    },
     {
       "slug": "austingarrod-ca",
       "title": "AustinGarrod.ca",
@@ -203,7 +339,14 @@
           ]
         }
       ],
-      "stack": ["Astro", "TypeScript", "PHP", "Python", "GitHub Actions", "Static hosting"],
+      "stack": [
+        "Astro",
+        "TypeScript",
+        "PHP",
+        "Python",
+        "GitHub Actions",
+        "Static hosting"
+      ],
       "status": "Public",
       "visual": "portfolio",
       "icon": "globe",
@@ -256,12 +399,94 @@
           ]
         }
       ],
-      "stack": ["Kotlin Multiplatform", "Android", "Swift", "React", "TypeScript", "Vinext", "Cloudflare", "Sentry", "PowerShell"],
+      "stack": [
+        "Kotlin Multiplatform",
+        "Android",
+        "Swift",
+        "React",
+        "TypeScript",
+        "Vinext",
+        "Cloudflare",
+        "Sentry",
+        "PowerShell"
+      ],
       "status": "Public preview",
-      "visual": "cadence",
+      "visual": "screenshot",
       "icon": "radio",
       "href": "https://cadenceplayer.com/",
-      "lastModified": "2026-10-17"
+      "screenshot": {
+        "path": "/images/projects/cadence.webp",
+        "alt": "Cadence product website with its podcast player introduction and Android Now Playing interface.",
+        "width": 1425,
+        "height": 1000
+      },
+      "lastModified": "2026-10-22"
+    },
+    {
+      "slug": "idle-slayer-companion",
+      "title": "Idle Slayer Companion",
+      "label": "Interactive game companion and progression tools",
+      "summary": "An unofficial browser companion for Idle Slayer, with an interactive upgrade map, progress tracking, planning tools, and local save-file imports.",
+      "role": "Independent developer across the React application, game-rule catalog, local persistence, and deployment",
+      "details": [
+        "Combines an interactive Ascension Map with achievements, crafting and materials, quests, Bestiary, and Divinities.",
+        "Models upgrade dependencies and spoiler visibility separately from recorded progress and hypothetical plans.",
+        "Supports manual tracking, reviewed game-save imports, validated JSON backups, and session undo and redo through browser-local state.",
+        "Ships as a static React and TypeScript utility on this site, with an offline app shell and installation guidance."
+      ],
+      "cardHighlights": [
+        "An interactive upgrade map combines dependency rules, spoiler controls, and planning tools.",
+        "Local progress storage, reviewed save imports, and JSON backups support use without an account."
+      ],
+      "caseStudySections": [
+        {
+          "title": "Problem",
+          "points": [
+            "Players need a way to explore upgrade dependencies and track several game systems without mixing recorded progress with future plans.",
+            "The companion needs to respect spoiler visibility and remain useful without an account or application backend."
+          ]
+        },
+        {
+          "title": "Approach",
+          "points": [
+            "Use a reviewed game-rule catalog to drive the map, visible search results, requirements, and progress previews.",
+            "Keep observations and hypothetical plans separate, hide spoilers by default, and validate imports before applying changes."
+          ]
+        },
+        {
+          "title": "System Shape",
+          "points": [
+            "React, TypeScript, and React Flow provide the interactive interface, with game rules and persistence separated from rendering.",
+            "Versioned browser storage holds recorded state; selected save files and JSON backups are processed locally. Vite builds static routes and an offline shell for static hosting on this site."
+          ]
+        },
+        {
+          "title": "Current State",
+          "points": [
+            "The public, unofficial companion is live with Ascension, achievements, crafting, quests, Bestiary, and Divinity tools.",
+            "Manual tracking, supported save imports, backups, and planning tools work within documented game-version and browser-storage limits."
+          ]
+        }
+      ],
+      "stack": [
+        "React",
+        "TypeScript",
+        "React Flow",
+        "Vite",
+        "PWA"
+      ],
+      "status": "Public",
+      "visual": "screenshot",
+      "icon": "map",
+      "href": "https://austingarrod.ca/utilities/idle-slayer-companion/",
+      "source": "https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion",
+      "screenshot": {
+        "path": "/images/projects/idle-slayer-companion.webp",
+        "alt": "Idle Slayer Companion in the light AustinGarrod.ca utility layout, showing the Ascension map, selected upgrade details, and companion navigation.",
+        "width": 1440,
+        "height": 1000
+      },
+      "lastModified": "2026-11-13"
     },
     {
       "slug": "spools",
@@ -309,7 +534,14 @@
           ]
         }
       ],
-      "stack": ["React", "TypeScript", "Express", "SQLite", "MQTT", "Docker"],
+      "stack": [
+        "React",
+        "TypeScript",
+        "Express",
+        "SQLite",
+        "MQTT",
+        "Docker"
+      ],
       "status": "Private case study",
       "visual": "spools",
       "icon": "layers",
@@ -361,7 +593,14 @@
           ]
         }
       ],
-      "stack": ["Node.js", "TypeScript", "React", "MongoDB", "Redis", "Docker"],
+      "stack": [
+        "Node.js",
+        "TypeScript",
+        "React",
+        "MongoDB",
+        "Redis",
+        "Docker"
+      ],
       "status": "Private case study",
       "visual": "charity",
       "icon": "database",
@@ -413,7 +652,14 @@
           ]
         }
       ],
-      "stack": ["React", "TypeScript", "Express", "MUI", "ESP32", "NFC"],
+      "stack": [
+        "React",
+        "TypeScript",
+        "Express",
+        "MUI",
+        "ESP32",
+        "NFC"
+      ],
       "status": "Private prototype",
       "visual": "nfc",
       "icon": "cpu",
@@ -464,7 +710,13 @@
           ]
         }
       ],
-      "stack": ["React", "React Native", "Express", "TypeScript", "JavaScript"],
+      "stack": [
+        "React",
+        "React Native",
+        "Express",
+        "TypeScript",
+        "JavaScript"
+      ],
       "status": "Archived public",
       "visual": "civic",
       "icon": "map",
@@ -517,7 +769,13 @@
           ]
         }
       ],
-      "stack": ["Astro", "React", "TypeScript", "MUI", "Netlify"],
+      "stack": [
+        "Astro",
+        "React",
+        "TypeScript",
+        "MUI",
+        "Netlify"
+      ],
       "status": "Private case study",
       "visual": "campaign",
       "icon": "globe",

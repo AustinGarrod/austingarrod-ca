@@ -1,10 +1,10 @@
 import profileData from "./profile.json";
 
 export type ProjectStatus = "Public" | "Public preview" | "Private case study" | "Private prototype" | "Archived public";
-export type ProjectVisual = "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign";
+export type ProjectVisual = "portfolio" | "cadence" | "spools" | "charity" | "nfc" | "civic" | "campaign" | "screenshot";
 export type ProjectIcon = "blocks" | "radio" | "database" | "cpu" | "map" | "globe" | "layers";
 export type UtilityStatus = "Available";
-export type UtilityIcon = "map-pinned";
+export type UtilityIcon = "map-pinned" | "swords" | "book-open";
 
 export type Profile = {
   name: string;
@@ -66,6 +66,12 @@ export type Project = {
   icon: ProjectIcon;
   href?: string;
   source?: string;
+  screenshot?: {
+    path: string;
+    alt: string;
+    width: number;
+    height: number;
+  };
   lastModified: string;
 };
 

@@ -1,0 +1,13 @@
+/* Optional single-event analysis remains private and inside the existing dialog. */
+dialog:has(.forward-impact) { overflow-wrap: anywhere; }
+.forward-impact { min-width: 0; font-size: .875rem; line-height: 1.5; }
+.forward-impact h3 { font-size: 1rem; }
+.forward-impact h4 { margin: 0; font-size: .9375rem; }
+.forward-impact p { margin: 10px 0; }
+.forward-impact small { display: block; }
+.forward-impact-rows { margin: 0; padding: 0; list-style: none; }
+.forward-impact-rows > li { padding: 12px 0; border-top: 1px solid var(--line); }
+.forward-impact summary { min-height: 44px; cursor: pointer; }
+.forward-impact .requirement-expression { margin: 8px 0; }
+.forward-impact button, .forward-impact-close, .forward-impact-trigger { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.forward-impact-details { margin-top: 12px; }

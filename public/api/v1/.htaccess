@@ -1,0 +1,17 @@
+Options -Indexes
+# HostPapa's verified LiteSpeed handler scopes PHP 8.4 to the account API.
+# Keep the account-wide selector and unrelated legacy endpoints unchanged.
+<FilesMatch "\.php$">
+  SetHandler application/x-httpd-alt-php84___lsphp
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header always set Cache-Control "no-store, private"
+  # Clear inherited normal-table headers before setting the PHP/error table.
+  Header onsuccess unset Referrer-Policy
+  Header always set Referrer-Policy "no-referrer"
+  Header onsuccess unset X-Content-Type-Options
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+<FilesMatch "^_">
+  Require all denied
+</FilesMatch>
