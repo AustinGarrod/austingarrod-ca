@@ -158,7 +158,6 @@ button {
 }
 
 .desktop-nav,
-.nav-actions,
 .footer-links,
 .button-row,
 .project-actions,
@@ -191,11 +190,6 @@ button {
 .mobile-link:hover,
 .mobile-link.active {
   color: var(--primary);
-}
-
-.nav-actions {
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .icon-button {
@@ -254,16 +248,6 @@ button {
   color: #ffffff;
   background: var(--primary);
   border-color: var(--primary);
-}
-
-.mobile-resume {
-  width: 100%;
-  margin-top: 12px;
-}
-
-.mobile-resume-download {
-  justify-content: center;
-  min-height: 44px;
 }
 
 .button {
@@ -403,11 +387,6 @@ button {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 36px;
-}
-
-.resume-download-link {
-  min-height: 44px;
-  padding-inline: 4px;
 }
 
 .eyebrow {
@@ -1866,10 +1845,6 @@ textarea:focus-visible {
     display: inline-grid;
   }
 
-  .nav-actions .button.compact {
-    display: none;
-  }
-
   .mobile-nav:not([hidden]) {
     position: fixed;
     top: 98px;
@@ -1884,10 +1859,6 @@ textarea:focus-visible {
     margin: 0;
     padding: 18px;
     overflow: auto;
-  }
-
-  .mobile-resume {
-    margin-top: 10px;
   }
 
   .metrics-grid,

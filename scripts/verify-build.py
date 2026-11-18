@@ -233,7 +233,6 @@ for required_event in [
     "contact-form-submit",
     "contact-link-click",
     "cta-click",
-    "file-download",
     "mobile-menu-toggle",
     "outbound-link-click",
     "project-case-study-view",
@@ -241,7 +240,6 @@ for required_event in [
     "utility-navigation",
     "radius-map-search",
     "radius-map-save",
-    "resume-view",
 ]:
     check(
         required_event in combined_client,
@@ -592,5 +590,5 @@ if failures:
 
 print(
     f"Verified {len(routes)} routes, {len(projects)} projects, the deployment manifest and headers, "
-    "Open Graph artwork, and the linked one-page resume."
+    "Open Graph artwork, and the one-page resume asset."
 )
