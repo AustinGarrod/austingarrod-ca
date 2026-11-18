@@ -1,56 +1,68 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
-import { spawnSync } from 'node:child_process'
-import { build } from 'vite'
-import { validateReleaseArtifact } from './release-artifact.ts'
-import { validatePwaDistribution, COMPANION_SECTION_PATHS } from './pwa.ts'
-import { LEGACY_DEPLOYMENT } from '../deployment.ts'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { validateRetirementArtifact } from './retirement-artifact.ts'
+import { validateNoticeDistribution } from './runtime-notices.ts'
+import { validatePwaDistribution } from './pwa.ts'
+import { LEGACY_DEPLOYMENT, LEGACY_MAP_DEPLOYMENT } from '../deployment.ts'
 
-const root = process.cwd(), output = resolve(root, '.cache/site-migration'), cache = resolve(root, '.cache')
-const legacyApp = resolve(cache, 'legacy-migration-app')
-for (const directory of [output, legacyApp]) {
-  if (!directory.startsWith(cache + sep) || relative(cache, directory).includes(sep) || (existsSync(directory) && lstatSync(directory).isSymbolicLink())) throw new Error('Unsafe migration output')
+const root = process.cwd(), cache = resolve(root, '.cache'), output = resolve(cache, 'site-migration')
+const builds = [
+  { directory: resolve(cache, 'legacy-migration-app'), deployment: LEGACY_DEPLOYMENT },
+  { directory: resolve(cache, 'legacy-migration-map'), deployment: LEGACY_MAP_DEPLOYMENT },
+]
+for (const directory of [output, ...builds.map((build) => build.directory)]) {
+  const stat = lstatSync(directory, { throwIfNoEntry: false })
+  if (!directory.startsWith(cache + sep) || relative(cache, directory).includes(sep) || (stat && (stat.isSymbolicLink() || !stat.isDirectory()))) throw new Error('Unsafe migration output')
 }
-if (existsSync(cache) && (lstatSync(cache).isSymbolicLink() || !realpathSync(cache).startsWith(realpathSync(root) + sep))) throw new Error('Migration cache must stay within this workspace')
+const cacheStat = lstatSync(cache, { throwIfNoEntry: false })
+if (cacheStat && (cacheStat.isSymbolicLink() || !cacheStat.isDirectory() || !realpathSync(cache).startsWith(realpathSync(root) + sep))) throw new Error('Migration cache must stay within this workspace')
+for (const filename of ['site-migration-SHA256SUMS', 'site-migration-release.json']) {
+  const stat = lstatSync(resolve(cache, filename), { throwIfNoEntry: false })
+  if (stat && (stat.isSymbolicLink() || !stat.isFile())) throw new Error('Migration metadata must be regular workspace files')
+}
 
-// Build the old origin explicitly. A website-base release must never be copied
-// under a historical path; its absolute asset URLs and worker scope differ.
-const receiptPath = resolve(cache, 'reporting/build.json')
-const priorReceipt = existsSync(receiptPath) ? readFileSync(receiptPath) : undefined
-try {
-  const result = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', '.cache/legacy-migration-app'], {
-    cwd: root, env: { ...process.env, COMPANION_DEPLOY_TARGET: 'legacy-migration' }, stdio: 'inherit',
+// Build both complete historical releases before replacing the prepared site.
+// Neither retirement build imports the app startup or changes its symbol receipt.
+for (const { directory, deployment } of builds) {
+  const result = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', directory], {
+    cwd: root, env: { ...process.env, COMPANION_DEPLOY_TARGET: 'legacy-migration', COMPANION_LEGACY_BASE: deployment.base }, stdio: 'inherit',
   })
   if (result.error) throw result.error
-  if (result.status !== 0) throw new Error('Legacy migration build failed')
-} finally {
-  // The website symbol-upload receipt must keep describing its own build.
-  if (priorReceipt) writeFileSync(receiptPath, priorReceipt)
-  else if (existsSync(receiptPath)) rmSync(receiptPath)
+  if (result.status !== 0) throw new Error('Retirement build failed: ' + deployment.base)
+  validateRetirementArtifact(root, directory, deployment)
+  validateNoticeDistribution(root, directory, true)
+  validatePwaDistribution(root, directory, deployment)
 }
-validateReleaseArtifact(root, legacyApp, LEGACY_DEPLOYMENT)
-validatePwaDistribution(root, legacyApp, LEGACY_DEPLOYMENT)
+// Targets above were resolved and checked within this workspace before removal.
 if (existsSync(output)) rmSync(output, { recursive: true })
 mkdirSync(output, { recursive: true })
-cpSync(legacyApp, resolve(output, 'idle-slayer-companion'), { recursive: true })
-const legacy = resolve(output, 'idle-slayer-ascension-map')
-mkdirSync(legacy)
-await build({ configFile: false, logLevel: 'warn', build: { outDir: legacy, emptyOutDir: false, lib: { entry: resolve(root, 'migration/legacy-bridge.ts'), formats: ['iife'], name: 'CompanionLegacyBridge', fileName: () => 'bridge.js' } } })
-cpSync(resolve(root, 'migration/legacy-index.html'), resolve(legacy, 'index.html'))
-for (const section of COMPANION_SECTION_PATHS) {
-  mkdirSync(resolve(legacy, section), { recursive: true })
-  cpSync(resolve(root, 'migration/legacy-index.html'), resolve(legacy, section, 'index.html'))
-}
-for (const file of ['catalog.json', 'manifest.webmanifest', 'pwa', 'licenses', 'assets/upgrades']) cpSync(resolve(legacyApp, file), resolve(legacy, file), { recursive: true })
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-const assets = []
-function walk(parent = '') { for (const entry of readdirSync(resolve(legacy, parent), { withFileTypes: true })) { const file = parent + entry.name; if (entry.isDirectory()) walk(file + '/'); else assets.push({ file, sha256: sha(readFileSync(resolve(legacy, file))) }) } }
-walk(); assets.sort((a, b) => a.file.localeCompare(b.file))
-const worker = readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8').replaceAll('idle-slayer-companion-public-', 'idle-slayer-legacy-bridge-public-')
-const release = { version: sha(JSON.stringify(assets) + worker), assets }
-writeFileSync(resolve(legacy, 'sw.js'), 'const RELEASE = ' + JSON.stringify(release) + ';\n' + worker)
-writeFileSync(resolve(legacy, 'offline-assets.json'), JSON.stringify(release, null, 2) + '\n')
+for (const { directory, deployment } of builds) cpSync(directory, resolve(output, deployment.base.slice(1, -1)), { recursive: true })
 writeFileSync(resolve(output, '.nojekyll'), '')
-writeFileSync(resolve(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Idle Slayer Companion has moved</title><h1>Idle Slayer Companion has moved</h1><p>Keep your old browser data until you have exported and restored your backups.</p><a href="/idle-slayer-companion/">Open old Companion for backups</a> · <a href="https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off" rel="noreferrer">Open new utility</a></html>\n')
-console.log('Prepared frozen legacy migration site at .cache/site-migration. No hosting or repository settings were changed.')
+writeFileSync(resolve(output, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Idle Slayer Companion has moved</title><h1>Idle Slayer Companion has moved</h1><p>The former app is retired. Keep your old browser data until you have exported and restored your backups.</p><a href="/idle-slayer-companion/">Transfer saved data</a> · <a href="https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off" rel="noreferrer">Open new app</a></html>\n')
+
+const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
+const files = []
+function walk(parent = '') {
+  for (const entry of readdirSync(resolve(output, parent), { withFileTypes: true })) {
+    const file = parent + entry.name
+    if (entry.isSymbolicLink()) throw new Error('Linked migration artifact')
+    if (entry.isDirectory()) walk(file + '/')
+    else { const bytes = readFileSync(resolve(output, file)); files.push({ file, sha256: sha(bytes), bytes: bytes.length }) }
+  }
+}
+walk(); files.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : 0)
+const manifest = files.map((file) => file.sha256 + '  site/' + file.file + '\n').join('')
+writeFileSync(resolve(cache, 'site-migration-SHA256SUMS'), manifest)
+const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+const sourceDirty = Boolean(execFileSync('git', ['status', '--porcelain', '--', '.'], { cwd: root, encoding: 'utf8' }).trim())
+const releaseOf = (directory) => JSON.parse(readFileSync(resolve(directory, 'offline-assets.json'), 'utf8')).version
+writeFileSync(resolve(cache, 'site-migration-release.json'), JSON.stringify({
+  sourceRepository: 'AustinGarrod/austingarrod-ca', sourcePath: 'apps/idle-slayer-companion', sourceCommit, sourceDirty,
+  destination: LEGACY_DEPLOYMENT.canonical, retired: true,
+  companionBase: LEGACY_DEPLOYMENT.base, compatibilityBase: LEGACY_MAP_DEPLOYMENT.base,
+  files: files.length, bytes: files.reduce((sum, file) => sum + file.bytes, 0), sha256Manifest: sha(manifest),
+  companionRelease: releaseOf(builds[0].directory), compatibilityRelease: releaseOf(builds[1].directory),
+}, null, 2) + '\n')
+console.log('Prepared transfer-only retirement site at .cache/site-migration, with site-migration-SHA256SUMS and site-migration-release.json beside it. No hosting or repository settings were changed.')

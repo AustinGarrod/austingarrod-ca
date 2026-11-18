@@ -10,7 +10,7 @@ for (const section of sectionPaths) {
  navigationEntries.set(new URL(section + '/', self.registration.scope).pathname, entry);
  navigationEntries.set(new URL(entry).pathname, entry);
 }
-const recoveryHTML = `<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Companion files unavailable</title><body><h1>Reconnect to reopen your companion</h1><p>The saved app files are unavailable. Connect to the internet and close other companion windows before repairing. Browser-stored progress is separate and will be kept.</p><button id="repair">Repair app files and reload</button><p id="note" role="status"></p><script>
+const recoveryHTML = RELEASE.retired ? `<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><meta name="referrer" content="no-referrer"><title>Idle Slayer Companion has moved</title><body><main><h1>Idle Slayer Companion has moved</h1><p>The saved transfer page files are unavailable. Reconnect, close every old Companion window, then reopen this address to export your saved data. Keep your browser data.</p><a href="https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off" rel="noreferrer">Open new app</a><p>This page sends no analytics or technical reports.</p></main></body></html>` : `<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Companion files unavailable</title><body><h1>Reconnect to reopen your companion</h1><p>The saved app files are unavailable. Connect to the internet and close other companion windows before repairing. Browser-stored progress is separate and will be kept.</p><button id="repair">Repair app files and reload</button><p id="note" role="status"></p><script>
 document.getElementById('repair').onclick=async()=>{
  const note=document.getElementById('note');
  if(!navigator.onLine){note.textContent='Connect to the internet before repairing.';return;}
@@ -78,8 +78,19 @@ self.addEventListener('fetch', (event) => {
   const key = navigationEntry ?? request.url;
   if (!allowed.has(key)) return;
   event.respondWith((async () => {
-    const cached = await (await caches.open(cacheName)).match(key);
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(key);
     if (cached) return cached;
+    // Retirement has no editable session or repair screen. Recover an evicted
+    // file only if the server still has this exact immutable release's bytes.
+    if (RELEASE.retired) {
+      try {
+        const response = await fetch(key, { cache: 'no-store', credentials: 'omit', redirect: 'error' });
+        if (!response.ok || response.type === 'opaque' || await sha256(await response.clone().arrayBuffer()) !== allowed.get(key).sha256) throw new Error('Retirement file does not match this release');
+        await cache.put(key, response.clone());
+        return response;
+      } catch (error) { await reportWorkerFailure(error, 'retirement-cache-recovery', key); }
+    }
     await reportWorkerFailure(new Error('Cached app file missing'), 'cache-miss', key);
     // Do not fetch newer bytes into an older running release after eviction.
     if (navigation) return new Response(recoveryHTML, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });

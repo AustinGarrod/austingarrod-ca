@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { resolveDeployment } from '../deployment.ts'
+import { validateRetirementArtifact } from './retirement-artifact.ts'
 
 const origin = 'https://release.invalid'
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -39,7 +40,8 @@ function attributes(tag: string): Map<string, string> {
   return result
 }
 
-export function validateReleaseArtifact(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET)): void {
+export function validateReleaseArtifact(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET, process.env.COMPANION_LEGACY_BASE)): void {
+  if (deployment.target === 'legacy-migration') return validateRetirementArtifact(root, directory, deployment)
   const base = deployment.base
   const dist = resolve(directory)
   inspect(dist)

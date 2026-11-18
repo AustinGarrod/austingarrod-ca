@@ -30,7 +30,17 @@ export const LEGACY_DEPLOYMENT: CompanionDeployment = {
   canonical: WEBSITE_DEPLOYMENT.canonical,
   cachePrefix: 'idle-slayer-companion-public-',
 }
-export function resolveDeployment(target?: string): CompanionDeployment {
+export const LEGACY_MAP_DEPLOYMENT: CompanionDeployment = {
+  ...LEGACY_DEPLOYMENT,
+  base: '/idle-slayer-ascension-map/',
+  cachePrefix: 'idle-slayer-legacy-bridge-public-',
+}
+export function resolveDeployment(target?: string, legacyBase?: string): CompanionDeployment {
+  if (legacyBase !== undefined) {
+    if (target !== 'legacy-migration') throw new Error('A historical base requires the legacy-migration target.')
+    if (legacyBase === LEGACY_MAP_DEPLOYMENT.base) return LEGACY_MAP_DEPLOYMENT
+    if (legacyBase !== LEGACY_DEPLOYMENT.base) throw new Error('Unsupported historical Companion base.')
+  }
   if (target === undefined || target === '' || target === 'website') return WEBSITE_DEPLOYMENT
   if (target === 'legacy-migration') return LEGACY_DEPLOYMENT
   throw new Error('Unsupported Companion deployment target: ' + target)

@@ -4,6 +4,7 @@ import { recommendationDataErrors } from '../src/domain/recommendation-data-vali
 import { validateNoticeDistribution } from './runtime-notices.ts'
 import { validateReleaseArtifact } from './release-artifact.ts'
 import { validatePwaDistribution } from './pwa.ts'
+import { resolveDeployment } from '../deployment.ts'
 
 const catalogBytes = readFileSync('public/catalog.json')
 const catalog = JSON.parse(catalogBytes)
@@ -31,7 +32,10 @@ for (const [file, expected] of [
   const bytes = readFileSync(file), contract = JSON.parse(bytes)
   if (createHash('sha256').update(bytes).digest('hex') !== expected || contract.gameVersion !== catalog.gameVersion || contract.steamBuild !== catalog.steamBuild) throw new Error('Companion native contract requires renewed review: ' + file)
 }
-validateReleaseArtifact(process.cwd(), 'dist')
-validateNoticeDistribution(process.cwd(), 'dist')
-validatePwaDistribution(process.cwd(), 'dist')
-console.log(`Release gate passed: built section entries, ${receipt.nativeNodeCount} reviewed upgrades, ${receipt.nativeEdgeCount} native connections, ${receipt.spriteCount} map icons, reviewed companion catalog/icons/import/reset contracts, ${priorities.rows.length} wiki priorities and complete runtime notices; static dist contains no private game inputs.`)
+const deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET, process.env.COMPANION_LEGACY_BASE)
+validateReleaseArtifact(process.cwd(), 'dist', deployment)
+validateNoticeDistribution(process.cwd(), 'dist', deployment.target === 'legacy-migration')
+validatePwaDistribution(process.cwd(), 'dist', deployment)
+console.log(deployment.target === 'legacy-migration'
+  ? 'Retirement release gate passed: dedicated transfer entry, unchanged reviewed catalog, complete runtime notices and scoped offline files; no usable old application or private inputs.'
+  : `Release gate passed: built section entries, ${receipt.nativeNodeCount} reviewed upgrades, ${receipt.nativeEdgeCount} native connections, ${receipt.spriteCount} map icons, reviewed companion catalog/icons/import/reset contracts, ${priorities.rows.length} wiki priorities and complete runtime notices; static dist contains no private game inputs.`)

@@ -15,12 +15,13 @@ export function writeSectionEntries(directory: string): void {
   }
 }
 const hash = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex')
-export interface OfflineRelease { version: string; cachePrefix: string; assets: { file: string; sha256: string }[] }
-export function offlineRelease(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET)): OfflineRelease {
+export interface OfflineRelease { version: string; cachePrefix: string; retired?: true; assets: { file: string; sha256: string }[] }
+export function offlineRelease(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET, process.env.COMPANION_LEGACY_BASE)): OfflineRelease {
   const catalog = JSON.parse(readFileSync(resolve(root, 'public/catalog.json'), 'utf8')) as { upgrades: { icon: string }[] }
   const companion = JSON.parse(readFileSync(resolve(root, 'public/companion-catalog.json'), 'utf8')) as { entities: { icon?: string }[] }
   const notices = JSON.parse(readFileSync(resolve(root, 'public/licenses/notices.json'), 'utf8')) as { packages: { notices: { file: string }[] }[]; fonts?: { notice: { file: string } }[] }
   const reviewed = new Set(['index.html', 'catalog.json', 'companion-catalog.json', 'manifest.webmanifest',
+    ...(deployment.target === 'legacy-migration' ? ['retirement-entry.json'] : []),
     ...COMPANION_SECTION_PATHS.map((section) => section + '/index.html'),
     ...['icon-192', 'icon-512', 'maskable-512', 'apple-touch-icon'].map((name) => 'pwa/' + name + '.png'),
     ...catalog.upgrades.map((upgrade) => upgrade.icon), ...companion.entities.flatMap((entity) => entity.icon ? [entity.icon] : []), 'licenses/index.html', 'licenses/notices.json', 'licenses/bundle-notices.json',
@@ -42,12 +43,12 @@ export function offlineRelease(root: string, directory: string, deployment = res
   walk('')
   const assets = files.sort().map((file) => ({ file, sha256: hash(readFileSync(resolve(directory, file))) }))
   const version = hash(deployment.cachePrefix + JSON.stringify(assets) + readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8'))
-  return { version, cachePrefix: deployment.cachePrefix, assets }
+  return { version, cachePrefix: deployment.cachePrefix, ...(deployment.target === 'legacy-migration' ? { retired: true as const } : {}), assets }
 }
 export function renderWorker(root: string, release: OfflineRelease): string {
   return 'const RELEASE = ' + JSON.stringify(release) + ';\n' + readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8')
 }
-export function pwaPlugin(root: string, deployment: CompanionDeployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET)): Plugin {
+export function pwaPlugin(root: string, deployment: CompanionDeployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET, process.env.COMPANION_LEGACY_BASE)): Plugin {
   let directory = ''
   return { name: 'public-offline-release', apply: 'build', enforce: 'post',
     configResolved(config) {
@@ -65,7 +66,7 @@ export function pwaPlugin(root: string, deployment: CompanionDeployment = resolv
     },
   }
 }
-export function validatePwaDistribution(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET)): void {
+export function validatePwaDistribution(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET, process.env.COMPANION_LEGACY_BASE)): void {
   const expected = offlineRelease(root, directory, deployment)
   const actual = JSON.parse(readFileSync(resolve(directory, 'offline-assets.json'), 'utf8')) as OfflineRelease
   if (JSON.stringify(actual) !== JSON.stringify(expected) || readFileSync(resolve(directory, 'sw.js'), 'utf8') !== renderWorker(root, expected)) throw new Error('Offline release inventory or worker is stale.')

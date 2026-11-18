@@ -30,6 +30,18 @@ export function parseCompanionWorkspace(text: string): CompanionWorkspace {
   if (plans.length > 100 || plans.some(([id, count]) => !safeId(id) || typeof count !== 'string' || !/^[1-9]\d{0,29}$/.test(count))) throw new Error('Invalid plans')
   return { format: 'idle-slayer-companion-workspace', version: 1, goals, recipePlans: Object.fromEntries(plans) as Record<string, string> }
 }
+
+/** Read device metadata without adopting it or writing an acknowledgement. */
+export function parseCompanionWorkspaceStored(text: string): { workspace: CompanionWorkspace; legacyBaseline?: string | null } {
+  if (bytes(text) > MAX_WORKSPACE_BYTES + MAX_LEGACY_BYTES * 2 + 1024) throw new Error('Invalid saved intentions')
+  const value: unknown = JSON.parse(text)
+  if (object(value) && value.format === 'idle-slayer-companion-workspace-storage') {
+    if (!exact(value, ['format', 'version', 'legacyBaseline', 'workspace']) || value.version !== 1
+      || (value.legacyBaseline !== null && (typeof value.legacyBaseline !== 'string' || bytes(value.legacyBaseline) > MAX_LEGACY_BYTES))) throw new Error('Invalid saved intentions')
+    return { workspace: parseCompanionWorkspace(JSON.stringify(value.workspace)), legacyBaseline: value.legacyBaseline as string | null }
+  }
+  return { workspace: parseCompanionWorkspace(text) }
+}
 type Pair = { raw: string | null; legacy: string | null }
 export type CompanionWorkspaceSnapshot = (Pair & { kind: 'valid'; workspace: CompanionWorkspace; legacyChanged: boolean }) | (Pair & { kind: 'invalid'; error: string }) | { kind: 'unavailable'; error: string }
 export interface CompanionWorkspaceReview { version: number; snapshot: CompanionWorkspaceSnapshot }
@@ -57,13 +69,8 @@ export function createCompanionWorkspaceSession(options: { storage: () => Pick<S
     try {
       if (pair.raw !== null) {
         adopted = true
-        if (bytes(pair.raw) > MAX_WORKSPACE_BYTES + MAX_LEGACY_BYTES * 2 + 1024) throw new Error()
-        const value: unknown = JSON.parse(pair.raw)
-        if (object(value) && value.format === 'idle-slayer-companion-workspace-storage') {
-          if (!exact(value, ['format', 'version', 'legacyBaseline', 'workspace']) || value.version !== 1 || (value.legacyBaseline !== null && (typeof value.legacyBaseline !== 'string' || bytes(value.legacyBaseline) > MAX_LEGACY_BYTES))) throw new Error()
-          return { ...pair, kind: 'valid', workspace: parseCompanionWorkspace(JSON.stringify(value.workspace)), legacyChanged: value.legacyBaseline !== pair.legacy }
-        }
-        return { ...pair, kind: 'valid', workspace: parseCompanionWorkspace(pair.raw), legacyChanged: false }
+        const parsed = parseCompanionWorkspaceStored(pair.raw)
+        return { ...pair, kind: 'valid', workspace: parsed.workspace, legacyChanged: parsed.legacyBaseline !== undefined && parsed.legacyBaseline !== pair.legacy }
       }
       const workspace = emptyCompanionWorkspace()
       if (!adopted && pair.legacy !== null) workspace.goals = parseGoals(pair.legacy).targets.map((goal) => ({ ref: { system: 'ascension', id: goal.id }, mode: goal.mode }))

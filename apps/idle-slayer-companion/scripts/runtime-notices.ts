@@ -78,7 +78,7 @@ export function validateFontSources(root: string, manifest: NoticeManifest): voi
   }
 }
 
-export function validateBundleCoverage(root: string, manifest: NoticeManifest, modules: readonly { id: string; renderedLength: number }[]): NoticePackage[] {
+export function validateBundleCoverage(root: string, manifest: NoticeManifest, modules: readonly { id: string; renderedLength: number }[], allowSubset = false): NoticePackage[] {
   const included = new Map<string, Inclusion>()
   const helpers = new Map([['\0vite/modulepreload-polyfill.js', 'vite'], ['\0rolldown/runtime.js', 'rolldown']])
   const add = (name: string, kind: Inclusion) => {
@@ -99,7 +99,9 @@ export function validateBundleCoverage(root: string, manifest: NoticeManifest, m
     if (!graphlib || index < 0 || !map.sourcesContent[index].includes("export const version = '" + graphlib.version + "';")) throw new Error('Embedded Graphlib version evidence is stale.')
     add('@dagrejs/graphlib', 'embedded')
   }
-  if (included.size !== manifest.packages.length || manifest.packages.some((item) => included.get(item.name) !== item.inclusion)) {
+  const reviewed = new Map(manifest.packages.map((item) => [item.name, item.inclusion]))
+  if ([...included].some(([name, kind]) => reviewed.get(name) !== kind)
+    || (!allowSubset && (included.size !== manifest.packages.length || manifest.packages.some((item) => included.get(item.name) !== item.inclusion)))) {
     const reviewed = new Map(manifest.packages.map((item) => [item.name, item.inclusion]))
     const added = [...included.keys()].filter((name) => !reviewed.has(name)).sort()
     const removed = [...reviewed.keys()].filter((name) => !included.has(name)).sort()
@@ -109,10 +111,10 @@ export function validateBundleCoverage(root: string, manifest: NoticeManifest, m
       + (removed.length ? ' No longer bundled: ' + removed.join(', ') + '.' : '')
       + (changed.length ? ' Inclusion kind changed: ' + changed.join(', ') + '.' : ''))
   }
-  return manifest.packages
+  return manifest.packages.filter((item) => included.has(item.name))
 }
 
-export function runtimeNoticesPlugin(root: string): Plugin {
+export function runtimeNoticesPlugin(root: string, allowSubset = false): Plugin {
   return {
     name: 'reviewed-runtime-notices', apply: 'build', enforce: 'post',
     generateBundle(_options, bundle) {
@@ -120,18 +122,18 @@ export function runtimeNoticesPlugin(root: string): Plugin {
       validateNoticeSources(root, manifest)
       const chunks = Object.values(bundle).filter((item) => item.type === 'chunk')
       const modules = chunks.flatMap((chunk) => Object.entries(chunk.modules).map(([id, info]) => ({ id, renderedLength: info.renderedLength })))
-      validateBundleCoverage(root, manifest, modules)
+      const included = validateBundleCoverage(root, manifest, modules, allowSubset)
       // Only public package identities and distributable paths leave the build.
       this.emitFile({ type: 'asset', fileName: 'licenses/bundle-notices.json', source: JSON.stringify({
         schemaVersion: 1, manifestSha256: noticeHash(read(root, 'public/licenses/notices.json')),
-        packages: manifest.packages.map(({ name, version, inclusion }) => ({ name, version, inclusion })),
+        packages: included.map(({ name, version, inclusion }) => ({ name, version, inclusion })),
         chunks: chunks.map((chunk) => ({ file: chunk.fileName, sha256: noticeHash(chunk.code) })).sort((a, b) => a.file.localeCompare(b.file)),
       }, null, 2) + '\n' })
     },
   }
 }
 
-export function validateNoticeDistribution(root: string, directory: string): void {
+export function validateNoticeDistribution(root: string, directory: string, allowSubset = false): void {
   const manifest = readNoticeManifest(root)
   validateNoticeSources(root, manifest)
   for (const file of ['notices.json', 'index.html', ...manifest.packages.flatMap((item) => item.notices.map((notice) => notice.file)), ...(manifest.fonts ?? []).map((font) => font.notice.file)]) {
@@ -144,8 +146,11 @@ export function validateNoticeDistribution(root: string, directory: string): voi
   const receipt = JSON.parse(read(directory, 'licenses/bundle-notices.json').toString('utf8')) as {
     schemaVersion: number; manifestSha256: string; packages: { name: string; version: string; inclusion: Inclusion }[]; chunks: { file: string; sha256: string }[]
   }
+  const includedNames = new Set(receipt.packages?.map((item) => item.name))
+  const expectedPackages = manifest.packages.filter((item) => !allowSubset || includedNames.has(item.name))
   if (receipt.schemaVersion !== 1 || receipt.manifestSha256 !== noticeHash(read(root, 'public/licenses/notices.json'))
-    || JSON.stringify(receipt.packages) !== JSON.stringify(manifest.packages.map(({ name, version, inclusion }) => ({ name, version, inclusion })))
+    || JSON.stringify(receipt.packages) !== JSON.stringify(expectedPackages.map(({ name, version, inclusion }) => ({ name, version, inclusion })))
+    || !expectedPackages.length
     || !Array.isArray(receipt.chunks) || !receipt.chunks.length) throw new Error('Distributed runtime notice coverage receipt is stale.')
   for (const chunk of receipt.chunks) {
     if (!/^assets\/[a-zA-Z0-9_-]+\.js$/.test(chunk.file) || !/^[a-f0-9]{64}$/.test(chunk.sha256)

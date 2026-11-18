@@ -24,6 +24,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "migration/legacy-bridge.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src", "migration"],
+  "exclude": ["src/**/*.test.ts", "migration/**/*.test.ts"]
 }

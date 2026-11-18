@@ -86,7 +86,7 @@ The complete maintained companion lives under `apps/idle-slayer-companion/` and 
 
 Run `npm run test:companion:e2e` for desktop/mobile regression checks. For checks against the assembled website, start `node scripts/serve-dist.mjs` and set `PLAYWRIGHT_BASE_URL` to `http://127.0.0.1:4321/utilities/idle-slayer-companion/`. Automated browser checks must remain local; production confirmation is manual.
 
-`npm run prepare:companion-migration` generates `.cache/site-migration` inside the app using the explicit `legacy-migration` target, with the original GitHub paths and installation identity and no telemetry. It is for the existing user-site compatibility repository, never HostPapa. See the app's migration runbook. Existing users transfer Companion progress, intentions, checkpoints, and saved comparison through their separate existing JSON exports, then choose layout, spoilers, and tracking preferences again. Old browser data is retained.
+`npm run prepare:companion-migration` generates `.cache/site-migration` inside the app using the explicit `legacy-migration` target. Both original GitHub paths receive the same transfer-only retirement page, retaining installation identity and their separate worker scopes without telemetry or the usable old app. The sibling `site-migration-SHA256SUMS` and `site-migration-release.json` describe the prepared bytes. This artifact is for the existing user-site compatibility repository, never HostPapa; publication is separate. See the app's migration runbook. Existing users export Companion progress, intentions, checkpoints, and saved comparison directly from one page, then restore them in the new app and choose layout, spoilers, and tracking preferences again. Old browser data is retained.
 
 ## Contact Form
 

@@ -6,7 +6,7 @@ An unofficial, static utility for **Idle Slayer 7.3.4 / Steam build 25810322**. 
 
 The map has **288 upgrades / 318 connections**. The companion catalog adds **1,293 entries** and **1,205 reviewed icons**. The game remains authoritative. Unsupported native predicates are marked unknown and do not reveal content by default.
 
-The application is maintained inside [AustinGarrod/austingarrod-ca](https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion) and published at [austingarrod.ca/utilities/idle-slayer-companion/](https://austingarrod.ca/utilities/idle-slayer-companion/). [The migration runbook](docs/site-migration.md) covers guided file transfer, the frozen GitHub Pages recovery copies, reversible rollout, and deployment verification. Both previous GitHub Pages paths remain available for export and recovery.
+The application is maintained inside [AustinGarrod/austingarrod-ca](https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion) and published at [austingarrod.ca/utilities/idle-slayer-companion/](https://austingarrod.ca/utilities/idle-slayer-companion/). [The migration runbook](docs/site-migration.md) covers the transfer-only GitHub Pages retirement artifact, reversible rollout, and deployment verification. The generated artifact replaces both previous GitHub Pages paths with one view for downloading existing backups and opening the new app; it contains no usable map or companion. Publishing that artifact is a separate authorized step.
 
 ## Use the companion
 

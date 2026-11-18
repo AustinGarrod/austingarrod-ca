@@ -78,6 +78,16 @@ describe('complete bundled runtime notices', () => {
     wrongKind.packages.find((item) => item.name === 'react')!.inclusion = 'helper'
     expect(() => validateBundleCoverage(root, wrongKind, modules)).toThrow('Inclusion kind changed: react.')
   })
+  it('permits a reviewed subset only for the dedicated retirement build', () => {
+    const subset = modules.filter((module) => /node_modules\/(?:react|react-dom|scheduler)\//.test(module.id) || module.id.startsWith('\0'))
+    const included = validateBundleCoverage(root, manifest, subset, true)
+    expect(included.map((item) => item.name)).toEqual(manifest.packages.filter((item) => ['react', 'react-dom', 'scheduler', 'vite', 'rolldown'].includes(item.name)).map((item) => item.name))
+    expect(() => validateBundleCoverage(root, manifest, subset)).toThrow('No longer bundled')
+    expect(() => validateBundleCoverage(root, manifest, [...subset, { id: '/fixture/node_modules/unreviewed/index.js', renderedLength: 1 }], true)).toThrow('Unreviewed packages')
+    const wrongKind = structuredClone(manifest)
+    wrongKind.packages.find((item) => item.name === 'react')!.inclusion = 'helper'
+    expect(() => validateBundleCoverage(root, wrongKind, subset, true)).toThrow('Inclusion kind changed')
+  })
   it('rejects an omitted or changed notice in the distributable', () => {
     const directory = temporary()
     cpSync('public/licenses', join(directory, 'licenses'), { recursive: true })
@@ -103,6 +113,16 @@ describe('complete bundled runtime notices', () => {
     const saveReceipt = () => writeFileSync(join(directory, 'licenses/bundle-notices.json'), JSON.stringify(receipt))
     saveReceipt()
     expect(() => validateNoticeDistribution(root, directory)).not.toThrow()
+    const complete = receipt.packages
+    receipt.packages = complete.filter((item) => ['react', 'react-dom', 'scheduler', 'vite', 'rolldown'].includes(item.name))
+    saveReceipt()
+    expect(() => validateNoticeDistribution(root, directory, true)).not.toThrow()
+    expect(() => validateNoticeDistribution(root, directory)).toThrow('coverage receipt')
+    receipt.packages.push({ name: 'unreviewed', version: '1.0.0', inclusion: 'module' })
+    saveReceipt()
+    expect(() => validateNoticeDistribution(root, directory, true)).toThrow('coverage receipt')
+    receipt.packages = complete
+    saveReceipt()
     writeFileSync(join(directory, 'assets/index-fixture.js'), code + 'extraRuntime()\n')
     expect(() => validateNoticeDistribution(root, directory)).toThrow('code differs')
     writeFileSync(join(directory, 'assets/index-fixture.js'), code)

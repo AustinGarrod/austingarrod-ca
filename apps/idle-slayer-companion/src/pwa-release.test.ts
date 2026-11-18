@@ -79,26 +79,28 @@ describe('offline release verification', () => {
   })
 })
 
-function workerFixture(fail = false) {
+function workerFixture(fail = false, retired = false) {
   const handlers = new Map<string, (event: Record<string, unknown>) => void>()
   const entries = new Map<string, Response>()
   const deleted = vi.fn(async () => true)
   const skipWaiting = vi.fn(async () => {})
+  const claim = vi.fn(async () => {})
   const clients = [{ id: 'current', url: 'https://app.test' + PWA_BASE }]
   const matchAll = vi.fn(async () => [...clients])
   const assets = ['index.html', 'catalog.json', 'achievements/index.html'].map((file) => ({ file, sha256: createHash('sha256').update(file).digest('hex') }))
-  const caches = { open: async () => ({ put: async (url: string, response: Response) => { entries.set(url, response) }, match: async (url: string) => entries.get(url), keys: async () => [...entries.keys()].map((url) => ({ url })) }), delete: deleted, keys: async () => ['ascension-map-public-old', 'idle-slayer-companion-public-old'] }
-  runInNewContext('const RELEASE=' + JSON.stringify({ version: 'test', assets }) + ';' + readFileSync('scripts/pwa-worker.js', 'utf8'), {
-    self: { addEventListener: (name: string, handler: (event: Record<string, unknown>) => void) => handlers.set(name, handler), location: new URL('https://app.test' + PWA_BASE + 'sw.js'), registration: { scope: 'https://app.test' + PWA_BASE }, clients: { matchAll }, skipWaiting },
+  const caches = { open: async () => ({ put: async (url: string, response: Response) => { entries.set(url, response.clone()) }, match: async (url: string) => entries.get(url)?.clone(), keys: async () => [...entries.keys()].map((url) => ({ url })) }), delete: deleted, keys: async () => ['ascension-map-public-old', 'idle-slayer-companion-public-old'] }
+  const fetchAsset = vi.fn(async (url: string, _options?: RequestInit) => new Response(fail && url.endsWith('catalog.json') ? 'unverified newer bytes' : new URL(url).pathname.slice(PWA_BASE.length)))
+  runInNewContext('const RELEASE=' + JSON.stringify({ version: 'test', retired, assets }) + ';' + readFileSync('scripts/pwa-worker.js', 'utf8'), {
+    self: { addEventListener: (name: string, handler: (event: Record<string, unknown>) => void) => handlers.set(name, handler), location: new URL('https://app.test' + PWA_BASE + 'sw.js'), registration: { scope: 'https://app.test' + PWA_BASE }, clients: { matchAll, claim }, skipWaiting },
     caches, crypto: webcrypto, URL, Uint8Array, Response,
-    fetch: async (url: string) => new Response(fail && url.endsWith('catalog.json') ? 'unverified newer bytes' : new URL(url).pathname.slice(PWA_BASE.length)),
+    fetch: fetchAsset,
   })
   const dispatch = async (name: string, event: Record<string, unknown>) => {
     let task: Promise<unknown> | undefined
     handlers.get(name)!({ ...event, waitUntil: (promise: Promise<unknown>) => { task = promise } })
     await task
   }
-  return { dispatch, entries, deleted, skipWaiting, clients, matchAll }
+  return { dispatch, entries, deleted, skipWaiting, claim, clients, matchAll, fetchAsset }
 }
 describe('strict service-worker boundary', () => {
   it('verifies the complete release before installation and deletes a partial cache on mismatch', async () => {
@@ -128,6 +130,70 @@ describe('strict service-worker boundary', () => {
     respondWith.mockClear()
     await worker.dispatch('fetch', { request: { method: 'GET', mode: 'navigate', url: 'https://app.test' + PWA_BASE + 'not-a-section/' }, respondWith })
     expect(respondWith).not.toHaveBeenCalled()
+  })
+  it('keeps the website cache-miss policy immutable rather than fetching a newer application', async () => {
+    const worker = workerFixture(); await worker.dispatch('install', {})
+    worker.entries.delete('https://app.test' + PWA_BASE + 'index.html')
+    worker.fetchAsset.mockClear()
+    const respondWith = vi.fn()
+    await worker.dispatch('fetch', { request: { method: 'GET', mode: 'navigate', url: 'https://app.test' + PWA_BASE }, respondWith })
+    const response = await respondWith.mock.calls[0][0] as Response
+    expect(response.status).toBe(503)
+    expect(await response.text()).toContain('Repair app files and reload')
+    expect(worker.fetchAsset).not.toHaveBeenCalled()
+  })
+  it('recovers an evicted retirement entry only from its exact immutable bytes and strips navigation queries', async () => {
+    const worker = workerFixture(false, true); await worker.dispatch('install', {})
+    const key = 'https://app.test' + PWA_BASE + 'index.html'
+    worker.entries.delete(key); worker.fetchAsset.mockClear()
+    const respondWith = vi.fn()
+    await worker.dispatch('fetch', { request: { method: 'GET', mode: 'navigate', url: 'https://app.test' + PWA_BASE + '?private=synthetic-transfer' }, respondWith })
+    const response = await respondWith.mock.calls[0][0] as Response
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('index.html')
+    expect(worker.fetchAsset).toHaveBeenCalledExactlyOnceWith(key, { cache: 'no-store', credentials: 'omit', redirect: 'error' })
+    expect(await worker.entries.get(key)?.text()).toBe('index.html')
+    expect([...worker.entries.keys()].every((url) => !url.includes('?'))).toBe(true)
+    expect(worker.skipWaiting).not.toHaveBeenCalled(); expect(worker.claim).not.toHaveBeenCalled(); expect(worker.deleted).not.toHaveBeenCalled()
+  })
+  it('does not fetch intact retirement files again', async () => {
+    const worker = workerFixture(false, true); await worker.dispatch('install', {})
+    worker.fetchAsset.mockClear()
+    const respondWith = vi.fn()
+    await worker.dispatch('fetch', { request: { method: 'GET', mode: 'cors', url: 'https://app.test' + PWA_BASE + 'catalog.json' }, respondWith })
+    expect(await (await respondWith.mock.calls[0][0]).text()).toBe('catalog.json')
+    expect(worker.fetchAsset).not.toHaveBeenCalled()
+  })
+  it('refuses newer or failed recovery responses instead of caching mismatched retirement resources', async () => {
+    const worker = workerFixture(false, true); await worker.dispatch('install', {})
+    const key = 'https://app.test' + PWA_BASE + 'catalog.json'
+    worker.entries.delete(key); worker.fetchAsset.mockClear()
+    for (const recovered of [new Response('unverified newer bytes'), new Response('catalog.json', { status: 404 })]) {
+      worker.fetchAsset.mockResolvedValueOnce(recovered)
+      const respondWith = vi.fn()
+      await worker.dispatch('fetch', { request: { method: 'GET', mode: 'cors', url: key }, respondWith })
+      const response = await respondWith.mock.calls[0][0] as Response
+      expect(response.status).toBe(503)
+      expect(await response.text()).not.toContain('unverified newer bytes')
+      expect(worker.entries.has(key)).toBe(false)
+    }
+    expect(worker.skipWaiting).not.toHaveBeenCalled(); expect(worker.claim).not.toHaveBeenCalled()
+  })
+  it('keeps offline retirement recovery limited to the move page without installation or repair controls', async () => {
+    const worker = workerFixture(false, true); await worker.dispatch('install', {})
+    const key = 'https://app.test' + PWA_BASE + 'index.html'
+    worker.entries.delete(key); worker.fetchAsset.mockClear()
+    worker.fetchAsset.mockRejectedValueOnce(new Error('Synthetic offline browser'))
+    const respondWith = vi.fn()
+    await worker.dispatch('fetch', { request: { method: 'GET', mode: 'navigate', url: 'https://app.test' + PWA_BASE }, respondWith })
+    const response = await respondWith.mock.calls[0][0] as Response, body = await response.text()
+    expect(response.status).toBe(503)
+    expect(body).toContain('Idle Slayer Companion has moved')
+    expect(body).toContain('https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off')
+    expect(body).not.toMatch(/<button|<script|Repair app files|Install app/)
+    expect(worker.entries.has(key)).toBe(false)
+    await worker.dispatch('message', { data: { type: 'ACTIVATE_UPDATE' }, source: { id: 'current' }, ports: [] })
+    expect(worker.skipWaiting).not.toHaveBeenCalled(); expect(worker.claim).not.toHaveBeenCalled(); expect(worker.deleted).not.toHaveBeenCalled()
   })
   it('rejects repair with another open app window and permits its check for the sole requesting client', async () => {
     const worker = workerFixture(); const postMessage = vi.fn()
