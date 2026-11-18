@@ -43,4 +43,16 @@ describe("checklist sorting and set filtering", () => {
     expect(result.species.map(item => item.id)).toEqual([1]);
     expect(result.sets).toEqual([sets.base1]);
   });
+  it("sorts by the lowest number in the matched set, including padded and prefixed numbers", () => {
+    const numbers = { base1: { 1: ["TG10"], 25: ["TG12", "TG01"], 63: ["TG2"] } };
+    expect(filterChecklist(species, sets, index, "BS", "collector", numbers).species.map(item => item.id)).toEqual([25, 63, 1]);
+    expect(filterChecklist(species, sets, index, "BS", "collector-desc", numbers).species.map(item => item.id)).toEqual([1, 63, 25]);
+    expect(filterChecklist(species, sets, index, "base", "collector", numbers).species.map(item => item.id)).toEqual([1, 25, 63]);
+  });
+  it("keeps ties in Pokédex order and missing numbers at the end in either direction", () => {
+    const numbers = { base1: { 25: ["001"], 63: ["001"] } };
+    for (const sort of ["collector", "collector-desc"] as const) {
+      expect(filterChecklist(species, sets, index, "BS", sort, numbers).species.map(item => item.id)).toEqual([25, 63, 1]);
+    }
+  });
 });

@@ -172,10 +172,13 @@ async function initialize() {
     if (showNumbers && !collectorNumbers && numberStatus === "idle") void loadCollectorNumbers();
     const numbers = showNumbers ? collectorNumbers?.[sets[0].id] : undefined;
     const status = el("checklist-number-status");
+    const sortByCards = checklistSort.value === "collector" || checklistSort.value === "collector-desc";
     let message = "";
     if (showNumbers && numberStatus === "loading") message = "Loading card numbers…";
-    if (showNumbers && numberStatus === "error") message = "Card numbers couldn’t load.";
-    if (sets.length > 1 && results.length) message = "Choose one set to see its card numbers.";
+    else if (showNumbers && numberStatus === "error") message = "Card numbers couldn’t load.";
+    else if (sortByCards && sets.length !== 1) message = "Choose one set to sort by its card numbers.";
+    else if (sortByCards && numbers) message = "Pokémon with multiple cards sort by their lowest number.";
+    else if (sets.length > 1 && results.length) message = "Choose one set to see its card numbers.";
     if (status.textContent !== message) status.textContent = message;
     status.hidden = !message;
     el("checklist-number-retry").hidden = !showNumbers || numberStatus !== "error";
@@ -218,7 +221,9 @@ async function initialize() {
     for (const button of el("checklist-letters").querySelectorAll<HTMLButtonElement>("[data-letter]")) button.disabled = !letters.has(button.dataset.letter!);
     el("checklist-more").hidden = results.length <= checklistLimit;
   }
-  function checklistResults() { return filterChecklist(filteredSpecies(), catalog.sets, catalog.setSpecies, checklistSet.value, checklistSort.value as ChecklistSort); }
+  function checklistResults() {
+    return filterChecklist(filteredSpecies(), catalog.sets, catalog.setSpecies, checklistSet.value, checklistSort.value as ChecklistSort, collectorNumbers);
+  }
   function renderDetails() {
     const item = species.find(candidate => candidate.id === selected);
     if (!item) return;
