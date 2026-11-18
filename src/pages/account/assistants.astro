@@ -28,15 +28,16 @@ codex plugin add idle-slayer-companion@austingarrod-utilities</code></pre>
 claude plugin install pokedex-binder@austingarrod-utilities
 claude plugin install idle-slayer-companion@austingarrod-utilities</code></pre>
       <h2>Claude web and desktop</h2>
-      <p>In Customize → Connectors, add a custom connector for each utility. Use its endpoint URL and choose Claude’s published identity. Claude Free allows one custom connector.</p>
-      <p>In Customize → Skills, upload the matching ZIP. In connector permissions, set <strong>Apply the confirmed change</strong> to <strong>Always ask</strong>.</p>
+      <p>Open <strong>Plugins → Add → Upload plugin</strong> and upload the matching plugin ZIP. Select <strong>Finish setup</strong> on the installed plugin and connect your utility account. In the older Customize layout, use <strong>Customize → Skills</strong> to upload the standalone skill ZIP.</p>
+      <p>To connect a utility manually, choose <strong>Plugins → Add → Add custom connector</strong>, paste the endpoint URL below, and choose <strong>Use Claude’s published identity</strong>. Claude Free allows one custom connector. In its permissions, set <strong>Apply the confirmed change</strong> to <strong>Always ask</strong>.</p>
       <ul class="account-recovery-list">
         {utilities.map(({ id, name }) => (
           <li>
             <strong>{name}</strong>
             <label for={id}>MCP endpoint</label>
             <input id={id} class="text-input" readonly value={"https://austingarrod.ca/api/v1/mcp/" + id} />
-            <a class="button compact" href={"/account/assistant-skills/" + id + ".zip"} download>Download skill ZIP</a>
+            <a class="button compact" href={"/account/assistant-skills/" + id + "-plugin.zip"} download>Download Claude plugin ZIP</a>
+            <a class="text-link" href={"/account/assistant-skills/" + id + ".zip"} download>Download skill ZIP</a>
           </li>
         ))}
       </ul>
