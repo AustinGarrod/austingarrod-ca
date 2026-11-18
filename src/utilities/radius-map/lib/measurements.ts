@@ -85,3 +85,12 @@ export function parseSavedMeasurementInput(value: unknown): SavedMeasurementInpu
 export function canonicalRadiusMeters(input: SavedMeasurementInput): number {
   return measurementToRadiusMeters(input.value, input.kind, input.unit);
 }
+
+export function saveMeasurement(
+  input: SavedMeasurementInput,
+  id: string,
+  now: string,
+  createdAt = now,
+): SavedMeasurement {
+  return { ...input, id, radiusMeters: canonicalRadiusMeters(input), createdAt, updatedAt: now };
+}

@@ -9,10 +9,10 @@ import { fileURLToPath } from 'node:url';
 
 // LOCAL ONLY: compiled applications, production PHP handlers, actual email-code
 // verification through a loopback SMTP sink, and a disposable MySQL database.
-// No authentication or sync response is intercepted or replaced.
+// The Radius Map retry scenario drops a response after the real server commits it.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'dist');
-for (const path of ['account/index.html', 'api/v1/auth.php', 'utilities/pokedex-binder/index.html', 'utilities/idle-slayer-companion/index.html']) {
+for (const path of ['account/index.html', 'api/v1/auth.php', 'utilities/pokedex-binder/index.html', 'utilities/idle-slayer-companion/index.html', 'utilities/radius-map/sw.js']) {
   assert.ok(existsSync(join(dist, path)), `Build the complete distribution first: missing ${path}`);
 }
 assert.ok(process.env.ACCOUNTS_TEST_DSN, 'Set ACCOUNTS_TEST_DSN to an isolated localhost MySQL DSN.');
@@ -76,8 +76,8 @@ function guestSeed(tag) {
 let browser, server, created = false, phpOutput = '', active = 'startup';
 const contexts = [], completed = [], pageErrors = [], remoteRequests = [];
 async function scenario(name, run) { active = name; await run(); completed.push(name); console.log(`Passed: ${name}`); }
-async function makeContext(tag, viewport) {
-  const context = await browser.newContext({ viewport, acceptDownloads: true, serviceWorkers: 'block' }); contexts.push(context);
+async function makeContext(tag, viewport, serviceWorkers = 'block') {
+  const context = await browser.newContext({ viewport, acceptDownloads: true, serviceWorkers }); contexts.push(context);
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin === origin || ['blob:', 'data:'].includes(url.protocol)) return route.continue();
@@ -171,6 +171,47 @@ async function adoptSlayer(page, useAccount) {
   await expect(dialog).toContainText(/Connected and verified|Account changes synced/);
 }
 async function originals(page) { return page.evaluate(keys => Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])), slayerKeys); }
+
+const radiusPath = '/utilities/radius-map/';
+const retiredRadiusKey = 'austingarrod.utilities.radius-map.v1';
+const retiredRadiusSave = JSON.stringify({
+  version: 1, measurements: [{
+    id: 'retired', name: 'Retired local measurement', locationLabel: 'Old centre', center: { lat: 43.65, lng: -79.38 },
+    value: 10, kind: 'radius', unit: 'km', visible: true, radiusMeters: 10000,
+    createdAt: '2026-11-18T10:00:00.000Z', updatedAt: '2026-11-18T10:00:00.000Z',
+  }],
+});
+const readRetiredRadiusSave = page => page.evaluate(key => localStorage.getItem(key), retiredRadiusKey);
+const radiusRows = page => page.locator('#saved-list .saved-item');
+const radiusRow = (page, name) => radiusRows(page).filter({ has: page.getByText(name, { exact: true }) });
+async function openRadius(page) {
+  await page.goto(origin + radiusPath);
+  await page.locator('#saved-tab').click();
+}
+async function saveRadius(page, name, centre) {
+  await page.locator('#create-tab').click();
+  await page.locator('#location-search').fill(centre);
+  await page.locator('#search-button').click();
+  await page.locator('#save-measurement-button').click();
+  await page.locator('#measurement-name').fill(name);
+  await page.locator('#save-dialog-submit').click();
+  await expect(page.locator('#save-dialog')).toBeHidden();
+  await page.locator('#saved-tab').click();
+  await expect(radiusRow(page, name)).toBeVisible();
+}
+async function renameRadius(page, original, next) {
+  await radiusRow(page, original).getByRole('button', { name: 'Rename', exact: true }).click();
+  await page.locator('#measurement-name').fill(next);
+  await page.locator('#save-dialog-submit').click();
+  await expect(page.locator('#save-dialog')).toBeHidden();
+  await expect(radiusRow(page, next)).toBeVisible();
+}
+async function deleteRadius(page, name) {
+  await radiusRow(page, name).getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.locator('#delete-dialog-submit').click();
+  await expect(page.locator('#delete-dialog')).toBeHidden();
+  await expect(radiusRow(page, name)).toHaveCount(0);
+}
 try {
   databaseCommand('create'); created = true;
   server = spawn(php, [...flags, '-d', 'display_errors=0', '-d', 'log_errors=1', '-S', `127.0.0.1:${port}`, '-t', dist], { env, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -181,6 +222,17 @@ try {
   const page = await desktop.newPage(); const email = `browser-${randomBytes(4).toString('hex')}@example.test`;
   let desktopOriginals, accountId;
   await scenario('guest datasets exist before signup', async () => {
+    await openRadius(page);
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: retiredRadiusKey, value: retiredRadiusSave });
+    await openRadius(page);
+    await expect(page.locator('#radius-sign-in')).toBeVisible();
+    await expect(radiusRows(page)).toHaveCount(0);
+    await page.locator('#create-tab').click();
+    await page.locator('#location-search').fill('43.65, -79.38');
+    await page.locator('#search-button').click();
+    await expect(page.locator('#app-status')).toContainText('entered coordinates');
+    await expect(page.locator('#radius-sign-in-to-save')).toHaveAttribute('href', '/account/?returnTo=%2Futilities%2Fradius-map%2F');
+    await expect(page.locator('#save-measurement-button')).toBeHidden();
     await openBinder(page); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5');
@@ -241,6 +293,172 @@ try {
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Mobile utility horizontal overflow');
     await phone.screenshot({ path: join(output, 'mobile-slayer-connected.png'), fullPage: false });
   });
+  let mapMobile, mapPhone;
+  await scenario('Radius Map opens the shared account and merges separate first saves', async () => {
+    await openRadius(page);
+    await expect(page.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await expect(radiusRows(page)).toHaveCount(0);
+    await expect(page.locator('#radius-review')).toBeHidden();
+    assert.equal(await readRetiredRadiusSave(page), retiredRadiusSave);
+    assert.equal(await remote(desktop, 'radius-map', 'measurements'), null, 'Opening a new account library must not create a document');
+
+    mapMobile = await makeContext('mobile', { width: 390, height: 844 }, 'allow');
+    await mapMobile.addCookies(await mobile.cookies(origin));
+    mapPhone = await mapMobile.newPage();
+    await openRadius(mapPhone);
+    await expect.poll(() => mapPhone.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await mapMobile.setOffline(true);
+    await saveRadius(mapPhone, 'Bay', '43.67, -79.36');
+    await expect(mapPhone.locator('#radius-sync-status')).toContainText('Waiting to sync');
+
+    await page.locator('#create-tab').click();
+    const geocoder = '**/utilities/radius-map/api/geocode.php?*';
+    await desktop.route(geocoder, route => route.fulfill({ json: { results: [{ id: 'fixture', label: 'Test park', lat: 43.65, lng: -79.38 }] } }));
+    try {
+      await page.locator('#location-search').fill('Test park');
+      await page.locator('#search-button').click();
+      await page.locator('#search-results').getByRole('button', { name: 'Test park' }).click();
+      await expect(page.locator('#summary-centre')).toHaveText('Test park');
+    } finally {
+      await desktop.unroute(geocoder);
+    }
+    await desktop.grantPermissions(['geolocation'], { origin });
+    await desktop.setGeolocation({ latitude: 43.67, longitude: -79.36 });
+    await page.locator('#locate-button').click();
+    await expect(page.locator('#app-status')).toContainText('centred on your current location');
+    await page.locator('#map').click({ position: { x: 850, y: 430 } });
+    await expect(page.locator('#app-status')).toContainText('centred on the dropped pin');
+    await page.locator('label[for=kind-diameter]').click();
+    await expect(page.locator('#summary-value')).toHaveText('10 km diameter');
+    await page.locator('label[for=unit-mi]').click();
+    await expect(page.locator('#summary-value')).toContainText('mi diameter');
+    await page.locator('label[for=unit-km]').click();
+    await page.locator('label[for=kind-radius]').click();
+    await saveRadius(page, 'Ridge', '43.65, -79.38');
+    await saveRadius(page, 'Shared', '43.69, -79.35');
+    await saveRadius(page, 'Trail', '43.63, -79.33');
+    await page.locator('#triangulate-button').click();
+    await expect(page.locator('#triangulation-result')).toBeVisible();
+    await expect(page.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await mapMobile.setOffline(false);
+    await expect(radiusRows(mapPhone)).toHaveCount(4);
+    await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await page.locator('#radius-sync-now').click();
+    await expect(radiusRows(page)).toHaveCount(4);
+    assert.equal(await mapPhone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Radius Map horizontal overflow');
+
+    const beforeOpen = await remote(mobile, 'radius-map', 'measurements');
+    await openRadius(phone);
+    await expect(radiusRows(phone)).toHaveCount(4);
+    await expect(phone.locator('#radius-review')).toBeHidden();
+    assert.equal((await remote(mobile, 'radius-map', 'measurements')).revision, beforeOpen.revision);
+  });
+  await scenario('Radius Map reloads offline and merges edits to different measurements', async () => {
+    await mapMobile.setOffline(true);
+    await renameRadius(mapPhone, 'Bay', 'Offline Bay');
+    await openRadius(mapPhone);
+    await expect(radiusRow(mapPhone, 'Offline Bay')).toBeVisible();
+    await expect(mapPhone.locator('#radius-sync-status')).toContainText('Waiting to sync');
+    await renameRadius(page, 'Ridge', 'Desktop Ridge');
+    await expect.poll(async () => (await remote(desktop, 'radius-map', 'measurements')).state.measurements.some(item => item.name === 'Desktop Ridge')).toBe(true);
+    await mapMobile.setOffline(false);
+    await expect(radiusRow(mapPhone, 'Desktop Ridge')).toBeVisible();
+    await expect(radiusRow(mapPhone, 'Offline Bay')).toBeVisible();
+    await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await page.locator('#radius-sync-now').click();
+    await expect(radiusRow(page, 'Offline Bay')).toBeVisible();
+  });
+  await scenario('Radius Map retries an accepted write after losing its acknowledgement', async () => {
+    const writeAction = url => url.pathname === '/api/v1/sync.php' && url.searchParams.get('action') === 'write';
+    const attempts = [];
+    await mapMobile.route(writeAction, async route => {
+      if (route.request().postDataJSON()?.app !== 'radius-map') return route.continue();
+      attempts.push(route.request().postData());
+      if (attempts.length !== 1) return route.continue();
+      const accepted = await route.fetch();
+      assert.equal(accepted.status(), 200);
+      await route.abort();
+    });
+    try {
+      await radiusRow(mapPhone, 'Offline Bay').getByRole('checkbox', { name: 'Hide Offline Bay' }).press('Space');
+      await expect(mapPhone.locator('#radius-sync-status')).toContainText('could not be reached');
+      await expect(radiusRow(mapPhone, 'Offline Bay').getByRole('checkbox', { name: 'Show Offline Bay' })).not.toBeChecked();
+      await mapPhone.locator('#radius-sync-now').click();
+      await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+      assert.deepEqual(attempts, [attempts[0], attempts[0]], 'The retried body must be byte-identical');
+      const state = (await remote(desktop, 'radius-map', 'measurements')).state;
+      assert.equal(state.measurements.find(item => item.name === 'Offline Bay').visible, false);
+    } finally {
+      await mapMobile.unroute(writeAction);
+    }
+  });
+  await scenario('Radius Map reviews a competing edit and deletion, with recovery', async () => {
+    await mapMobile.setOffline(true);
+    await deleteRadius(mapPhone, 'Shared');
+    await renameRadius(page, 'Shared', 'Desktop Shared');
+    await expect.poll(async () => (await remote(desktop, 'radius-map', 'measurements')).state.measurements.some(item => item.name === 'Desktop Shared')).toBe(true);
+    await mapMobile.setOffline(false);
+    await expect(mapPhone.locator('#radius-review')).toHaveText('Review sync changes');
+    await mapPhone.locator('#radius-review').click();
+    const review = mapPhone.locator('#radius-review-dialog');
+    await expect(review).toContainText('This browser · Deleted');
+    await expect(review).toContainText('Account · Desktop Shared');
+    await mapPhone.screenshot({ path: join(output, 'mobile-radius-conflict.png') });
+    await review.getByRole('radio', { name: 'This browser · Deleted' }).check();
+    const commitAction = url => url.pathname === '/api/v1/sync.php' && url.searchParams.get('action') === 'migration-commit';
+    const commits = [];
+    await mapMobile.route(commitAction, async route => {
+      if (route.request().postDataJSON()?.app !== 'radius-map') return route.continue();
+      commits.push(route.request().postData());
+      if (commits.length !== 1) return route.continue();
+      assert.equal((await route.fetch()).status(), 200);
+      await route.abort();
+    });
+    try {
+      await mapPhone.locator('#radius-review-apply').click();
+      await expect(mapPhone.locator('#radius-sync-status')).toContainText('could not be reached');
+      await expect(review).toBeHidden();
+      assert.equal(commits.length, 1);
+      await openRadius(mapPhone);
+      await mapPhone.getByRole('button', { name: 'Finish saved review' }).click();
+      await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+      assert.deepEqual(commits, [commits[0], commits[0]], 'Conflict review must resume with the original commit');
+    } finally {
+      await mapMobile.unroute(commitAction);
+    }
+    await page.locator('#radius-sync-now').click();
+    await expect(radiusRow(page, 'Desktop Shared')).toHaveCount(0);
+
+    await page.goto(origin + '/account/');
+    const recovery = page.locator('#account-recovery-list li').filter({ hasText: 'Radius Map · measurements' });
+    const original = recovery.filter({ has: page.getByText(/^Before migration ·/) });
+    await expect(original).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await original.getByRole('button', { name: 'Restore', exact: true }).click();
+    await expect(page.locator('#account-status')).toContainText('Recovery copy restored');
+    await openRadius(page);
+    await expect(radiusRow(page, 'Desktop Shared')).toBeVisible();
+    assert.equal(await readRetiredRadiusSave(page), retiredRadiusSave);
+  });
+  await scenario('installed Radius Map caches only public assets and clears account data on sign-out', async () => {
+    const cached = await mapPhone.evaluate(async () => {
+      const names = (await caches.keys()).filter(name => name.startsWith('austingarrod-radius-map-'));
+      return (await Promise.all(names.map(async name => (await (await caches.open(name)).keys()).map(request => request.url)))).flat();
+    });
+    assert.ok(cached.includes(origin + radiusPath), 'Cached Radius Map shell must be installed');
+    assert.ok(cached.every(url => new URL(url).origin === origin && !new URL(url).pathname.includes('/api/')));
+    const manage = await mapMobile.newPage();
+    await manage.goto(origin + '/account/');
+    await manage.locator('#account-logout').click();
+    await expect(manage.locator('#account-signed-out')).toBeVisible();
+    await expect(mapPhone.locator('#radius-library-location')).toHaveText('Sign in to save');
+    await expect(radiusRows(mapPhone)).toHaveCount(0);
+    await mapMobile.setOffline(true);
+    await openRadius(mapPhone);
+    await expect(radiusRows(mapPhone)).toHaveCount(0);
+    await mapMobile.setOffline(false);
+  });
   await scenario('account recovery downloads and restores through the real UI', async () => {
     await page.goto(origin + '/account/'); await expect(page.locator('#account-recovery-list li')).not.toHaveCount(0);
     const row = page.locator('#account-recovery-list li').filter({ hasText: 'Pokédex Binder · binder' }).filter({ hasText: 'Device before migration' }).first();
@@ -290,7 +508,11 @@ try {
   });
   await scenario('signing out restores each browser guest view and retains originals', async () => {
     for (const [currentPage, context, expectedRaw, count] of [[page, desktop, desktopOriginals, '1'], [phone, mobile, mobileOriginals, '1']]) {
-      await currentPage.goto(origin + '/account/'); await currentPage.locator('#account-logout').click(); await expect(currentPage.locator('#account-signed-out')).toBeVisible(); assert.equal((await session(context)).user, null);
+      await currentPage.goto(origin + '/account/');
+      // The installed-map context used the same mobile session and signed it out.
+      if (context === desktop) await currentPage.locator('#account-logout').click();
+      await expect(currentPage.locator('#account-signed-out')).toBeVisible();
+      assert.equal((await session(context)).user, null);
       await openBinder(currentPage); await expect(currentPage.locator('#owned-count')).toHaveText(count); await openSlayer(currentPage); assert.deepEqual(await originals(currentPage), expectedRaw);
     }
   });

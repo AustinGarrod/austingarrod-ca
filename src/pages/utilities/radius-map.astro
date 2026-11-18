@@ -53,7 +53,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
         <span aria-hidden="true">/</span>
         <span aria-current="page">Radius Map</span>
       </nav>
-      <p>Saved on this device</p>
+      <p id="radius-library-location">Sign in to save</p>
     </header>
 
     <div id="map" class="map-canvas rr-block" data-analytics-private role="region" aria-label="Interactive radius map"></div>
@@ -197,6 +197,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
           </div>
 
           <div class="save-actions">
+            <a id="radius-sign-in-to-save" class="primary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
             <button
               id="save-measurement-button"
               class="primary-action"
@@ -214,21 +215,22 @@ const description = "Draw, save, and compare radius or diameter measurements, th
 
         <div id="saved-panel" role="tabpanel" aria-labelledby="saved-tab" hidden>
           <section class="saved-section" aria-labelledby="saved-heading">
-            <div class="saved-heading-row">
-              <div>
-                <p class="step-label">This browser</p>
-                <h2 id="saved-heading">Saved measurements</h2>
-              </div>
-              <button id="refresh-library-button" class="icon-action" type="button" aria-label="Refresh saved measurements">↻</button>
-            </div>
+            <h2 id="saved-heading">Saved measurements</h2>
 
-            <p class="local-storage-note">Measurements stay on this device and are not synced to an account.</p>
+            <div class="radius-account rr-block" data-analytics-private>
+              <p id="radius-sync-status" class="radius-sync-note" role="status">Sign in to save and sync measurements.</p>
+              <div class="radius-account-actions">
+                <a id="radius-sign-in" class="secondary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
+                <button id="radius-review" class="secondary-action" type="button" hidden>Review sync changes</button>
+                <button id="radius-sync-now" class="secondary-action" type="button" hidden>Sync now</button>
+                <a id="radius-manage-account" href="/account/" hidden>Manage account</a>
+              </div>
+            </div>
             <label class="library-search rr-block" data-analytics-private for="library-search">
               <span class="search-symbol" aria-hidden="true"></span>
               <input id="library-search" type="search" placeholder="Search saved measurements" autocomplete="off" />
             </label>
 
-            <div id="library-loading" class="library-message" hidden>Loading your measurements…</div>
             <div id="library-empty" class="library-message" hidden>
               <strong>No saved measurements yet</strong>
               <span>Create a circle, then save it here for later.</span>
@@ -285,12 +287,23 @@ const description = "Draw, save, and compare radius or diameter measurements, th
     </div>
   </div>
 
+  <dialog id="radius-review-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="radius-review-title">
+    <form id="radius-review-form" method="dialog">
+      <h2 id="radius-review-title">Review sync changes</h2>
+      <div id="radius-review-choices"></div>
+      <p id="radius-review-status" class="field-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="radius-review-cancel" class="secondary-action" type="button">Cancel</button>
+        <button id="radius-review-apply" class="primary-action" type="submit">Apply choices</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="save-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="save-dialog-title">
     <form id="save-form" method="dialog">
       <div class="dialog-heading">
         <span class="dialog-mark" aria-hidden="true"></span>
         <div>
-          <p class="step-label">Device library</p>
           <h2 id="save-dialog-title">Save measurement</h2>
         </div>
       </div>

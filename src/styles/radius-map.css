@@ -580,11 +580,14 @@ button {
   margin: 12px 22px 0;
 }
 
+.save-actions [hidden] {
+  display: none;
+}
+
 .primary-action,
 .secondary-action,
 .danger-action,
-.text-action,
-.icon-action {
+.text-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -612,8 +615,7 @@ button {
 
 .primary-action:disabled,
 .secondary-action:disabled,
-.danger-action:disabled,
-.icon-action:disabled {
+.danger-action:disabled {
   cursor: not-allowed;
   opacity: 0.48;
   box-shadow: none;
@@ -717,28 +719,11 @@ button {
   border-bottom: 1px solid var(--soft-line);
 }
 
-.saved-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 13px;
-}
-
-.saved-heading-row h2,
+.saved-section h2,
 .triangulation-copy h2 {
   margin: 2px 0 0;
   font-size: 1rem;
   letter-spacing: -0.02em;
-}
-
-.icon-action {
-  width: 36px;
-  min-height: 36px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--muted);
-  font-size: 1rem;
 }
 
 .signed-out-card {
@@ -1094,6 +1079,75 @@ button {
 
 .action-dialog form {
   padding: 22px;
+}
+
+#radius-review-dialog {
+  width: min(620px, calc(100vw - 28px));
+  border: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#radius-review-dialog h2,
+#radius-review-dialog h3 {
+  margin: 0 0 8px;
+}
+
+#radius-review-choices {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+#radius-review-choices ul {
+  margin: 0 0 12px;
+  padding-inline-start: 20px;
+  max-height: 10rem;
+  overflow: auto;
+}
+
+#radius-review-choices fieldset {
+  margin: 0;
+  padding: 8px 12px;
+  min-inline-size: 0;
+  border: 1px solid var(--line);
+}
+
+#radius-review-choices label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+#radius-review-choices input[type="radio"] {
+  flex: none;
+  width: auto;
+  height: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+#radius-review-choices input[type="radio"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.radius-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.radius-account-actions a {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.radius-account-actions [hidden] {
+  display: none;
 }
 
 .dialog-heading {
@@ -1586,7 +1640,7 @@ body.radius-map-page .leaflet-top {
   text-transform: uppercase;
 }
 
-.local-storage-note {
+.radius-sync-note {
   margin: 12px 0 16px;
   padding: 12px;
   color: var(--muted);
@@ -1613,7 +1667,6 @@ body.radius-map-page :where(
   .primary-action,
   .secondary-action,
   .danger-action,
-  .icon-action,
   .saved-item,
   .visibility-switch span,
   .triangulation-result,

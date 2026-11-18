@@ -9,7 +9,7 @@ import "@styles/account.css";
     <div class="container page-hero-inner">
       <p class="eyebrow">One account · Your utilities</p>
       <h1>Your saves, wherever you play.</h1>
-      <p>Sign in with an emailed code or Google to sync your utilities. You can keep using both tools without an account.</p>
+      <p>Sign in with an emailed code or Google to sync your utilities. You can also use the utilities without an account.</p>
     </div>
   </section>
   <section class="container account-layout rr-block" data-analytics-private>
@@ -36,7 +36,7 @@ import "@styles/account.css";
         </form>
         <div class="account-divider" id="account-sign-in-divider"><span>or</span></div>
         <button id="account-google" class="button" type="button">Continue with Google</button>
-        <p class="form-note">No password to remember. Signing in does not replace your existing saves; each utility will help you review them first.</p>
+        <p class="form-note">Pokédex Binder and Idle Slayer Companion let you review guest saves before connecting. Radius Map opens your account library when you sign in.</p>
       </div>
       <div id="account-signed-in" class="account-panel" hidden>
         <p class="eyebrow"><ShieldCheck size={16} aria-hidden="true" />Signed in</p>
@@ -45,6 +45,7 @@ import "@styles/account.css";
         <div class="account-utility-links">
           <a class="button primary" href="/utilities/pokedex-binder/">Pokédex Binder</a>
           <a class="button" href="/utilities/idle-slayer-companion/">Idle Slayer Companion</a>
+          <a class="button" href="/utilities/radius-map/">Radius Map</a>
         </div>
         <p id="account-migration-paused" class="form-note" hidden>New save migrations are temporarily paused. Existing local saves remain available.</p>
         <div class="account-actions">

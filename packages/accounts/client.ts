@@ -49,6 +49,9 @@ export class APIError extends Error {
 }
 export { APIError as AccountApiError };
 
+/** An offline UI hint only. The API still requires a verified live session. */
+export const ACCOUNT_SESSION_IDENTITY_KEY = "austingarrod.accounts.last-session.v1";
+
 let session: AccountSession | null = null;
 let pendingSession: Promise<AccountSession> | null = null;
 let sessionGeneration = 0;
@@ -75,6 +78,12 @@ function serializeAuth<T>(operation: () => Promise<T>): Promise<T> {
 
 function publish(value: AccountSession, announce = false): AccountSession {
   session = value;
+  if (typeof window !== "undefined") {
+    try {
+      if (value.enabled && value.user) window.localStorage.setItem(ACCOUNT_SESSION_IDENTITY_KEY, value.user.id);
+      else window.localStorage.removeItem(ACCOUNT_SESSION_IDENTITY_KEY);
+    } catch { /* Session discovery still works when browser storage is blocked. */ }
+  }
   for (const listener of listeners) { try { listener(value); } catch { /* A view cannot interrupt authentication. */ } }
   if (announce) channel?.postMessage("session-changed");
   return value;

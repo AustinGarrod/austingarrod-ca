@@ -50,7 +50,11 @@ accounts_validate('idle-slayer-companion', 'checkpoints', 1, $checkpoint, $webro
 $profile->purchases->{'unknown'}
  = (object)['epoch' => 1, 'active' => true];
 reject(fn () => accounts_profile($profile), 'Future epochs accepted');
-reject(fn () => accounts_registry('radius-map', 'measurements'), 'Radius Map must not be enrolled');
+check(accounts_registry('radius-map', 'measurements') === 4 * 1024 * 1024, 'Radius Map sync limit differs from its browser adapter');
+check(accounts_validate('radius-map', 'measurements', 1, (object)['version' => 1, 'measurements' => []], $webroot)
+    === '{"measurements":[],"version":1}', 'An explicitly empty Radius Map library must be valid');
+reject(fn () => accounts_validate('radius-map', 'measurements', 1, (object)['version' => 1], $webroot), 'Missing Radius Map state accepted');
+check(accounts_return('/utilities/radius-map/') === '/utilities/radius-map/', 'Radius Map return route must be allowed');
 check(accounts_return('//external.example/') === '/account/', 'External return accepted');
 check(accounts_return('/\\external/') === '/account/', 'Backslash return accepted');
 $config = ['google' => ['clientId' => 'local-client']];

@@ -1,6 +1,6 @@
 # HostPapa accounts and utility sync
 
-The site remains static Astro plus PHP. Accounts, sessions, email-code verification, Google sign-in, app documents, migration archives, and recovery copies live in HostPapa MySQL. Anonymous utilities and their existing backups continue to work when this backend is absent or disabled.
+The site remains static Astro plus PHP. Accounts, sessions, email-code verification, Google sign-in, app documents, migration archives, and recovery copies live in HostPapa MySQL. Binder and Idle Slayer guest saves and Radius Map drawing are available without the backend.
 
 ## Setup
 
@@ -37,9 +37,11 @@ Provider-level WAF/diagnostic redaction verification was deferred at the ownerâ€
 
 Session discovery with a present retired/invalid cookie returns signed-out state with `requiresBootstrap: true`, an empty CSRF token and no `Set-Cookie`. Discovery and background refresh never replace that cookie automatically. A deliberate email/Google login or login retry can POST an empty JSON object to `auth.php?action=bootstrap`: this action requires the exact site Origin and JSON, with a CSRF exception because no live preauth session exists. It rechecks the request cookie and returns a valid current session unchanged, or creates a fresh preauth session for an absent/retired cookie. Verification and logout never bootstrap automatically. Google's provider form POST is the other CSRF-token exception, using its exact provider Origin and the separate proof/state/session/PKCE/nonce checks above.
 
-`/api/v1/sync.php` requires a signed-in session **and** `X-Account-ID` matching it on every read and mutation. Documents are registered by `(app, document)` and owned by immutable account UUID. The current registry is Binder `binder` and `master-sets`, and Idle Slayer `progress`, `intentions`, `checkpoints`, `comparison`; Radius Map is intentionally absent. Each app document has strict versioned validation and its existing size bounds. Unknown Slayer catalogue IDs and canonical decimal strings are retained.
+`/api/v1/sync.php` requires a signed-in session **and** `X-Account-ID` matching it on every read and mutation. Documents are registered by `(app, document)` and owned by immutable account UUID. The registry includes Binder `binder` and `master-sets`, Idle Slayer `progress`, `intentions`, `checkpoints`, `comparison`, and Radius Map `measurements`. Each document has versioned validation and a byte limit. Unknown Slayer catalogue IDs and canonical decimal strings are retained. Radius Map sync stores names, location labels, exact saved centres, distances, visibility, and timestamps in a version 1 library up to 4 MiB.
 
 Writes use revision preconditions, device sequence acknowledgments, and operation IDs. Exact operation replay returns current state without applying an old mutation again. A stale revision returns `409` with the current document, preserving both copies. Every replaced server state gets a recovery copy. Devices retain their own durable outbox and must review a real divergent state before retrying.
+
+Radius Map opens the account library on sign-in. Its first synced save creates the measurements document at revision 1. The device keeps its account library and pending edits in IndexedDB. Per-measurement conflicts use the shared recovery flow described below.
 
 Migration uploads each selected/device variant separately under one durable migration UUID, keeping individual requests within existing document limits. Reusing an ID with different staged content is rejected. First adoption commits all documents for the app together. Later `purpose: "conflict"` commits can cover a subset of existing documents, require both device and selected variants, and cannot claim a legacy key. Stages remain available for exact replay after a lost commit response.
 
@@ -53,7 +55,7 @@ Run `node scripts/test-accounts-api.mjs` with `ACCOUNTS_TEST_DSN`, optional `ACC
 
 The harness checks CSRF/origin/account isolation, expired/reused/brute-forced codes, Google state/PKCE/cancellation, locally signed RSA tokens through Google's production verifier, concurrent writes, exact replay, migration revocation/archives, partial conflict resolution, large Slayer state, and recovery. It never contacts Google or production data. Live Google consent/callback, mailbox delivery, and hosting behavior still need separate owner-operated smoke tests before enabling production.
 
-`npm run test:accounts:browser` uses the built `dist/`, a fresh isolated database and an actual loopback SMTP inbox to verify the account page, shared session, both utility migrations, retired legacy key, second browser, recovery and logout. It blocks external traffic and keeps screenshots/results under ignored `output/accounts-browser/`.
+`npm run test:accounts:browser` uses the built `dist/`, an isolated database, and a loopback SMTP inbox to verify the account page, all three utilities, second-browser sync, recovery, and logout. It blocks external traffic and keeps screenshots and results under ignored `output/accounts-browser/`.
 
 `npm run test:accounts:large` exercises a valid progress document near the existing 4 MiB portable limit in native Chromium. It checks migration readback, unchanged guest records, offline reload, frozen retry operations, and failed IndexedDB transactions. Its isolated database, local SMTP inbox and blocked external traffic follow the same restrictions; diagnostics stay under ignored `output/accounts-large-browser/`.
 

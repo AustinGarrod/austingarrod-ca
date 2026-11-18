@@ -191,7 +191,7 @@
       "capabilities": [
         "Search for places or enter decimal coordinates",
         "Switch between radius, diameter, kilometres, and miles",
-        "Save measurements on this device and compare several circles",
+        "Sign in to save and sync measurements across devices",
         "Calculate a best-fit point from three or more visible circles"
       ],
       "stack": [

@@ -58,11 +58,11 @@ npm run generate:assets
 
 ## Utilities
 
-Optional accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Binder, Idle Slayer Companion, and future registered utilities. Account synchronization is hosted entirely on HostPapa PHP/MySQL; both utilities retain guest saves and their existing backup tools. First connection reviews and preserves browser/account copies before activation. Binder keys retire individually only after a successful atomic account migration. Account data, recovery, rollout gates and local end-to-end checks are documented in [server/accounts/README.md](server/accounts/README.md). Missing configuration keeps accounts disabled and existing guest utilities usable.
+Accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Pokédex Binder, Idle Slayer Companion, and Radius Map. Account synchronization uses HostPapa PHP/MySQL. Binder and Idle Slayer retain their guest saves and review them during first connection. See [server/accounts/README.md](server/accounts/README.md) for recovery and local verification.
 
 `/utilities/` is the catalog for focused browser tools, including practical utilities and game planning. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
 
-Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap in the browser, stores named measurements only in that browser under the versioned `austingarrod.utilities.radius-map.v1` key, and keeps its installable service worker scoped to the Radius Map route. The service worker caches the application shell but deliberately excludes PHP API requests and third-party map tiles.
+Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap. Anyone can draw a measurement. Sign in to open your account library and save measurements. After the library opens on a device, the account copy works offline in IndexedDB. Sync merges independent edits and asks for a choice when devices change or delete the same measurement. The installable worker caches only the public application shell.
 
 Pokédex Binder at `/utilities/pokedex-binder/` tracks National Dex species and named English set binders. Collect by number or printing, customize specialty finishes and extras, and use physical pockets, missing lists, scan confirmation, and JSON backups. IndexedDB keeps guest collections on the device. Optional account sync uses the same-origin PHP/MySQL service. [Private-key retirement and local verification](server/pokedex-binder/README.md).
 
