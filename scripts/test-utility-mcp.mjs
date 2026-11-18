@@ -32,6 +32,8 @@ const binder = 'pokedex-binder';
 const slayer = 'idle-slayer-companion';
 const authClient = 'https://chatgpt.com/oauth/codex/client.json';
 const callback = origin + '/callback';
+const chatgptClient = 'https://chatgpt.com/oauth/client.json';
+const chatgptCallback = 'https://chatgpt.com/connector_platform_oauth_redirect';
 const config = {
   enabled: true, migrationEnabled: true, allowedOrigin: origin,
   dsn: dsn.replace(/;?dbname=[^;]*/i, '').replace(/;$/, '') + ';dbname=' + name,
@@ -225,9 +227,13 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
   const page = await context.newPage();
+  async function openConsent(flow) {
+    assert.equal(flow.response.status, 303);
+    await context.addCookies([{ name: '__Host-ag-mcp', value: flow.proof.split('=')[1], url: origin.replace('http:', 'https:') + '/', secure: true, httpOnly: true }]);
+    await page.goto(origin + flow.location);
+  }
   const browserFlow = await begin(binder);
-  await context.addCookies([{ name: '__Host-ag-mcp', value: browserFlow.proof.split('=')[1], url: origin.replace('http:', 'https:') + '/', secure: true, httpOnly: true }]);
-  await page.goto(origin + browserFlow.location);
+  await openConsent(browserFlow);
   await page.getByRole('link', { name: 'Sign in', exact: true }).waitFor();
   assert.match(await page.getByRole('link', { name: 'Sign in', exact: true }).getAttribute('href'), /assistant-consent%2F/);
   await context.addCookies([{ name: '__Host-ag-session', value: users.one.token, url: origin.replace('http:', 'https:') + '/', secure: true, httpOnly: true }]);
@@ -242,9 +248,77 @@ try {
   await page.getByRole('button', { name: 'Revoke Codex access to Idle Slayer Companion' }).click();
   await page.getByText('Assistant access revoked.', { exact: true }).waitFor();
   assert.equal((await rpc(slayer, slayerWriter.access_token, 'tools/list')).status, 401);
+
+  stage = 'ChatGPT read-only OAuth';
+  const chatgpt = { client_id: chatgptClient, redirect_uri: chatgptCallback };
+  await context.route(chatgptCallback + '?*', route => route.fulfill({ body: 'Callback received' }));
+  assert.equal((await begin(slayer, { ...chatgpt, redirect_uri: chatgptCallback + '?other=1' })).response.status, 400);
+  assert.equal((await begin(slayer, { ...chatgpt, redirect_uri: callback })).response.status, 400);
+  const chatgptDeny = await begin(slayer, chatgpt);
+  await openConsent(chatgptDeny);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.waitForURL(chatgptCallback + '?**');
+  const deniedCallback = new URL(page.url());
+  assert.equal(deniedCallback.searchParams.get('error'), 'access_denied');
+  assert.equal(deniedCallback.searchParams.get('state'), chatgptDeny.state);
+  assert.equal(deniedCallback.searchParams.get('iss'), origin);
+
+  for (const app of [binder, slayer]) {
+    const flow = await begin(app, { ...chatgpt, scope: app === binder ? '' : app + ':read ' + app + ':write offline_access' });
+    await openConsent(flow);
+    await page.locator('#assistant-client-name').filter({ hasText: /^ChatGPT$/ }).waitFor();
+    assert.ok(!(await page.getByRole('button', { name: 'Allow read and write' }).isVisible()));
+    assert.ok(await page.getByText('You can revoke access from your account.', { exact: false }).isVisible());
+    assert.equal((await consent(users.one, flow.flow, flow.proof, 'write')).status, 400);
+    await page.getByRole('button', { name: 'Allow read access', exact: true }).click();
+    await page.waitForURL(chatgptCallback + '?**');
+    const response = new URL(page.url());
+    assert.equal(response.searchParams.get('state'), flow.state);
+    assert.equal(response.searchParams.get('iss'), origin);
+    const fields = {
+      grant_type: 'authorization_code', code: response.searchParams.get('code'),
+      redirect_uri: chatgptCallback, code_verifier: flow.verifier, resource: origin + base + app,
+    };
+    assert.equal((await token(fields)).status, 400);
+    const exchanged = await token({ ...fields, client_id: chatgptClient });
+    assert.equal(exchanged.status, 200);
+    const credentials = await exchanged.json();
+    const scope = app + ':read' + (app === slayer ? ' offline_access' : '');
+    assert.equal(credentials.scope, scope);
+    const { result } = await rpcBody(await rpc(app, credentials.access_token, 'tools/list'));
+    assert.ok(result.tools.length > 0 && result.tools.every(item => item.annotations.readOnlyHint && item.annotations.destructiveHint === false));
+    assert.ok(!result.tools.some(item => ['preview_change', 'apply_change'].includes(item.name)));
+    for (const name of ['preview_change', 'apply_change']) {
+      assert.equal((await rpc(app, credentials.access_token, 'tools/call', { name, arguments: {} })).status, 403);
+    }
+    if (app === binder) {
+      assert.ok((await tool(binder, credentials, 'get_collection', { status: 'owned' })).items.some(item => item.id === 1));
+    } else {
+      assert.ok((await tool(slayer, credentials, 'get_progress', { limit: 1 })).items.length);
+    }
+    const refresh = await token({ client_id: chatgptClient, grant_type: 'refresh_token', refresh_token: credentials.refresh_token, resource: fields.resource });
+    assert.equal(refresh.status, 200);
+    assert.equal((await refresh.json()).scope, scope);
+  }
+
+  stage = 'assistant setup layout';
   await page.goto(origin + '/account/assistants/');
+  assert.ok(await page.getByRole('heading', { name: 'ChatGPT web', exact: true }).isVisible());
   assert.equal(await page.getByRole('link', { name: 'Download skill ZIP' }).count(), 2);
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  assert.equal(await page.getByRole('link', { name: 'Download Claude plugin ZIP' }).count(), 2);
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    assert.ok(await page.evaluate(() => {
+      const hero = document.querySelector('.page-hero').getBoundingClientRect();
+      const panel = document.querySelector('.assistant-guide').getBoundingClientRect();
+      const downloadActions = [...document.querySelectorAll('.assistant-download-actions')];
+      return document.documentElement.scrollWidth <= innerWidth && panel.top - hero.bottom >= 24
+        && downloadActions.every(row => {
+          const [primary, secondary] = [...row.children].map(link => link.getBoundingClientRect());
+          return secondary.left - primary.right >= 8 || secondary.top - primary.bottom >= 8;
+        });
+    }), 'Assistant setup needs separation without overflow at ' + width + 'px');
+  }
 
   stage = 'expiry, refresh replay and rollback';
   fixture('expire');
