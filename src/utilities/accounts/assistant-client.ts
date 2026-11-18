@@ -33,6 +33,7 @@ export async function assistantRequest<T>(
 export function permittedAssistantCallback(value: string): boolean {
   const uri = new URL(value);
   if (uri.username || uri.password || uri.hash) return false;
+  if (uri.origin === "https://chatgpt.com") return uri.pathname === "/connector_platform_oauth_redirect";
   if (uri.origin === "https://claude.ai") return uri.pathname === "/api/mcp/auth_callback";
   return uri.protocol === "http:" && (uri.hostname === "localhost" || uri.hostname === "127.0.0.1")
     && uri.pathname === "/callback";

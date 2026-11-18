@@ -8,7 +8,9 @@ const MCP_APPS = [
     'pokedex-binder' => 'Pokédex Binder',
     'idle-slayer-companion' => 'Idle Slayer Companion',
 ];
+const MCP_CHATGPT_CLIENT = 'https://chatgpt.com/oauth/client.json';
 const MCP_CLIENTS = [
+    MCP_CHATGPT_CLIENT => ['ChatGPT', 'https://chatgpt.com/connector_platform_oauth_redirect'],
     'https://chatgpt.com/oauth/codex/client.json' => ['Codex', 'loopback'],
     'https://claude.ai/oauth/claude-code-client-metadata' => ['Claude Code', 'loopback'],
     'https://claude.ai/oauth/mcp-oauth-client-metadata' => ['Claude', 'https://claude.ai/api/mcp/auth_callback'],
@@ -223,7 +225,7 @@ function mcp_authorization_request(array $config, array $input): array
     }
     return [
         'client' => $client, 'redirect' => $redirect, 'challenge' => $challenge, 'state' => $state, 'app' => $app,
-        'write' => $requested === [] || in_array(mcp_scope($app, true), $requested, true),
+        'write' => $client !== MCP_CHATGPT_CLIENT && ($requested === [] || in_array(mcp_scope($app, true), $requested, true)),
         'offline' => in_array('offline_access', $requested, true),
     ];
 }

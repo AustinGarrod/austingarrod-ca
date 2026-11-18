@@ -5,6 +5,7 @@ Pokédex Binder and Idle Slayer Companion each expose a Streamable HTTP endpoint
 The public installation instructions are at `/account/assistants/`. Codex and Claude
 Code install from the repository marketplace. Claude web and Desktop use the same
 remote URLs and the skill ZIPs generated from those plugins.
+ChatGPT web uses the same URLs with OAuth and Client Identifier Metadata Documents (CIMD).
 
 ## Build and migrate
 
@@ -38,9 +39,10 @@ remote URLs and the skill ZIPs generated from those plugins.
 ## Authorization and writes
 
 The account session is used for consent and grant management. MCP only accepts
-bearer credentials. Its OAuth server recognizes the published Codex, Claude Code,
-and hosted Claude client IDs and validates their redirect URIs. Each grant belongs
-to one account, client, and utility. Access tokens last up to 15 minutes.
+bearer credentials. Its OAuth server recognizes the published ChatGPT, Codex,
+Claude Code, and hosted Claude client IDs and validates their redirect URIs.
+ChatGPT connections can only read. Their tool lists omit previews and writes.
+Each grant belongs to one account, client, and utility. Access tokens last up to 15 minutes.
 Refresh tokens rotate with a 30-day window and a 90-day connection lifetime.
 Revocation and sign-out everywhere invalidate the corresponding token families.
 

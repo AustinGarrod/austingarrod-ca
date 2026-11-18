@@ -4,7 +4,6 @@
 .account-panel h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
 .account-panel p { margin-top: 12px; }
 .account-panel pre { overflow-x: auto; margin: 16px 0; padding: 12px; border: 1px solid #c6c6cd; }
-.account-panel .account-recovery-list input { margin: 8px 0; }
 .account-panel form { display: grid; gap: 12px; margin-top: 24px; }
 .account-panel label { font-family: "JetBrains Mono", monospace; font-size: 0.8rem; }
 .account-panel input { min-width: 0; width: 100%; min-height: 48px; border: 1px solid #76777d; padding: 12px; background: #fff; color: #0b1c30; border-radius: 0; font: inherit; }
@@ -30,6 +29,16 @@
 .account-recovery-list h3 { font-size: 1rem; }
 .account-recovery-list p { font-size: 0.85rem; }
 .account-return { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
+.assistant-layout { grid-template-columns: minmax(0, 52rem); padding-top: clamp(24px, 4vw, 48px); }
+.assistant-guide { display: grid; gap: clamp(24px, 4vw, 36px); }
+.assistant-guide section { min-width: 0; }
+.assistant-guide pre { margin-bottom: 0; }
+.assistant-guide > .text-link { justify-self: start; }
+.assistant-downloads { margin: 0; }
+.assistant-downloads li { display: grid; gap: 8px; }
+.assistant-download-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 4px; }
+.assistant-download-actions .button.compact { min-width: 0; max-width: 100%; white-space: normal; }
+.assistant-download-actions .text-link { display: inline-flex; align-items: center; min-height: 44px; }
 @media (max-width: 767px) {
   .account-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .account-panel { padding: 20px; }

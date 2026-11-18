@@ -118,7 +118,7 @@ function mcp_tools(string $app): array
         [$title, $description, $properties] = $definition;
         $registry[$name] = new Tool($name, $title, [
             'type' => 'object', 'properties' => (object)$properties, 'required' => $definition[3] ?? [], 'additionalProperties' => false,
-        ], $description, new ToolAnnotations(title: $title, readOnlyHint: true, openWorldHint: false));
+        ], $description, new ToolAnnotations(title: $title, readOnlyHint: true, destructiveHint: false, openWorldHint: false));
     }
     $registry['preview_change'] = new Tool('preview_change', 'Preview a save change', mcp_change_schema($app),
         'Preview a requested change. Read and show the effects before asking for confirmation. This leaves the save untouched.',
@@ -174,8 +174,9 @@ function mcp_run_transport(PDO $db, array $config, array $grant, string $root): 
 {
     $factory = new Psr17Factory();
     $request = (new ServerRequestCreator($factory, $factory, $factory, $factory))->fromGlobals();
+    $chatgpt = $grant['client_id'] === MCP_CHATGPT_CLIENT;
     if (!$grant['can_write'] && $request->getMethod() === 'POST') {
-        // Challenge step-up outside JSON-RPC, before the SDK invokes a tool.
+        // Check write scope outside JSON-RPC, before the SDK invokes a tool.
         $body = $request->getBody();
         $raw = $body->read(MCP_TOOL_BODY_LIMIT + 1);
         if (strlen($raw) > MCP_TOOL_BODY_LIMIT) {
@@ -183,12 +184,19 @@ function mcp_run_transport(PDO $db, array $config, array $grant, string $root): 
         }
         $rpc = json_decode($raw, false, 64);
         if (($rpc->method ?? null) === 'tools/call' && in_array($rpc->params->name ?? null, MCP_WRITE_TOOLS, true)) {
+            if ($chatgpt) {
+                accounts_fail(403, 'insufficient_scope', 'ChatGPT connections have read-only access.');
+            }
             mcp_challenge($config, $grant['app'], true);
         }
         $request = $request->withBody($factory->createStream($raw));
     }
     $server = Server::builder()->setServerInfo($grant['app'], '1.0.0');
-    foreach (mcp_tools($grant['app']) as $tool) {
+    $tools = mcp_tools($grant['app']);
+    if ($chatgpt) {
+        $tools = array_diff_key($tools, array_fill_keys(MCP_WRITE_TOOLS, true));
+    }
+    foreach ($tools as $tool) {
         $server->add($tool, new UtilityMcpTool(fn(array $args) => mcp_call($db, $config, $grant, $root, $tool->name, $args)));
     }
     // The site entry point checks the canonical host and Origin for both protocol eras.

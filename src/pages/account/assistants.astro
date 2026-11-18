@@ -8,40 +8,53 @@ const utilities = [
 ];
 ---
 
-<BaseLayout title="Connect Codex or Claude | Austin Garrod" description="Install the Pokédex Binder and Idle Slayer Companion skills." noIndex privatePage>
+<BaseLayout title="Connect an assistant | Austin Garrod" description="Connect ChatGPT, Codex, or Claude to Pokédex Binder or Idle Slayer Companion." noIndex privatePage>
   <section class="page-hero">
     <div class="container page-hero-inner">
-      <h1>Connect Codex or Claude</h1>
+      <h1>Connect an assistant</h1>
       <p>Use your utility account to look up catalog entries, ask about synced saves, and approve changes in your conversation.</p>
     </div>
   </section>
-  <section class="container account-layout rr-block" data-analytics-private>
-    <div class="account-panel">
-      <h2>Codex</h2>
-      <p>Add the marketplace once. Install the plugins you want, then use the client’s sign-in prompt. Set each plugin’s apply tool to require approval.</p>
-      <pre><code>codex plugin marketplace add AustinGarrod/austingarrod-ca
+  <section class="container account-layout assistant-layout rr-block" data-analytics-private>
+    <div class="account-panel assistant-guide">
+      <section>
+        <h2>ChatGPT web</h2>
+        <p>In <strong>Plugins → Add → Add custom MCP server</strong>, paste a utility’s endpoint below and choose <strong>OAuth</strong>. Under <strong>Advanced OAuth settings</strong>, use <strong>Client Identifier Metadata Document (CIMD)</strong>. Sign in to your utility account and allow read access.</p>
+        <p>ChatGPT can look up catalog entries and read synced saves. To edit a save, use Codex or Claude.</p>
+      </section>
+      <section>
+        <h2>Codex</h2>
+        <p>Add the marketplace once. Install the plugins you want, then use the client’s sign-in prompt. Set each plugin’s apply tool to require approval.</p>
+        <pre><code>codex plugin marketplace add AustinGarrod/austingarrod-ca
 codex plugin add pokedex-binder@austingarrod-utilities
 codex plugin add idle-slayer-companion@austingarrod-utilities</code></pre>
-      <h2>Claude Code</h2>
-      <p>Install either plugin, then use <code>/mcp</code> to open sign-in.</p>
-      <pre><code>claude plugin marketplace add AustinGarrod/austingarrod-ca
+      </section>
+      <section>
+        <h2>Claude Code</h2>
+        <p>Install either plugin, then use <code>/mcp</code> to open sign-in.</p>
+        <pre><code>claude plugin marketplace add AustinGarrod/austingarrod-ca
 claude plugin install pokedex-binder@austingarrod-utilities
 claude plugin install idle-slayer-companion@austingarrod-utilities</code></pre>
-      <h2>Claude web and desktop</h2>
-      <p>Open <strong>Plugins → Add → Upload plugin</strong> and upload the matching plugin ZIP. Select <strong>Finish setup</strong> on the installed plugin and connect your utility account. In the older Customize layout, use <strong>Customize → Skills</strong> to upload the standalone skill ZIP.</p>
-      <p>To connect a utility manually, choose <strong>Plugins → Add → Add custom connector</strong>, paste the endpoint URL below, and choose <strong>Use Claude’s published identity</strong>. Claude Free allows one custom connector. In its permissions, set <strong>Apply the confirmed change</strong> to <strong>Always ask</strong>.</p>
-      <ul class="account-recovery-list">
+      </section>
+      <section>
+        <h2>Claude web and desktop</h2>
+        <p>Open <strong>Plugins → Add → Upload plugin</strong> and upload the matching plugin ZIP. Select <strong>Finish setup</strong> on the installed plugin and connect your utility account. In the older Customize layout, use <strong>Customize → Skills</strong> to upload the standalone skill ZIP.</p>
+        <p>To connect a utility manually, choose <strong>Plugins → Add → Add custom connector</strong>, paste the endpoint URL below, and choose <strong>Use Claude’s published identity</strong>. Claude Free allows one custom connector. In its permissions, set <strong>Apply the confirmed change</strong> to <strong>Always ask</strong>.</p>
+      </section>
+      <ul class="account-recovery-list assistant-downloads">
         {utilities.map(({ id, name }) => (
           <li>
-            <strong>{name}</strong>
+            <h3>{name}</h3>
             <label for={id}>MCP endpoint</label>
             <input id={id} class="text-input" readonly value={"https://austingarrod.ca/api/v1/mcp/" + id} />
-            <a class="button compact" href={"/account/assistant-skills/" + id + "-plugin.zip"} download>Download Claude plugin ZIP</a>
-            <a class="text-link" href={"/account/assistant-skills/" + id + ".zip"} download>Download skill ZIP</a>
+            <div class="assistant-download-actions">
+              <a class="button compact" href={"/account/assistant-skills/" + id + "-plugin.zip"} download>Download Claude plugin ZIP</a>
+              <a class="text-link" href={"/account/assistant-skills/" + id + ".zip"} download>Download skill ZIP</a>
+            </div>
           </li>
         ))}
       </ul>
-      <p><a class="text-link" href="/account/">Back to your account</a></p>
+      <a class="text-link" href="/account/">Back to your account</a>
     </div>
   </section>
 </BaseLayout>
