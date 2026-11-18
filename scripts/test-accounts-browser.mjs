@@ -187,6 +187,7 @@ try {
     await page.locator('#master-name').fill('My 151');
     await page.locator('#master-form button.dex-primary').click();
     await page.locator('[data-key="001:reverse"]').check();
+    await expect(page.locator('#master-progress')).toHaveText('1 / 360');
     await page.locator('#master-switch').selectOption('');
     await openSlayer(page); await expect(page.getByRole('dialog', { name: 'Account & sync', exact: true })).toContainText('Sign in'); desktopOriginals = await originals(page);
   });
@@ -197,6 +198,8 @@ try {
   });
   await scenario('Binder reuses the session and preserves guest data during adoption', async () => {
     await openBinder(page); await expect(page.locator('#owned-count')).toHaveText('1');
+    const savedBinder = page.locator('#master-switch option').filter({ hasText: 'My 151' });
+    await expect(savedBinder).toContainText('1/360');
     await page.locator('#sync-open').click(); await expect(page.locator('#binder-account-status')).toContainText(email); await page.keyboard.press('Escape');
     await adoptBinder(page, false); await page.locator('#owned-grid-2').check();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.ownedDexIds.join(',')).toBe('1,2');

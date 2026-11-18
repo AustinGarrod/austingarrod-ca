@@ -89,11 +89,19 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     if (current() && !saved.conflict && !sameSave(saved.state, saved.baseline)) schedule();
     channel?.postMessage(target);
   }
+  let pendingEdits = 0;
+  function waitForLocalSave(event: BeforeUnloadEvent) {
+    event.preventDefault();
+    event.returnValue = true;
+  }
   async function change(fn: (doc: MasterState) => void) {
     const target = scope;
-    await store.update(target, (save) => {
-      fn(save.state);
-    });
+    if (++pendingEdits === 1) window.addEventListener("beforeunload", waitForLocalSave);
+    try {
+      await store.update(target, (save) => fn(save.state));
+    } finally {
+      if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
+    }
     if (target === scope) {
       await refresh();
       schedule();
@@ -399,11 +407,13 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
   });
   node("master-slots").addEventListener("change", (event) => {
     const box = event.target as HTMLInputElement;
-    if (box.dataset.key)
-      void edit((b) => markSlot(b, box.dataset.key!, box.checked)).catch((e) => {
-        box.checked = !box.checked;
-        report(e);
-      });
+    const key = box.dataset.key;
+    if (!key) return;
+    const checked = box.checked;
+    void edit((b) => markSlot(b, key, checked)).catch((e) => {
+      box.checked = !checked;
+      report(e);
+    });
   });
   listen("master-add-extra", "click", () => {
     node<HTMLFormElement>("master-extra-form").reset();
