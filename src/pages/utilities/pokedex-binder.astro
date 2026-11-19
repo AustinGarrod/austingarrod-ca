@@ -61,8 +61,12 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <div id="checklist-list"></div><button id="checklist-more" hidden>Show more Pokémon</button>
     </section>
 
-    <section class="dex-export-bar" aria-label="Collection exports"><div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div></section>
     </div>
+    <section class="dex-export-bar" aria-label="Collection exports">
+      <label class="dex-field-inline">Missing list for <select id="export-scope"><option value="current">Current binder</option><option value="all">All binders</option></select></label>
+      <div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div>
+    </section>
+    <p id="export-message" role="status" class="dex-help"></p>
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
@@ -114,6 +118,6 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </section>
     <section id="scan-recovery" class="dex-scan-recovery" hidden><p id="scan-recovery-text"></p><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
   </dialog>
-  <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable missing Pokémon"></section>
+  <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable missing cards"></section>
   <script>import "../../utilities/pokedex-binder/scripts/app";</script>
 </BaseLayout>

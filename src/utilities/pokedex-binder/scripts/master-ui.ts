@@ -7,7 +7,6 @@ import {
   sameSave,
   markSlot,
   newBinder,
-  setCsv,
   setPockets,
   setSlots,
   validateMaster,
@@ -30,7 +29,7 @@ async function json<T>(file: string): Promise<T> {
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
-export function createMasterUI(store: MasterStore, download: (text: string, name: string, type: string) => void, openScan: (target: SetScan) => Promise<void>, scannerClose: () => void) {
+export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => Promise<void>, scannerClose: () => void) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),
@@ -481,32 +480,6 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       .then(() => dialog("master-extra-dialog").close())
       .catch(report);
   });
-  listen("master-csv", "click", () => {
-    const b = active()!;
-    download(setCsv(progress(b).all), b.name + "-missing.csv", "text/csv;charset=utf-8");
-  });
-  listen("master-print", "click", () => {
-    const b = active()!,
-      out = node("print-content"),
-      title = document.createElement("h1");
-    title.textContent = b.name + " · Missing cards";
-    out.replaceChildren(title);
-    for (const s of progress(b).all.filter((s) => !s.owned)) {
-      const p = document.createElement("p");
-      p.textContent = [
-        s.number,
-        s.name,
-        s.finish,
-        s.required ? "Required" : "Optional",
-        "Page " + s.page,
-        s.side,
-        "Row " + s.row,
-        "Column " + s.column,
-      ].join(" · ");
-      out.append(p);
-    }
-    window.print();
-  });
   listen("master-conflict", "click", async () => {
     await store.resolve(scope);
     await refresh();
@@ -563,6 +536,20 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       dexProgress = " · " + owned + "/" + total;
       const option = select("master-switch").options[0];
       if (option) option.text = "National Pokédex" + dexProgress;
+    },
+    async missingLists(binderId: string | null) {
+      const version = accountVersion;
+      const { state: saved } = await store.read(scope);
+      const binders = binderId === null ? saved.binders : saved.binders.filter(b => b.id === binderId);
+      if (binderId && !binders.length) throw new Error("The selected binder has changed. Choose it again.");
+      const lists = await Promise.all(binders.map(async b => {
+        const catalog = await cards(b.setId);
+        const set = sets.find(s => s.id === b.setId);
+        return { name: b.name, setName: set?.name ?? b.setId, settings: b.settings,
+          rows: setSlots(b, catalog).filter(slot => !slot.owned) };
+      }));
+      if (version !== accountVersion) throw new Error("The account changed. Request the list again.");
+      return lists;
     },
     async backup() {
       return (await store.read(scope)).state;

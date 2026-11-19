@@ -1,7 +1,18 @@
+import { combinedCsv } from "../../src/utilities/pokedex-binder/lib/list-export";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, defaultState, exportBackup, exportCsv, importBackup, locationFor, mergeStates, pageCount, pageSlots, searchSpecies, validateState, type Species } from "../../src/utilities/pokedex-binder/lib/model";
 
 const species: Species[] = Array.from({ length: 1025 }, (_, index) => ({ id: index + 1, name: `Pokémon ${index + 1}`, generation: 1, printingCount: 1 }));
+it("keeps combined CSV rows attributable and escapes binder and extra names", () => {
+  const place = locationFor(17, DEFAULT_SETTINGS);
+  const row = { number: "TG01", name: 'Promo, "red"', finish: "Custom extra", required: false, owned: false, ...place };
+  const binder = { name: " =Deck", setName: "Deck set", settings: DEFAULT_SETTINGS, rows: [row] };
+  const text = combinedCsv([{ ...binder, rows: [] }, binder]);
+  const lines = text.trimEnd().split("\r\n");
+  expect(lines).toHaveLength(2);
+  expect(lines[1]).toBe(`"' =Deck","Deck set","TG01","Promo, ""red""","Custom extra","Optional","Missing","2","1","back","1","1","1","2"`);
+});
+
 describe("Pokédex binder placement", () => {
   it("places boundaries and final blank pockets without counting blanks as Pokémon", () => {
     expect(locationFor(1, DEFAULT_SETTINGS)).toEqual({ page: 1, sheet: 1, side: "front", pocket: 1, row: 1, column: 1 });

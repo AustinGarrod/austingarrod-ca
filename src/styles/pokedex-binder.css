@@ -120,6 +120,8 @@
 .dex-checklist-row img { width: 48px; height: 48px; }
 .dex-checklist-row small { color: var(--subtle); font-size: 11px; }
 .dex-export-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 26px 0 22px; padding-top: 22px; border-top: 1px solid var(--line); }
+#export-message:empty { display: none; }
+@media print { .dex-print-only section + section { break-before: page; } .dex-print-only h2, .dex-print-only section > p { break-after: avoid; } }
 .dex-export-bar p { font-size: 12px; color: var(--muted); }
 .dex-footer { font-size: 10px; color: var(--subtle); line-height: 1.7; max-width: 800px; }
 .dex-dialog { width: min(490px,calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; border: 1px solid var(--ink); border-radius: 0; padding: 24px; color: var(--ink); background: var(--surface); }

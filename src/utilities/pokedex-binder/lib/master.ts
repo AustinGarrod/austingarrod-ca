@@ -1,3 +1,4 @@
+import { setListCsv } from "./list-export";
 import { DEFAULT_SETTINGS, locationFor, record, validateSettings, type BinderSettings, type PocketLocation } from "./model";
 
 export interface Variant {
@@ -238,29 +239,5 @@ export function adoptSets(device: MasterState, account: MasterState): MasterStat
 }
 
 export function setCsv(slots: ReturnType<typeof setSlots>) {
-  const cell = (value: string | number) => {
-    const s = String(value);
-    return '"' + (/^[=+@\-\t\r]/.test(s) ? "'" : "") + s.replaceAll('"', '""') + '"';
-  };
-  return (
-    "\uFEFF" +
-    [
-      ["Number", "Card", "Finish", "Goal", "Page", "Sheet", "Side", "Row", "Column"],
-      ...slots
-        .filter((s) => !s.owned)
-        .map((s) => [
-          s.number,
-          s.name,
-          s.finish,
-          s.required ? "Required" : "Optional",
-          s.page,
-          s.sheet,
-          s.side,
-          s.row,
-          s.column,
-        ]),
-    ]
-      .map((row) => row.map(cell).join(","))
-      .join("\r\n")
-  );
+  return setListCsv(slots.filter(s => !s.owned));
 }

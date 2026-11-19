@@ -1,3 +1,5 @@
+import { nationalCsv } from "./list-export";
+
 export interface Species { id: number; name: string; generation: number; printingCount: number }
 export interface BinderSettings { columns: number; rows: number; useBackSides: boolean; leadingBlankPockets: number }
 export interface BinderState { schemaVersion: 1; settings: BinderSettings; ownedDexIds: number[] }
@@ -83,19 +85,17 @@ export function importBackup(text: string, species?: readonly Species[]): Binder
   if (!record(parsed) || parsed.utility !== "pokedex-binder" || parsed.schemaVersion !== 1) throw new Error("Choose a supported Pokémon Binder Tracker backup.");
   return validateState(parsed.state, species);
 }
-function csvCell(value: string | number): string {
-  const text = String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-export function exportCsv(species: readonly Species[], state: BinderState, missingOnly = false): string {
+export function nationalRows(species: readonly Species[], state: BinderState, missingOnly = false) {
   const owned = new Set(state.ownedDexIds);
-  const rows: (string | number)[][] = [["Pokédex number", "Pokémon", "Status", "Page", "Sheet", "Side", "Pocket", "Row", "Column"]];
-  for (const item of species) {
-    if (missingOnly && owned.has(item.id)) continue;
-    const place = locationFor(item.id, state.settings, species);
-    rows.push([item.id, item.name, owned.has(item.id) ? "Owned" : "Missing", place.page, place.sheet, place.side, place.pocket, place.row, place.column]);
-  }
-  return "\uFEFF" + rows.map(row => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  return species.flatMap((item, index) => {
+    const has = owned.has(item.id);
+    if (missingOnly && has) return [];
+    return [{ number: item.id, name: item.name, owned: has, ...locationFor(index + 1, state.settings) }];
+  });
+}
+
+export function exportCsv(species: readonly Species[], state: BinderState, missingOnly = false): string {
+  return nationalCsv(nationalRows(species, state, missingOnly));
 }
 
 /** Merge net changes, never device-clock timestamps. Layout is one atomic choice. */

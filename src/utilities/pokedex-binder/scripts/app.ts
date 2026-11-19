@@ -1,7 +1,9 @@
+import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
+import { printLists } from "./print-list";
 import { binderPages, blankPocket, cardPocket } from "./binder-pages";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
-import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
+import { defaultState, exportBackup, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
@@ -76,7 +78,7 @@ async function initialize() {
     scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
     scanner.open(target);
   }
-  const master = createMasterUI(controller.masters, download, openScanner, closeScanner);
+  const master = createMasterUI(controller.masters, openScanner, closeScanner);
   async function backup() {
     const state = snapshot.state, scope=controller.restoreScope();
     let sets;
@@ -300,7 +302,10 @@ async function initialize() {
     else { renderFeedback(); renderSync(); }
     scanner?.refresh();
   });
-  controller.subscribeAccount(value => { account = value; master.account(value); renderSync(); });
+  controller.subscribeAccount(value => {
+    if (account.mode !== value.mode || account.boundAccountId !== value.boundAccountId) el("print-content").replaceChildren();
+    account = value; master.account(value); renderSync();
+  });
   await controller.start();
   void master.start().catch(error=>{el("master-message").textContent=error.message;});
   el("dex-app").setAttribute("aria-busy", "false");
@@ -405,7 +410,6 @@ async function initialize() {
   el("conflict-local").addEventListener("click", () => void action(() => controller.resolveLayout("local")));
   el("conflict-remote").addEventListener("click", () => void action(() => controller.resolveLayout("remote")));
   el("export-json").addEventListener("click", () => void action(backup)); el("confirm-backup").addEventListener("click", () => void action(backup));
-  el("export-csv").addEventListener("click", () => download(exportCsv(species, snapshot.state, true), "pokedex-missing.csv", "text/csv;charset=utf-8"));
   el("import-json").addEventListener("change", event => void action(async () => {
     const input = event.target as HTMLInputElement, file = input.files?.[0]; if (!file) return;
     try {
@@ -423,11 +427,42 @@ async function initialize() {
       }
     } finally { input.value = ""; }
   }));
-  el("print-missing").addEventListener("click", () => {
-    const missing = species.filter(item => !snapshot.state.ownedDexIds.includes(item.id));
-    el("print-content").innerHTML = `<h1>Pokémon Binder Tracker · Missing Pokémon</h1><p>${missing.length} still to find · ${snapshot.state.settings.columns} × ${snapshot.state.settings.rows} pockets per side</p><table><thead><tr><th>Pokédex</th><th>Pokémon</th><th>Page</th><th>Sheet / side</th><th>Row / column</th></tr></thead><tbody>${missing.map(item => { const loc = locationFor(item.id, snapshot.state.settings); return `<tr><td>☐ ${dex(item.id)}</td><td>${escape(item.name)}</td><td>${loc.page}</td><td>${loc.sheet} / ${loc.side}</td><td>${loc.row} / ${loc.column}</td></tr>`; }).join("")}</tbody></table>`;
-    window.print();
-  });
+  const exportButton = el<HTMLButtonElement>("export-csv");
+  const printButton = el<HTMLButtonElement>("print-missing");
+  const scopeSelect = el<HTMLSelectElement>("export-scope");
+  const binderSelect = el<HTMLSelectElement>("master-switch");
+  async function outputList(print: boolean) {
+    const all = scopeSelect.value === "all";
+    const selectedId = binderSelect.value;
+    const scope = controller.restoreScope();
+    const lists: BinderList[] = [];
+    exportButton.disabled = printButton.disabled = true;
+    const message = el("export-message");
+    message.textContent = "Preparing missing list…";
+    try {
+      if (all || !selectedId) {
+        lists.push({ name: "National Pokédex", setName: "", settings: snapshot.state.settings,
+          rows: nationalRows(species, snapshot.state, true) });
+      }
+      if (all || selectedId) lists.push(...await master.missingLists(all ? null : selectedId));
+      if (controller.restoreScope() !== scope || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
+        throw new Error("The collection selection changed. Request the list again.");
+      }
+      if (print) printLists(lists, all);
+      else {
+        const text = all ? combinedCsv(lists) : selectedId ? setListCsv(lists[0].rows) : nationalCsv(lists[0].rows);
+        const filename = all ? "all-binders" : selectedId ? lists[0].name : "pokedex";
+        download(text, filename + "-missing.csv", "text/csv;charset=utf-8");
+      }
+      message.textContent = "";
+    } catch (error) {
+      message.textContent = error instanceof Error ? error.message : "The missing list could not load. Try again.";
+    } finally {
+      exportButton.disabled = printButton.disabled = false;
+    }
+  }
+  exportButton.addEventListener("click", () => void outputList(false));
+  printButton.addEventListener("click", () => void outputList(true));
   window.addEventListener("pagehide", event => { if (!event.persisted) { master.close(); controller.stop(); } });
   window.addEventListener("pageshow", event => { if (event.persisted) void controller.sync(); });
 }
