@@ -35,7 +35,8 @@ function master_validate(mixed $state, string $root): void
             || !master_strings($b->owned,256) || !master_strings($b->specialties,200) || !is_array($b->extras)) accounts_invalid();
         $ids[$b->id] = true;
         $s = $b->settings;
-        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'])
+        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough'])
+            || (property_exists($s,'fillerThrough') && (!is_int($s->fillerThrough) || $s->fillerThrough < 1 || $s->fillerThrough > 9007199254740991))
             || !is_int($s->columns) || $s->columns < 1 || $s->columns > 6 || !is_int($s->rows) || $s->rows < 1 || $s->rows > 6
             || !is_bool($s->useBackSides) || !is_int($s->leadingBlankPockets) || $s->leadingBlankPockets < 0 || $s->leadingBlankPockets > 1000) accounts_invalid();
         if (!isset($known[$b->setId])) {
@@ -70,6 +71,7 @@ function master_slots(stdClass $b, array $cards): array
     foreach ($cards as $card) {
         $prefix = $card->number.':';
         $variants = array_values(array_filter($card->variants,fn($v)=>!$v->specialty || in_array($v->id,$b->specialties,true) || in_array($prefix.$v->id,$b->specialties,true)));
+        $singleFinish = count($variants) <= 1;
         $any = $b->goal === 'numbers' || !$variants;
         if ($any) $variants = [(object)['id'=>'*','label'=>'Any finish']];
         foreach ($variants as $i=>$v) {
@@ -79,16 +81,19 @@ function master_slots(stdClass $b, array $cards): array
             if ($i && $b->order === 'sections') $parallel[] = $slot;
             else $main[] = $slot;
         }
+        if (isset($b->settings->fillerThrough) && $singleFinish && preg_match('/^[0-9]+$/D', $card->number)
+            && (int)$card->number >= 1 && (int)$card->number <= $b->settings->fillerThrough) $main[] = null;
     }
     $slots = array_merge($main,$parallel);
     foreach ($b->extras as $e) $slots[] = ['key'=>'extra:'.$e->id,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra','owned'=>isset($owned['extra:'.$e->id]),'required'=>$e->required];
     $layout = $b->settings; $capacity = $layout->rows*$layout->columns;
     foreach ($slots as $i=>&$slot) {
+        if ($slot === null) continue;
         $index = $i+$layout->leadingBlankPockets; $page = intdiv($index,$capacity)+1; $pocket = $index % $capacity;
         $slot += ['page'=>$page,'pocket'=>$pocket+1,'sheet'=>$layout->useBackSides ? intdiv($page+1,2) : $page,
             'side'=>$layout->useBackSides && $page%2===0 ? 'back' : 'front','row'=>intdiv($pocket,$layout->columns)+1,'column'=>$pocket%$layout->columns+1];
     }
-    return $slots;
+    return array_values(array_filter($slots, static fn($slot) => $slot !== null));
 }
 
 function master_read(string $tool, string $root, ?array $row, array $args): array

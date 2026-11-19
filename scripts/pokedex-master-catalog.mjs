@@ -56,6 +56,7 @@ export function masterCatalog(cards) {
         id: set.id,
         name: english(set.name),
         code: set.abbreviations?.official ?? set.tcgOnline ?? "",
+        printedTotal: Number.isSafeInteger(set.cardCount?.official) && set.cardCount.official > 0 ? set.cardCount.official : null,
         cards: [],
       });
     sets
@@ -87,6 +88,7 @@ export async function writeMasterCatalog(cards, destination) {
       name: set.name,
       code: set.code,
       count: set.cards.length,
+      printedTotal: set.printedTotal,
       digest: createHash("sha256").update(bytes).digest("hex"),
     });
   }

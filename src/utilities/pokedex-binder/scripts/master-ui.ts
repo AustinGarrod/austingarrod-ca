@@ -1,10 +1,12 @@
 import { createAccountClient } from "../../../../packages/accounts/client";
 import {
   emptyMaster,
+  isCardPocket,
   sameSave,
   markSlot,
   newBinder,
   setCsv,
+  setPockets,
   setSlots,
   validateMaster,
   type MasterState,
@@ -135,9 +137,10 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     await render();
   }
   function progress(b: SetBinder) {
-    const all = setSlots(b, cache.get(b.setId) ?? []),
+    const pockets = setPockets(b, cache.get(b.setId) ?? []),
+      all = pockets.filter(isCardPocket),
       required = all.filter((s) => s.required);
-    return { all, required, owned: required.filter((s) => s.owned).length };
+    return { pockets, all, required, owned: required.filter((s) => s.owned).length };
   }
   async function render() {
     const ticket = ++renderVersion;
@@ -181,7 +184,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       if (ticket !== renderVersion) return;
       node("master-workspace").hidden = false;
     }
-    const { all, required, owned } = progress(b),
+    const { pockets, all, required, owned } = progress(b),
       extras = all.filter((s) => !s.required);
     node("master-title").textContent = b.name + " · " + (sets.find((s) => s.id === b.setId)?.name ?? b.setId);
     node("master-progress").textContent = owned + " / " + required.length;
@@ -201,7 +204,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     const search = input("master-search").value.trim().toLowerCase().replace(/^#/, ""),
       status = select("master-status").value;
     const pages = select("master-view").value === "pages" && !search && status === "all";
-    const count = Math.max(1, all.at(-1)?.page ?? 1);
+    const count = Math.max(1, pockets.at(-1)?.page ?? 1);
     page = Math.min(count, Math.max(1, page));
     node("master-paging").hidden = !pages;
     select("master-page").replaceChildren(
@@ -219,12 +222,12 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     grid.className = pages ? "master-pages" : "master-list";
     grid.style.setProperty("--master-columns", String(b.settings.columns));
     const fragment = document.createDocumentFragment();
-    const visible = all.filter(
-      (s) =>
-        (!pages || s.page === page) &&
-        (status === "all" || (status === "owned") === s.owned) &&
-        (!search || [s.name, s.number, s.finish].some((x) => x.toLowerCase().includes(search))),
-    );
+    const visible = pages
+      ? pockets.filter((pocket) => pocket.page === page)
+      : all.filter((s) =>
+          (status === "all" || (status === "owned") === s.owned) &&
+          (!search || [s.name, s.number, s.finish].some((x) => x.toLowerCase().includes(search))),
+        );
     const addBlank = () => {
       const blank = document.createElement("div");
       blank.className = "master-blank";
@@ -233,6 +236,13 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     };
     if (pages) for (let i = 1; i < (visible[0]?.pocket ?? 1); i++) addBlank();
     for (const slot of visible) {
+      if ("filler" in slot) {
+        const filler = document.createElement("div");
+        filler.className = "master-row master-filler";
+        filler.textContent = "Filler after #" + slot.number;
+        fragment.append(filler);
+        continue;
+      }
       const row = document.createElement("label");
       row.className = "master-row";
       const control = document.createElement("input");
@@ -305,6 +315,11 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     }
     if (!variants.size) region.textContent = "No specialty printings are documented for this set.";
   }
+  function showFillerCutoff() {
+    const enabled = input("master-fillers").checked;
+    node("master-filler-options").hidden = !enabled;
+    input("master-filler-through").disabled = !enabled;
+  }
   async function openEditor(b?: SetBinder) {
     if (!sets.length) sets = await json("index");
     const options = sets.map((s) => new Option(label(s)));
@@ -318,6 +333,9 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     input("master-name").value = model.name;
     select("master-goal").value = model.goal;
     select("master-order").value = model.order;
+    input("master-fillers").checked = model.settings.fillerThrough !== undefined;
+    input("master-filler-through").value = String(model.settings.fillerThrough ?? set?.printedTotal ?? "");
+    showFillerCutoff();
     input("master-columns").value = String(model.settings.columns);
     input("master-rows").value = String(model.settings.rows);
     input("master-blanks").value = String(model.settings.leadingBlankPockets);
@@ -344,12 +362,13 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     if (!set) throw new Error("Choose a set from the catalog list.");
     const binderId = editing ?? crypto.randomUUID(),
       name = input("master-name").value.trim();
-    const settings = validateSettings({
+    const settings: SetBinder["settings"] = validateSettings({
       columns: +input("master-columns").value,
       rows: +input("master-rows").value,
       leadingBlankPockets: +input("master-blanks").value,
       useBackSides: input("master-backs").checked,
     });
+    if (input("master-fillers").checked) settings.fillerThrough = input("master-filler-through").valueAsNumber;
     const spec = Array.from(node("master-specialties").querySelectorAll("details")).flatMap((group) => {
       const [bulk, ...individual] = group.querySelectorAll<HTMLInputElement>("input");
       return bulk.checked ? [bulk.value] : individual.filter((box) => box.checked).map((box) => box.value);
@@ -383,7 +402,11 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
   });
   listen("master-new", "click", () => openEditor());
   listen("master-settings", "click", () => openEditor(active()));
-  listen("master-set", "input", specialties);
+  listen("master-fillers", "change", showFillerCutoff);
+  listen("master-set", "input", () => {
+    input("master-filler-through").value = String(chosenSet()?.printedTotal ?? "");
+    return specialties();
+  });
   listen("master-goal", "change", () => {
     node("master-specialty-section").hidden = select("master-goal").value === "numbers";
   });

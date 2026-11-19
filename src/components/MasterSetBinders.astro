@@ -25,6 +25,10 @@
   <label>Pocket order<select id="master-order"><option value="together">Finishes together by number</option><option value="sections">Parallel finishes after the numbered set</option></select></label>
   <details id="master-specialty-section"><summary>Specialty printings to include</summary><div id="master-specialties"></div></details>
   <div class="dex-form-grid"><label>Columns<input id="master-columns" type="number" min="1" max="6" required /></label><label>Rows<input id="master-rows" type="number" min="1" max="6" required /></label></div>
+  <label><input id="master-fillers" type="checkbox" /> Add a filler pocket after each single-finish card</label>
+  <label id="master-filler-options" hidden>Through collector number (printed set total)
+    <input id="master-filler-through" type="number" min="1" max="9007199254740991" step="1" required disabled />
+  </label>
   <label>Reserved starting pockets<input id="master-blanks" type="number" min="0" max="1000" required /></label>
   <label><input id="master-backs" type="checkbox" /> Use both sides of each sheet</label>
   <details id="master-extra-options" hidden><summary>Custom extras</summary><div id="master-extra-options-list"></div></details>

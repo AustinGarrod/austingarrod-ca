@@ -237,6 +237,8 @@ try {
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5');
     await page.locator('#master-name').fill('My 151');
+    await page.locator('#master-fillers').check();
+    await expect(page.locator('#master-filler-through')).toHaveValue('165');
     await page.locator('#master-form button.dex-primary').click();
     await page.locator('[data-key="001:reverse"]').check();
     await expect(page.locator('#master-progress')).toHaveText('1 / 360');
@@ -286,6 +288,7 @@ try {
     const setOption=phone.locator('#master-switch option').filter({hasText:'My 151'});
     await expect(setOption).toHaveCount(1);await phone.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
     await expect(phone.locator('[data-key="001:reverse"]')).toBeChecked();
+    await expect(phone.locator('.master-filler').first()).toHaveText('Filler after #003');
     await phone.locator('[data-key="001:normal"]').check();
     await expect.poll(async()=>(await remote(mobile,'pokedex-binder','master-sets')).state.binders[0].owned).toContain('001:normal');
     await openSlayer(phone); await adoptSlayer(phone, true); assert.deepEqual(await originals(phone), mobileOriginals);

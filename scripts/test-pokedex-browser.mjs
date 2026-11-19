@@ -259,6 +259,8 @@ try {
     await page.locator('#master-settings').click();
     await page.locator('#master-goal').selectOption('variants');
     await page.locator('#master-order').selectOption('sections');
+    await page.locator('#master-fillers').check();
+    await expect(page.locator('#master-filler-through')).toHaveValue('165');
     await page.locator('#master-specialty-section > summary').click();
     const specialty = page.locator('#master-specialties details').filter({
       has: page.locator('input[value="001:normal+stamp=set-logo"]'),
@@ -266,6 +268,8 @@ try {
     await specialty.locator('summary').click();
     await specialty.locator('input[value="001:normal+stamp=set-logo"]').check();
     await save();
+    await expect(page.locator('.master-filler').first()).toHaveText('Filler after #003');
+    await expect(page.locator('.master-filler input')).toHaveCount(0);
     await page.locator('#master-workspace').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(output, `master-set-${page.viewportSize().width}.png`) });
     await page.locator('#master-view').selectOption('list');

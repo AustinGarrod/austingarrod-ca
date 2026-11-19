@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, locationFor, record, validateSettings, type BinderSettings } from "./model";
+import { DEFAULT_SETTINGS, locationFor, record, validateSettings, type BinderSettings, type PocketLocation } from "./model";
 
 export interface Variant {
   id: string;
@@ -16,6 +16,7 @@ export interface SetSummary {
   name: string;
   code: string;
   count: number;
+  printedTotal: number | null;
 }
 export interface Extra {
   id: string;
@@ -29,7 +30,7 @@ export interface SetBinder {
   name: string;
   goal: "numbers" | "variants";
   order: "together" | "sections";
-  settings: BinderSettings;
+  settings: BinderSettings & { fillerThrough?: number };
   specialties: string[];
   owned: string[];
   extras: Extra[];
@@ -110,8 +111,14 @@ export function validateMaster(value: unknown): MasterState {
       !Array.isArray(b.extras)
     )
       throw bad();
-    if (!record(b.settings) || !fields(b.settings, ["columns", "rows", "useBackSides", "leadingBlankPockets"]))
-      throw bad();
+    if (!record(b.settings)) throw bad();
+    const hasFillers = Object.hasOwn(b.settings, "fillerThrough");
+    const keys = ["columns", "rows", "useBackSides", "leadingBlankPockets"];
+    if (hasFillers) {
+      keys.push("fillerThrough");
+      if (!Number.isSafeInteger(b.settings.fillerThrough) || Number(b.settings.fillerThrough) < 1) throw bad();
+    }
+    if (!fields(b.settings, keys)) throw bad();
     validateSettings(b.settings);
     const extras = new Set<string>();
     for (const e of b.extras) {
@@ -145,9 +152,17 @@ export interface Slot {
   owned: boolean;
   category: string;
 }
-export function setSlots(b: SetBinder, cards: SetCard[]) {
+interface Filler {
+  filler: true;
+  number: string;
+}
+type SetPocket = (Slot | Filler) & PocketLocation;
+export function isCardPocket(pocket: SetPocket): pocket is Slot & PocketLocation {
+  return "key" in pocket;
+}
+export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
   const marks = new Set(b.owned),
-    main: Slot[] = [],
+    main: (Slot | Filler)[] = [],
     parallel: Slot[] = [];
   for (const card of cards) {
     const prefix = card.number + ":";
@@ -171,6 +186,10 @@ export function setSlots(b: SetBinder, cards: SetCard[]) {
         required: true,
       });
     });
+    if (
+      b.settings.fillerThrough && variants.length <= 1 &&
+      /^\d+$/.test(card.number) && Number(card.number) >= 1 && Number(card.number) <= b.settings.fillerThrough
+    ) main.push({ filler: true, number: card.number });
   }
   const extras = b.extras.map((e) => ({
     key: "extra:" + e.id,
@@ -182,6 +201,10 @@ export function setSlots(b: SetBinder, cards: SetCard[]) {
     required: e.required,
   }));
   return [...main, ...parallel, ...extras].map((slot, i) => ({ ...slot, ...locationFor(i + 1, b.settings) }));
+}
+
+export function setSlots(b: SetBinder, cards: SetCard[]) {
+  return setPockets(b, cards).filter(isCardPocket);
 }
 
 export function markSlot(b: SetBinder, key: string, owned: boolean) {
