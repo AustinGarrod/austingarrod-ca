@@ -71,7 +71,17 @@ export function masterCatalog(cards) {
   return sets;
 }
 
-export async function writeMasterCatalog(cards, destination) {
+export function artworkForSet(id, cards, assets) {
+  for (const [series, sets] of Object.entries(assets.en ?? {})) {
+    const listings = sets[id];
+    if (!listings) continue;
+    const missing = cards.filter(card => !Object.hasOwn(listings, card.number)).map(card => card.number);
+    return missing.length === cards.length ? null : { series, missing };
+  }
+  return null;
+}
+
+export async function writeMasterCatalog(cards, destination, assets) {
   const sets = masterCatalog(cards);
   const index = [];
   await mkdir(destination, { recursive: true });
@@ -89,6 +99,7 @@ export async function writeMasterCatalog(cards, destination) {
       code: set.code,
       count: set.cards.length,
       printedTotal: set.printedTotal,
+      artwork: artworkForSet(set.id, set.cards, assets),
       digest: createHash("sha256").update(bytes).digest("hex"),
     });
   }

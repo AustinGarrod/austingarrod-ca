@@ -1,3 +1,5 @@
+import type { SetScan } from "./scanner";
+import { binderPages, blankPocket, cardPocket, escape } from "./binder-pages";
 import { createAccountClient } from "../../../../packages/accounts/client";
 import {
   emptyMaster,
@@ -28,7 +30,7 @@ async function json<T>(file: string): Promise<T> {
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
-export function createMasterUI(store: MasterStore, download: (text: string, name: string, type: string) => void) {
+export function createMasterUI(store: MasterStore, download: (text: string, name: string, type: string) => void, openScan: (target: SetScan) => Promise<void>, scannerClose: () => void) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),
@@ -43,6 +45,8 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
   const cache = new Map<string, SetCard[]>(),
     pending = new Map<string, Promise<SetCard[]>>();
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("pokedex-set-binders") : null;
+  let selectedKey = "", listView = false;
+  const drawPages = binderPages("master-", n => { page = n; selectedKey = ""; void render().catch(report); });
   const active = () => state.binders.find((b) => b.id === id);
   const label = (s: SetSummary) => s.name + " · " + (s.code || s.id) + " (" + s.id + ")";
   function chosenSet() {
@@ -167,10 +171,13 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     node("master-workspace").hidden = !b;
     node("layout-open").hidden = !!b;
     node("scan-open").hidden = !!b;
+    node("master-settings").hidden = !b;
+    node("master-scan").hidden = !b;
+    node<HTMLButtonElement>("master-scan").disabled = !!b && !cache.has(b.setId);
     if (!b) return;
     if (!cache.has(b.setId)) {
       node("master-title").textContent = b.name;
-      node("master-slots").replaceChildren();
+      node("master-binder-grid").replaceChildren();
       node("master-workspace").hidden = true;
       try {
         await cards(b.setId);
@@ -183,6 +190,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       }
       if (ticket !== renderVersion) return;
       node("master-workspace").hidden = false;
+      node<HTMLButtonElement>("master-scan").disabled = false;
     }
     const { pockets, all, required, owned } = progress(b),
       extras = all.filter((s) => !s.required);
@@ -201,67 +209,69 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
         "Choose the finish for " +
         missingFinishes.map((k) => "#" + k.slice(0, -2)).join(", ") +
         ". Your earlier number marks are saved.";
-    const search = input("master-search").value.trim().toLowerCase().replace(/^#/, ""),
-      status = select("master-status").value;
-    const pages = select("master-view").value === "pages" && !search && status === "all";
-    const count = Math.max(1, pockets.at(-1)?.page ?? 1);
-    page = Math.min(count, Math.max(1, page));
-    node("master-paging").hidden = !pages;
-    select("master-page").replaceChildren(
-      ...Array.from({ length: count }, (_, i) => new Option(String(i + 1), String(i + 1))),
-    );
-    select("master-page").value = String(page);
-    node("master-page-name").textContent =
-      "Page " +
-      page +
-      " · Sheet " +
-      (b.settings.useBackSides ? Math.ceil(page / 2) : page) +
-      " · " +
-      (b.settings.useBackSides && page % 2 === 0 ? "Back" : "Front");
-    const grid = node("master-slots");
-    grid.className = pages ? "master-pages" : "master-list";
-    grid.style.setProperty("--master-columns", String(b.settings.columns));
-    const fragment = document.createDocumentFragment();
-    const visible = pages
-      ? pockets.filter((pocket) => pocket.page === page)
-      : all.filter((s) =>
-          (status === "all" || (status === "owned") === s.owned) &&
-          (!search || [s.name, s.number, s.finish].some((x) => x.toLowerCase().includes(search))),
-        );
-    const addBlank = () => {
-      const blank = document.createElement("div");
-      blank.className = "master-blank";
-      blank.setAttribute("aria-label", "Empty pocket");
-      fragment.append(blank);
+    node("master-owned").textContent = String(owned);
+    node("master-missing").textContent = String(required.length - owned);
+    const set = sets.find(s => s.id === b.setId);
+    const artwork = (slot: typeof all[number]) => {
+      const art = set?.artwork;
+      return art && slot.category !== "Extra" && !art.missing.includes(slot.number)
+        ? "https://assets.tcgdex.net/en/" + [art.series,b.setId,slot.number].map(encodeURIComponent).join("/") + "/low.webp" : null;
     };
-    if (pages) for (let i = 1; i < (visible[0]?.pocket ?? 1); i++) addBlank();
-    for (const slot of visible) {
-      if ("filler" in slot) {
-        const filler = document.createElement("div");
-        filler.className = "master-row master-filler";
-        filler.textContent = "Filler after #" + slot.number;
-        fragment.append(filler);
-        continue;
+    const search = input("master-search").value.trim().toLowerCase().replace(/^#/, "");
+    const status = select("master-status").value;
+    const matches = (s: typeof all[number]) => (status === "all" || (status === "owned") === s.owned) &&
+      [s.name,s.number,s.finish].some(value => value.toLowerCase().includes(search));
+    const filtered = all.filter(matches);
+    const count = Math.max(1,pockets.at(-1)?.page ?? 1);
+    page = Math.min(count, Math.max(1,page));
+    const selected = all.find(s => s.key === selectedKey);
+    const place = (s: typeof all[number]) => `Page ${s.page} · Row ${s.row} · Column ${s.column}`;
+    const identity = (s: typeof all[number]) => [s.number && "#" + s.number,s.name,s.finish].filter(Boolean).join(" · ");
+    const jump = (s: typeof all[number]) => `<button data-set-jump="${escape(s.key)}" aria-label="View page for ${escape(identity(s))}">View page</button>`;
+    const image = (s: typeof all[number]) => artwork(s) ? `<img loading="lazy" alt="" src="${escape(artwork(s))}">` : "";
+    const results = node("master-results");
+    results.hidden = listView || !search;
+    results.innerHTML = results.hidden ? "" : `<p class="dex-label">${filtered.length} matches</p><div class="set-results">${filtered.map(s =>
+      `<div class="dex-result"><strong>${escape(identity(s))}</strong><small>${place(s)}</small>${jump(s)}</div>`).join("")}</div>`;
+    node("master-binder-view").hidden = listView;
+    node("master-checklist").hidden = !listView;
+    node("master-view-checklist").setAttribute("aria-pressed",String(listView));
+    node("master-view-binder").setAttribute("aria-pressed",String(!listView));
+    const focused = document.activeElement?.id;
+    if (listView) {
+      node("master-binder-grid").replaceChildren();
+      node("master-list-count").textContent = String(filtered.length) + " cards";
+      node("master-list").innerHTML = filtered.map(s => `<div class="dex-checklist-row ${s.owned ? "owned" : ""}">
+        <input id="set-list-${escape(s.key)}" data-key="${escape(s.key)}" type="checkbox" ${s.owned ? "checked" : ""} aria-label="Own ${escape(identity(s))}">
+        <span class="set-checklist-art">${image(s)}</span><div class="dex-checklist-identity"><span class="dex-label">${escape(s.number)}</span><strong>${escape(s.name)}</strong><small>${escape(s.finish)}${s.required ? "" : " · Optional"}</small></div>
+        <div class="dex-checklist-location">${place(s)}</div>${jump(s)}</div>`).join("") || "<p>No matching cards.</p>";
+    } else {
+      node("master-list").replaceChildren();
+      const counts = new Map<number,{total:number;owned:number}>();
+      for (const slot of required) {
+        const data = counts.get(slot.page) ?? {total:0,owned:0};
+        data.total++; if (slot.owned) data.owned++; counts.set(slot.page,data);
       }
-      const row = document.createElement("label");
-      row.className = "master-row";
-      const control = document.createElement("input");
-      control.type = "checkbox";
-      control.dataset.key = slot.key;
-      control.checked = slot.owned;
-      const info = document.createElement("span");
-      info.textContent = (slot.number ? "#" + slot.number + " " : "") + slot.name;
-      const details = document.createElement("small");
-      const place = "Page " + slot.page + ", " + slot.side + ", row " + slot.row + ", column " + slot.column;
-      details.textContent = slot.finish + (slot.required ? "" : " · Optional") + (pages ? "" : " · " + place);
-      control.setAttribute("aria-label", [slot.name, slot.number, slot.finish, place].join(", "));
-      info.append(details);
-      row.append(control, info);
-      fragment.append(row);
+      const positions = new Map(pockets.filter(p => p.page === page).map(p => [p.pocket,p]));
+      const capacity = b.settings.rows * b.settings.columns;
+      const cells = Array.from({length:capacity},(_,i) => {
+        const p = positions.get(i+1);
+        if (!p) return blankPocket(i+1, (page-1)*capacity+i < b.settings.leadingBlankPockets ? "Reserved" : "Empty pocket");
+        if (!isCardPocket(p)) return blankPocket(i+1,"Filler after #" + p.number,true);
+        return cardPocket({set:true,id:p.key,number:p.number && "#" + p.number,name:p.name,finish:p.finish + (p.required ? "" : " · Optional"),
+          owned:p.owned,selected:p.key === selectedKey,dimmed:!matches(p),row:p.row,column:p.column,image:artwork(p)});
+      });
+      drawPages(page,count,b.settings,counts,cells);
+      const optional = extras.filter(s => s.page === page);
+      if (optional.length) node("master-page-progress").append(` · Optional extras ${optional.filter(s=>s.owned).length}/${optional.length}`);
     }
-    if (pages) while (fragment.childElementCount < b.settings.rows * b.settings.columns) addBlank();
-    if (!pages && !visible.length) fragment.append(document.createTextNode("No matching cards."));
-    grid.replaceChildren(fragment);
+    const detail = node("master-pokemon-details");
+    detail.hidden = !selected || listView;
+    node("master-binder-view").classList.toggle("has-details", !detail.hidden);
+    detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(set?.code || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(selected.finish)}</p></div></div>
+      <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
+      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label></div>`;
+    if (focused && document.activeElement === document.body) document.getElementById(focused)?.focus({preventScroll:true});
   }
   async function specialties() {
     const set = chosenSet(),
@@ -387,7 +397,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
         if (e) e.required = box.checked;
       }
     });
-    id = binderId;
+    selectedKey = ""; listView = false; id = binderId;
     page = 1;
     input("master-search").value = "";
     select("master-status").value = "all";
@@ -411,6 +421,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     node("master-specialty-section").hidden = select("master-goal").value === "numbers";
   });
   listen("master-switch", "change", () => {
+    scannerClose(); selectedKey = ""; listView = false;
     id = select("master-switch").value;
     page = 1;
     input("master-search").value = "";
@@ -421,16 +432,31 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
   for (const [name, event] of [
     ["master-search", "input"],
     ["master-status", "change"],
-    ["master-view", "change"],
+
   ])
     listen(name, event, render);
-  listen("master-page", "change", () => {
-    page = +select("master-page").value;
-    return render();
+  listen("master-view-checklist", "click", () => { listView = true; return render(); });
+  listen("master-view-binder", "click", () => { listView = false; return render(); });
+  node("master-workspace").addEventListener("error", event => {
+    if (event.target instanceof HTMLImageElement) event.target.hidden = true;
+  },true);
+  node("master-workspace").addEventListener("click", async event => {
+    const btn = (event.target as Element).closest<HTMLElement>("[data-set-open],[data-set-jump]");
+    const b = active(); if (!btn || !b) return;
+    const slot = progress(b).all.find(s => s.key === (btn.dataset.setOpen ?? btn.dataset.setJump));
+    if (!slot) return;
+    page = slot.page; selectedKey = slot.key; listView = false;
+    await render();
+    if(btn.dataset.setJump) document.getElementById("set-open-grid-"+slot.key)?.focus();
+    else if(matchMedia("(max-width: 800px)").matches) {
+      const detail = node("master-pokemon-details");
+      detail.focus({ preventScroll: true });
+      detail.scrollIntoView({ block: "start" });
+    }
   });
-  node("master-slots").addEventListener("change", (event) => {
+  node("master-workspace").addEventListener("change", (event) => {
     const box = event.target as HTMLInputElement;
-    const key = box.dataset.key;
+    const key = box.dataset.key ?? box.dataset.detailKey;
     if (!key) return;
     const checked = box.checked;
     void edit((b) => markSlot(b, key, checked)).catch((e) => {
@@ -486,18 +512,18 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
     await refresh();
     schedule();
   });
-  let scanner: Awaited<ReturnType<(typeof import("./master-scanner"))["createSetScanner"]>> | undefined;
-  listen("master-scan", "click", async () => {
-    scanner ??= (await import("./master-scanner")).createSetScanner();
-    const b = active()!,
-      target = scope;
-    scanner.open(progress(b).all, (key) => {
-      if (id !== b.id || target !== scope) throw new Error("Reopen the scanner for this binder.");
-      return edit((current) => {
-        if (!setSlots(current, cache.get(current.setId) ?? []).some((s) => s.key === key))
-          throw new Error("The binder settings changed. Choose the printing again.");
-        markSlot(current, key, true);
-      });
+  listen("master-scan", "click", () => {
+    const binderId = id, target = scope;
+    const current = () => id === binderId && scope === target ? active() : undefined;
+    return openScan({
+      slots() { const b = current(); return b ? progress(b).all : []; },
+      mark(key) {
+        if (!current()) throw new Error("Reopen the scanner for this binder.");
+        return edit(b => {
+          if (!setSlots(b, cache.get(b.setId) ?? []).some(s => s.key === key)) throw new Error("Printing changed.");
+          markSlot(b,key,true);
+        });
+      },
     });
   });
   channel?.addEventListener("message", (e) => {
@@ -520,10 +546,10 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       if (scope === next && online === available) return;
       accountVersion++;
       if (scope !== next) {
-        scope = next;
+        selectedKey = ""; listView = false; scope = next;
         id = "";
         state = emptyMaster();
-        scanner?.close();
+        scannerClose();
         for (const name of ["master-editor", "master-extra-dialog"]) dialog(name).close();
         void render().catch(report);
       }
@@ -574,7 +600,7 @@ export function createMasterUI(store: MasterStore, download: (text: string, name
       clearTimeout(timer);
       online = false;
       channel?.close();
-      scanner?.close();
+      scannerClose();
     },
   };
 }

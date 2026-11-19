@@ -9,7 +9,7 @@
   "skills": "./skills",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Pokédex Binder",
+    "displayName": "Pokémon Binder Tracker",
     "shortDescription": "Find Pokémon and card printings, review a synced collection, or update owned National Dex entries."
   }
 }

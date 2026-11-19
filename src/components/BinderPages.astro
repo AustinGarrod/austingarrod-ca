@@ -1,0 +1,18 @@
+---
+import { ChevronLeft, ChevronRight } from "@lucide/astro";
+const { prefix = "" } = Astro.props;
+---
+<div id={prefix + "binder-view"} class="dex-workspace">
+  <aside class="dex-overview" aria-label="Binder overview">
+    <div class="dex-section-heading"><h2>Pages</h2><span id={prefix + "page-total"} class="dex-label"></span></div>
+    <div id={prefix + "page-overview"} class="dex-page-overview"></div>
+    <p id={prefix + "capacity-summary"} class="dex-help"></p>
+    {!prefix && <details class="dex-generation-progress"><summary>Progress by generation</summary><div id={prefix + "generation-progress"}></div></details>}
+  </aside>
+  <section class="dex-binder" aria-labelledby={prefix + "page-heading"}>
+    <div class="dex-page-heading"><div><p id={prefix + "sheet-label"} class="dex-eyebrow">Sheet 1 · Front</p><h2 id={prefix + "page-heading"}>Page 1</h2><p id={prefix + "page-progress"} class="dex-help"></p></div><div class="dex-pagination"><button id={prefix + "page-prev"} aria-label="Previous page"><ChevronLeft size={19} aria-hidden="true" /></button><label for={prefix + "page-select"} class="sr-only">Go to page</label><select id={prefix + "page-select"}></select><button id={prefix + "page-next"} aria-label="Next page"><ChevronRight size={19} aria-hidden="true" /></button></div></div>
+    <div id={prefix + "binder-grid"} class="dex-binder-grid" aria-label="Binder pockets"></div>
+    <p class="dex-help dex-page-tip">{prefix ? "Open a card for details. Check its box when you have that printing." : "Open a Pokémon for card references. Check its box when you have a card for that slot."}</p>
+  </section>
+  <aside id={prefix + "pokemon-details"} class="dex-details" tabindex="-1" aria-label={prefix ? "Card details" : "Pokémon details"} hidden></aside>
+</div>

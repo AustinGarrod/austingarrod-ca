@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__.'/_sync.php';
 
 const MCP_APPS = [
-    'pokedex-binder' => 'Pokédex Binder',
+    'pokedex-binder' => 'Pokémon Binder Tracker',
     'idle-slayer-companion' => 'Idle Slayer Companion',
 ];
 const MCP_CHATGPT_CLIENT = 'https://chatgpt.com/oauth/client.json';

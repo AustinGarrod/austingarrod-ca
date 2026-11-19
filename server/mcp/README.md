@@ -1,6 +1,6 @@
 # HostPapa utility MCP
 
-Pokédex Binder and Idle Slayer Companion each expose a Streamable HTTP endpoint under
+Pokémon Binder Tracker and Idle Slayer Companion each expose a Streamable HTTP endpoint under
 `/api/v1/mcp/`. They share the existing HostPapa account sign-in and MySQL documents.
 The public installation instructions are at `/account/assistants/`. Codex and Claude
 Code install from the repository marketplace. Claude web and Desktop use the same

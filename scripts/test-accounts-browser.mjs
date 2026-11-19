@@ -288,7 +288,7 @@ try {
     const setOption=phone.locator('#master-switch option').filter({hasText:'My 151'});
     await expect(setOption).toHaveCount(1);await phone.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
     await expect(phone.locator('[data-key="001:reverse"]')).toBeChecked();
-    await expect(phone.locator('.master-filler').first()).toHaveText('Filler after #003');
+    await expect(phone.locator('.master-filler').first()).toContainText('Filler after #003');
     await phone.locator('[data-key="001:normal"]').check();
     await expect.poll(async()=>(await remote(mobile,'pokedex-binder','master-sets')).state.binders[0].owned).toContain('001:normal');
     await openSlayer(phone); await adoptSlayer(phone, true); assert.deepEqual(await originals(phone), mobileOriginals);
@@ -464,7 +464,7 @@ try {
   });
   await scenario('account recovery downloads and restores through the real UI', async () => {
     await page.goto(origin + '/account/'); await expect(page.locator('#account-recovery-list li')).not.toHaveCount(0);
-    const row = page.locator('#account-recovery-list li').filter({ hasText: 'Pokédex Binder · binder' }).filter({ hasText: 'Device before migration' }).first();
+    const row = page.locator('#account-recovery-list li').filter({ hasText: 'Pokémon Binder Tracker · binder' }).filter({ hasText: 'Device before migration' }).first();
     await expect(row).toBeVisible(); const pendingDownload = page.waitForEvent('download'); await row.getByRole('button', { name: 'Download', exact: true }).click();
     const download = await pendingDownload; const downloadedPath = join(output, 'recovery-copy.json'); await download.saveAs(downloadedPath); const downloaded = JSON.parse(readFileSync(downloadedPath, 'utf8')); assert.equal(downloaded.app, 'pokedex-binder');
     page.once('dialog', dialog => dialog.accept()); await row.getByRole('button', { name: 'Restore', exact: true }).click();

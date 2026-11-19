@@ -3,6 +3,7 @@ import { matchCardTitle, type ScanIndex, type ScanLine, type ScanMatch } from ".
 
 export interface CardRecognizer {
   recognize(frame: HTMLCanvasElement): Promise<ScanMatch[]>;
+  readText(frame: HTMLCanvasElement): Promise<string>;
   terminate(): Promise<void>;
 }
 const assets = "/utilities/pokedex-binder/scanner-assets/v1";
@@ -24,7 +25,35 @@ export async function createCardRecognizer(progress: (message: string) => void):
   } catch { if (worker) await worker.terminate(); throw new Error("Scanner could not start. Check your connection and try again."); }
   const engine = worker;
   let closed = false;
+  function textCrop(frame: HTMLCanvasElement, x: number, y: number, width: number, height: number) {
+    const crop = document.createElement("canvas"); crop.width = 1400; crop.height = Math.round(frame.height * height / (frame.width * width) * crop.width);
+    const context = crop.getContext("2d", { willReadFrequently: true })!;
+    context.drawImage(frame, frame.width * x, frame.height * y, frame.width * width, frame.height * height, 0, 0, crop.width, crop.height);
+    const image = context.getImageData(0, 0, crop.width, crop.height);
+    let minimum = 255, maximum = 0;
+    for (let i = 0; i < image.data.length; i += 4) {
+      const gray = Math.round(image.data[i] * .299 + image.data[i + 1] * .587 + image.data[i + 2] * .114);
+      minimum = Math.min(minimum, gray); maximum = Math.max(maximum, gray);
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = gray;
+    }
+    const range = maximum - minimum || 1;
+    for (let i = 0; i < image.data.length; i += 4) image.data[i] = image.data[i + 1] = image.data[i + 2] = Math.round((image.data[i] - minimum) * 255 / range);
+    context.putImageData(image, 0, 0);
+    return crop;
+  }
   return {
+    async readText(frame) {
+      await engine.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+      // Collector numbers sit along the bottom edge and titles at the top.
+      const parts: string[] = [];
+      for (const [x, y, width, height] of [[0, .85, 1, .15], [.10, .015, .76, .20]]) {
+        if (closed) return "";
+        const crop = textCrop(frame, x, y, width, height);
+        try { parts.push((await engine.recognize(crop)).data.text); }
+        finally { crop.width = crop.height = 0; }
+      }
+      return parts.join("\n");
+    },
     async recognize(frame) {
       const crops = [
         { x: .16, y: .026, width: .60, height: .068, mode: PSM.SINGLE_LINE },
@@ -33,19 +62,7 @@ export async function createCardRecognizer(progress: (message: string) => void):
       let fallback: ScanMatch[] = [];
       for (const { x, y, width, height, mode } of crops) {
         if (closed) return [];
-        const crop = document.createElement("canvas"); crop.width = 1400; crop.height = Math.round(frame.height * height / (frame.width * width) * crop.width);
-        const context = crop.getContext("2d", { willReadFrequently: true })!;
-        context.drawImage(frame, frame.width * x, frame.height * y, frame.width * width, frame.height * height, 0, 0, crop.width, crop.height);
-        const image = context.getImageData(0, 0, crop.width, crop.height);
-        let minimum = 255, maximum = 0;
-        for (let i = 0; i < image.data.length; i += 4) {
-          const gray = Math.round(image.data[i] * .299 + image.data[i + 1] * .587 + image.data[i + 2] * .114);
-          minimum = Math.min(minimum, gray); maximum = Math.max(maximum, gray);
-          image.data[i] = image.data[i + 1] = image.data[i + 2] = gray;
-        }
-        const range = maximum - minimum || 1;
-        for (let i = 0; i < image.data.length; i += 4) image.data[i] = image.data[i + 1] = image.data[i + 2] = Math.round((image.data[i] - minimum) * 255 / range);
-        context.putImageData(image, 0, 0);
+        const crop = textCrop(frame, x, y, width, height);
         await engine.setParameters({ tessedit_pageseg_mode: mode });
         const { data } = await engine.recognize(crop, {}, { text: true, blocks: true });
         crop.width = crop.height = 0;

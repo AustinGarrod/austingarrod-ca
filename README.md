@@ -58,13 +58,13 @@ npm run generate:assets
 
 ## Utilities
 
-Accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Pokédex Binder, Idle Slayer Companion, and Radius Map. Account synchronization uses HostPapa PHP/MySQL. Binder and Idle Slayer retain their guest saves and review them during first connection. See [server/accounts/README.md](server/accounts/README.md) for recovery and local verification.
+Accounts at `/account/` provide emailed-code or Google sign-in and a shared session for Pokémon Binder Tracker, Idle Slayer Companion, and Radius Map. Account synchronization uses HostPapa PHP/MySQL. Binder and Idle Slayer retain their guest saves and review them during first connection. See [server/accounts/README.md](server/accounts/README.md) for recovery and local verification.
 
 `/utilities/` is the catalog for focused browser tools, including practical utilities and game planning. Utility metadata lives beside the rest of the canonical site content in `src/data/profile.json`, while each implementation lives under `src/utilities/` and receives its own public route.
 
 Radius Map is available at `/utilities/radius-map/`. It uses Leaflet and OpenStreetMap. Anyone can draw a measurement. Sign in to open your account library and save measurements. After the library opens on a device, the account copy works offline in IndexedDB. Sync merges independent edits and asks for a choice when devices change or delete the same measurement. The installable worker caches only the public application shell.
 
-Pokédex Binder at `/utilities/pokedex-binder/` tracks National Dex species and named English set binders. Collect by number or printing, customize specialty finishes and extras, and use physical pockets, missing lists, scan confirmation, and JSON backups. IndexedDB keeps guest collections on the device. Optional account sync uses the same-origin PHP/MySQL service. [Private-key retirement and local verification](server/pokedex-binder/README.md).
+Pokémon Binder Tracker at `/utilities/pokedex-binder/` tracks National Dex species and named English set binders. Collect by number or printing, customize specialty finishes and extras, and use physical pockets, missing lists, scan confirmation, and JSON backups. IndexedDB keeps guest collections on the device. Optional account sync uses the same-origin PHP/MySQL service. [Private-key retirement and local verification](server/pokedex-binder/README.md).
 
 
 Run `npm run refresh:pokedex` explicitly to rebuild the committed species/card catalog and local sprites from the source revisions pinned in `scripts/refresh-pokedex-catalog.mjs`. It requires Node, the existing TypeScript dependency, `tar` for source archive extraction, and network access. Ordinary builds use the committed snapshot. Source revisions, asset hash, snapshot timestamp, omitted unmapped cards, and unknown set codes are recorded in the catalog index; source/artwork notices ship beside it. Review the audit before accepting a refreshed snapshot. Run `npm run test:pokedex:api` against an isolated localhost MySQL/MariaDB for transaction tests.

@@ -1,10 +1,16 @@
+import { normalizeSearch, type PocketLocation } from "../lib/model";
+import type { Slot } from "../lib/master";
 import { locationFor, searchSpecies, type Species } from "../lib/model";
 import { CaptureGate, sampleFrame, videoCrop, type ScanMatch } from "../lib/scan-model";
 import type { BinderSnapshot } from "../lib/sync";
 import { createCardRecognizer, type CardRecognizer } from "./scan-ocr";
 
 interface ScannerOptions { species: Species[]; getSnapshot(): BinderSnapshot; markOwned(id: number): Promise<void> }
-export interface CardScanner { open(): void; close(): void; refresh(): void }
+export interface SetScan {
+  slots(): (Slot & PocketLocation)[];
+  mark(key: string): Promise<void>;
+}
+export interface CardScanner { open(set?: SetScan): void; close(): void; refresh(): void }
 type Phase = "closed" | "starting" | "scanning" | "recognizing" | "result" | "paused" | "error";
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -17,6 +23,32 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   let phase: Phase = "closed", generation = 0, timer: ReturnType<typeof setTimeout> | null = null;
   let stream: MediaStream | null = null, recognizer: CardRecognizer | null = null, gate = new CaptureGate();
   let selected: number | null = null, saving = false, signature: number[] = [], failures = 0;
+  let set: SetScan | undefined;
+  const setQuery = node<HTMLInputElement>("master-scan-search"), choices = node<HTMLSelectElement>("master-candidates");
+  function setChoices(slots: Slot[]) {
+    choices.replaceChildren(new Option("Choose card number and finish",""), ...slots.map(s =>
+      new Option([s.number && "#" + s.number,s.name,s.finish].filter(Boolean).join(" · "),s.key)));
+    refreshSet();
+  }
+  function showSetResult(slots: Slot[]) {
+    setPhase("result");
+    node("scan-notice").textContent = "";
+    setQuery.value = ""; setChoices(slots);
+    say("Confirm the printed number and finish.");
+    (slots.length ? choices : setQuery).focus({ preventScroll: true });
+  }
+  function refreshSet() {
+    const item = set?.slots().find(s => s.key === choices.value);
+    node<HTMLButtonElement>("master-confirm-scan").disabled = saving || !item || item.owned;
+    node<HTMLButtonElement>("set-scan-next").disabled = saving;
+    node("set-scan-place").textContent = item ? `Page ${item.page} · Row ${item.row} · Column ${item.column} · ${item.owned ? "Already collected" : "Missing"}` : "";
+  }
+  function matchText(text: string) {
+    const slots = set?.slots() ?? [];
+    const numbers = [...text.matchAll(/\b([a-z]{0,4}\d+[a-z]?)\s*\/\s*[a-z]*\d+/gi)].map(m => m[1].toLowerCase().replace(/^0+(?=\d)/,""));
+    const byNumber = slots.filter(s => numbers.includes(s.number.toLowerCase().replace(/^0+(?=\d)/,"")));
+    return byNumber.length ? byNumber : slots.filter(s => text.split("\n").some(line => normalizeSearch(line).includes(normalizeSearch(s.name))));
+  }
   let lastAttempt = 0, resultNotice = "";
   const say = (text: string) => { if (node("scan-status").textContent !== text) node("scan-status").textContent = text; };
   function setPhase(next: Phase) {
@@ -24,7 +56,9 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     phase = next; dialog.dataset.phase = next;
     node("scan-title-label").textContent = next === "result" ? "Scan result" : "Scan cards";
     node("scan-camera").hidden = !["starting", "scanning", "recognizing"].includes(next);
-    node("scan-result").hidden = next !== "result";
+    node("scan-result").hidden = next !== "result" || !!set;
+    node("set-scan-result").hidden = next !== "result" || !set;
+    node("set-photo-label").hidden = !set || next === "closed" || next === "recognizing" || next === "starting";
     node("scan-recovery").hidden = !["paused", "error"].includes(next);
     node("scan-camera-actions").hidden = !["starting", "scanning", "recognizing"].includes(next);
     node<HTMLButtonElement>("scan-capture").disabled = next !== "scanning";
@@ -108,8 +142,19 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     setPhase("recognizing"); say("Reading card…"); lastAttempt = performance.now();
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
-      const matches = await Promise.race([recognizer.recognize(frame), new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error("scan timeout")), 15000); })]);
+      const scan = set ? recognizer.readText(frame) : recognizer.recognize(frame);
+      const matches = await Promise.race([scan, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error("scan timeout")), 15000); })]);
       if (token !== generation) return;
+      if (typeof matches === "string") {
+        const candidates = matchText(matches);
+        if (candidates.length || manual) { gate.accept(signature); showSetResult(candidates); }
+        else {
+          setPhase("scanning");
+          say("Could not read the number or name. Adjust the card, capture now, or search manually.");
+        }
+        if (manual) schedule(token);
+        return;
+      }
       if (matches.length || manual) { gate.accept(signature); showResult(matches, true); }
       else {
         failures++; setPhase("scanning"); say(failures >= 3 ? "Could not read the name. Reduce glare, adjust the card, or use Capture now / Search manually." : "Adjust the card so its name is clear. Scanning automatically…");
@@ -142,6 +187,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   }
   function refresh() {
     if (!dialog.open) return;
+    if (set) { if (phase === "result") refreshSet(); return; }
     const snapshot = options.getSnapshot();
     const notice = [snapshot.storageWarning, snapshot.error, resultNotice, snapshot.layoutConflict ? "Layout sync conflict: locations use this device’s current layout." : null].filter(Boolean).join(" ");
     if (node("scan-notice").textContent !== notice) node("scan-notice").textContent = notice;
@@ -196,7 +242,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   node("scan-next").addEventListener("click", () => { if (stream && recognizer) nextCard(); else void start(); });
   node("scan-mark").addEventListener("click", () => { void markCollected(); });
   node("scan-rescan").addEventListener("click", () => { gate.rescan(); say("Ready to scan this card again."); });
-  const searchManually = () => { if (timer) clearTimeout(timer); showResult([], false); };
+  const searchManually = () => { if (timer) clearTimeout(timer); if (set) showSetResult(set.slots()); else showResult([], false); };
   node("scan-manual").addEventListener("click", searchManually); node("scan-recovery-search").addEventListener("click", searchManually);
   node("scan-correct").addEventListener("click", () => { node("scan-search-panel").hidden = false; node("scan-candidates").hidden = false; node<HTMLInputElement>("scan-search").focus(); });
   node("scan-search").addEventListener("input", renderSearch);
@@ -207,7 +253,44 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     selected = id; node<HTMLInputElement>("scan-search").blur(); node("scan-search-panel").hidden = true; refresh();
     (node("scan-mark").hidden ? node("scan-next") : node("scan-mark")).focus({ preventScroll: true });
   });
+  setQuery.oninput = () => {
+    const query = normalizeSearch(setQuery.value.replace(/^#/,""));
+    setChoices((set?.slots() ?? []).filter(s => [s.number,s.name,s.finish].some(v => normalizeSearch(v).includes(query))));
+  };
+  choices.onchange = refreshSet;
+  node("set-scan-next").onclick = () => { if (!saving) { if (stream && recognizer) nextCard(); else void start(); } };
+  node("master-confirm-scan").onclick = async () => {
+    const target = set, key = choices.value, token = generation;
+    if (!target || !key || saving) return;
+    saving = true; refreshSet();
+    try {
+      await target.mark(key);
+      if (token !== generation || set !== target) return;
+      if (stream && recognizer) nextCard();
+      else pause("Marked collected. Resume the camera or choose another photo.");
+    } catch { if (token === generation) node("scan-notice").textContent = "Could not save this mark. Check the binder and try again."; }
+    finally { if (token === generation) { saving = false; refreshSet(); } }
+  };
+  node<HTMLInputElement>("master-photo").onchange = async event => {
+    const input = event.target as HTMLInputElement, file = input.files?.[0];
+    input.value = ""; if (!set || !file || saving) return;
+    stopResources(); const token = generation; setPhase("recognizing"); say("Reading card…");
+    let engine: CardRecognizer | undefined;
+    try {
+      const bitmap = await createImageBitmap(file);
+      try {
+        if (token !== generation) return;
+        const scale = Math.min(1,1800 / Math.max(bitmap.width,bitmap.height));
+        frame.width = Math.round(bitmap.width*scale); frame.height = Math.round(bitmap.height*scale);
+        frame.getContext("2d")!.drawImage(bitmap,0,0,frame.width,frame.height);
+      } finally { bitmap.close(); }
+      engine = await factory(() => {}); if (token !== generation) return;
+      recognizer = engine; const text = await engine.readText(frame);
+      if (token === generation) showSetResult(matchText(text));
+    } catch { if (token === generation) fail("Could not read the photo. Try another photo or search manually."); }
+    finally { if (recognizer === engine) recognizer = null; await engine?.terminate(); if (token === generation) releaseImages(); }
+  };
   document.addEventListener("visibilitychange", () => { if (document.hidden && dialog.open) pause("Camera paused while the page was in the background. Resume when ready."); });
   window.addEventListener("pagehide", close);
-  return { open() { if (!dialog.open) { dialog.showModal(); void start(); } }, close, refresh };
+  return { open(target) { if (!dialog.open) { set = target; dialog.showModal(); void start(); } }, close, refresh };
 }

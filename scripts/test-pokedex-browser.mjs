@@ -268,11 +268,11 @@ try {
     await specialty.locator('summary').click();
     await specialty.locator('input[value="001:normal+stamp=set-logo"]').check();
     await save();
-    await expect(page.locator('.master-filler').first()).toHaveText('Filler after #003');
+    await expect(page.locator('.master-filler').first()).toContainText('Filler after #003');
     await expect(page.locator('.master-filler input')).toHaveCount(0);
     await page.locator('#master-workspace').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(output, `master-set-${page.viewportSize().width}.png`) });
-    await page.locator('#master-view').selectOption('list');
+    await page.locator('#master-view-checklist').click();
     await expect(slot('001:reverse')).toBeChecked();
     await expect(slot('001:normal+stamp=set-logo')).not.toBeChecked();
     await expect(slot('004:normal+stamp=set-logo')).toHaveCount(0);
@@ -283,10 +283,12 @@ try {
     await page.locator('#master-extra-form button').last().click();
     await expect(page.locator('#master-optional')).toHaveText('0 / 1');
     await page.locator('#master-scan').click();
+    await page.locator('#scan-recovery-search').click();
     await page.locator('#master-scan-search').fill('001');
     await page.locator('#master-candidates').selectOption('001:normal');
     await page.locator('#master-confirm-scan').click();
     await expect(slot('001:normal')).toBeChecked();
+    await page.locator('#scan-close').click();
     await page.locator('#master-print').click();
     await expect(page.locator('#print-content')).toContainText('Shop promo');
     const exported = page.waitForEvent('download');
@@ -294,13 +296,65 @@ try {
     const csv = readFileSync(await (await exported).path(), 'utf8');
     assert.ok(csv.includes('Shop promo') && !csv.includes('"001","Bulbasaur","Regular"'));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    await page.locator('#sync-open').click();
+    const download = page.waitForEvent('download');
+    await page.locator('#export-json').click();
+    const saved = readFileSync(await (await download).path());
+    await closeDialogs(page);
+    await slot('001:reverse').uncheck();
+    await expect(slot('001:reverse')).not.toBeChecked();
+    await page.locator('#sync-open').click();
+    await page.locator('#import-json').setInputFiles({ name: 'binders.json', mimeType: 'application/json', buffer: saved });
+    await page.locator('#confirm-accept').click();
+    await closeDialogs(page);
+    await page.locator('#master-switch').selectOption(master);
+    await page.locator('#master-view-checklist').click();
+    await expect(slot('001:reverse')).toBeChecked();
+    await expect(page.locator('#master-optional')).toHaveText('0 / 1');
     await page.locator('#master-switch').selectOption('');
   }
+  async function checkPhysicalPages(page, code, ex, expectedGoal) {
+    const ctrl = name => page.locator('#master-' + name);
+    const grid = ctrl('binder-grid');
+    await ctrl('new').click(); await ctrl('set').fill(code); await ctrl('name').fill(code);
+    await ctrl('fillers').check();
+    await ctrl('form').locator('button.dex-primary').click();
+    await expect(ctrl('editor')).not.toBeVisible();
+    const firstPage = ctrl('page-overview').locator('[data-page="1"]');
+    const before = await firstPage.getAttribute('aria-label');
+    const match = before.match(/0 of (\d+)/);
+    assert.ok(match);
+    await expect(grid.locator('.master-filler').first()).toContainText('#' + ex);
+    await expect(grid.locator('[data-set-open="'+ex+':holo"] img')).toHaveAttribute('src',/assets\.tcgdex\.net/);
+    await grid.locator('[data-key="'+ex+':holo"]').check();
+    await expect(firstPage).toHaveAttribute('aria-label','Page 1, 1 of '+match[1]+' collected');
+    await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
+    await ctrl('search').fill(ex);
+    await expect(grid.locator('.dex-pocket.dimmed').first()).toBeVisible();
+    await ctrl('results').locator('[data-set-jump="'+ex+':holo"]').click();
+    await expect(ctrl('pokemon-details')).toContainText('Holo');
+    await ctrl('search').fill('');
+    await ctrl('page-next').click(); await expect(ctrl('page-heading')).toHaveText('Page 2');
+    await firstPage.click(); await expect(ctrl('page-heading')).toHaveText('Page 1');
+    await ctrl('settings').click(); await ctrl('columns').fill('1'); await ctrl('rows').fill('1'); await ctrl('blanks').fill('1');
+    await ctrl('form').locator('button.dex-primary').click();
+    await expect(grid).toContainText('Reserved');
+    await expect(ctrl('page-progress')).toHaveText('0 of 0 collected on this page');
+    await ctrl('add-extra').click(); await ctrl('extra-name').fill('Optional promo'); await ctrl('extra-form').locator('button').last().click();
+    const last = ctrl('page-overview').locator('button').last();
+    await last.click(); await expect(grid).toContainText('Optional promo');
+    await expect(ctrl('page-progress')).toContainText('0 of 0 collected on this page · Optional extras 0/1');
+    await grid.locator('input').check(); await expect(ctrl('page-progress')).toContainText('Optional extras 1/1');
+    await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
+    await ctrl('switch').selectOption('');
+  }
+  await scenario('Pitch Black page progress and physical pockets',()=>checkPhysicalPages(page,'PBL','004',199));
   await scenario('independent named master sets, placement, scanner confirmation and exports',()=>exerciseSets(page));
   await page.screenshot({ path: join(output, 'desktop.png'), fullPage: true });
   await scenario('mobile details and dense layouts avoid horizontal overflow', async () => {
     const mobile = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const phone = await open(mobile);
+    await checkPhysicalPages(phone,"CRI","003",203);
     await exerciseSets(phone);
     await go(phone, 17);
     await phone.locator('#open-grid-17').click();
@@ -339,7 +393,7 @@ try {
   assert.deepEqual(errors, [], 'Unexpected browser errors');
   writeFileSync(join(output, 'results.json'), JSON.stringify({ passed: completed, externalRequests: 'blocked or mocked; card artwork deliberately unavailable', database: 'isolated localhost MariaDB/MySQL' }, null, 2));
   for (const ctx of contexts) await ctx.tracing.stop();
-  console.log(`Pokédex Binder passed ${completed.length} real PHP/MySQL browser scenarios. Screenshots: output/pokedex-browser/.`);
+  console.log(`Pokémon Binder Tracker passed ${completed.length} real PHP/MySQL browser scenarios. Screenshots: output/pokedex-browser/.`);
 } catch (error) {
   for (const [index, ctx] of contexts.entries()) {
     for (const [pageIndex, page] of ctx.pages().entries()) {

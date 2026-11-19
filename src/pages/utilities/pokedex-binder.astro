@@ -1,5 +1,6 @@
 ---
-import { BookOpen, ChevronLeft, ChevronRight, Download, Settings2, Search, Cloud, ListChecks, Camera, Check } from "@lucide/astro";
+import { BookOpen, ChevronRight, Download, Settings2, Search, Cloud, ListChecks, Camera, Check } from "@lucide/astro";
+import BinderPages from "@components/BinderPages.astro";
 import MasterSetBinders from "@components/MasterSetBinders.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { utilities } from "@data/profile";
@@ -7,19 +8,19 @@ import { createUtilityApplicationSchema } from "@data/seo";
 import "../../styles/pokedex-binder.css";
 
 const utility = utilities.find((item) => item.slug === "pokedex-binder");
-if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
+if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missing.");
 ---
 
-<BaseLayout shell="utility" title="Pokédex Binder | Austin Garrod" description={utility.summary} breadcrumbLabel="Pokédex Binder" structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
+<BaseLayout shell="utility" title={utility.title + " | Austin Garrod"} description={utility.summary} breadcrumbLabel={utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
   <header class="dex-header">
     <a href="/" class="dex-brand" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
-    <nav aria-label="Utility breadcrumb"><a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a><span aria-hidden="true">/</span><span aria-current="page">Pokédex Binder</span></nav>
+    <nav aria-label="Utility breadcrumb"><a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a><span aria-hidden="true">/</span><span aria-current="page">{utility.title}</span></nav>
   </header>
 
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <section class="dex-intro">
-      <h1><BookOpen size={30} aria-hidden="true" /> Pokédex Binder</h1>
-      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open"><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
+      <h1><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
+      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open"><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
     </section>
 
     <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
@@ -42,20 +43,7 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
     </section>
     <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label"></p><div id="results-list"></div></section>
 
-    <div id="binder-view" class="dex-workspace">
-      <aside class="dex-overview" aria-label="Binder overview">
-        <div class="dex-section-heading"><h2>Pages</h2><span id="page-total" class="dex-label"></span></div>
-        <div id="page-overview" class="dex-page-overview"></div>
-        <p id="capacity-summary" class="dex-help"></p>
-        <details class="dex-generation-progress"><summary>Progress by generation</summary><div id="generation-progress"></div></details>
-      </aside>
-      <section class="dex-binder" aria-labelledby="page-heading">
-        <div class="dex-page-heading"><div><p id="sheet-label" class="dex-eyebrow">Sheet 1 · Front</p><h2 id="page-heading">Page 1</h2><p id="page-progress" class="dex-help"></p></div><div class="dex-pagination"><button id="page-prev" aria-label="Previous page"><ChevronLeft size={19} aria-hidden="true" /></button><label for="page-select" class="sr-only">Go to page</label><select id="page-select"></select><button id="page-next" aria-label="Next page"><ChevronRight size={19} aria-hidden="true" /></button></div></div>
-        <div id="binder-grid" class="dex-binder-grid" aria-label="Binder pockets"></div>
-        <p class="dex-help dex-page-tip">Open a Pokémon for card references. Check its box when you have a card for that slot.</p>
-      </section>
-      <aside id="pokemon-details" class="dex-details" aria-label="Pokémon details" hidden></aside>
-    </div>
+    <BinderPages />
 
     <section id="checklist-view" class="dex-checklist" aria-labelledby="checklist-heading" hidden>
       <div class="dex-section-heading"><h2 id="checklist-heading">Your checklist</h2><span id="checklist-count" class="dex-label" role="status"></span></div>
@@ -77,7 +65,7 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
     </div>
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
-  <noscript><p class="container">Pokédex Binder needs JavaScript to display your collection and save progress.</p></noscript>
+  <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
 
   <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
 
@@ -106,6 +94,13 @@ if (!utility) throw new Error("Pokédex Binder utility metadata is missing.");
     <p id="scan-notice" class="dex-scan-notice" role="alert"></p>
     <div id="scan-camera" class="dex-scan-camera"><video id="scan-video" autoplay muted playsinline aria-label="Live card camera"></video><div id="scan-guide" class="dex-scan-guide" aria-hidden="true"><span>Card name at the top</span></div></div>
     <div id="scan-camera-actions" class="dex-scan-actions"><button id="scan-capture">Capture now</button><button id="scan-manual">Search manually</button><button id="scan-rescan">Rescan same card</button></div>
+    <label id="set-photo-label" class="dex-file-label" hidden>Use a photo<input id="master-photo" type="file" accept="image/*" /></label>
+    <section id="set-scan-result" class="dex-scan-result" hidden>
+      <div class="dex-scan-result-body"><h3>Confirm the card and finish</h3>
+        <label>Find or correct the card<input id="master-scan-search" type="search" placeholder="Name or collector number" /></label>
+        <label>Card and finish<select id="master-candidates"></select></label><p id="set-scan-place" aria-live="polite"></p></div>
+      <footer class="dex-scan-result-actions"><button id="master-confirm-scan" class="dex-primary">Mark collected</button><button id="set-scan-next">Scan next</button></footer>
+    </section>
     <section id="scan-result" class="dex-scan-result" aria-label="Scanned card result" hidden>
       <div id="scan-result-hero" class="dex-scan-result-hero"><canvas id="scan-preview" class="dex-scan-preview" role="img" aria-label="Captured card preview" hidden></canvas>
         <div id="scan-result-details" hidden><div class="dex-scan-species"><img id="scan-pokemon-sprite" width="64" height="64" alt="" /><div><span id="scan-dex-number" class="dex-label"></span><h3 id="scan-pokemon-name"></h3><strong id="scan-owned-status"></strong></div></div></div>

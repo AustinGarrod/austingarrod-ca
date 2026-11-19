@@ -1,3 +1,4 @@
+import { binderPages, blankPocket, cardPocket } from "./binder-pages";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
 import { defaultState, exportBackup, exportCsv, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
@@ -5,7 +6,7 @@ import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
 import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist";
-import type { CardScanner } from "./scanner";
+import type { CardScanner, SetScan } from "./scanner";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
 interface Printing { id: string; name: string; number: string; setId: string; rarity: string | null; image: string | null }
@@ -65,7 +66,17 @@ async function initialize() {
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const master = createMasterUI(controller.masters, download);
+  const drawPages = binderPages("", page => { currentPage = page; render(); });
+  let scannerRevision = 0;
+  function closeScanner() { scannerRevision++; scanner?.close(); }
+  async function openScanner(target?: SetScan) {
+    const revision = ++scannerRevision;
+    const { createCardScanner } = await import("./scanner");
+    if (revision !== scannerRevision) return;
+    scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
+    scanner.open(target);
+  }
+  const master = createMasterUI(controller.masters, download, openScanner, closeScanner);
   async function backup() {
     const state = snapshot.state, scope=controller.restoreScope();
     let sets;
@@ -122,34 +133,24 @@ async function initialize() {
     el("binder-view").classList.toggle("has-details", selected !== null);
     details.hidden = selected === null;
     el("view-binder").setAttribute("aria-pressed", String(view === "binder")); el("view-checklist").setAttribute("aria-pressed", String(view === "checklist"));
-    el("page-total").textContent = String(pages);
-    el("capacity-summary").textContent = `${settings.columns} × ${settings.rows} pockets · ${settings.useBackSides ? Math.ceil(pages / 2) : pages} sheets needed · ${settings.useBackSides ? "Both sides" : "Fronts only"}`;
     const pageCounts = new Map<number, { total: number; owned: number }>();
     for (const item of species) {
       const page = locationFor(item.id, settings).page, entry = pageCounts.get(page) ?? { total: 0, owned: 0 };
       entry.total++; if (owned.has(item.id)) entry.owned++; pageCounts.set(page, entry);
     }
-    el("page-overview").innerHTML = Array.from({ length: pages }, (_, index) => {
-      const page = index + 1, data = pageCounts.get(page) ?? { total: 0, owned: 0 };
-      return `<button class="dex-page-chip" data-page="${page}" aria-label="Page ${page}, ${data.owned} of ${data.total} collected" ${page === currentPage ? 'aria-current="page"' : ""} style="--filled:${data.total ? data.owned / data.total * 100 : 0}%">${page}</button>`;
-    }).join("");
     el("generation-progress").innerHTML = [...new Set(species.map(item => item.generation))].map(number => {
       const group = species.filter(item => item.generation === number);
       return `<div class="dex-generation-row"><span>Generation ${number}</span><span>${group.filter(item => owned.has(item.id)).length}/${group.length}</span></div>`;
     }).join("");
-    el("page-heading").textContent = `Page ${currentPage}`;
-    el("sheet-label").textContent = `Sheet ${settings.useBackSides ? Math.ceil(currentPage / 2) : currentPage} · ${settings.useBackSides && currentPage % 2 === 0 ? "Back" : "Front"}`;
-    const pageData = pageCounts.get(currentPage) ?? { total: 0, owned: 0 };
-    el("page-progress").textContent = `${pageData.owned} of ${pageData.total} collected on this page`;
-    el<HTMLButtonElement>("page-prev").disabled = currentPage === 1; el<HTMLButtonElement>("page-next").disabled = currentPage === pages;
-    el<HTMLSelectElement>("page-select").innerHTML = Array.from({ length: pages }, (_, index) => `<option value="${index + 1}" ${index + 1 === currentPage ? "selected" : ""}>${index + 1} / ${pages}</option>`).join("");
-    const grid = el("binder-grid"); grid.style.setProperty("--columns", String(settings.columns)); grid.dataset.dense = String(settings.columns > 4);
     const searched = new Set(searchSpecies(species, search.value).map(item => item.id));
-    grid.innerHTML = pageSlots(currentPage, species, settings).map(slot => {
-      if (!slot.species) return `<div class="dex-pocket-blank"><span>Pocket ${slot.pocket}</span>${slot.reserved ? "Reserved" : "Empty pocket"}</div>`;
-      const item = slot.species, has = owned.has(item.id);
-      return `<div class="dex-pocket ${has ? "owned" : ""} ${selected === item.id ? "selected" : ""} ${!matches(item) || !searched.has(item.id) ? "dimmed" : ""}"><button id="open-grid-${item.id}" class="dex-pocket-open" data-pokemon="${item.id}" aria-label="${escape(item.name)}, ${dex(item.id)}, row ${slot.row}, column ${slot.column}. View card references" aria-pressed="${selected === item.id}"><span class="dex-pocket-number">${dex(item.id)}</span>${sprite(item)}<span class="dex-pocket-name">${escape(item.name)}</span></button><label class="dex-pocket-check"><input id="owned-grid-${item.id}" type="checkbox" data-owned="${item.id}" ${has ? "checked" : ""} aria-label="Own ${escape(item.name)}" /><span>${has ? "Owned" : "Missing"}</span></label></div>`;
-    }).join("");
+    const cells = pageSlots(currentPage, species, settings).map(slot => {
+      const item = slot.species;
+      if (!item) return blankPocket(slot.pocket, slot.reserved ? "Reserved" : "Empty pocket");
+      return cardPocket({ id: item.id, number: dex(item.id), name: item.name, image: root + "sprites/" + item.id + ".png",
+        owned: owned.has(item.id), selected: selected === item.id, dimmed: !matches(item) || !searched.has(item.id),
+        row: slot.row, column: slot.column });
+    });
+    drawPages(currentPage, pages, settings, pageCounts, cells);
     renderResults(); renderChecklist(); renderDetails(); renderSync();
     for (const { id, top } of scrollPositions) { const node = document.getElementById(id); if (node) node.scrollTop = top; }
     renderedSpecies = selected;
@@ -306,11 +307,7 @@ async function initialize() {
   el("scan-open").addEventListener("click", async event => {
     const button = event.currentTarget as HTMLButtonElement; button.disabled = true;
     try {
-      if (!scanner) {
-        const { createCardScanner } = await import("./scanner");
-        scanner = createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
-      }
-      scanner.open();
+      await openScanner();
     } catch { el("dex-warning").textContent = "The scanner could not load. Check your connection and try again."; el("dex-warning").hidden = false; }
     finally { button.disabled = false; }
   });
@@ -319,7 +316,6 @@ async function initialize() {
   document.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog]");
     if (!button) return;
-    if (button.hasAttribute("data-page")) { currentPage = Number(button.dataset.page); render(); }
     if (button.hasAttribute("data-pokemon")) void selectPokemon(Number(button.dataset.pokemon));
     if (button.hasAttribute("data-goto")) goToPokemon(Number(button.dataset.goto));
     if (button.hasAttribute("data-close-dialog")) button.closest("dialog")?.close();
@@ -358,9 +354,6 @@ async function initialize() {
   el("view-binder").addEventListener("click", () => { view = "binder"; render(); });
   el("view-checklist").addEventListener("click", () => { view = "checklist"; render(); });
   el("checklist-more").addEventListener("click", () => { checklistLimit += 100; renderChecklist(); });
-  el("page-prev").addEventListener("click", () => { currentPage--; render(); });
-  el("page-next").addEventListener("click", () => { currentPage++; render(); });
-  el("page-select").addEventListener("change", event => { currentPage = Number((event.target as HTMLSelectElement).value); render(); });
 
   el("layout-open").addEventListener("click", () => {
     const form = el<HTMLFormElement>("layout-form");
@@ -416,7 +409,7 @@ async function initialize() {
   el("import-json").addEventListener("change", event => void action(async () => {
     const input = event.target as HTMLInputElement, file = input.files?.[0]; if (!file) return;
     try {
-      if (file.size > 5 * 1024 * 1024) throw new Error("This file is too large for a Pokédex Binder backup.");
+      if (file.size > 5 * 1024 * 1024) throw new Error("This file is too large for a Pokémon Binder Tracker backup.");
       const scope=controller.restoreScope();
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -432,7 +425,7 @@ async function initialize() {
   }));
   el("print-missing").addEventListener("click", () => {
     const missing = species.filter(item => !snapshot.state.ownedDexIds.includes(item.id));
-    el("print-content").innerHTML = `<h1>Pokédex Binder · Missing Pokémon</h1><p>${missing.length} still to find · ${snapshot.state.settings.columns} × ${snapshot.state.settings.rows} pockets per side</p><table><thead><tr><th>Pokédex</th><th>Pokémon</th><th>Page</th><th>Sheet / side</th><th>Row / column</th></tr></thead><tbody>${missing.map(item => { const loc = locationFor(item.id, snapshot.state.settings); return `<tr><td>☐ ${dex(item.id)}</td><td>${escape(item.name)}</td><td>${loc.page}</td><td>${loc.sheet} / ${loc.side}</td><td>${loc.row} / ${loc.column}</td></tr>`; }).join("")}</tbody></table>`;
+    el("print-content").innerHTML = `<h1>Pokémon Binder Tracker · Missing Pokémon</h1><p>${missing.length} still to find · ${snapshot.state.settings.columns} × ${snapshot.state.settings.rows} pockets per side</p><table><thead><tr><th>Pokédex</th><th>Pokémon</th><th>Page</th><th>Sheet / side</th><th>Row / column</th></tr></thead><tbody>${missing.map(item => { const loc = locationFor(item.id, snapshot.state.settings); return `<tr><td>☐ ${dex(item.id)}</td><td>${escape(item.name)}</td><td>${loc.page}</td><td>${loc.sheet} / ${loc.side}</td><td>${loc.row} / ${loc.column}</td></tr>`; }).join("")}</tbody></table>`;
     window.print();
   });
   window.addEventListener("pagehide", event => { if (!event.persisted) { master.close(); controller.stop(); } });

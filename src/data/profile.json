@@ -169,7 +169,7 @@
   "utilities": [
     {
       "slug": "pokedex-binder",
-      "title": "Pokédex Binder",
+      "title": "Pokémon Binder Tracker",
       "label": "Pokémon collection planner",
       "summary": "Build a National Pokédex or a master set of English Pokémon cards. Track card finishes, find their pockets, and see what’s missing.",
       "capabilities": [

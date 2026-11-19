@@ -77,10 +77,10 @@ export function exportBackup(state: BinderState): string {
   return JSON.stringify({ utility: "pokedex-binder", schemaVersion: 1, exportedAt: new Date().toISOString(), state: cloneState(state) }, null, 2);
 }
 export function importBackup(text: string, species?: readonly Species[]): BinderState {
-  if (text.length > 65536) throw new Error("This backup is too large. Choose a Pokédex Binder JSON backup.");
+  if (text.length > 65536) throw new Error("This backup is too large. Choose a Pokémon Binder Tracker JSON backup.");
   let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { throw new Error("The selected file is not valid JSON."); }
-  if (!record(parsed) || parsed.utility !== "pokedex-binder" || parsed.schemaVersion !== 1) throw new Error("Choose a supported Pokédex Binder backup.");
+  if (!record(parsed) || parsed.utility !== "pokedex-binder" || parsed.schemaVersion !== 1) throw new Error("Choose a supported Pokémon Binder Tracker backup.");
   return validateState(parsed.state, species);
 }
 function csvCell(value: string | number): string {

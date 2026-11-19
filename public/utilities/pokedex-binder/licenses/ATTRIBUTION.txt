@@ -1,4 +1,4 @@
-Pokédex Binder is an unofficial fan utility, unaffiliated with Nintendo, Creatures, GAME FREAK, or The Pokémon Company.
+Pokémon Binder Tracker is an unofficial fan utility, unaffiliated with Nintendo, Creatures, GAME FREAK, or The Pokémon Company.
 Pokémon names, characters, card artwork, and sprites belong to their respective owners.
 Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https://tcgdex.dev/), MIT licensed.
 Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.

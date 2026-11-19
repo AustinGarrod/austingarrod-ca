@@ -17,6 +17,7 @@ export interface SetSummary {
   code: string;
   count: number;
   printedTotal: number | null;
+  artwork?: { series: string; missing: string[] } | null;
 }
 export interface Extra {
   id: string;

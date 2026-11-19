@@ -269,8 +269,9 @@ export async function refreshCatalog() {
     cached(`${spritesRoot}/LICENCE.txt`, `sprites-${SOURCE_REVISIONS.sprites}-LICENSE.txt`),
     getCardObjects(),
   ]);
+  const artwork = JSON.parse(assetBytes.toString("utf8"));
   const catalog = normalizeCatalog(createSpecies(speciesBytes.toString("utf8"), namesBytes.toString("utf8")),
-    source.cards, JSON.parse(assetBytes.toString("utf8")));
+    source.cards, artwork);
   if (!catalog.audit.indexedCards) throw new Error("Refusing to publish an empty card catalog");
   const stage = path.join(ROOT, "tmp", `pokedex-refresh-${randomUUID()}`);
   await mkdir(path.join(stage, "catalog/printings"), { recursive: true });
@@ -285,7 +286,7 @@ export async function refreshCatalog() {
       await writeFile(path.join(stage, "sprites", `${entry.id}.png`), sprite);
       if ((index + 1) % 200 === 0) console.log(`  ${index + 1}/${catalog.species.length} species assets`);
     });
-    await writeMasterCatalog(source.cards, path.join(stage, "catalog/master-sets"));
+    await writeMasterCatalog(source.cards, path.join(stage, "catalog/master-sets"), artwork);
     const index = {
       schemaVersion: 1, generatedAt: new Date().toISOString(),
       sources: {
@@ -302,7 +303,7 @@ export async function refreshCatalog() {
     await writeFile(path.join(stage, "licenses/PokeAPI-LICENSE.txt"), pokeLicense);
     await writeFile(path.join(stage, "licenses/PokeAPI-sprites-LICENSE.txt"), spriteLicense);
     await writeFile(path.join(stage, "licenses/ATTRIBUTION.txt"),
-      "Pokédex Binder is an unofficial fan utility, unaffiliated with Nintendo, Creatures, GAME FREAK, or The Pokémon Company.\n"
+      "Pokémon Binder Tracker is an unofficial fan utility, unaffiliated with Nintendo, Creatures, GAME FREAK, or The Pokémon Company.\n"
       + "Pokémon names, characters, card artwork, and sprites belong to their respective owners.\n"
       + "Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https://tcgdex.dev/), MIT licensed.\n"
       + "Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.\n"
