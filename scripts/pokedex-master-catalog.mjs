@@ -2,10 +2,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
+import { nonBoosterFinishes } from "./pokedex-non-booster-finishes.mjs";
+
 const english = (name) => name?.en ?? Object.entries(name ?? {}).find(([lang]) => lang.startsWith("en-"))?.[1];
 const words = (value) => value.replace(/[-_]/g, " ").replace(/^./, (c) => c.toUpperCase());
 const types = { normal: "Regular", holo: "Holo", reverse: "Reverse holo", unspecified: "Finish unspecified" };
-function normalizeVariants(raw) {
+function normalizeVariants(raw, nonBoosterFinish) {
   let entries;
   if (Array.isArray(raw)) {
     entries = raw.filter((item) => !item.languages || item.languages.some((lang) => /^en($|-)/.test(lang)));
@@ -31,10 +33,11 @@ function normalizeVariants(raw) {
       .filter(Boolean)
       .join("+");
     const label = parts.map((part) => types[part] ?? words(part)).join(" · ");
-    const specialty = Boolean(
+    const nonBooster = id === nonBoosterFinish;
+    const specialty = nonBooster || Boolean(
       foil || (subtype && subtype !== "unlimited") || stamps.length || format || !Object.hasOwn(types, type),
     );
-    variants.set(id, { id, label, specialty });
+    variants.set(id, { id, label: nonBooster ? label + " · Non-booster printing" : label, specialty });
   }
   return [...variants.values()].sort(
     (a, b) =>
@@ -65,7 +68,7 @@ export function masterCatalog(cards) {
         number,
         name: english(card.name),
         category: card.category,
-        variants: normalizeVariants(card.variants),
+        variants: normalizeVariants(card.variants, nonBoosterFinishes.get(set.id + ":" + number)),
       });
   }
   return sets;

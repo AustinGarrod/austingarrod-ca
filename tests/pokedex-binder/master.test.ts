@@ -46,6 +46,45 @@ describe("set catalog and independent pocket goals", () => {
     );
     expect(cards[1].variants[0].id).toBe("unspecified");
   });
+  it("classifies the reviewed printing during refresh and preserves its stable ID", () => {
+    const upstream = fixture("035", [{ type: "normal" }, { type: "holo" }, { type: "reverse" }]);
+    upstream.card.set.id = "me05";
+    const refreshed = masterCatalog([upstream]).get("me05")!.cards[0];
+    expect(refreshed.variants).toEqual([
+      { id: "holo", label: "Holo", specialty: false },
+      { id: "reverse", label: "Reverse holo", specialty: false },
+      { id: "normal", label: "Regular · Non-booster printing", specialty: true },
+    ]);
+    upstream.card.set.id = "test";
+    expect(masterCatalog([upstream]).get("test")!.cards[0].variants[0].specialty).toBe(false);
+  });
+
+  it("keeps non-booster ownership recoverable without adding a default Spiritomb pocket", () => {
+    const cards: SetCard[] = JSON.parse(readFileSync("public/utilities/pokedex-binder/catalog/master-sets/me05.json", "utf8"));
+    const b = newBinder("me05", "Pitch Black");
+    b.owned = ["035:normal", "035:reverse"];
+    const spiritomb = () => setSlots(b, cards).filter(slot => slot.number === "035").map(slot => [slot.key, slot.owned]);
+    expect(spiritomb()).toEqual([["035:holo", false], ["035:reverse", true]]);
+    b.specialties = ["035:normal"];
+    expect(spiritomb()).toEqual([["035:holo", false], ["035:reverse", true], ["035:normal", true]]);
+    expect(setSlots(b, cards).some(slot => slot.key === "062:normal")).toBe(false);
+  });
+
+  it("requires review when a booster card gains both plain regular and holo slots", () => {
+    const dir = "public/utilities/pokedex-binder/catalog/master-sets/";
+    const sets: {id: string}[] = JSON.parse(readFileSync(dir + "index.json", "utf8"));
+    for (const {id} of sets) {
+      // These promotional series include printings from several distributed products.
+      if (/^pop[1-9]$/.test(id) || ["np", "swshp"].includes(id)) continue;
+      const cards: SetCard[] = JSON.parse(readFileSync(dir + id + ".json", "utf8"));
+      const mixed = cards.filter(card => {
+        const required = card.variants.filter(v => !v.specialty).map(v => v.id);
+        return required.includes("normal") && required.includes("holo");
+      });
+      expect(mixed.map(card => card.number), id).toEqual([]);
+    }
+  });
+
   const cards: SetCard[] = JSON.parse(
     readFileSync("public/utilities/pokedex-binder/catalog/master-sets/sv03.5.json", "utf8"),
   );
@@ -78,8 +117,8 @@ describe("set catalog and independent pocket goals", () => {
     expect(combined.binders).toHaveLength(2);
   });
   it.each([
-    ["me05", 84, "004", "005", 199],
-    ["me04", 86, "003", "004", 203],
+    ["me05", 84, "004", "005", 194],
+    ["me04", 86, "003", "004", 198],
   ] as const)("pads only single finishes through the printed total in %s", (id, limit, ex, next, required) => {
     const dir = "public/utilities/pokedex-binder/catalog/master-sets/";
     const index = JSON.parse(readFileSync(dir + "index.json", "utf8"));

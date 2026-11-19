@@ -329,6 +329,14 @@ try {
     await grid.locator('[data-key="'+ex+':holo"]').check();
     await expect(firstPage).toHaveAttribute('aria-label','Page 1, 1 of '+match[1]+' collected');
     await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
+    const reviewedNumber = code === 'PBL' ? '035' : '013';
+    await ctrl('search').fill(reviewedNumber);
+    const results = ctrl('results');
+    await expect(results.locator('[data-set-jump]')).toHaveCount(2);
+    await expect(results.locator('[data-set-jump="'+reviewedNumber+':normal"]')).toHaveCount(0);
+    await results.locator('[data-set-jump="'+reviewedNumber+':holo"]').click();
+    await expect(grid.locator('[data-set-open="'+reviewedNumber+':reverse"]')).toBeVisible();
+    await firstPage.click();
     await ctrl('search').fill(ex);
     await expect(grid.locator('.dex-pocket.dimmed').first()).toBeVisible();
     await ctrl('results').locator('[data-set-jump="'+ex+':holo"]').click();
@@ -348,13 +356,13 @@ try {
     await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
     await ctrl('switch').selectOption('');
   }
-  await scenario('Pitch Black page progress and physical pockets',()=>checkPhysicalPages(page,'PBL','004',199));
+  await scenario('Pitch Black page progress and physical pockets',()=>checkPhysicalPages(page,'PBL','004',194));
   await scenario('independent named master sets, placement, scanner confirmation and exports',()=>exerciseSets(page));
   await page.screenshot({ path: join(output, 'desktop.png'), fullPage: true });
   await scenario('mobile details and dense layouts avoid horizontal overflow', async () => {
     const mobile = await context({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const phone = await open(mobile);
-    await checkPhysicalPages(phone,"CRI","003",203);
+    await checkPhysicalPages(phone,"CRI","003",198);
     await exerciseSets(phone);
     await go(phone, 17);
     await phone.locator('#open-grid-17').click();

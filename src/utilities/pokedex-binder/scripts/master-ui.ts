@@ -26,7 +26,7 @@ const select = (id: string) => node<HTMLSelectElement>(id);
 const dialog = (id: string) => node<HTMLDialogElement>(id);
 const base = "/utilities/pokedex-binder/catalog/master-sets/";
 async function json<T>(file: string): Promise<T> {
-  const response = await fetch(base + encodeURIComponent(file) + ".json");
+  const response = await fetch(base + encodeURIComponent(file) + ".json", { cache: "no-cache" });
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
