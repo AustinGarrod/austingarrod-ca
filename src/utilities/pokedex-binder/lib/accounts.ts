@@ -119,7 +119,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
             return latest;
           }
           if (method !== "PATCH" || !body || typeof body !== "object") throw new Error("Manage account data and recovery from your account page.");
-          const mutation = body as { baseRevision: number; mutationSequence: number; state: BinderState; operationId: string };
+          const mutation = body as { baseRevision: number; mutationSequence: number; state: BinderState; operationId: string; preservePrevious?: true };
           return await bound.writeDocument<BinderState>({ app: APP, document: DOCUMENT, schemaVersion: 1, clientId, ...mutation }) as Remote;
         } });
       accountController?.stop(); accountController = controller;
@@ -280,6 +280,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     await masters.update(scope, save => {
       checkScope();
       if (!sameSave(save.state,journal.previousSets) && !sameSave(save.state,journal.nextSets)) throw new Error("Your set binders changed after this restore began. Export the current copy and review the backup again.");
+      if (scope !== "guest" && !sameSave(save.state, journal.nextSets)) save.preservePrevious = true;
       save.state=journal.nextSets;
     });
     checkScope();

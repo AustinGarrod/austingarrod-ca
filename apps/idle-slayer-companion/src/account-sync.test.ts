@@ -115,16 +115,16 @@ describe('recoverable account migration and sync', () => {
     const selected = mocked.stage.mock.calls.map(([body]) => body).find((body) => body.document === 'progress' && body.variant === 'selected')
     expect(selected.state.ascension.epoch).toBe(5)
   })
-  it('queues a later edit with the next per-document sequence only after the frozen request acknowledges', async () => {
+  it('queues a later replacement with the next sequence only after the frozen request acknowledges', async () => {
     const storage = memoryStorage(), first = { kind: 'upgrade-comparison', version: 1, ids: ['first'] }, latest = { kind: 'upgrade-comparison', version: 1, ids: ['latest'] }
-    const current: AccountBundle = { version: 1, accountId: 'A', clientId: 'client', raw: rawForDocuments({ ...states(), comparison: latest }, 'test'), remote: {}, pending: { comparison: { operationId: 'frozen', mutationSequence: 1, baseRevision: 0, state: first } }, conflicts: {} }
+    const current: AccountBundle = { version: 1, accountId: 'A', clientId: 'client', raw: rawForDocuments({ ...states(), comparison: latest }, 'test'), remote: {}, pending: { comparison: { operationId: 'frozen', mutationSequence: 1, baseRevision: 0, state: first } }, preservePrevious: { comparison: true }, conflicts: {} }
     writeBundle(storage, current); storage.setItem(ACTIVE_ACCOUNT_KEY, 'A'); mocked.write.mockResolvedValue(remote('comparison', first, 1, 1))
     const controller = make(storage); await start(controller); await controller.sync()
-    expect(readBundle(storage, 'A')!.pending.comparison).toMatchObject({ mutationSequence: 2, baseRevision: 1, state: latest })
+    expect(readBundle(storage, 'A')!.pending.comparison).toMatchObject({ mutationSequence: 2, baseRevision: 1, state: latest, preservePrevious: true })
     expect(readBundle(storage, 'A')!.pending.comparison?.operationId).not.toBe('frozen')
     mocked.write.mockResolvedValue(remote('comparison', latest, 2, 2)); await controller.sync()
     expect(readBundle(storage, 'A')!.pending.comparison).toBeUndefined()
-    expect(mocked.write.mock.calls.map(([body]) => body.mutationSequence)).toEqual([1, 2])
+    expect(mocked.write.mock.calls.map(([body]) => [body.mutationSequence, body.preservePrevious])).toEqual([[1, undefined], [2, true]])
   })
   it('treats newer cloud state returned by an exact mutation replay as a preserved conflict', async () => {
     const storage = memoryStorage(), local = { kind: 'upgrade-comparison', version: 1, ids: ['local'] }, cloud = { kind: 'upgrade-comparison', version: 1, ids: ['other-device'] }

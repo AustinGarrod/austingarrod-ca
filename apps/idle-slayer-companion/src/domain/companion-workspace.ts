@@ -1,7 +1,7 @@
 import { GOALS_STORAGE_KEY, parseGoals, type GoalMode } from './goals'
 import { COMPANION_SYSTEMS, type CompanionEntityRef } from './companion-types'
 import type { ProfileLocks } from './profile-session'
-import type { DocumentStorage } from '../account-repository'
+import { storeDocument, type DocumentStorage } from '../account-repository'
 
 export const COMPANION_WORKSPACE_KEY = 'idle-slayer-companion.workspace.v1'
 export const COMPANION_WORKSPACE_WRITE_LOCK = `${COMPANION_WORKSPACE_KEY}.write`
@@ -45,6 +45,7 @@ function stored(workspace: CompanionWorkspace, legacyBaseline: string | null) {
 /** Separate intentions document, with exact saved baselines and explicit recovery drafts. */
 export function createCompanionWorkspaceSession(options: { storage: () => DocumentStorage; locks: () => ProfileLocks | undefined }) {
   let adopted = false, operation = 0, baseline: Pair | undefined, persisted: CompanionWorkspace | undefined
+  let preservePrevious = false
   let state: CompanionWorkspaceState = { workspace: emptyCompanionWorkspace(), raw: null, legacy: null, loaded: false, pending: false, dirty: false, readable: false, conflict: false, error: '', version: 0 }
   const listeners = new Set<(state: CompanionWorkspaceState) => void>(), reviews = new WeakSet<CompanionWorkspaceReview>()
   function publish(patch: Partial<CompanionWorkspaceState>) {
@@ -113,17 +114,19 @@ export function createCompanionWorkspaceSession(options: { storage: () => Docume
         if (!lock) throw new Error()
         const current = read()
         if (current.kind === 'unavailable' || !same(current, expected)) { observe(current); return false }
-        await options.storage().setItem(COMPANION_WORKSPACE_KEY, raw)
+        await storeDocument(options.storage(), COMPANION_WORKSPACE_KEY, raw, preservePrevious || !!draft)
         if (ticket !== operation || state.version !== version) return false
+        preservePrevious = false
         adopted = true; baseline = { raw, legacy: expected.legacy }; persisted = workspace
         publish({ raw, legacy: expected.legacy, readable: true, conflict: false, error: '' }); return true
       })
     } catch { if (ticket === operation) publish({ error: 'Intentions could not be saved. Export this visit or retry saving before closing the page.' }); return false }
     finally { if (ticket === operation) publish({ pending: false }) }
   }
-  function edit(workspace: CompanionWorkspace, expected = state.workspace) {
+  function edit(workspace: CompanionWorkspace, expected = state.workspace, replacing = false) {
     if (!state.loaded || state.pending || state.workspace !== expected) { publish({ error: 'Intentions changed before this edit. Review the updated list and retry.' }); return false }
     try { parseCompanionWorkspace(JSON.stringify(workspace)) } catch { publish({ error: 'The intention list is full or contains an unsupported value.' }); return false }
+    preservePrevious ||= replacing
     publish({ workspace, version: state.version + 1 }); void save(); return true
   }
   function useSaved(draft?: CompanionWorkspaceReview) {
@@ -131,6 +134,7 @@ export function createCompanionWorkspaceSession(options: { storage: () => Docume
     const current = read()
     if (current.kind !== 'valid' || !same(current, draft.snapshot)) { observe(current); return false }
     operation++; baseline = current; persisted = current.legacyChanged ? undefined : current.workspace
+    preservePrevious = false
     publish({ workspace: current.workspace, raw: current.raw, legacy: current.legacy, readable: true, conflict: false, error: '', version: state.version + 1 })
     if (current.legacyChanged) void save()
     return true

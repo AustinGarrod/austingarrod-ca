@@ -47,16 +47,17 @@ describe('lossless account storage boundary', () => {
     expect(JSON.parse(saved.raw[documentKeys.comparison]!)).toMatchObject({ ids: ['hidden'] })
     expect(documents.filter((name) => !!saved.pending[name])).toEqual(['comparison'])
   })
-  it('freezes an unacknowledged mutation while later edits remain durable in raw', () => {
+  it('freezes an unacknowledged mutation while a later replacement stays durable', () => {
     const storage = memoryStorage(), original = bundle(); writeBundle(storage, original)
     let seq = 0
     const persistence = accountPersistence({ id: original.accountId, revision: 'test', storage, locks: () => undefined, uuid: () => 'op-' + ++seq, changed: () => {} })
     persistence.storage().setItem(documentKeys.comparison, JSON.stringify({ kind: 'upgrade-comparison', version: 1, ids: ['first'] }))
     const frozen = readBundle(storage, original.accountId)!.pending.comparison
-    persistence.storage().setItem(documentKeys.comparison, JSON.stringify({ kind: 'upgrade-comparison', version: 1, ids: ['second'] }))
+    persistence.storage().replaceItem!(documentKeys.comparison, JSON.stringify({ kind: 'upgrade-comparison', version: 1, ids: ['second'] }))
     persistence.storage().setItem(documentKeys.intentions, JSON.stringify({ format: 'idle-slayer-companion-workspace-storage', version: 1, legacyBaseline: null, workspace: states().intentions }))
     const saved = readBundle(storage, original.accountId)!
     expect(saved.pending.comparison).toEqual(frozen)
+    expect(saved.preservePrevious).toEqual({ comparison: true })
     expect(saved.pending.intentions?.mutationSequence).toBe(1)
     expect(readDocuments(saved.raw, 'test').comparison).toMatchObject({ ids: ['second'] })
   })

@@ -462,6 +462,40 @@ try {
     await expect(radiusRows(mapPhone)).toHaveCount(0);
     await mapMobile.setOffline(false);
   });
+  await scenario('the account shows recovery copies beside a browsable sync history', async () => {
+    const listRequest = '**/api/v1/sync.php?action=recovery-list';
+    await page.route(listRequest, async route => {
+      const response = await route.fetch();
+      const { snapshots } = await response.json();
+      const routine = snapshots.filter(snapshot => snapshot.label === 'Before sync');
+      const copies = snapshots.filter(snapshot => snapshot.label !== 'Before sync');
+      assert.ok(routine.length > 0);
+      const older = Array.from({ length: 270 - routine.length }, (_, index) => ({
+        ...routine[0], id: randomUUID(), revision: 270 - routine.length - index, createdAt: '2026-01-01T00:00:00Z',
+      }));
+      await route.fulfill({ response, json: { snapshots: [...copies, ...routine, ...older] } });
+    });
+    try {
+      await page.goto(origin + '/account/');
+      const copies = page.locator('#account-recovery-list > li');
+      await expect(copies.filter({ hasText: 'Device before migration' }).first()).toBeVisible();
+      await expect(copies.filter({ hasText: 'Daily checkpoint' })).toHaveCount(0);
+      const history = page.locator('#account-sync-history');
+      const versions = history.locator('li');
+      const summary = history.locator('summary');
+      const more = history.getByRole('button', { name: 'Show older versions' });
+      await expect(summary).toHaveText('Sync checkpoints · 270');
+      await expect(versions.first()).toBeHidden();
+      await summary.click();
+      await expect(versions.first()).toBeVisible();
+      await expect(versions).toHaveCount(20);
+      for (let shown = 20; shown < 270; shown += 20) await more.click();
+      await expect(versions).toHaveCount(270);
+      await expect(more).toBeHidden();
+    } finally {
+      await page.unroute(listRequest);
+    }
+  });
   await scenario('account recovery downloads and restores through the real UI', async () => {
     await page.goto(origin + '/account/'); await expect(page.locator('#account-recovery-list li')).not.toHaveCount(0);
     const row = page.locator('#account-recovery-list li').filter({ hasText: 'Pokémon Binder Tracker · binder' }).filter({ hasText: 'Device before migration' }).first();

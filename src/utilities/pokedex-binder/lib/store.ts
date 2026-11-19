@@ -1,6 +1,6 @@
 import { defaultState, record, validateSettings, validateState, type BinderSettings, type BinderState, type Species } from "./model";
 
-export interface InFlightMutation { sequence: number; baseRevision: number; baseline: BinderState; state: BinderState; operationId?: string }
+export interface InFlightMutation { sequence: number; baseRevision: number; baseline: BinderState; state: BinderState; operationId?: string; preservePrevious?: true }
 export interface SyncSession {
   key: string;
   revision: number;
@@ -15,6 +15,7 @@ export interface StoredBinder {
   clientId: string;
   session: SyncSession | null;
   layoutConflict: { local: BinderSettings; remote: BinderSettings } | null;
+  preservePrevious?: true;
 }
 export const STORAGE_NAME = "austingarrod.utilities.pokedex-binder.v1";
 
@@ -25,6 +26,7 @@ export function copyDocument(doc: StoredBinder): StoredBinder { return structure
 export function validateDocument(value: unknown, species: readonly Species[]): StoredBinder {
   if (!record(value) || value.version !== 1 || typeof value.clientId !== "string" || !/^[a-f0-9-]{36}$/i.test(value.clientId)) throw new Error("Unsupported saved binder format.");
   const result: StoredBinder = { version: 1, state: validateState(value.state, species), clientId: value.clientId, session: null, layoutConflict: null };
+  if (value.preservePrevious === true) result.preservePrevious = true;
   if (value.session !== null) {
     const session = value.session;
     if (!record(session) || typeof session.key !== "string" || !/^pdx_[A-Za-z0-9_-]{43}$/.test(session.key)
@@ -38,7 +40,8 @@ export function validateDocument(value: unknown, species: readonly Species[]): S
         || !Number.isSafeInteger(flight.baseRevision) || Number(flight.baseRevision) < 0) throw new Error("Unsupported pending sync format.");
       result.session.inFlight = { sequence: Number(flight.sequence), baseRevision: Number(flight.baseRevision),
         baseline: validateState(flight.baseline, species), state: validateState(flight.state, species),
-        ...(typeof flight.operationId === "string" && /^[a-f0-9-]{36}$/i.test(flight.operationId) ? { operationId: flight.operationId } : {}) };
+        ...(typeof flight.operationId === "string" && /^[a-f0-9-]{36}$/i.test(flight.operationId) ? { operationId: flight.operationId } : {}),
+        ...(flight.preservePrevious === true ? { preservePrevious: true } : {}) };
     }
   }
   if (value.layoutConflict !== null) {

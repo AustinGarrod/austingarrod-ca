@@ -21,5 +21,5 @@ export function useCompanionWorkspace() {
     const unsubscribe = persistence.subscribe(() => session.refreshExternal())
     return () => { unsubscribe(); window.removeEventListener('storage', changed); session.cancelPending() }
   }, [session, persistence])
-  return { ...state, edit: (workspace: CompanionWorkspace, expected = state.workspace) => session.edit(workspace, expected), save: session.save, getState: session.getState, review: session.review, useSaved: session.useSaved, replaceSaved: session.replaceSaved }
+  return { ...state, edit: (workspace: CompanionWorkspace, expected = state.workspace, replacing = false) => session.edit(workspace, expected, replacing), save: session.save, getState: session.getState, review: session.review, useSaved: session.useSaved, replaceSaved: session.replaceSaved }
 }

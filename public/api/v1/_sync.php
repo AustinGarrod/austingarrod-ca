@@ -22,11 +22,36 @@ function accounts_remote(PDO $db, ?array $row, string $client): ?array
     return ['resourceId' => $row['id'], 'app' => $row['app'], 'document' => $row['document'], 'schemaVersion' => (int)$row['schema_version'], 'revision' => (int)$row['revision'], 'state' => json_decode($row['state_json'], false, 64, JSON_THROW_ON_ERROR), 'acknowledgedSequence' => $ack === false ? 0 : (int)$ack];
 }
 
-function accounts_snapshot(PDO $db, string $user, string $app, string $document, string $label, int $version, int $revision, string $json): string
+function accounts_snapshot(PDO $db, string $user, string $app, string $document, string $label, int $version, int $revision, string $json, ?string $createdAt = null): string
 {
     $id = accounts_uuid();
-    accounts_query($db, 'INSERT INTO accounts_recovery(id,user_id,app,document,label,schema_version,revision,state_json) VALUES(?,?,?,?,?,?,?,?)', [$id, $user, $app, $document, $label, $version, $revision, $json]);
+    accounts_query($db, 'INSERT INTO accounts_recovery(id,user_id,app,document,label,schema_version,revision,state_json,created_at) VALUES(?,?,?,?,?,?,?,?,COALESCE(?,CURRENT_TIMESTAMP))', [$id, $user, $app, $document, $label, $version, $revision, $json, $createdAt]);
     return $id;
+}
+
+// The caller holds the account lock. Keep the state before the first synced change on each UTC date.
+function accounts_daily_checkpoint(PDO $db, array $row): void
+{
+    $scope = [$row['user_id'], $row['app'], $row['document'], 'Before sync'];
+    $createdAt = gmdate('Y-m-d H:i:s');
+    $today = substr($createdAt, 0, 10);
+    $days = accounts_query($db, 'SELECT DATE(created_at) FROM accounts_recovery
+        WHERE user_id=? AND app=? AND document=? AND label=? ORDER BY created_at DESC LIMIT 4', $scope)->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array($today, $days, true)) {
+        accounts_snapshot($db, $row['user_id'], $row['app'], $row['document'], 'Before sync', (int)$row['schema_version'], (int)$row['revision'], $row['state_json'], $createdAt);
+        $days[] = $today;
+    }
+    if (count($days) <= 3 && count(array_unique($days)) === count($days)) {
+        return;
+    }
+
+    $keepers = accounts_query($db, 'SELECT id FROM (
+        SELECT id, DATE(created_at) AS checkpoint_day,
+            ROW_NUMBER() OVER (PARTITION BY DATE(created_at) ORDER BY created_at, revision, id) AS day_position
+        FROM accounts_recovery WHERE user_id=? AND app=? AND document=? AND label=?
+    ) AS checkpoints WHERE day_position=1 ORDER BY checkpoint_day DESC LIMIT 3', $scope)->fetchAll(PDO::FETCH_COLUMN);
+    $placeholders = implode(',', array_fill(0, count($keepers), '?'));
+    accounts_query($db, 'DELETE FROM accounts_recovery WHERE user_id=? AND app=? AND document=? AND label=? AND id NOT IN ('.$placeholders.')', [...$scope, ...$keepers]);
 }
 
 function accounts_precondition(PDO $db, ?array $row, int $revision, string $client): void
@@ -78,7 +103,8 @@ function accounts_document_pair(mixed $app, mixed $document): array
 
 function accounts_write(PDO $db, string $user, stdClass $body, string $webroot): array
 {
-    if (!accounts_fields($body, ['app', 'document', 'schemaVersion', 'state', 'baseRevision', 'clientId', 'mutationSequence', 'operationId'])) {
+    if (!accounts_fields($body, ['app', 'document', 'schemaVersion', 'state', 'baseRevision', 'clientId', 'mutationSequence', 'operationId'], ['preservePrevious'])
+        || (property_exists($body, 'preservePrevious') && $body->preservePrevious !== true)) {
         accounts_fail(422, 'invalid_request', 'The sync request is invalid.');
     }
 
@@ -92,7 +118,8 @@ function accounts_write(PDO $db, string $user, stdClass $body, string $webroot):
     $client = accounts_id($body->clientId);
     $operation = accounts_id($body->operationId);
     $hash = accounts_hash($body);
-    return accounts_transaction($db, function () use ($db, $user, $app, $document, $json, $base, $sequence, $client, $operation, $hash) {
+    $preservePrevious = $body->preservePrevious ?? false;
+    return accounts_transaction($db, function () use ($db, $user, $app, $document, $json, $base, $sequence, $client, $operation, $hash, $preservePrevious) {
         accounts_lock_user($db, $user);
         $row = accounts_document($db, $user, $app, $document, true);
         if (accounts_operation($db, $user, $operation, 'write', $hash) !== null) {
@@ -109,14 +136,21 @@ function accounts_write(PDO $db, string $user, stdClass $body, string $webroot):
         }
 
         accounts_precondition($db, $row, $base, $client);
-        if ($row !== null) {
-            accounts_snapshot($db, $user, $app, $document, 'Before sync', 1, (int)$row['revision'], $row['state_json']);
+        if ($row === null || $row['state_json'] !== $json) {
+            if ($row !== null) {
+                if ($preservePrevious) {
+                    accounts_snapshot($db, $user, $app, $document, 'Before replacement', (int)$row['schema_version'], (int)$row['revision'], $row['state_json']);
+                } else {
+                    accounts_daily_checkpoint($db, $row);
+                }
+            }
+            $row = accounts_save_document($db, $user, $app, $document, 1, $json, $row);
         }
 
-        $row = accounts_save_document($db, $user, $app, $document, 1, $json, $row);
         accounts_query($db, 'INSERT INTO accounts_document_clients(resource_id,client_id,acknowledged_sequence) VALUES(?,?,?) ON DUPLICATE KEY UPDATE acknowledged_sequence=VALUES(acknowledged_sequence)', [$row['id'], $client, $sequence]);
         $result = ['document' => accounts_remote($db, $row, $client)];
-        accounts_record_operation($db, $user, $operation, 'write', $hash, $result);
+        // A replay reads the current document. The operation only needs its identity and payload hash.
+        accounts_record_operation($db, $user, $operation, 'write', $hash, []);
         return $result;
     });
 }

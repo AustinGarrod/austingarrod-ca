@@ -21,6 +21,7 @@ export interface RemoteDocument<T = unknown> {
 export interface DocumentWrite<T = unknown> {
   app: string; document: string; schemaVersion: number; state: T;
   baseRevision: number; clientId: string; mutationSequence: number; operationId: string;
+  preservePrevious?: true;
 }
 export interface MigrationStage<T = unknown> {
   migrationId: string; app: string; document: string; variant: "selected" | "device";

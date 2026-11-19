@@ -12,6 +12,7 @@ export interface SetSave {
   clientId: string;
   flight: DocumentWrite<MasterState> | null;
   conflict: RemoteDocument<MasterState> | null;
+  preservePrevious?: true;
 }
 const fresh = (): SetSave => ({
   state: emptyMaster(),
@@ -123,7 +124,7 @@ export class MasterStore {
       const initial = await this.update(scope, () => {});
       if (!active() || initial.conflict) return;
       const save = await this.update(scope, (current) => {
-        if (!current.flight && !equal(current.state, current.baseline))
+        if (!current.flight && !equal(current.state, current.baseline)) {
           current.flight = {
             app,
             document: documentName,
@@ -133,7 +134,10 @@ export class MasterStore {
             baseRevision: current.revision,
             mutationSequence: current.sequence + 1,
             operationId: crypto.randomUUID(),
+            ...(current.preservePrevious ? { preservePrevious: true } : {}),
           };
+          delete current.preservePrevious;
+        }
       });
       let remote: RemoteDocument<MasterState> | null;
       let rejected = false;
@@ -166,6 +170,7 @@ export class MasterStore {
           return;
         const base = !rejected && save.flight ? save.flight.state : current.baseline;
         const merged = mergeLibrary(base, current.state, state);
+        if (rejected && save.flight?.preservePrevious) current.preservePrevious = true;
         if (!merged) {
           current.conflict = remote;
           current.flight = null;
@@ -173,6 +178,7 @@ export class MasterStore {
         }
         current.state = merged;
         current.baseline = state;
+        if (equal(merged, state)) delete current.preservePrevious;
         current.sequence = remote.acknowledgedSequence;
         current.revision = remote.revision;
         current.flight = null;

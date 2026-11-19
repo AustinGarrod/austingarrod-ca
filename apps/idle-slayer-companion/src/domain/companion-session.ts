@@ -7,7 +7,7 @@ import { parseProfileBackup, PROFILE_STORAGE_KEY, type ProfileErrorKind } from '
 import type { Catalog, Profile } from './types'
 import { planCompanionUltraAscension } from './companion-reset'
 import { certifyCompanionReset, copyCompanionResetProof } from './companion-reset-proof'
-import type { DocumentStorage } from '../account-repository'
+import { storeDocument, type DocumentStorage } from '../account-repository'
 
 type Baseline = { companionText: string | null; legacyText: string | null }
 export type CompanionStoredSnapshot =
@@ -23,12 +23,14 @@ export interface CompanionSessionState extends Omit<ProfileSessionState, 'histor
 }
 type StorageAccess = DocumentStorage
 const sameBaseline = (first: Baseline, second: Baseline) => first.companionText === second.companionText && first.legacyText === second.legacyText
+const replacementActions = new Set<HistoryAction>(['clear', 'restore', 'game_import', 'transfer', 'recovery', 'companion_import', 'companion_restore'])
 
 /** One coordinated envelope, one bounded history, and a read-only legacy migration boundary. */
 export function createCompanionSession(options: { onFailure?: (error: unknown, operation: string) => void; revision: string; storage: () => StorageAccess; locks: () => ProfileLocks | undefined; mapMilestoneIds?: readonly string[]; companionItemIds?: readonly string[]; mapCatalog?: Catalog; companionCatalog?: CompanionCatalog }) {
   let baseline: Baseline | undefined
   let persisted: CompanionProgress | undefined
   let initialized = false, adoptedCompanion = false, operation = 0
+  let preservePrevious = false
   const initial = emptyCompanionProgress(options.revision)
   const projected = new WeakMap<Profile, Profile>()
   const companionItems = new Set(options.companionItemIds ?? [])
@@ -133,10 +135,11 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
         if (!lock) { error('Another tab is saving progress. Retry saving or export a Companion backup.', 'unavailable'); return false }
         const current = read()
         if (current.kind === 'unavailable' || !sameBaseline(current, expected)) { observe(current); return false }
-        try { await options.storage().setItem(COMPANION_STORAGE_KEY, backup.value) } catch (cause) { failure(cause, 'storage.write')
+        try { await storeDocument(options.storage(), COMPANION_STORAGE_KEY, backup.value, preservePrevious || replacing) } catch (cause) { failure(cause, 'storage.write')
           error('Companion progress could not be saved on this device. Current progress remains available in this session; export a backup to keep it.', 'storage-write'); return false
         }
         if (ticket !== operation || version !== state.version) return false
+        preservePrevious = false
         adoptedCompanion = true
         baseline = { companionText: backup.value, legacyText: expected.legacyText }; persisted = progress
         state = { ...state, conflict: null, writable: true, error: '', errorKind: undefined }; emit(); return true
@@ -161,6 +164,7 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
       }
     }
     state = { ...state, progress: next, history: [...state.history.slice(-19), previous], redoHistory: [], version: state.version + 1 }
+    preservePrevious ||= replacementActions.has(action)
     emit(); void save(replaceStorage); return true
   }
   function applyProfile(next: Profile, replaceStorage = false, action: HistoryAction = 'change') { return applyCompanion(replaceAscensionProfile(state.progress, next, options.mapMilestoneIds), replaceStorage, action) }
@@ -182,6 +186,7 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
     const redone = entry(state.progress, next.action)
     copyCompanionResetProof(next, redone)
     state = { ...state, progress: next.progress, history: [...state.history, redone], redoHistory: state.redoHistory.slice(0, -1), version: state.version + 1 }
+    preservePrevious ||= replacementActions.has(next.action)
     emit(); void save(); return true
   }
   function useSaved(version: number): boolean {
@@ -189,6 +194,7 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
     const current = read()
     if (current.kind !== 'valid' || !sameBaseline(current, state.conflict)) { observe(current); return false }
     baseline = current; persisted = current.legacyChanged ? undefined : current.progress
+    preservePrevious = false
     state = { ...state, progress: current.progress, history: [entry(state.progress, 'recovery')], redoHistory: [], conflict: null, version: state.version + 1, error: '', errorKind: undefined, writable: true }
     emit()
     // Acknowledging an older writer changes the device wrapper, even when the

@@ -122,7 +122,8 @@ export function createCompanionAccountSync(options: { revision: string; storage:
                 bundle.remote[name] = acknowledged
                 const latest = readDocuments(bundle.raw, options.revision)[name]
                 if (sameState(latest, validateDocument(name, acknowledged.state, options.revision))) delete bundle.pending[name]
-                else bundle.pending[name] = { operationId: options.uuid(), mutationSequence: acknowledged.acknowledgedSequence + 1, baseRevision: acknowledged.revision, state: latest }
+                else bundle.pending[name] = { operationId: options.uuid(), mutationSequence: acknowledged.acknowledgedSequence + 1, baseRevision: acknowledged.revision, state: latest, ...(bundle.preservePrevious?.[name] ? { preservePrevious: true } : {}) }
+                if (bundle.preservePrevious) delete bundle.preservePrevious[name]
               }
             } else if (current) {
               if (current.baseRevision !== acknowledged.revision) bundle.conflicts[name] = acknowledged
@@ -295,7 +296,9 @@ export function createCompanionAccountSync(options: { revision: string; storage:
         const bundle = readBundle(accountStorage, id)!
         requireCurrentRevision(name, result, bundle)
         if (bundle.raw[documentKeys[name]] !== before.raw[documentKeys[name]]) { bundle.conflicts[name] = result; await writeBundle(accountStorage, bundle); throw new Error('Device data changed during review. Review the newer copies again.') }
-        setRawDocument(bundle.raw, name, result.state, options.revision); bundle.remote[name] = result; delete bundle.pending[name]; delete bundle.conflicts[name]; await writeBundle(accountStorage, bundle)
+        setRawDocument(bundle.raw, name, result.state, options.revision); bundle.remote[name] = result; delete bundle.pending[name]; delete bundle.conflicts[name]
+        if (bundle.preservePrevious) delete bundle.preservePrevious[name]
+        await writeBundle(accountStorage, bundle)
       })
       if (!valid(id, ticket)) return
       persistence.refresh(); publish({ conflicts: documents.filter((name) => !!readBundle(accountStorage, id)!.conflicts[name]), status: 'Conflict resolved. Recovery copies of both versions were retained.' })

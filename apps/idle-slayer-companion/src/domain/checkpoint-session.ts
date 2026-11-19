@@ -1,6 +1,6 @@
 import type { ProfileLocks } from './profile-session'
 import type { Profile } from './types'
-import type { DocumentStorage } from '../account-repository'
+import { storeDocument, type DocumentStorage } from '../account-repository'
 import { CHECKPOINT_STORAGE_KEY, checkpointName, emptyCheckpoints, exportCheckpoints, MAX_CHECKPOINTS, parseCheckpoints, type CheckpointVault } from './checkpoints'
 
 type Snapshot = { text: string | null; vault: CheckpointVault | null } | null
@@ -13,6 +13,7 @@ export interface CheckpointState {
 export function createCheckpointSession(options: { revision: string; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined; id: () => string }) {
   let state: CheckpointState = { vault: emptyCheckpoints(), savedVault: null, version: 0, loaded: false, pending: false, dirty: false, saved: false, conflict: false, error: '' }
   let baseline: Snapshot = null, observed: Snapshot = null, generation = 0
+  let preservePrevious = false
   const listeners = new Set<(state: CheckpointState) => void>()
   function publish(patch: Partial<CheckpointState>) { state = { ...state, ...patch, savedVault: observed?.vault ?? null, version: state.version + 1 }; listeners.forEach((listener) => listener(state)) }
   function read(): Snapshot {
@@ -41,8 +42,9 @@ export function createCheckpointSession(options: { revision: string; storage: ()
         if (!lock) throw new Error('busy')
         const snapshot = read()
         if (!snapshot || snapshot.text !== accepted.text) { external(snapshot); return false }
-        await options.storage().setItem(CHECKPOINT_STORAGE_KEY, text)
+        await storeDocument(options.storage(), CHECKPOINT_STORAGE_KEY, text, preservePrevious || replace)
         if (token !== generation) return false
+        preservePrevious = false
         baseline = observed = { text, vault: state.vault }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '' })
         return true
@@ -52,11 +54,12 @@ export function createCheckpointSession(options: { revision: string; storage: ()
       return false
     }
   }
-  function command(version: number, reduce: (vault: CheckpointVault) => CheckpointVault | null): boolean {
+  function command(version: number, reduce: (vault: CheckpointVault) => CheckpointVault | null, replacing = false): boolean {
     if (!state.loaded || state.pending || version !== state.version) return false
     let parsed: CheckpointVault | null = null
     try { const next = reduce(state.vault); parsed = next && parseCheckpoints(JSON.stringify(next), options.revision) } catch { /* Keep the existing collection on failed capture/validation. */ }
     if (!parsed) { publish({ error: 'Checkpoint change refused. Use a name of 1–64 characters, at most four checkpoints, and a collection within 4 MiB. Nothing was replaced.' }); return false }
+    preservePrevious ||= replacing
     publish({ vault: parsed, dirty: true, saved: false })
     void save()
     return true
@@ -79,7 +82,7 @@ export function createCheckpointSession(options: { revision: string; storage: ()
     },
     rename(id: string, name: string, version: number) { return command(version, (vault) => checkpointName(name) && vault.entries.some((entry) => entry.id === id) ? { ...vault, entries: vault.entries.map((entry) => entry.id === id ? { ...entry, name: checkpointName(name)! } : entry) } : null) },
     remove(id: string, version: number) { return command(version, (vault) => vault.entries.some((entry) => entry.id === id) ? { ...vault, entries: vault.entries.filter((entry) => entry.id !== id) } : null) },
-    restore(vault: CheckpointVault, version: number) { return command(version, () => vault) },
+    restore(vault: CheckpointVault, version: number) { return command(version, () => vault, true) },
     refreshExternal() {
       const snapshot = read()
       if (snapshot?.vault && baseline?.vault && snapshot.text === baseline.text) { observed = snapshot; if (state.conflict) publish({ conflict: false, error: '' }); return }
@@ -90,6 +93,7 @@ export function createCheckpointSession(options: { revision: string; storage: ()
       const snapshot = read()
       if (!snapshot?.vault || !observed || snapshot.text !== observed.text) { external(snapshot); return false }
       generation++; baseline = observed = snapshot
+      preservePrevious = false
       publish({ vault: snapshot.vault, dirty: false, saved: snapshot.text !== null, conflict: false, error: '' }); return true
     },
     save,

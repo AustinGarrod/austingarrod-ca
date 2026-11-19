@@ -1,6 +1,6 @@
 import { COMPARISON_STORAGE_KEY, emptyComparison, exportComparison, parseComparison, type SavedComparison } from './saved-comparison'
 import type { ProfileLocks } from './profile-session'
-import type { DocumentStorage } from '../account-repository'
+import { storeDocument, type DocumentStorage } from '../account-repository'
 
 type Snapshot = { text: string | null; list: SavedComparison | null } | null
 export interface ComparisonState {
@@ -21,6 +21,7 @@ type Storage = DocumentStorage
 export function createComparisonSession(dependencies: { storage: () => Storage; locks: () => ProfileLocks | undefined }) {
   let state: ComparisonState = { list: emptyComparison(), version: 0, loaded: false, pending: false, dirty: false, conflict: false, error: '', saved: false, canUseSaved: false, savedList: null }
   let baseline: Snapshot = null, observed: Snapshot = null, generation = 0
+  let preservePrevious = false
   const subscribers = new Set<(state: ComparisonState) => void>()
   function publish(patch: Partial<ComparisonState>) {
     state = { ...state, ...patch, savedList: observed?.list ?? null, version: state.version + 1 }
@@ -60,8 +61,9 @@ export function createComparisonSession(dependencies: { storage: () => Storage; 
         const snapshot = read()
         if (!snapshot || snapshot.text !== accepted.text) { external(snapshot); return false }
         const text = exportComparison(list)
-        await dependencies.storage().setItem(COMPARISON_STORAGE_KEY, text)
+        await storeDocument(dependencies.storage(), COMPARISON_STORAGE_KEY, text, preservePrevious || replace)
         if (token !== generation) return false
+        preservePrevious = false
         baseline = observed = { text, list }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '', canUseSaved: true })
         return true
@@ -81,9 +83,10 @@ export function createComparisonSession(dependencies: { storage: () => Storage; 
         canUseSaved: !!snapshot?.list, conflict: !snapshot?.list,
         error: snapshot?.list ? '' : 'Saved comparison is unavailable or invalid. It has not been replaced. Export local entries or review recovery.' })
     },
-    edit(list: SavedComparison, expectedVersion = state.version) {
+    edit(list: SavedComparison, expectedVersion = state.version, replacing = false) {
       const validated = parseComparison(JSON.stringify(list))
       if (!state.loaded || state.pending || expectedVersion !== state.version || !validated) return false
+      preservePrevious ||= replacing
       publish({ list: validated, dirty: true, saved: false })
       void save()
       return true
@@ -102,6 +105,7 @@ export function createComparisonSession(dependencies: { storage: () => Storage; 
       const snapshot = read()
       if (!snapshot?.list || !observed || snapshot.text !== observed.text) { external(snapshot); return false }
       generation++; baseline = observed = snapshot
+      preservePrevious = false
       publish({ list: snapshot.list, dirty: false, saved: snapshot.text !== null, conflict: false, error: '', canUseSaved: true })
       return true
     },

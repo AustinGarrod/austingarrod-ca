@@ -16,7 +16,7 @@ export const ACTIVE_ACCOUNT_KEY = 'idle-slayer-companion.accounts.active.v1'
 export const accountKey = (id: string) => 'idle-slayer-companion.accounts.v1.' + encodeURIComponent(id)
 export type RawDocuments = Record<string, string | null>
 export type RemoteState = { resourceId: string; app: string; document: string; schemaVersion: number; revision: number; state: unknown; acknowledgedSequence: number }
-export type PendingWrite = { operationId: string; mutationSequence: number; baseRevision: number; state: unknown }
+export type PendingWrite = { operationId: string; mutationSequence: number; baseRevision: number; state: unknown; preservePrevious?: true }
 export interface AccountBundle {
   version: 1
   accountId: string
@@ -24,6 +24,7 @@ export interface AccountBundle {
   raw: RawDocuments
   remote: Partial<Record<DocumentName, RemoteState>>
   pending: Partial<Record<DocumentName, PendingWrite>>
+  preservePrevious?: Partial<Record<DocumentName, true>>
   conflicts: Partial<Record<DocumentName, RemoteState>>
 }
 export function captureRaw(storage: Pick<Storage, 'getItem'>): RawDocuments { return Object.fromEntries(originalKeys.map((key) => [key, storage.getItem(key)])) }
@@ -109,22 +110,28 @@ export function guestPersistence(): CompanionPersistence {
 export function accountPersistence(options: { id: string; revision: string; storage: DocumentStorage & Partial<Pick<AccountRepository, 'reload'>>; locks: () => ProfileLocks | undefined; uuid: () => string; changed: () => void }): CompanionPersistence {
   const listeners = new Set<() => void>()
   const get = () => { const bundle = readBundle(options.storage, options.id); if (!bundle) throw new Error('Account data is unavailable.'); return bundle }
+  const write = (key: string, value: string, preservePrevious: boolean) => {
+    if (!originalKeys.includes(key)) throw new Error('Unsupported account document')
+    const bundle = get(), name = documents.find((name) => documentKeys[name] === key)
+    if (!name) throw new Error('Legacy account documents are read-only')
+    bundle.raw[key] = value
+    const state = readDocuments(bundle.raw, options.revision)[name]
+    const remote = bundle.remote[name]
+    // A possibly committed request must be replayed byte-for-byte after a lost
+    // acknowledgement. Later edits live in raw until that frozen request acks.
+    if (!bundle.pending[name]) {
+      bundle.pending[name] = { operationId: options.uuid(), mutationSequence: (remote?.acknowledgedSequence ?? 0) + 1, baseRevision: remote?.revision ?? 0, state, ...(preservePrevious ? { preservePrevious: true } : {}) }
+    } else if (preservePrevious) {
+      (bundle.preservePrevious ??= {})[name] = true
+    }
+    const result = writeBundle(options.storage, bundle)
+    if (result && typeof result.then === 'function') return result.then(options.changed)
+    options.changed()
+  }
   const adapter: DocumentStorage = {
     getItem: (key) => get().raw[key] ?? null,
-    setItem: (key, value) => {
-      if (!originalKeys.includes(key)) throw new Error('Unsupported account document')
-      const bundle = get(), name = documents.find((name) => documentKeys[name] === key)
-      if (!name) throw new Error('Legacy account documents are read-only')
-      bundle.raw[key] = value
-      const state = readDocuments(bundle.raw, options.revision)[name]
-      const remote = bundle.remote[name]
-      // A possibly committed request must be replayed byte-for-byte after a lost
-      // acknowledgement. Later edits live in raw until that frozen request acks.
-      if (!bundle.pending[name]) bundle.pending[name] = { operationId: options.uuid(), mutationSequence: (remote?.acknowledgedSequence ?? 0) + 1, baseRevision: remote?.revision ?? 0, state }
-      const result = writeBundle(options.storage, bundle)
-      if (result && typeof result.then === 'function') return result.then(options.changed)
-      options.changed()
-    },
+    setItem: (key, value) => write(key, value, false),
+    replaceItem: (key, value) => write(key, value, true),
   }
   return {
     ...visitRegistry(),

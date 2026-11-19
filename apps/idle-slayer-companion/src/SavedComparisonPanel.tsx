@@ -40,9 +40,9 @@ export function SavedComparisonPanel({ catalog, profile, getProfile, visible, se
     setReplace(undefined)
   }, [state.version, visibleKey])
   useEffect(() => () => { readGeneration.current++ }, [])
-  function edit(next: SavedComparison) {
+  function edit(next: SavedComparison, replacing = false) {
     const projected = presentedComparison(next, catalog, visibility(catalog, getProfile()).ids)
-    if (session.edit(projected, state.version)) { setReplace(undefined); setFeedback('Comparison updated. Progress is unchanged.') }
+    if (session.edit(projected, state.version, replacing)) { setReplace(undefined); setFeedback('Comparison updated. Progress is unchanged.') }
   }
   function add(id: string) {
     const next = editComparison(session.getState().list, id, visibility(catalog, getProfile()).ids, catalog, activeReplace)
@@ -90,7 +90,7 @@ export function SavedComparisonPanel({ catalog, profile, getProfile, visible, se
       <h3>Replace this comparison?</h3><p>This replaces only the reference list with the currently visible and unavailable entries below. Progress stays unchanged. Export this list first if you want to keep both.</p>
       <ul>{presentedComparison(restore.list, catalog, visible.ids).ids.map((id) => <li key={id}>{index.has(id) ? `${index.get(id)!.title} · ${cost(index.get(id)!.cost)} · ${id}` : 'Unavailable catalog entry'}</li>)}</ul>
       {!presentedComparison(restore.list, catalog, visible.ids).ids.length && <p>No visible or unavailable entries to restore.</p>}
-      <div className="dialog-actions"><button disabled={disabled} onClick={() => { const latest = current(); if (restore.version === latest.version && restore.visibleKey === latest.visibleKey) edit(restore.list) }}>Replace comparison</button><button onClick={() => { readGeneration.current++; setRestore(null) }}>Cancel restore</button></div>
+      <div className="dialog-actions"><button disabled={disabled} onClick={() => { const latest = current(); if (restore.version === latest.version && restore.visibleKey === latest.visibleKey) edit(restore.list, true) }}>Replace comparison</button><button onClick={() => { readGeneration.current++; setRestore(null) }}>Cancel restore</button></div>
     </section>}
     {recovery && <section className="saved-comparison-confirm" aria-label="Review comparison recovery"><h3>{recovery.action === 'saved' ? 'Use saved comparison?' : 'Replace saved comparison?'}</h3><p>{recovery.action === 'saved' ? 'Discard this local reference list and load the checked saved comparison below.' : 'Replace the checked device comparison below with this local reference list. Another tab may be using the saved list.'} Export this list first to keep it. Progress is unchanged.</p><h3>Checked saved entries</h3>{state.savedList ? <><ul>{presentedComparison(state.savedList, catalog, visible.ids).ids.map((id) => <li key={id}>{index.has(id) ? `${index.get(id)!.title} · ${cost(index.get(id)!.cost)} · ${id}` : 'Unavailable catalog entry'}</li>)}</ul><small>Only currently visible and unavailable saved entries are shown.</small></> : <p>Saved comparison cannot be read as a supported reference list.</p>}<div className="dialog-actions"><button disabled={disabled} onClick={() => { if (recovery.action === 'saved') session.useSaved(recovery.version); else void session.save(true, recovery.version); setRecovery(null) }}>Confirm comparison recovery</button><button onClick={() => setRecovery(null)}>Cancel recovery</button></div></section>}
     <h3>Compared entries · {list.ids.length} / {MAX_COMPARISON_ENTRIES}</h3>

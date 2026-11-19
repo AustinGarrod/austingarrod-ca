@@ -67,6 +67,28 @@ try {
         exit;
     }
 
+    if ($action === 'seed-daily-checkpoints') {
+        $fixtureUser = (string)getenv('ACCOUNTS_TEST_USER_ID');
+        $row = accounts_query($db, "SELECT d.* FROM accounts_documents d JOIN accounts_users u ON u.id=d.user_id
+            WHERE u.id=? AND u.email LIKE '%@example.test' AND d.app='pokedex-binder' AND d.document='binder'", [$fixtureUser])->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new RuntimeException();
+        }
+        $db->exec("SET time_zone = '+00:00'");
+        $keep = [];
+        foreach ([1, 1, 2, 3, 4] as $index => $daysAgo) {
+            $id = accounts_uuid();
+            accounts_query($db, "INSERT INTO accounts_recovery(id,user_id,app,document,label,schema_version,revision,state_json,created_at)
+                VALUES(?,?,?,?,'Before sync',?,?,?,TIMESTAMP(DATE_SUB(UTC_DATE(), INTERVAL ? DAY),?))",
+                [$id, $fixtureUser, $row['app'], $row['document'], $row['schema_version'], $row['revision'], $row['state_json'], $daysAgo, "00:00:0".$index]);
+            if ($index === 0 || $daysAgo === 2) {
+                $keep[] = $id;
+            }
+        }
+        echo json_encode($keep, JSON_THROW_ON_ERROR);
+        exit;
+    }
+
     if (in_array($action, ['seed-pending-google', 'read-google-identity'], true)) {
         // CLI-only fixtures within the generated loopback test database. The
         // production API has no OIDC/mock-auth bypass or fixture action.

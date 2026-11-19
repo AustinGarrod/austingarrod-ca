@@ -28,6 +28,9 @@
 .account-recovery-list li { border-top: 1px solid #c6c6cd; padding: 20px 0; overflow-wrap: anywhere; }
 .account-recovery-list h3 { font-size: 1rem; }
 .account-recovery-list p { font-size: 0.85rem; }
+.account-sync-history { border-top: 1px solid #c6c6cd; margin-top: 20px; }
+.account-sync-history summary { padding: 14px 0; cursor: pointer; font-weight: 600; }
+.account-sync-history > .button { margin-top: 8px; }
 .account-return { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
 .assistant-layout { grid-template-columns: minmax(0, 52rem); padding-top: clamp(24px, 4vw, 48px); }
 .assistant-guide { display: grid; gap: clamp(24px, 4vw, 36px); }

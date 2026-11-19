@@ -70,6 +70,12 @@ import "@styles/account.css";
         </div>
         <p>Migration and conflict copies stay here until you delete them. Restoring a copy also preserves the version it replaces.</p>
         <p id="account-recovery-status" role="status" aria-live="polite"></p>
+        <details id="account-sync-history" class="account-sync-history" hidden>
+          <summary id="account-sync-history-summary">Sync checkpoints</summary>
+          <p>Each save keeps checkpoints for up to three days with synced changes.</p>
+          <ul id="account-sync-history-list" class="account-recovery-list"></ul>
+          <button id="account-sync-history-more" type="button" class="button compact" hidden>Show older versions</button>
+        </details>
         <ul id="account-recovery-list" class="account-recovery-list"></ul>
       </section>
       <a id="account-return" class="text-link account-return" href="/utilities/"><ArrowLeft size={17} aria-hidden="true" />Back to utilities</a>

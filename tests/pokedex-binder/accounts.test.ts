@@ -128,6 +128,18 @@ describe("optional Binder accounts and non-destructive migration", () => {
     expect(api.snapshots).toContainEqual(state([25], 3));
     expect(await app.recoveryBackups()).not.toContain("pdx_");
   });
+  it("requests a protected copy for a restored binder while ordinary marks use daily checkpoints", async () => {
+    const api = service(state([25])), app = await controller(api);
+    await migrate(app);
+    await app.replaceState(state([7]));
+    await app.sync();
+    await app.setOwned(2, true);
+    await app.sync();
+    const writes = api.calls.filter(call => call.operation === "write").map(call => call.body as DocumentWrite<BinderState>);
+    expect(writes).toHaveLength(2);
+    expect(writes[0]).toMatchObject({ state: state([7]), preservePrevious: true });
+    expect(writes[1].preservePrevious).toBeUndefined();
+  });
   it("rebases guest set edits made during adoption without discarding exact finishes", async () => {
     const api=service(), app=await controller(api);
     const { newBinder }=await import("../../src/utilities/pokedex-binder/lib/master");

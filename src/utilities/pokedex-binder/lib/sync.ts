@@ -178,6 +178,7 @@ export function createBinderController(options: BinderControllerOptions) {
             if (current.session?.key !== key || current.session.inFlight || remote.revision < current.session.revision) return current;
             rebase(current, remote, current.session.baseline);
             current.session!.nextSequence = Math.max(current.session!.nextSequence, remote.acknowledgedSequence + 1);
+            if (sameState(current.state, remote.state)) delete current.preservePrevious;
             return current;
           });
           doc = store.read();
@@ -188,7 +189,9 @@ export function createBinderController(options: BinderControllerOptions) {
           await store.update(current => {
             if (current.session?.key !== key || current.session.inFlight || current.layoutConflict || sameState(current.state, current.session.baseline)) return current;
             current.session.inFlight = { sequence: current.session.nextSequence, baseRevision: current.session.revision,
-              baseline: cloneState(current.session.baseline), state: cloneState(current.state), operationId: crypto.randomUUID() };
+              baseline: cloneState(current.session.baseline), state: cloneState(current.state), operationId: crypto.randomUUID(),
+              ...(current.preservePrevious ? { preservePrevious: true } : {}) };
+            delete current.preservePrevious;
             return current;
           });
         }
@@ -196,13 +199,14 @@ export function createBinderController(options: BinderControllerOptions) {
         if (!flight) continue;
         try {
           const remote = (await request("PATCH", key, { clientId: doc.clientId, mutationSequence: flight.sequence, baseRevision: flight.baseRevision, state: flight.state,
-            ...(options.transport ? { operationId: flight.operationId } : {}) }))!;
+            ...(options.transport ? { operationId: flight.operationId, ...(flight.preservePrevious ? { preservePrevious: true } : {}) } : {}) }))!;
           if (remote.acknowledgedSequence < flight.sequence) throw new SyncError("Sync did not acknowledge this change. Your local binder is safe; retry shortly.", "invalid_ack", 0);
           await store.update(current => {
             if (current.session?.key !== key || current.session.inFlight?.sequence !== flight.sequence || remote.revision < current.session.revision) return current;
             // The frozen payload has already been applied. Rebase only edits made after it.
             rebase(current, remote, flight.state);
             current.session!.inFlight = null; current.session!.nextSequence = remote.acknowledgedSequence + 1;
+            if (sameState(current.state, remote.state)) delete current.preservePrevious;
             return current;
           });
         } catch (cause) {
@@ -211,6 +215,7 @@ export function createBinderController(options: BinderControllerOptions) {
           await store.update(current => {
             if (current.session?.key !== key || current.session.inFlight?.sequence !== flight.sequence || remote.revision < current.session.revision) return current;
             rebase(current, remote, flight.baseline); current.session!.inFlight = null;
+            if (flight.preservePrevious && !sameState(current.state, remote.state)) current.preservePrevious = true;
             return current;
           });
         }
@@ -229,8 +234,14 @@ export function createBinderController(options: BinderControllerOptions) {
     finally { busy = false; emit(); }
   }
   async function sync(): Promise<void> { if (!started || stopped) return; await serialized(runSync); }
-  async function edit(change: (state: BinderState) => BinderState): Promise<void> {
-    await store.update(doc => { doc.state = validateState(change(cloneState(doc.state)), options.species); if (doc.layoutConflict) doc.layoutConflict.local = { ...doc.state.settings }; return doc; });
+  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false): Promise<void> {
+    await store.update(doc => {
+      const next = validateState(change(cloneState(doc.state)), options.species);
+      if (options.transport && preservePrevious && !sameState(doc.state, next)) doc.preservePrevious = true;
+      doc.state = next;
+      if (doc.layoutConflict) doc.layoutConflict.local = { ...doc.state.settings };
+      return doc;
+    });
     emit(); schedule();
   }
   async function setOwned(id: number, owned: boolean): Promise<void> {
@@ -238,7 +249,7 @@ export function createBinderController(options: BinderControllerOptions) {
     await edit(state => { const ids = new Set(state.ownedDexIds); if (owned) ids.add(id); else ids.delete(id); state.ownedDexIds = [...ids].sort((a, b) => a - b); return state; });
   }
   async function setSettings(settings: BinderSettings): Promise<void> { const validated = validateSettings(settings); await edit(state => ({ ...state, settings: validated })); }
-  async function replaceState(state: BinderState): Promise<void> { const validated = validateState(state, options.species); await edit(() => validated); }
+  async function replaceState(state: BinderState): Promise<void> { await edit(() => state, true); }
   async function createSync(): Promise<string> {
     if (retired) throw new Error("This key was retired. Sign in to recover this device's collection; its original sync history has been preserved.");
     const key = await serialized(async () => {

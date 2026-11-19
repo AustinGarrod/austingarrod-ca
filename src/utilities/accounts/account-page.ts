@@ -6,6 +6,10 @@ const element = <T extends HTMLElement = HTMLElement>(id: string) => document.ge
 const status = element("account-status");
 const recoveryStatus = element("account-recovery-status");
 const recoveryList = element<HTMLUListElement>("account-recovery-list");
+const syncHistoryPanel = element<HTMLDetailsElement>("account-sync-history");
+const syncHistoryList = element<HTMLUListElement>("account-sync-history-list");
+const syncHistoryMore = element<HTMLButtonElement>("account-sync-history-more");
+const syncHistoryPageSize = 20;
 const email = element<HTMLInputElement>("account-email");
 const code = element<HTMLInputElement>("account-code");
 const params = new URLSearchParams(location.search);
@@ -18,6 +22,7 @@ let challengeId = "";
 let busy = false;
 let resendAt = 0;
 let recoveryGeneration = 0;
+let syncHistory: RecoverySnapshot[] = [];
 let assistantGeneration = 0;
 const clientId = crypto.randomUUID();
 
@@ -42,6 +47,21 @@ function updateResend(): void {
 }
 window.setInterval(updateResend, 1000);
 
+function appendSyncHistory(accountId: string, count: number): void {
+  const start = syncHistoryList.childElementCount;
+  const rows = syncHistory.slice(start, start + count).map(snapshot => recoveryRow(snapshot, accountId));
+  syncHistoryList.append(...rows);
+  syncHistoryMore.hidden = syncHistoryList.childElementCount >= syncHistory.length;
+}
+
+syncHistoryMore.addEventListener("click", () => {
+  const accountId = current?.user?.id;
+  if (busy || !accountId) return;
+  const firstOlder = syncHistoryList.childElementCount;
+  appendSyncHistory(accountId, syncHistoryPageSize);
+  syncHistoryList.children[firstOlder]?.querySelector("button")?.focus();
+});
+
 async function loadRecovery(): Promise<void> {
   const user = current?.user;
   if (!user) return;
@@ -50,9 +70,17 @@ async function loadRecovery(): Promise<void> {
   try {
     const snapshots = await createAccountClient(user.id).listRecovery();
     if (generation !== recoveryGeneration || current?.user?.id !== user.id) return;
-    recoveryList.replaceChildren();
-    recoveryStatus.textContent = snapshots.length ? `${snapshots.length} recovery ${snapshots.length === 1 ? "copy" : "copies"}.` : "No recovery copies yet.";
-    for (const snapshot of snapshots) recoveryList.append(recoveryRow(snapshot, user.id));
+    const copies = snapshots.filter(snapshot => snapshot.label !== "Before sync");
+    syncHistory = snapshots.filter(snapshot => snapshot.label === "Before sync");
+    recoveryList.replaceChildren(...copies.map(snapshot => recoveryRow(snapshot, user.id)));
+    recoveryStatus.textContent = copies.length
+      ? `${copies.length} recovery ${copies.length === 1 ? "copy" : "copies"}.`
+      : snapshots.length ? "" : "No recovery copies yet.";
+    const visible = Math.max(syncHistoryPageSize, syncHistoryList.childElementCount);
+    syncHistoryList.replaceChildren();
+    syncHistoryPanel.hidden = syncHistory.length === 0;
+    element("account-sync-history-summary").textContent = `Sync checkpoints · ${syncHistory.length}`;
+    appendSyncHistory(user.id, visible);
   } catch (error) {
     if (generation === recoveryGeneration) recoveryStatus.textContent = error instanceof APIError ? error.message : "Recovery copies could not be loaded. Try again shortly.";
   }
@@ -64,7 +92,9 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
   heading.textContent = `${app} · ${snapshot.document}`;
   const note = document.createElement("p");
   const date = new Date(snapshot.createdAt);
-  note.textContent = `${snapshot.label} · ${Number.isNaN(date.valueOf()) ? snapshot.createdAt : date.toLocaleString()}`;
+  const label = snapshot.label === "Before sync" ? "Daily checkpoint" : snapshot.label;
+  note.textContent = `${label} · ${Number.isNaN(date.valueOf()) ? snapshot.createdAt : date.toLocaleString()}`;
+  if (snapshot.revision > 0) note.textContent += ` · Revision ${snapshot.revision}`;
   const actions = document.createElement("div"); actions.className = "account-actions";
   const client = createAccountClient(accountId);
   function action(label: string, run: () => Promise<void>): void {
@@ -174,6 +204,15 @@ function render(value: AccountSession): void {
   email.readOnly = verifyingGoogle;
   if (value.pendingGoogleEmail) email.value = value.pendingGoogleEmail;
   updateResend();
+  if (previousId !== value.user?.id) {
+    ++recoveryGeneration;
+    recoveryStatus.textContent = "";
+    recoveryList.replaceChildren();
+    syncHistory = [];
+    syncHistoryList.replaceChildren();
+    syncHistoryPanel.open = false;
+    syncHistoryPanel.hidden = true;
+  }
   if (value.user) {
     element("account-identity").textContent = value.user.email;
     if (previousId !== value.user.id) {
@@ -181,7 +220,6 @@ function render(value: AccountSession): void {
       void loadAssistants(value);
     }
   } else {
-    ++recoveryGeneration; recoveryList.replaceChildren();
     ++assistantGeneration; element("account-assistants").hidden = true;
     element("account-assistants-list").replaceChildren();
   }
