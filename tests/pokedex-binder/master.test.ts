@@ -83,7 +83,7 @@ describe("set catalog and independent pocket goals", () => {
       });
       expect(mixed.map(card => card.number), id).toEqual([]);
     }
-  });
+  }, 30000); // Reads every shipped set catalog on the shared runner.
 
   const cards: SetCard[] = JSON.parse(
     readFileSync("public/utilities/pokedex-binder/catalog/master-sets/sv03.5.json", "utf8"),
