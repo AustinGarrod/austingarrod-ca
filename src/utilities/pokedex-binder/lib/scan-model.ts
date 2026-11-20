@@ -20,13 +20,16 @@ export function editDistance(a: string, b: string): number {
   }
   return previous[b.length];
 }
-/** Title lines only: never scan attack/evolution paragraphs for species substrings. */
-export function matchCardTitle(lines: ScanLine[], aliases: ScanAlias[]): ScanMatch[] {
+export function indexScanAliases(aliases: ScanAlias[]) {
   const byName = new Map<string, ScanAlias>();
   for (const alias of aliases) {
     const key = normalizeCardName(alias.name), old = byName.get(key);
     byName.set(key, old ? { name: old.name, dexIds: [...new Set([...old.dexIds, ...alias.dexIds])] } : alias);
   }
+  return byName;
+}
+/** Title lines only: never scan attack/evolution paragraphs for species substrings. */
+export function matchCardTitle(lines: ScanLine[], byName: ReadonlyMap<string, ScanAlias>): ScanMatch[] {
   const matches: { match: ScanMatch; score: number; height: number }[] = [];
   for (const line of lines) {
     if (line.confidence < 20 || /evolves?\s+from|evolution|\btrainer\b|\benergy\b/i.test(line.text)) continue;
@@ -90,7 +93,7 @@ export class CaptureGate {
     // Rear-camera handheld footage commonly varies 6–9% between samples even when the title is readable.
     if (difference > .11) { this.stableAt = now; return "moving"; }
     if (this.blocked && frameDifference(this.blocked, signature) < .14) return "held";
-    return now - this.stableAt >= 500 ? "ready" : "moving";
+    return now - this.stableAt >= 320 ? "ready" : "moving";
   }
   accept(signature: number[]) { this.blocked = [...signature]; this.stableAt = 0; }
   rescan() { this.blocked = null; this.stableAt = 0; this.last = []; }

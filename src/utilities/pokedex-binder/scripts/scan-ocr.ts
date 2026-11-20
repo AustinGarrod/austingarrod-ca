@@ -1,17 +1,23 @@
 import type { Worker } from "tesseract.js";
-import { matchCardTitle, type ScanIndex, type ScanLine, type ScanMatch } from "../lib/scan-model";
+import { indexScanAliases, matchCardTitle, type ScanIndex, type ScanLine, type ScanMatch } from "../lib/scan-model";
+import { matchSetCard } from "../lib/scan-set";
+import type { Slot } from "../lib/master";
 
 export interface CardRecognizer {
   recognize(frame: HTMLCanvasElement): Promise<ScanMatch[]>;
-  readText(frame: HTMLCanvasElement): Promise<string>;
+  readSet(frame: HTMLCanvasElement, slots: Slot[], printedTotal: number | null): Promise<string[]>;
   terminate(): Promise<void>;
 }
 const assets = "/utilities/pokedex-binder/scanner-assets/v1";
-export async function createCardRecognizer(progress: (message: string) => void): Promise<CardRecognizer> {
-  const [{ createWorker, PSM }, response] = await Promise.all([import("tesseract.js"), fetch("/utilities/pokedex-binder/catalog/scan-index.json", { cache: "no-cache" })]);
+async function loadAliases() {
+  const response = await fetch("/utilities/pokedex-binder/catalog/scan-index.json", { cache: "no-cache" });
   if (!response.ok) throw new Error("Scanner names could not load.");
   const index = await response.json() as ScanIndex;
   if (index.schemaVersion !== 1 || !Array.isArray(index.aliases)) throw new Error("Scanner names need updating.");
+  return indexScanAliases(index.aliases);
+}
+export async function createCardRecognizer(progress: (message: string) => void, mode: "species" | "set"): Promise<CardRecognizer> {
+  const [{ createWorker, PSM }, aliases] = await Promise.all([import("tesseract.js"), mode === "species" ? loadAliases() : null]);
   let worker: Worker | null = null;
   try {
     worker = await createWorker("eng", 1, { workerPath: `${assets}/worker.min.js`, corePath: assets, langPath: assets,
@@ -42,19 +48,20 @@ export async function createCardRecognizer(progress: (message: string) => void):
     return crop;
   }
   return {
-    async readText(frame) {
+    async readSet(frame, slots, printedTotal) {
       await engine.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-      // Collector numbers sit along the bottom edge and titles at the top.
-      const parts: string[] = [];
-      for (const [x, y, width, height] of [[0, .85, 1, .15], [.10, .015, .76, .20]]) {
-        if (closed) return "";
+      async function read(x: number, y: number, width: number, height: number, blocks = false) {
+        if (closed) return null;
         const crop = textCrop(frame, x, y, width, height);
-        try { parts.push((await engine.recognize(crop)).data.text); }
+        try { return (await engine.recognize(crop, {}, { text: true, blocks })).data; }
         finally { crop.width = crop.height = 0; }
       }
-      return parts.join("\n");
+      const footer = await read(0, .85, 1, .15, true);
+      const lines = (footer?.blocks ?? []).flatMap(block => block.paragraphs.flatMap(p => p.lines));
+      return matchSetCard(slots, printedTotal, lines, async () => (await read(.10, .015, .76, .20))?.text ?? "");
     },
     async recognize(frame) {
+      if (!aliases) throw new Error("Species names were not loaded.");
       const crops = [
         { x: .16, y: .026, width: .60, height: .068, mode: PSM.SINGLE_LINE },
         { x: .10, y: .015, width: .76, height: .22, mode: PSM.SPARSE_TEXT },
@@ -68,7 +75,7 @@ export async function createCardRecognizer(progress: (message: string) => void):
         crop.width = crop.height = 0;
         if (closed) return [];
         const lines: ScanLine[] = (data.blocks ?? []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.map(line => ({ text: line.text, confidence: line.confidence, height: line.bbox.y1 - line.bbox.y0 }))));
-        const matches = matchCardTitle(lines, index.aliases);
+        const matches = matchCardTitle(lines, aliases);
         if (matches.length === 1 && matches[0].certain) return matches;
         if (matches.length && (!fallback.length || matches[0].dexIds.length > 1)) fallback = matches;
       }

@@ -273,4 +273,14 @@
 #master-list img { width: 44px; height: 56px; object-fit: contain; }
 #master-binder-grid .dex-pocket-open small { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
 #master-pokemon-details img { width: min(36%,110px); height: auto; }
-#set-scan-result select { width: 100%; max-width: 100%; }
+#scan-flash[aria-pressed=true] { color: white; background: var(--ink); }
+#scan-flash-notice { flex-basis: 100%; margin: 0; font-size: 12px; }
+#scan-flash-notice:empty { display: none; }
+#scan-likely { color: var(--muted); font-size: 12px; }
+#set-scan-name { margin: 0 0 12px; overflow-wrap: anywhere; }
+#master-scan-search { display: block; width: 100%; }
+#set-scan-finishes button { min-height: 48px; }
+#set-scan-finishes small { color: inherit; }
+.dex-set-scan-alternatives { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 12px 0; }
+.dex-set-scan-alternatives button.dex-scan-correct { margin: 0; }
+#set-result-photo .dex-file-label { min-height: 32px; padding: 4px 0; border: 0; color: var(--muted); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }

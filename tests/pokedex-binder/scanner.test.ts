@@ -1,14 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { CaptureGate, frameDifference, matchCardTitle, videoCrop, type ScanAlias } from "../../src/utilities/pokedex-binder/lib/scan-model";
+import { CaptureGate, frameDifference, indexScanAliases, matchCardTitle, videoCrop, type ScanAlias } from "../../src/utilities/pokedex-binder/lib/scan-model";
 import { buildScanIndex } from "../../scripts/pokedex-scan-index.mjs";
-const aliases: ScanAlias[] = [
+import { matchSetCard } from "../../src/utilities/pokedex-binder/lib/scan-set";
+import type { Slot } from "../../src/utilities/pokedex-binder/lib/master";
+const aliases = indexScanAliases([
   { name: "Mew", dexIds: [151] }, { name: "Mewtwo", dexIds: [150] },
   { name: "Charmeleon", dexIds: [5] }, { name: "Charmander", dexIds: [4] },
   { name: "Alolan Rattata", dexIds: [19] }, { name: "Mr. Mime", dexIds: [122] },
   { name: "Pikachu & Zekrom GX", dexIds: [25, 644] },
   { name: "Nidoran♀", dexIds: [29] }, { name: "Nidoran♂", dexIds: [32] }, { name: "Nidorino", dexIds: [33] },
-];
+]);
 const line = (text: string, confidence = 95, height = 30) => ({ text, confidence, height });
 describe("card title matching", () => {
   it("never treats substrings/evolution instructions as the current Pokémon", () => {
@@ -28,6 +30,25 @@ describe("card title matching", () => {
   it("keeps OCR spelling corrections as choices rather than confident matches", () => {
     expect(matchCardTitle([line("Charmandcr")], aliases)[0]).toMatchObject({ dexIds: [4], certain: false });
     expect(matchCardTitle([line("unreadable shiny card")], aliases)).toEqual([]);
+  });
+});
+describe("set card recognition", () => {
+  const slot = (number: string, name: string, finish = "normal"): Slot => ({
+    key: number + ":" + finish, number, name, finish, required: true, owned: false, category: "Pokemon",
+  });
+  const slots = [slot("001", "Mew"), slot("001", "Mew", "reverse"), slot("007", "Mewtwo"), slot("TG05", "Mewtwo")];
+  const skipTitle = async (): Promise<string> => { throw Error("Unnecessary title OCR"); };
+  it("opens all finishes for one clear collector number without reading the title", async () => {
+    expect(await matchSetCard(slots, 165, [line("1/165")], skipTitle)).toEqual(["001"]);
+    expect(await matchSetCard(slots, 165, [line("TG5/TG30")], skipTitle)).toEqual(["TG05"]);
+    expect(await matchSetCard(slots, 165, [line("001/100")], skipTitle)).toEqual([]);
+  });
+  it("uses the title when a number is missing, ambiguous or poorly recognized", async () => {
+    expect(await matchSetCard(slots, 165, [], async () => "BASIC Mewtwo 110HP")).toEqual(["007", "TG05"]);
+    expect(await matchSetCard(slots, 165, [line("001/165 007/165")], async () => "Mewtwo")).toEqual(["007"]);
+    expect(await matchSetCard(slots, 165, [line("001/165", 40)], async () => "Mewtwo")).toEqual(["007", "TG05"]);
+    expect(await matchSetCard(slots, 165, [line("001/165", 40)], async () => "")).toEqual([]);
+    expect(await matchSetCard(slots, 165, [], async () => "Evolves from Mew")).toEqual([]);
   });
 });
 describe("camera capture gating and coordinates", () => {

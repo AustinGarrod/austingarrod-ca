@@ -97,17 +97,19 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <p class="dex-scan-privacy">Recognition stays on this device. Photos aren’t saved or uploaded.</p>
     <p id="scan-notice" class="dex-scan-notice" role="alert"></p>
     <div id="scan-camera" class="dex-scan-camera"><video id="scan-video" autoplay muted playsinline aria-label="Live card camera"></video><div id="scan-guide" class="dex-scan-guide" aria-hidden="true"><span>Card name at the top</span></div></div>
-    <div id="scan-camera-actions" class="dex-scan-actions"><button id="scan-capture">Capture now</button><button id="scan-manual">Search manually</button><button id="scan-rescan">Rescan same card</button></div>
-    <label id="set-photo-label" class="dex-file-label" hidden>Use a photo<input id="master-photo" type="file" accept="image/*" /></label>
+    <div id="scan-camera-actions" class="dex-scan-actions"><button id="scan-capture">Capture now</button><button id="scan-flash" aria-pressed="false" hidden>Flash off</button><button id="scan-manual">Search manually</button><button id="scan-rescan">Rescan same card</button><p id="scan-flash-notice" role="status"></p></div>
+    <div id="set-photo-controls"><label id="set-photo-label" class="dex-file-label" hidden>Use a photo<input id="master-photo" type="file" accept="image/*" /></label></div>
     <section id="set-scan-result" class="dex-scan-result" hidden>
-      <div class="dex-scan-result-body"><h3>Confirm the card and finish</h3>
-        <label>Find or correct the card<input id="master-scan-search" type="search" placeholder="Name or collector number" /></label>
-        <label>Card and finish<select id="master-candidates"></select></label><p id="set-scan-place" aria-live="polite"></p></div>
-      <footer class="dex-scan-result-actions"><button id="master-confirm-scan" class="dex-primary">Mark collected</button><button id="set-scan-next">Scan next</button></footer>
+      <div class="dex-scan-result-body"><h3 id="set-scan-name"></h3>
+        <div id="set-scan-finishes" class="dex-scan-candidates"></div>
+        <div class="dex-set-scan-alternatives"><button id="set-scan-correct" class="dex-scan-correct">Change card</button><span id="set-result-photo"></span></div>
+        <div id="set-scan-search-panel"><label for="master-scan-search">Search by name or collector number</label><input id="master-scan-search" type="search" />
+          <div id="set-scan-choices" class="dex-scan-search-results"></div></div></div>
+      <footer class="dex-scan-result-actions"><button id="set-scan-next">Scan next <ChevronRight size={17} aria-hidden="true" /></button></footer>
     </section>
     <section id="scan-result" class="dex-scan-result" aria-label="Scanned card result" hidden>
       <div id="scan-result-hero" class="dex-scan-result-hero"><canvas id="scan-preview" class="dex-scan-preview" role="img" aria-label="Captured card preview" hidden></canvas>
-        <div id="scan-result-details" hidden><div class="dex-scan-species"><img id="scan-pokemon-sprite" width="64" height="64" alt="" /><div><span id="scan-dex-number" class="dex-label"></span><h3 id="scan-pokemon-name"></h3><strong id="scan-owned-status"></strong></div></div></div>
+        <div id="scan-result-details" hidden><div class="dex-scan-species"><img id="scan-pokemon-sprite" width="64" height="64" alt="" /><div><span id="scan-dex-number" class="dex-label"></span><span id="scan-likely" hidden> · Likely match</span><h3 id="scan-pokemon-name"></h3><strong id="scan-owned-status"></strong></div></div></div>
       </div>
       <div class="dex-scan-result-body"><p id="scan-choice-help"></p><div id="scan-candidates" class="dex-scan-candidates" aria-label="Choose Pokémon"></div>
         <section id="scan-placement" class="dex-scan-placement" aria-label="Binder position" hidden><div class="dex-scan-placement-heading"><h3>Binder position</h3><span id="scan-sheet"></span></div><div id="scan-location" class="dex-scan-location" role="group"><div><span>Page</span><strong id="scan-location-page"></strong></div><div><span>Row</span><strong id="scan-location-row"></strong></div><div><span>Column</span><strong id="scan-location-column"></strong></div></div></section>

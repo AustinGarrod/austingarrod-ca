@@ -285,8 +285,7 @@ try {
     await page.locator('#master-scan').click();
     await page.locator('#scan-recovery-search').click();
     await page.locator('#master-scan-search').fill('001');
-    await page.locator('#master-candidates').selectOption('001:normal');
-    await page.locator('#master-confirm-scan').click();
+    await page.locator('[data-finish="001:normal"]').click();
     await expect(slot('001:normal')).toBeChecked();
     await page.locator('#scan-close').click();
     await page.locator('#print-missing').click();

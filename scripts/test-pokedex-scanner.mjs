@@ -39,8 +39,14 @@ async function context(width = 390) {
       if (window.__denyCamera) throw new DOMException('Test camera denied', 'NotAllowedError');
       const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 720; cameraCanvas = canvas;
       draw(); const stream = canvas.captureStream(15), track = stream.getVideoTracks()[0], stop = track.stop.bind(track);
+      track.getCapabilities = () => ({ torch: window.__torchCapability });
+      track.getSettings = () => ({ torch: !!window.__torchOn });
+      track.applyConstraints = async constraints => {
+        if (window.__rejectTorch) throw new DOMException('Test flash failure', 'OverconstrainedError');
+        window.__torchOn = constraints.advanced[0].torch;
+      };
       window.__cameraCount++; const interval = setInterval(draw, 60); let stopped = false;
-      track.stop = () => { if (!stopped) { stopped = true; window.__cameraCount--; clearInterval(interval); stop(); } };
+      track.stop = () => { if (!stopped) { stopped = true; window.__torchOn = false; window.__cameraCount--; clearInterval(interval); stop(); } };
       window.__endCamera = () => { track.stop(); track.dispatchEvent(new Event('ended')); };
       if (window.__cameraHeld) await new Promise(resolve => window.__cameraPending.push(resolve));
       return stream;
@@ -72,9 +78,6 @@ async function card(page, name) {
   await page.evaluate(name => window.__setCard(name), name);
   await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result', { timeout: 15000 });
 }
-async function choose(page, id) {
-  if (!await page.locator('#scan-result-details').isVisible()) await page.locator(`#scan-candidates [data-scan-species="${id}"]`).click();
-}
 async function scenario(name, run) { await run(); completed.push(name); console.log(`Passed: ${name}`); }
 try {
   const ctx = await context(), page = await open(ctx), requests = [];
@@ -85,23 +88,26 @@ try {
     assert.match(headers['permissions-policy'], /camera=\(self\)/); assert.match(headers['content-security-policy'], /wasm-unsafe-eval/);
     const rootHeaders = await (await page.request.get(origin + '/')).headers(); assert.match(rootHeaders['permissions-policy'], /camera=\(\)/);
     await scanner(page);
+    await expect(page.locator('#scan-flash')).toBeHidden();
     assert.ok(requests.some(url => url.includes('/scanner-assets/v1/worker.min.js')));
     const constraints = await page.evaluate(() => window.__cameraCalls[0]); assert.equal(constraints.audio, false); assert.equal(constraints.video.facingMode.ideal, 'environment');
   });
   await scenario('auto capture, explicit mark, local persistence and duplicate suppression', async () => {
-    await card(page, 'Pikachu'); await choose(page, 25);
+    await card(page, 'Pikachu'); await expect(page.locator('#scan-result-details')).toBeVisible();
     await expect(page.locator('#scan-pokemon-name')).toHaveText('Pikachu'); await expect(page.locator('#owned-count')).toHaveText('0');
     await expect(page.locator('#scan-location')).toHaveAttribute('aria-label', /Page 2/);
     await page.locator('#scan-mark').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
     await expect(page.locator('#owned-count')).toHaveText('1'); await page.waitForTimeout(2200);
     await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning'); await expect(page.locator('#scan-status')).toContainText('last card');
-    await page.locator('#scan-rescan').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result', { timeout: 15000 }); await choose(page, 25);
+    await page.locator('#scan-rescan').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result', { timeout: 15000 });
     await expect(page.locator('#scan-owned-status')).toHaveText('Already collected'); await expect(page.locator('#scan-mark')).toBeHidden();
     await page.locator('#scan-next').click();
   });
   await scenario('skip without marking, correct species and multi-Pokémon choice', async () => {
-    await card(page, 'Bulbasaur'); await choose(page, 1); await page.locator('#scan-next').click(); await expect(page.locator('#owned-count')).toHaveText('1');
-    await card(page, 'Mewtwo'); await choose(page, 150); await expect(page.locator('#scan-pokemon-name')).toHaveText('Mewtwo');
+    await card(page, 'Bulbasavr'); await expect(page.locator('#scan-pokemon-name')).toHaveText('Bulbasaur');
+    await expect(page.locator('#scan-likely')).toBeVisible(); await expect(page.locator('#scan-placement')).toBeVisible();
+    await page.locator('#scan-next').click(); await expect(page.locator('#owned-count')).toHaveText('1');
+    await card(page, 'Mewtwo'); await expect(page.locator('#scan-pokemon-name')).toHaveText('Mewtwo');
     await page.locator('#scan-correct').click(); await page.locator('#scan-search').fill('mr mime');
     await page.locator('#scan-search-results [data-scan-species="122"]').click(); await expect(page.locator('#scan-pokemon-name')).toHaveText('Mr. Mime');
     await page.locator('#scan-mark').click(); await expect(page.locator('#owned-count')).toHaveText('2');
@@ -122,12 +128,15 @@ try {
   for (const width of [1440, 320]) await scenario(`${width}px camera/result layouts and manual capture`, async () => {
     const ctx = await context(width), page = await open(ctx); await scanner(page);
     await page.screenshot({ path: `${output}/camera-${width}.png` });
-    await page.evaluate(() => window.__setCard('Mr. Mime')); await page.locator('#scan-capture').click();
+    await page.evaluate(async () => {
+      window.__setCard('Mr. Mime');
+      const video = document.querySelector('#scan-video');
+      await new Promise(resolve => video.requestVideoFrameCallback(() => video.requestVideoFrameCallback(resolve)));
+    });
+    await page.locator('#scan-capture').click();
     await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result', { timeout: 15000 });
-    if (!await page.locator('#scan-result-details').isVisible()) {
-      if (await page.locator('#scan-candidates [data-scan-species="122"]').count()) await choose(page, 122);
-      else { await page.locator('#scan-correct').click(); await page.locator('#scan-search').fill('122'); await page.locator('#scan-search-results [data-scan-species="122"]').click(); }
-    }
+    await expect(page.locator('#scan-result-details')).toBeVisible();
+    await expect(page.locator('#scan-pokemon-name')).toHaveText('Mr. Mime');
     assert.equal(await page.locator('#scan-dialog').evaluate(node => node.scrollWidth > node.clientWidth), false);
     await page.screenshot({ path: `${output}/result-${width}.png` }); await ctx.close();
   });
@@ -144,6 +153,37 @@ try {
     await page.waitForFunction(() => window.__cameraPending.length > 0); await page.locator('#scan-close').click();
     await page.evaluate(() => window.__cameraPending.splice(0).forEach(resolve => resolve()));
     await expect.poll(() => page.evaluate(() => window.__cameraCount)).toBe(0); await expect(page.locator('#scan-dialog')).not.toBeVisible(); await ctx.close();
+  });
+  await scenario('manual lookup takes over during startup and in-flight OCR', async () => {
+    const ctx = await context(), page = await open(ctx);
+    await page.evaluate(() => { window.__cameraHeld = true; });
+    await page.locator('#scan-open').click(); await page.waitForFunction(() => window.__cameraPending.length);
+    await page.locator('#scan-manual').click(); await expect(page.locator('#scan-search')).toBeFocused();
+    await page.evaluate(() => { window.__cameraHeld = false; window.__cameraPending.splice(0).forEach(resolve => resolve()); });
+    await expect.poll(() => page.evaluate(() => window.__cameraCount)).toBe(0);
+    await page.locator('#scan-next').click();
+    await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning'); await guide(page);
+    await page.evaluate(() => {
+      window.__setCard('Pikachu'); document.querySelector('#scan-capture').click();
+      if (document.querySelector('#scan-dialog').dataset.phase !== 'recognizing') throw Error('Expected OCR in flight');
+      document.querySelector('#scan-manual').click();
+    });
+    await page.locator('#scan-search').fill('mewtwo'); await page.locator('#scan-search-results button').click();
+    await expect(page.locator('#scan-pokemon-name')).toHaveText('Mewtwo');
+    await page.locator('#scan-mark').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
+    await expect(page.locator('#owned-count')).toHaveText('1'); await ctx.close();
+  });
+  await scenario('flash toggles, survives scan next and recovers from a rejected constraint', async () => {
+    const ctx = await context(), page = await open(ctx);
+    await page.evaluate(() => { window.__torchCapability = [false, true]; });
+    await scanner(page); const flash = page.locator('#scan-flash');
+    await flash.click(); await expect(flash).toHaveAttribute('aria-pressed', 'true');
+    await card(page, 'Pikachu'); await page.locator('#scan-next').click(); await expect(flash).toHaveText('Flash on');
+    await page.evaluate(() => { window.__rejectTorch = true; }); await flash.click();
+    await expect(page.locator('#scan-flash-notice')).toBeVisible(); await expect(flash).toHaveText('Flash on');
+    await page.evaluate(() => { window.__rejectTorch = false; }); await flash.click(); await expect(flash).toHaveText('Flash off');
+    await flash.click(); await page.locator('#scan-close').click(); assert.equal(await page.evaluate(() => window.__torchOn), false);
+    await ctx.close();
   });
   await scenario('orientation changes keep the guide inside the camera, and backgrounding releases it', async () => {
     const ctx = await context(), page = await open(ctx); await scanner(page);
@@ -168,17 +208,16 @@ try {
       const open = indexedDB.open.bind(indexedDB);
       indexedDB.open = (name, ...args) => { if (name === 'austingarrod.utilities.pokedex-binder.v1') throw new DOMException('Synthetic storage failure', 'SecurityError'); return open(name, ...args); };
     });
-    const page = await open(ctx); await scanner(page); await card(page, 'Pikachu'); await choose(page, 25);
+    const page = await open(ctx); await scanner(page); await card(page, 'Pikachu');
     await page.locator('#scan-mark').click(); await expect(page.locator('#owned-count')).toHaveText('1');
     await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result');
     await expect(page.locator('#scan-notice')).toBeVisible(); await expect(page.locator('#scan-notice')).toContainText('Download a backup');
     await page.locator('#scan-next').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
     await page.locator('#scan-close').click(); await ctx.close();
   });
-  await scenario('set scanner reads a card locally and requires explicit number and finish confirmation', async () => {
+  await scenario('set cards open directly and mark exactly one finish, including after a failed save', async () => {
     const ctx = await context(), page = await open(ctx);
-    const dialog = page.locator('#scan-dialog'), choices = page.locator('#master-candidates');
-    const confirm = page.locator('#master-confirm-scan');
+    const dialog = page.locator('#scan-dialog');
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5'); await page.locator('#master-name').fill('151 Camera');
     await page.locator('#master-form button.dex-primary').click(); await page.locator('#master-scan').click();
@@ -186,23 +225,42 @@ try {
     await guide(page);
     await page.evaluate(() => window.__setCard('Bulbasaur', '001/165'));
     await expect(page.locator('#set-scan-result')).toBeVisible({ timeout: 30000 });
-    await expect(choices.locator('option[value="001:reverse"]')).toHaveCount(1);
-    await expect(confirm).toBeDisabled(); await choices.selectOption('001:reverse'); await confirm.click();
+    await expect(page.locator('#set-scan-name')).toHaveText('#001 · Bulbasaur');
+    const reverse = page.locator('[data-finish="001:reverse"]');
+    await expect(reverse).toContainText(/Page \d+ · Row \d+ · Column \d+/);
+    await page.screenshot({ path: `${output}/set-finishes-mobile.png` });
+    await page.evaluate(() => {
+      const transact = IDBDatabase.prototype.transaction;
+      IDBDatabase.prototype.transaction = function(stores, mode, ...rest) {
+        if (mode === 'readwrite') { IDBDatabase.prototype.transaction = transact; throw new DOMException('Test save failed', 'QuotaExceededError'); }
+        return transact.call(this, stores, mode, ...rest);
+      };
+    });
+    await reverse.click(); await expect(page.locator('#scan-notice')).toContainText('Could not save');
+    await expect(reverse).toBeEnabled(); await reverse.click();
     await expect(dialog).toHaveAttribute('data-phase', 'scanning');
     await expect(page.locator('[data-key="001:reverse"]')).toBeChecked();
     await expect(page.locator('[data-key="001:normal"]')).not.toBeChecked();
     assert.equal(await page.evaluate(() => window.__cameraCount), 1);
+    await page.locator('#scan-rescan').click(); await expect(reverse).toBeVisible({ timeout: 15000 }); await expect(reverse).toBeDisabled();
+    await expect(reverse).toContainText('Already collected');
+    await page.locator('#set-scan-next').click();
     const photo = await page.evaluate(() => {
-      window.__setCard('Ivysaur', '002/165');
+      window.__setCard('Switch', '206/165');
       return window.__cardPhoto();
     });
     await page.locator('#master-photo').setInputFiles({name: 'card.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64')});
     await expect(page.locator('#set-scan-result')).toBeVisible({ timeout: 30000 });
     assert.equal(await page.evaluate(() => window.__cameraCount), 0);
-    await expect(confirm).toBeDisabled(); await choices.selectOption('002:normal'); await confirm.click();
+    await expect(page.locator('#set-scan-name')).toHaveText('#206 · Switch');
+    const single = page.locator('#set-scan-finishes button');
+    await expect(single).toHaveCount(1); await expect(single).toContainText('Mark collected');
+    const key = await single.getAttribute('data-finish'); await single.click();
     await expect(dialog).toHaveAttribute('data-phase', 'paused');
+    await page.locator('#master-photo').setInputFiles({name: 'card.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64')});
+    await expect(single).toBeVisible({ timeout: 15000 }); await expect(single).toHaveAttribute('data-finish', key);
+    await expect(single).toBeDisabled(); await expect(single).toContainText('Already collected');
     await page.locator('#scan-close').click();
-    await expect(page.locator('[data-key="002:normal"]')).toBeChecked();
     await ctx.close();
   });
   assert.deepEqual(allErrors, []);

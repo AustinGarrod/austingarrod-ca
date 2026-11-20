@@ -489,6 +489,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const binderId = id, target = scope;
     const current = () => id === binderId && scope === target ? active() : undefined;
     return openScan({
+      printedTotal: sets.find(s => s.id === current()?.setId)?.printedTotal ?? null,
       slots() { const b = current(); return b ? progress(b).all : []; },
       mark(key) {
         if (!current()) throw new Error("Reopen the scanner for this binder.");
