@@ -80,14 +80,64 @@ async function card(page, name) {
 }
 async function scenario(name, run) { await run(); completed.push(name); console.log(`Passed: ${name}`); }
 try {
+  await scenario('retired scanner module offers reload and preserves the open binder on cancel', async () => {
+    const ctx = await context(), page = await open(ctx);
+    await page.evaluate(async () => {
+      const { createCardScanner } = await import('/utilities/pokedex-binder/scanner-update.js');
+      const oldScanner = createCardScanner();
+      oldScanner.refresh(); oldScanner.open(); oldScanner.close(); oldScanner.open();
+    });
+    const recovery = page.getByRole('dialog', { name: 'Scanner updated' });
+    await expect(recovery.getByRole('button', { name: 'Reload binder' })).toBeVisible();
+    await recovery.getByRole('button', { name: 'Close' }).click();
+    await expect(recovery).toBeHidden(); await expect(page.locator('#scan-open')).toBeVisible();
+    assert.equal(await page.evaluate(() => window.__cameraCalls.length), 0); await ctx.close();
+  });
+  for (const cancel of [false, true]) await scenario(cancel ? 'closing an early scan cancels the camera request' : 'first tap opens before the catalog is ready and starts once', async () => {
+    const ctx = await context(), page = await ctx.newPage();
+    let releaseCatalog;
+    const pending = new Promise(resolve => { releaseCatalog = resolve; });
+    await ctx.route('**/catalog/index.json', async route => { await pending; await route.continue(); });
+    try {
+      await page.goto(origin + '/utilities/pokedex-binder/', { waitUntil: 'domcontentloaded' });
+      await page.locator('#scan-open').click();
+      await expect(page.locator('#scan-dialog')).toBeVisible();
+      await expect(page.locator('#scan-status')).toHaveText('Loading your binder…');
+      await expect(page.locator('#scan-capture')).toBeHidden();
+      assert.equal(await page.evaluate(() => window.__cameraCalls.length), 0);
+      if (cancel) await page.locator('#scan-close').click();
+      releaseCatalog();
+      await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+      if (cancel) {
+        await expect(page.locator('#scan-dialog')).toBeHidden();
+        assert.equal(await page.evaluate(() => window.__cameraCalls.length), 0);
+      } else {
+        await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning', { timeout: 30000 });
+        assert.equal(await page.evaluate(() => window.__cameraCalls.length), 1);
+      }
+    } finally { releaseCatalog(); await ctx.close(); }
+  });
+  await scenario('failed catalog initialization still opens a recoverable dialog', async () => {
+    const ctx = await context();
+    await ctx.route('**/catalog/index.json', route => route.abort());
+    const page = await open(ctx);
+    await page.locator('#scan-open').click();
+    await expect(page.locator('#scan-status')).toContainText('binder could not load');
+    await expect(page.locator('#scan-reload')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#scan-dialog')).toBeHidden(); await ctx.close();
+  });
   const ctx = await context(), page = await open(ctx), requests = [];
   page.on('request', request => requests.push(request.url()));
+  // Reproduce a release deleting lazy scanner chunks after the page was loaded.
+  await ctx.route('**/_astro/scanner.*.js', route => route.abort());
   await scenario('lazy start, same-origin OCR worker and production CSP', async () => {
     assert.equal(requests.some(url => url.includes('scanner-assets')), false);
     const headers = await (await page.request.get(origin + '/utilities/pokedex-binder/')).headers();
     assert.match(headers['permissions-policy'], /camera=\(self\)/); assert.match(headers['content-security-policy'], /wasm-unsafe-eval/);
     const rootHeaders = await (await page.request.get(origin + '/')).headers(); assert.match(rootHeaders['permissions-policy'], /camera=\(\)/);
     await scanner(page);
+    assert.equal(requests.some(url => /\/_astro\/scanner\.[^/]+\.js$/.test(url)), false);
     await expect(page.locator('#scan-flash')).toBeHidden();
     assert.ok(requests.some(url => url.includes('/scanner-assets/v1/worker.min.js')));
     const constraints = await page.evaluate(() => window.__cameraCalls[0]); assert.equal(constraints.audio, false); assert.equal(constraints.video.facingMode.ideal, 'environment');

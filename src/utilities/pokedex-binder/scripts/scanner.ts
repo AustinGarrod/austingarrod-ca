@@ -6,6 +6,7 @@ import type { BinderSnapshot } from "../lib/sync";
 import { createCardRecognizer, type CardRecognizer } from "./scan-ocr";
 import { scanCardId } from "../lib/scan-set";
 import { bindScanFlash } from "./scan-flash";
+import { reportFailure, reportState } from "../../../reporting/browser";
 
 interface ScannerOptions { species: Species[]; getSnapshot(): BinderSnapshot; markOwned(id: number): Promise<void> }
 export interface SetScan {
@@ -114,8 +115,14 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   resizeObserver.observe(node("scan-camera"));
   async function start() {
     stopResources(); const token = generation; gate = new CaptureGate(); selected = null; failures = 0;
+    const binder = set ? "set" : "national";
+    const started = performance.now();
+    const logStartup = (outcome: string) => reportState("binder.scanner.start", { binder, outcome, elapsedMs: Math.round(performance.now() - started) });
     setPhase("starting"); say("Preparing scanner…"); node("scan-notice").textContent = "";
-    if (!navigator.mediaDevices?.getUserMedia) { fail("Camera access needs HTTPS and a supported browser. You can still search manually."); return; }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      logStartup("camera_api_unavailable");
+      fail("Camera access needs HTTPS and a supported browser. You can still search manually."); return;
+    }
     // Both operations have late-result cleanup when closing/pausing during a prompt or download.
     const camera = navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } }).then(async media => {
       if (token !== generation) { media.getTracks().forEach(track => track.stop()); return; }
@@ -125,16 +132,24 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       if (token !== generation) return;
       resizeGuide(); attachFlash(media.getVideoTracks()[0]);
     });
-    const engine = factory(message => { if (token === generation && phase === "starting") say(message); }, set ? "set" : "species").then(async instance => {
+    const engineError = new Error("Scanner recognition engine could not load");
+    const engine = factory(message => { if (token === generation && phase === "starting") say(message); }, set ? "set" : "species").catch(() => { throw engineError; }).then(async instance => {
       if (token !== generation) { await instance.terminate(); return; } recognizer = instance;
     });
     try {
       await Promise.all([camera, engine]);
       if (token !== generation) return;
+      logStartup("ready");
       setPhase("scanning"); say("Hold one card upright inside the guide."); schedule(token);
     } catch (error) {
       if (token !== generation) return;
+      if (error === engineError) {
+        logStartup("recognizer_load_failed");
+        reportFailure(engineError, "binder.scanner.recognizer_load", { binder });
+        fail("Card recognition could not load. Reload the binder or search manually."); return;
+      }
       const denied = error instanceof DOMException && ["NotAllowedError", "SecurityError"].includes(error.name);
+      logStartup(denied ? "permission_denied" : error instanceof DOMException && error.name === "NotFoundError" ? "no_camera" : "camera_start_failed");
       fail(denied ? "Camera permission was denied. Allow camera access in your browser, then try again—or search manually."
         : "The camera or scanner could not start. Check your connection and camera access, then try again—or search manually.");
     }
@@ -271,7 +286,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       afterSave();
     } catch { if (token === generation) { saving = false; resultNotice = "Could not save this mark. Try again; this result is still here."; refresh(); say(resultNotice); } }
   }
-  node("scan-close").addEventListener("click", close);
+  node("scan-close").addEventListener("click", event => { event.preventDefault(); close(); });
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   node("scan-resume").addEventListener("click", () => { void start(); });
   node("scan-capture").addEventListener("click", () => { void recognize(true); });
@@ -341,5 +356,15 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   };
   document.addEventListener("visibilitychange", () => { if (document.hidden && dialog.open) pause("Camera paused while the page was in the background. Resume when ready."); });
   window.addEventListener("pagehide", close);
-  return { open(target) { if (!dialog.open) { set = target; dialog.showModal(); void start(); } }, close, refresh };
+  return {
+    open(target) {
+      if (dialog.open && phase !== "closed") return;
+      set = target;
+      const earlyTap = dialog.open && dialog.dataset.phase === "loading";
+      if (!dialog.open) dialog.showModal();
+      reportState("binder.scanner.open", { binder: set ? "set" : "national", earlyTap });
+      void start();
+    },
+    close, refresh,
+  };
 }

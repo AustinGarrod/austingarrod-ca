@@ -29,7 +29,7 @@ async function json<T>(file: string): Promise<T> {
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
-export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => Promise<void>, scannerClose: () => void) {
+export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => void, scannerClose: () => void) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),

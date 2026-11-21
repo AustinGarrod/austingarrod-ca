@@ -8,7 +8,8 @@ import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
 import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist";
-import type { CardScanner, SetScan } from "./scanner";
+import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
+import { reportFailure } from "../../../reporting/browser";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
 interface Printing { id: string; name: string; number: string; setId: string; rarity: string | null; image: string | null }
@@ -69,14 +70,18 @@ async function initialize() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const drawPages = binderPages("", page => { currentPage = page; render(); });
-  let scannerRevision = 0;
-  function closeScanner() { scannerRevision++; scanner?.close(); }
-  async function openScanner(target?: SetScan) {
-    const revision = ++scannerRevision;
-    const { createCardScanner } = await import("./scanner");
-    if (revision !== scannerRevision) return;
-    scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
-    scanner.open(target);
+  const scanDialog = el<HTMLDialogElement>("scan-dialog");
+  function closeScanner() { scanner?.close(); }
+  function openScanner(target?: SetScan) {
+    try {
+      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
+      scanner.open(target);
+    } catch {
+      scanDialog.dataset.phase = "load-error";
+      el("scan-status").textContent = "The scanner could not open. Reload the binder to try again.";
+      if (!scanDialog.open) scanDialog.showModal();
+      reportFailure(new Error("Scanner window could not open"), "binder.scanner.open", { binder: target ? "set" : "national" });
+    }
   }
   const master = createMasterUI(controller.masters, openScanner, closeScanner);
   async function backup() {
@@ -309,13 +314,9 @@ async function initialize() {
   await controller.start();
   void master.start().catch(error=>{el("master-message").textContent=error.message;});
   el("dex-app").setAttribute("aria-busy", "false");
-  el("scan-open").addEventListener("click", async event => {
-    const button = event.currentTarget as HTMLButtonElement; button.disabled = true;
-    try {
-      await openScanner();
-    } catch { el("dex-warning").textContent = "The scanner could not load. Check your connection and try again."; el("dex-warning").hidden = false; }
-    finally { button.disabled = false; }
-  });
+  el("scan-open").addEventListener("click", () => openScanner());
+  if (scanDialog.open && scanDialog.dataset.phase === "loading") openScanner();
+  else scanDialog.dataset.phase = "closed";
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {
@@ -468,6 +469,9 @@ async function initialize() {
 }
 
 void initialize().catch(error => {
+  el("scan-dialog").dataset.phase = "load-error";
+  el("scan-status").textContent = "The binder could not load. Reload it to open the scanner.";
+  reportFailure(new Error("Binder initialization failed"), "binder.start");
   el("dex-app").setAttribute("aria-busy", "false");
   el("dex-status").textContent = "Binder could not start";
   el("dex-warning").textContent = error instanceof Error ? error.message : "Reload to try again. Your saved collection is safe.";

@@ -18,6 +18,10 @@ ErrorDocument 404 /404.html
   RewriteCond %{HTTP_HOST} !^austingarrod\.ca$ [NC]
   RewriteRule ^ https://austingarrod.ca%{REQUEST_URI} [R=301,L,NE]
 
+  # Older open binder tabs lazy-load a scanner module removed by a later release.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^_astro/scanner\.[A-Za-z0-9_-]+\.js$ utilities/pokedex-binder/scanner-update.js [L]
+
   # Dispatch only the public MCP routes to the scoped account PHP handler.
   RewriteRule ^api/v1/_(?:mcp-vendor|mcp-data)(?:/|$) - [F,L,NC]
   RewriteRule ^api/v1/mcp/ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

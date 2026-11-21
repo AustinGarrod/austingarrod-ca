@@ -91,9 +91,10 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </form>
   </dialog>
   <dialog id="confirm-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="confirm-title"><h2 id="confirm-title">Replace this binder?</h2><p id="confirm-text"></p><button id="confirm-backup">Download current backup</button><div class="dex-dialog-actions"><button id="confirm-cancel">Cancel</button><button id="confirm-accept" class="dex-primary">Continue</button></div></dialog>
-  <dialog id="scan-dialog" class="dex-scan-dialog rr-block" data-analytics-private aria-labelledby="scan-title">
-    <header class="dex-scan-heading"><h2 id="scan-title"><Camera size={21} aria-hidden="true" /> <span id="scan-title-label">Scan cards</span></h2><button id="scan-close" aria-label="Close scanner">Close</button></header>
-    <p id="scan-status" class="dex-scan-status" role="status" aria-live="polite">Preparing scanner…</p>
+  <dialog id="scan-dialog" class="dex-scan-dialog rr-block" data-phase="loading" data-analytics-private aria-labelledby="scan-title">
+    <header class="dex-scan-heading"><h2 id="scan-title"><Camera size={21} aria-hidden="true" /> <span id="scan-title-label">Scan cards</span></h2><form method="dialog"><button id="scan-close" aria-label="Close scanner">Close</button></form></header>
+    <p id="scan-status" class="dex-scan-status" role="status" aria-live="polite">Loading your binder…</p>
+    <button id="scan-reload" type="button">Reload binder</button>
     <p class="dex-scan-privacy">Recognition stays on this device. Photos aren’t saved or uploaded.</p>
     <p id="scan-notice" class="dex-scan-notice" role="alert"></p>
     <div id="scan-camera" class="dex-scan-camera"><video id="scan-video" autoplay muted playsinline aria-label="Live card camera"></video><div id="scan-guide" class="dex-scan-guide" aria-hidden="true"><span>Card name at the top</span></div></div>
@@ -121,5 +122,15 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <section id="scan-recovery" class="dex-scan-recovery" hidden><p id="scan-recovery-text"></p><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
   </dialog>
   <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable missing cards"></section>
+  <script is:inline>
+    // Accept the first tap even while the application module, catalog or account is loading.
+    (() => {
+      const dialog = document.getElementById("scan-dialog");
+      document.getElementById("scan-open").addEventListener("click", () => {
+        if (!dialog.open && ["loading", "load-error"].includes(dialog.dataset.phase)) dialog.showModal();
+      });
+      document.getElementById("scan-reload").addEventListener("click", () => location.reload());
+    })();
+  </script>
   <script>import "../../utilities/pokedex-binder/scripts/app";</script>
 </BaseLayout>
