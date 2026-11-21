@@ -26,10 +26,12 @@ function fixture(name, autoload, metadata = "<?php return ['release' => 'compat-
   const directory = join(temporary, name);
   mkdirSync(join(directory, 'reporting/vendor'), { recursive: true });
   mkdirSync(join(directory, 'utilities/radius-map/api'), { recursive: true });
+  mkdirSync(join(directory, 'utilities/pokedex-binder/api'), { recursive: true });
   mkdirSync(join(directory, 'temp'), { recursive: true });
   copyFileSync(join(root, 'public/reporting/bootstrap.php'), join(directory, 'reporting/bootstrap.php'));
   copyFileSync(join(root, 'public/contact.php'), join(directory, 'contact.php'));
   copyFileSync(join(root, 'public/utilities/radius-map/api/geocode.php'), join(directory, 'utilities/radius-map/api/geocode.php'));
+  copyFileSync(join(root, 'public/utilities/pokedex-binder/api/reports.php'), join(directory, 'utilities/pokedex-binder/api/reports.php'));
   if (autoload !== undefined) writeFileSync(join(directory, 'reporting/vendor/autoload.php'), autoload);
   if (metadata !== undefined && metadata !== null) writeFileSync(join(directory, 'reporting/build.php'), metadata);
   return directory;
@@ -86,13 +88,26 @@ async function handlers(directory) {
     assert.match(geocode.headers.get('content-type'), /application\/json/);
     assert.deepEqual(await geocode.json(), { error: 'Enter at least 2 characters.' });
     checks++;
+    const tunnel = origin + '/utilities/pokedex-binder/api/reports.php';
+    const sameOrigin = { Origin: 'https://austingarrod.ca' };
+    for (const [request, expected] of [
+      [{}, 405],
+      [{ method: 'POST', body: '{}' }, 403],
+      [{ method: 'POST', headers: sameOrigin, body: '{"dsn":"https://example.invalid/1"}\n{}' }, 400],
+      [{ method: 'POST', headers: sameOrigin, body: 'a'.repeat(1024 * 1024 + 1) }, 413],
+    ]) {
+      const result = await fetch(tunnel, { ...request, signal: AbortSignal.timeout(5000) });
+      assert.equal(result.status, expected);
+      assert.equal(await result.text(), '');
+      checks++;
+    }
   } finally {
     process_.kill();
     if (process_.exitCode === null) await new Promise(done => process_.once('exit', done));
   }
 }
 try {
-  for (const file of ['contact.php', 'reporting/bootstrap.php', 'utilities/radius-map/api/geocode.php']) {
+  for (const file of ['contact.php', 'reporting/bootstrap.php', 'utilities/radius-map/api/geocode.php', 'utilities/pokedex-binder/api/reports.php']) {
     execute(['-l', join(root, 'public', file)]);
     checks++;
   }

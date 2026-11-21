@@ -13,6 +13,9 @@ const enabled = !location.pathname.startsWith("/account/")
 if (enabled && !Sentry.getClient()) {
   Sentry.init({
     dsn: "https://8b561c6564244066bd2960053ed220cd@reports.garrod.house/8",
+    tunnel: location.origin === "https://austingarrod.ca" && location.pathname.startsWith("/utilities/pokedex-binder/")
+      ? new URL("/utilities/pokedex-binder/api/reports.php", location.origin).href
+      : undefined,
     release: build.release,
     environment: build.environment,
     sampleRate: 1,

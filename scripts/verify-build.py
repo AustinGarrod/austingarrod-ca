@@ -501,6 +501,7 @@ for config, filename in [
     (".htaccess", "contact.php"),
     ("utilities/radius-map/api/.htaccess", "geocode.php"),
     ("utilities/pokedex-binder/api/.htaccess", "binder.php"),
+    ("utilities/pokedex-binder/api/.htaccess", "reports.php"),
 ]:
     config_path = DIST / config
     handler = f'<Files "{filename}">\n  SetHandler application/x-httpd-alt-php84___lsphp\n</Files>'
@@ -632,7 +633,7 @@ for name in ("pokedex-binder", "idle-slayer-companion"):
                     check(entry in archive.namelist() and archive.read(entry) == (bundle_source / entry).read_bytes(),
                           f"{entry} in {filename} differs from its plugin source")
 
-for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess"]:
+for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess", "utilities/pokedex-binder/api/reports.php"]:
     check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")
 for config in [DIST / ".htaccess", DIST / "utilities/radius-map/.htaccess"]:
     check("https://reports.garrod.house" in config.read_text(encoding="utf-8"), f"Reporting is blocked by CSP in {config}")

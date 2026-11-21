@@ -1,6 +1,9 @@
 <Files "binder.php">
   SetHandler application/x-httpd-alt-php84___lsphp
 </Files>
+<Files "reports.php">
+  SetHandler application/x-httpd-alt-php84___lsphp
+</Files>
 
 <IfModule mod_headers.c>
   Header always set Cache-Control "no-store, private"

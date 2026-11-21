@@ -4,6 +4,8 @@ Project: [AustinGarrod.ca / project 8](https://reports.garrod.house/garrod-house
 
 ## Runtime coverage
 
+The production binder posts browser reports to its own `api/reports.php` endpoint. HostPapa forwards each envelope to GlitchTip project 8 over HTTPS, so Android Chrome can report camera failures even on networks where the reporting hostname resolves to a private address.
+
 For binder scanner startup, filter project 8 logs by `binder.scanner.open` and `binder.scanner.start`. The first records the binder type and whether the tap arrived during page initialization. The second records readiness or the startup failure category and elapsed milliseconds. Browser, OS and release identify affected clients. Scanner startup events contain no card names, photos, recognized text or collection contents.
 
 `src/reporting/browser.ts` initializes the compatible Sentry browser 10 SDK for eligible production-built pages, including standalone utility layouts. Account sign-in and recovery pages do not initialize browser reporting. Default integrations preserve unhandled errors/rejections, linked causes, click/navigation/console/fetch/XHR breadcrumbs, request context and browser/OS/device context. Explicit integrations record console warnings/errors as issues, structured console logs, failed HTTP 429/5xx responses and pageload/navigation performance. Resource-load and CSP failures are reported. Connectivity, page, utility operation and calculator state provide reproduction context. Map tile failures produce one issue per page plus diagnostic counts; measurement storage/CRUD/recovery, geocoding, geolocation and PWA setup failures retain their operations and original causes where available. Saved measurement documents remain browser-local.
