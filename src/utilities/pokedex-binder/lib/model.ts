@@ -2,7 +2,7 @@ import { nationalCsv } from "./list-export";
 
 export interface Species { id: number; name: string; generation: number; printingCount: number }
 export interface BinderSettings { columns: number; rows: number; useBackSides: boolean; leadingBlankPockets: number }
-export interface BinderState { schemaVersion: 1; settings: BinderSettings; ownedDexIds: number[] }
+export interface BinderState { schemaVersion: 1; settings: BinderSettings; ownedDexIds: number[]; enabled?: boolean }
 export type Settings = BinderSettings;
 export type State = BinderState;
 export interface PocketLocation { page: number; sheet: number; side: "front" | "back"; pocket: number; row: number; column: number }
@@ -10,7 +10,7 @@ export interface PageSlot { pocket: number; row: number; column: number; species
 
 export const DEFAULT_SETTINGS: BinderSettings = { columns: 4, rows: 4, useBackSides: true, leadingBlankPockets: 0 };
 export function defaultState(): BinderState { return { schemaVersion: 1, settings: { ...DEFAULT_SETTINGS }, ownedDexIds: [] }; }
-export function cloneState(state: BinderState): BinderState { return { schemaVersion: 1, settings: { ...state.settings }, ownedDexIds: [...state.ownedDexIds] }; }
+export function cloneState(state: BinderState): BinderState { return { ...state, settings: { ...state.settings }, ownedDexIds: [...state.ownedDexIds] }; }
 export function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
 
 export function validateSettings(value: unknown): BinderSettings {
@@ -24,21 +24,27 @@ export function validateSettings(value: unknown): BinderSettings {
 }
 
 export function validateState(value: unknown, species?: readonly Species[] | readonly number[]): BinderState {
-  if (!record(value) || value.schemaVersion !== 1 || !Array.isArray(value.ownedDexIds) || value.ownedDexIds.length > 10000) {
+  if (!record(value) || value.schemaVersion !== 1 || !Array.isArray(value.ownedDexIds) || value.ownedDexIds.length > 10000
+    || (Object.hasOwn(value, "enabled") && typeof value.enabled !== "boolean")) {
     throw new Error("This binder uses an invalid or unsupported backup format.");
   }
   const ids = species ? new Set(species.map(item => typeof item === "number" ? item : item.id)) : null;
   const owned = value.ownedDexIds as unknown[];
   if (owned.some(id => !Number.isInteger(id) || Number(id) < 1 || Number(id) > 10000 || (ids && !ids.has(Number(id))))
     || new Set(owned).size !== owned.length) throw new Error("The binder contains duplicate or unrecognized Pokémon numbers.");
-  return { schemaVersion: 1, settings: validateSettings(value.settings), ownedDexIds: (owned as number[]).slice().sort((a, b) => a - b) };
+  return { schemaVersion: 1, settings: validateSettings(value.settings), ownedDexIds: (owned as number[]).slice().sort((a, b) => a - b),
+    ...(typeof value.enabled === "boolean" ? { enabled: value.enabled } : {}) };
 }
 
 export function sameSettings(a: BinderSettings, b: BinderSettings): boolean {
   return a.columns === b.columns && a.rows === b.rows && a.useBackSides === b.useBackSides && a.leadingBlankPockets === b.leadingBlankPockets;
 }
+export function hasNationalData(state: BinderState): boolean {
+  return state.ownedDexIds.length > 0 || !sameSettings(state.settings, DEFAULT_SETTINGS);
+}
+export function nationalEnabled(state: BinderState): boolean { return state.enabled ?? hasNationalData(state); }
 export function sameState(a: BinderState, b: BinderState): boolean {
-  return sameSettings(a.settings, b.settings) && a.ownedDexIds.length === b.ownedDexIds.length && a.ownedDexIds.every((id, i) => id === b.ownedDexIds[i]);
+  return a.enabled === b.enabled && sameSettings(a.settings, b.settings) && a.ownedDexIds.length === b.ownedDexIds.length && a.ownedDexIds.every((id, i) => id === b.ownedDexIds[i]);
 }
 export function pageCount(speciesCount: number, settings: BinderSettings): number {
   return Math.max(1, Math.ceil((speciesCount + settings.leadingBlankPockets) / (settings.columns * settings.rows)));
@@ -108,6 +114,8 @@ export function mergeStates(base: BinderState, local: BinderState, remote: Binde
   }
   const localLayoutChanged = !sameSettings(base.settings, local.settings);
   const remoteLayoutChanged = !sameSettings(base.settings, remote.settings);
-  return { state: { schemaVersion: 1, settings: { ...(localLayoutChanged ? local.settings : remote.settings) }, ownedDexIds: [...owned].sort((a, b) => a - b) },
+  const enabled = local.enabled !== base.enabled ? local.enabled : remote.enabled;
+  return { state: { schemaVersion: 1, settings: { ...(localLayoutChanged ? local.settings : remote.settings) }, ownedDexIds: [...owned].sort((a, b) => a - b),
+    ...(enabled === undefined ? {} : { enabled }) },
     layoutConflict: localLayoutChanged && remoteLayoutChanged && !sameSettings(local.settings, remote.settings) };
 }

@@ -38,6 +38,8 @@ try {
     });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${origin}/utilities/pokedex-binder/`);
+    await page.locator('#first-device').click();
+    await page.locator('#first-dex').click();
     await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
     await page.locator('#owned-grid-1').check();
     await expect(page.locator('#owned-count')).toHaveText('1');

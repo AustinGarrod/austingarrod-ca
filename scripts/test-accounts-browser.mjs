@@ -233,7 +233,7 @@ try {
     await expect(page.locator('#app-status')).toContainText('entered coordinates');
     await expect(page.locator('#radius-sign-in-to-save')).toHaveAttribute('href', '/account/?returnTo=%2Futilities%2Fradius-map%2F');
     await expect(page.locator('#save-measurement-button')).toBeHidden();
-    await openBinder(page); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
+    await openBinder(page); await page.locator('#first-dex').click(); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5');
     await page.locator('#master-name').fill('My 151');
@@ -274,7 +274,7 @@ try {
   });
   const mobile = await makeContext('mobile', { width: 390, height: 844 }); const phone = await mobile.newPage(); let mobileOriginals;
   await scenario('separate mobile browser logs into the same account', async () => {
-    await openBinder(phone); await phone.locator('#owned-grid-3').check();
+    await openBinder(phone); await phone.locator('#first-dex').click(); await phone.locator('#owned-grid-3').check();
     // The fixture must be durably saved before leaving the page, just as the
     // desktop seed above waits for the post-transaction collection count.
     await expect(phone.locator('#owned-count')).toHaveText('1');
@@ -295,6 +295,33 @@ try {
     await expect(phone.getByRole('dialog', { name: 'Account & sync', exact: true }).getByRole('button', { name: 'Sync now', exact: true })).toBeVisible();
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Mobile utility horizontal overflow');
     await phone.screenshot({ path: join(output, 'mobile-slayer-connected.png'), fullPage: false });
+  });
+  await scenario('Pokédex visibility syncs independently from set binders and ownership', async () => {
+    await openBinder(page); await openBinder(phone);
+    await page.locator('#layout-open').click(); await page.locator('#national-hide').click();
+    await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.enabled).toBe(false);
+    await phone.locator('#sync-open').click(); await phone.locator('#binder-account-sync').click(); await phone.keyboard.press('Escape');
+    await expect(phone.locator('#national-workspace')).toBeHidden();
+    await expect(phone.locator('#master-switch option')).toHaveCount(1);
+    await phone.locator('#national-add').click(); await expect(phone.locator('#owned-count')).toHaveText('2');
+    await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'binder')).state.enabled).toBe(true);
+    await page.locator('#sync-open').click(); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    await page.locator('#master-switch').selectOption('');
+    await expect(page.locator('#owned-count')).toHaveText('2');
+  });
+  await scenario('a confirmed CSV import syncs set ownership to the other browser', async () => {
+    await phone.locator('#import-cards').click();
+    await phone.locator('#card-import-file').setInputFiles({ name: 'fixture.csv', mimeType: 'text/csv',
+      buffer: Buffer.from('Set,Number,Card,Finish\n151,002,Ivysaur,Reverse Holo\n') });
+    await phone.locator('#card-import-preview').click();
+    await expect(phone.locator('#card-review-summary')).toContainText('1 to add');
+    await phone.locator('#card-import-apply').click();
+    await expect(phone.locator('#card-import-dialog')).toBeHidden();
+    await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'master-sets')).state.binders[0].owned).toContain('002:reverse');
+    await page.locator('#sync-open').click(); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    const setOption = page.locator('#master-switch option').filter({ hasText: 'My 151' });
+    await page.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
+    await expect(page.locator('[data-key="002:reverse"]')).toBeChecked();
   });
   let mapMobile, mapPhone;
   await scenario('Radius Map opens the shared account and merges separate first saves', async () => {

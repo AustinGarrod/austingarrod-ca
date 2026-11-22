@@ -14,7 +14,7 @@ export interface SetScan {
   slots(): (Slot & PocketLocation)[];
   mark(key: string): Promise<void>;
 }
-export interface CardScanner { open(set?: SetScan): void; close(): void; refresh(): void }
+export interface CardScanner { open(set?: SetScan): void; close(): void; refresh(): void; isNational(): boolean }
 type Phase = "closed" | "starting" | "scanning" | "recognizing" | "result" | "paused" | "error";
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -366,5 +366,6 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       void start();
     },
     close, refresh,
+    isNational: () => !set,
   };
 }

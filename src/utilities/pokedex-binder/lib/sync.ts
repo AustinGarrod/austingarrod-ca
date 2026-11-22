@@ -1,4 +1,4 @@
-import { cloneState, mergeStates, record, sameState, validateSettings, validateState, type BinderSettings, type BinderState } from "./model";
+import { cloneState, mergeStates, nationalEnabled, record, sameState, validateSettings, validateState, type BinderSettings, type BinderState } from "./model";
 import { BinderStore, type BinderStoreOptions, type StoredBinder } from "./store";
 
 export type BinderStatus = "loading" | "local" | "syncing" | "synced" | "pending" | "error" | "conflict";
@@ -17,6 +17,7 @@ export interface BinderControllerOptions extends BinderStoreOptions {
   fetch?: typeof globalThis.fetch;
   store?: BinderStore;
   autoSync?: boolean;
+  optionalDex?: boolean;
   /** Account adapters reuse the durable outbox without transmitting a bearer key. */
   transport?: (method: string, body: unknown, clientId: string) => Promise<RemoteBinder | null>;
   canSync?: () => boolean;
@@ -234,14 +235,16 @@ export function createBinderController(options: BinderControllerOptions) {
     finally { busy = false; emit(); }
   }
   async function sync(): Promise<void> { if (!started || stopped) return; await serialized(runSync); }
-  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false): Promise<void> {
+  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false, requirePersistence = false): Promise<void> {
     await store.update(doc => {
       const next = validateState(change(cloneState(doc.state)), options.species);
+      // Clearing the last mark or resetting a legacy layout does not hide an open binder.
+      if (options.optionalDex && !preservePrevious && next.enabled === undefined && nationalEnabled(doc.state) && !nationalEnabled(next)) next.enabled = true;
       if (options.transport && preservePrevious && !sameState(doc.state, next)) doc.preservePrevious = true;
       doc.state = next;
       if (doc.layoutConflict) doc.layoutConflict.local = { ...doc.state.settings };
       return doc;
-    });
+    }, true, requirePersistence);
     emit(); schedule();
   }
   async function setOwned(id: number, owned: boolean): Promise<void> {
@@ -249,6 +252,13 @@ export function createBinderController(options: BinderControllerOptions) {
     await edit(state => { const ids = new Set(state.ownedDexIds); if (owned) ids.add(id); else ids.delete(id); state.ownedDexIds = [...ids].sort((a, b) => a - b); return state; });
   }
   async function setSettings(settings: BinderSettings): Promise<void> { const validated = validateSettings(settings); await edit(state => ({ ...state, settings: validated })); }
+  async function setEnabled(enabled: boolean): Promise<void> { await edit(state => ({ ...state, enabled })); }
+  async function importSpecies(ids: readonly number[], check: (current: BinderState) => void): Promise<void> {
+    await edit(state => {
+      check(state);
+      return { ...state, enabled: true, ownedDexIds: [...new Set([...state.ownedDexIds, ...ids])] };
+    }, false, true);
+  }
   async function replaceState(state: BinderState): Promise<void> { await edit(() => state, true); }
   async function createSync(): Promise<string> {
     if (retired) throw new Error("This key was retired. Sign in to recover this device's collection; its original sync history has been preserved.");
@@ -305,6 +315,6 @@ export function createBinderController(options: BinderControllerOptions) {
     stopped = true; clearInterval(interval); clearTimeout(debounce); unsubscribeStore?.(); store.close(); listeners.clear();
     if (typeof window !== "undefined") { window.removeEventListener("focus", refreshEvent); window.removeEventListener("online", refreshEvent); document.removeEventListener("visibilitychange", visibilityEvent); }
   }
-  return { start, subscribe, snapshot, setOwned, setSettings, replaceState, createSync, checkKey, connect, disconnect, deleteCloud, sync, resolveLayout, stop };
+  return { start, subscribe, snapshot, setOwned, setSettings, setEnabled, importSpecies, replaceState, createSync, checkKey, connect, disconnect, deleteCloud, sync, resolveLayout, stop };
 }
 export type BinderController = ReturnType<typeof createBinderController>;

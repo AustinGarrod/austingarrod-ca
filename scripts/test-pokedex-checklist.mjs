@@ -43,6 +43,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${origin}/utilities/pokedex-binder/`);
     await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+    await page.locator('#first-dex').click();
     await expect(page.locator('#pokemon-details')).toBeHidden();
     await expect(page.locator('#binder-view')).not.toHaveClass(/has-details/);
     await expect(page.locator('.dex-intro')).not.toContainText('Fill the gaps');

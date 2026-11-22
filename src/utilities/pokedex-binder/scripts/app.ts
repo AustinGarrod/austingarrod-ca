@@ -3,17 +3,21 @@ import { printLists } from "./print-list";
 import { binderPages, blankPocket, cardPocket } from "./binder-pages";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
-import { defaultState, exportBackup, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
+import { defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
 import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist";
 import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
 import { reportFailure } from "../../../reporting/browser";
+import { createTransfers } from "./transfers";
+import type { TransferMatch } from "../lib/card-transfer";
+import type { ProductIdentity } from "../lib/transfer-identity";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
 interface Printing { id: string; name: string; number: string; setId: string; rarity: string | null; image: string | null }
 interface Catalog { schemaVersion: number; generatedAt: string; species: Species[]; sets: Record<string, SetInfo>; setSpecies: Record<string, number[]> }
+type CollectorNumbers = Record<string, Record<number, string[]>>;
 const root = "/utilities/pokedex-binder/";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => {
   const node = document.getElementById(id);
@@ -39,7 +43,7 @@ async function initialize() {
   let loadedPrintings: Printing[] | null = null, detailLoading = false, detailError = false;
   let renderedSpecies: number | null = null;
   let checklistSelected: number | null = null, hasRendered = false;
-  let collectorNumbers: Record<string, Record<number, string[]>> | null = null;
+  let collectorNumbers: CollectorNumbers | null = null;
   let numberStatus: "idle" | "loading" | "error" = "idle";
   let scanner: CardScanner | null = null;
   const printingCache = new Map<number, Printing[]>();
@@ -84,6 +88,46 @@ async function initialize() {
     }
   }
   const master = createMasterUI(controller.masters, openScanner, closeScanner);
+  let accountTicket = 0, accountKey = "", onboardingReady = false, onboardingTicket = 0;
+  let productLookup: Promise<Record<string, ProductIdentity>> | undefined;
+  let speciesLookup: ((match: TransferMatch) => readonly number[]) | undefined;
+  const transfers = createTransfers({
+    catalog: () => ({ ...master.collection(), products() {
+      productLookup ??= fetch(`${root}catalog/tcgplayer-products.json`).then(async response => {
+        if (!response.ok) throw new Error("The TCGplayer card lookup could not load. Try again.");
+        return (await response.json()).products as Record<string, ProductIdentity>;
+      }).catch(cause => { productLookup = undefined; throw cause; });
+      return productLookup;
+    } }),
+    scope: () => `${controller.restoreScope()}:${accountTicket}`,
+    sets: master.backup, dex: () => snapshot.state,
+    async species() {
+      if (speciesLookup) return speciesLookup;
+      const data = await getCollectorNumbers();
+      const index = new Map<string, number[]>();
+      for (const [setId, entries] of Object.entries(data)) {
+        for (const [id, numbers] of Object.entries(entries)) {
+          for (const number of numbers) {
+            const key = `${setId}:${number}`;
+            if (!index.has(key)) index.set(key, []);
+            index.get(key)!.push(Number(id));
+          }
+        }
+      }
+      return speciesLookup = match => index.get(`${match.set.id}:${match.card.number}`) ?? [];
+    },
+    saveSets(apply) {
+      if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
+      return master.applyCollection(apply);
+    },
+    async saveDex(ids, expected, current) {
+      if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
+      await controller.importSpecies(ids, expected, current);
+      if (current()) await master.showNational();
+    },
+    selected: () => el<HTMLSelectElement>("master-switch").value,
+    download,
+  });
   async function backup() {
     const state = snapshot.state, scope=controller.restoreScope();
     let sets;
@@ -128,7 +172,7 @@ async function initialize() {
     const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
       .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
     const owned = new Set(snapshot.state.ownedDexIds), count = owned.size;
-    master.dex(count,species.length);
+    master.dex(nationalEnabled(snapshot.state), count, species.length);
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
     renderFeedback();
@@ -172,14 +216,21 @@ async function initialize() {
     el("results-count").textContent = `${results.length} Pokémon found${results.length > 60 ? " · Showing the first 60" : ""}`;
     el("results-list").innerHTML = results.slice(0, 60).map(item => `<div class="dex-result"><div><strong>${dex(item.id)} ${escape(item.name)}</strong><small>${locationText(item.id)}</small></div><button data-goto="${item.id}">Go to page</button></div>`).join("") || '<p class="dex-help">No Pokémon match. Try a name, Pokédex number, or another filter.</p>';
   }
+  let collectorRequest: Promise<CollectorNumbers> | undefined;
+  function getCollectorNumbers(): Promise<CollectorNumbers> {
+    if (collectorNumbers) return Promise.resolve(collectorNumbers);
+    collectorRequest ??= fetch(`${root}catalog/collector-numbers.json`).then(async response => {
+      if (!response.ok) throw new Error("Card numbers could not load. Try again.");
+      const data: unknown = await response.json();
+      if (!record(data)) throw new Error("The card number catalog needs updating.");
+      return collectorNumbers = data as CollectorNumbers;
+    }).finally(() => { collectorRequest = undefined; });
+    return collectorRequest;
+  }
   async function loadCollectorNumbers() {
     numberStatus = "loading";
     try {
-      const response = await fetch(`${root}catalog/collector-numbers.json`, { cache: "no-cache" });
-      if (!response.ok) throw new Error("Card numbers unavailable");
-      const data = await response.json();
-      if (!record(data)) throw new Error("Card numbers unavailable");
-      collectorNumbers = data as typeof collectorNumbers;
+      await getCollectorNumbers();
       numberStatus = "idle";
     } catch {
       numberStatus = "error";
@@ -301,22 +352,61 @@ async function initialize() {
     el("binder-recovery-download").hidden = !account.user;
     el("sync-message").textContent = snapshot.error ?? (snapshot.storageWarning ? "Browser storage is unavailable. Export a backup before leaving this page." : statusLabels[snapshot.status]);
   }
+  async function updateOnboarding() {
+    const ticket = ++onboardingTicket;
+    if (account.mode === "account" || !account.user || !account.migrationEnabled) {
+      master.onboarding("device");
+      return;
+    }
+    const message = el("binder-account-onboarding-message");
+    if (account.pendingMigration) {
+      message.textContent = "Finish connecting your saved account binders, or keep working on this device.";
+      master.onboarding("account");
+      return;
+    }
+    master.onboarding("pending");
+    try {
+      const exists = await controller.accountHasBinders();
+      if (ticket !== onboardingTicket) return;
+      message.textContent = "Review the binders saved to your account before connecting them to this device.";
+      master.onboarding(exists ? "account" : "device");
+    } catch {
+      if (ticket !== onboardingTicket) return;
+      message.textContent = "We couldn't check your account binders. Try connecting again or keep working on this device.";
+      master.onboarding("account");
+    }
+  }
   controller.subscribe(value => {
     const changed = !sameState(snapshot.state, value.state); snapshot = value;
     if (changed || !hasRendered) { render(); hasRendered = true; }
     else { renderFeedback(); renderSync(); }
+    if (!nationalEnabled(value.state)) {
+      if (scanDialog.open && scanner?.isNational()) closeScanner();
+      el<HTMLDialogElement>("layout-dialog").close();
+    }
     scanner?.refresh();
   });
   controller.subscribeAccount(value => {
-    if (account.mode !== value.mode || account.boundAccountId !== value.boundAccountId) el("print-content").replaceChildren();
+    const key = JSON.stringify([value.mode, value.boundAccountId, value.user?.id, value.pendingMigration, value.migrationEnabled, value.retainedAccount?.id]);
+    const changed = accountKey !== key;
+    if (changed) {
+      accountKey = key;
+      accountTicket++;
+      el("print-content").replaceChildren();
+      el("transfer-message").textContent = "";
+      transfers.scopeChanged();
+    }
     account = value; master.account(value); renderSync();
+    if (onboardingReady && changed) void updateOnboarding();
   });
   await controller.start();
+  onboardingReady = true;
+  void updateOnboarding();
   void master.start().catch(error=>{el("master-message").textContent=error.message;});
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", () => openScanner());
-  if (scanDialog.open && scanDialog.dataset.phase === "loading") openScanner();
-  else scanDialog.dataset.phase = "closed";
+  if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
+  else { scanDialog.close(); scanDialog.dataset.phase = "closed"; }
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {
@@ -366,6 +456,25 @@ async function initialize() {
     for (const [key, value] of Object.entries(snapshot.state.settings)) (form.elements.namedItem(key) as HTMLInputElement).value = String(value);
     el("layout-error").textContent = ""; el<HTMLDialogElement>("layout-dialog").showModal();
   });
+  for (const id of ["first-dex", "national-add"]) el(id).addEventListener("click", event => void action(async () => {
+    await controller.setEnabled(true);
+    await master.showNational();
+    el("layout-open").focus();
+  }, event.currentTarget as HTMLButtonElement));
+  el("national-hide").addEventListener("click", event => void action(async () => {
+    await controller.setEnabled(false);
+    el<HTMLDialogElement>("layout-dialog").close();
+    el(nationalEnabled(snapshot.state) ? "layout-open" : el("binder-onboarding").hidden ? "master-switch" : "first-dex").focus();
+  }, event.currentTarget as HTMLButtonElement));
+  el("first-device").addEventListener("click", () => {
+    onboardingTicket++;
+    master.onboarding("device");
+    el("first-set").focus();
+  });
+  el("first-connect").addEventListener("click", () => {
+    if (account.pendingMigration) { el("sync-open").click(); el("binder-account-resume").focus(); }
+    else el("binder-account-review").click();
+  });
   el("layout-form").addEventListener("submit", event => {
     event.preventDefault(); const data = new FormData(event.target as HTMLFormElement);
     void action(async () => {
@@ -384,7 +493,11 @@ async function initialize() {
   el("binder-account-review").addEventListener("click", event => void action(async () => {
     migrationPreview = await controller.previewMigration();
     const preview = migrationPreview;
-    el("binder-migration-summary").textContent = `This device: ${preview.device.ownedDexIds.length} collected. Named binders: ${preview.sets?.device.binders.length ?? 0} on this device, ${preview.sets?.account.binders.length ?? 0} on the account. Conflicting copies are kept separately. Account: ${preview.account ? preview.account.ownedDexIds.length + " collected" : "new binder"}.`;
+    const describeDex = (state: BinderState | null) => {
+      if (state && nationalEnabled(state)) return `${state.ownedDexIds.length} collected`;
+      return state && hasNationalData(state) ? `Pokédex hidden (${state.ownedDexIds.length} collected)` : "Pokédex inactive";
+    };
+    el("binder-migration-summary").textContent = `This device: ${describeDex(preview.device)}, ${preview.sets?.device.binders.length ?? 0} set binders. Account: ${describeDex(preview.account)}, ${preview.sets?.account.binders.length ?? 0} set binders.`;
     const layout = el<HTMLSelectElement>("binder-migration-layout"), collection = el<HTMLSelectElement>("binder-migration-collection");
     layout.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
     collection.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
@@ -424,6 +537,7 @@ async function initialize() {
       if(sets) await master.checkBackup(sets);
       if (await confirmAction("Restore this backup?", "Replace your current collection and layout with this backup. If connected, the restored collection will also sync to your other devices. Download your current backup first if needed.", "Restore backup")) {
         if(scope!==controller.restoreScope()) throw new Error("The active account changed. Review the backup again.");
+        state.enabled ??= nationalEnabled(state);
         if(sets) { await controller.restoreCollections(state,sets,scope);await master.restored(); } else await controller.replaceState(state);
       }
     } finally { input.value = ""; }
@@ -441,11 +555,12 @@ async function initialize() {
     const message = el("export-message");
     message.textContent = "Preparing missing list…";
     try {
-      if (all || !selectedId) {
+      if ((all || !selectedId) && nationalEnabled(snapshot.state)) {
         lists.push({ name: "National Pokédex", setName: "", settings: snapshot.state.settings,
           rows: nationalRows(species, snapshot.state, true) });
       }
       if (all || selectedId) lists.push(...await master.missingLists(all ? null : selectedId));
+      if (!lists.length) throw new Error("Choose an active binder first.");
       if (controller.restoreScope() !== scope || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
         throw new Error("The collection selection changed. Request the list again.");
       }
@@ -469,6 +584,7 @@ async function initialize() {
 }
 
 void initialize().catch(error => {
+  el("scan-open").hidden = false;
   el("scan-dialog").dataset.phase = "load-error";
   el("scan-status").textContent = "The binder could not load. Reload it to open the scanner.";
   reportFailure(new Error("Binder initialization failed"), "binder.start");

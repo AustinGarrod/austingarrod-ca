@@ -287,6 +287,8 @@ export async function refreshCatalog() {
       if ((index + 1) % 200 === 0) console.log(`  ${index + 1}/${catalog.species.length} species assets`);
     });
     await writeMasterCatalog(source.cards, path.join(stage, "catalog/master-sets"), artwork);
+    const transferIds = spawnSync(process.execPath, [path.join(ROOT, "scripts/refresh-pokedex-transfer-ids.mjs"), path.join(stage, "catalog")], { stdio: "inherit" });
+    if (transferIds.status !== 0) throw transferIds.error ?? new Error("TCGplayer Product ID crosswalk refresh failed.");
     const index = {
       schemaVersion: 1, generatedAt: new Date().toISOString(),
       sources: {
@@ -307,7 +309,8 @@ export async function refreshCatalog() {
       + "Pokémon names, characters, card artwork, and sprites belong to their respective owners.\n"
       + "Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https://tcgdex.dev/), MIT licensed.\n"
       + "Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.\n"
-      + "Card coverage reflects the pinned catalog snapshot and may be incomplete. National Dex ownership is tracked by species. Set binders track card numbers and printings.\n");
+      + "Card coverage reflects the pinned catalog snapshot and may be incomplete. National Dex ownership is tracked by species. Set binders track card numbers and printings.\n"
+      + "TCGplayer Product ID crosswalk: matched using public catalog metadata supplied by TCGCSV (https://tcgcsv.com/).\n");
     await publishDirectories(stage);
     console.log(`Published ${catalog.species.length} species, ${Object.keys(catalog.sets).length} sets, ${catalog.audit.indexedCards} printings.`);
     console.log(`Audit: ${catalog.audit.missingDexIdCards.length} cards without species IDs; ${catalog.audit.missingSetCodes.length} sets without codes.`);

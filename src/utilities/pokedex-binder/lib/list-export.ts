@@ -16,7 +16,7 @@ export interface BinderList {
 }
 
 type Cell = string | number;
-function csv(header: string[], rows: Cell[][], quoteAll = false) {
+export function csv(header: string[], rows: Cell[][], quoteAll = false) {
   const cell = (value: Cell) => {
     const raw = String(value);
     // Custom binder and extra names may be opened in a spreadsheet.

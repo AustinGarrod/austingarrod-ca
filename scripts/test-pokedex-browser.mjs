@@ -65,6 +65,8 @@ async function open(ctx) {
   await page.goto(app);
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
   await expect(page.locator('#dex-status')).not.toHaveText('Binder could not start');
+  await expect(page.locator('#binder-onboarding:visible, #national-workspace:visible')).toHaveCount(1);
+  if (await page.locator('#first-dex').isVisible()) await page.locator('#first-dex').click();
   return page;
 }
 async function closeDialogs(page) {

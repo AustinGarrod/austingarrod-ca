@@ -1,7 +1,7 @@
 import { adoptSets, emptyMaster, sameSave, validateMaster, type MasterState } from "./master";
 import { MasterStore, documentName } from "./master-store";
 import { createAccountClient, getSession, refreshSession, subscribeSession, type AccountSession } from "../../../../packages/accounts/client";
-import { cloneState, mergeStates, sameSettings, sameState, validateState, type BinderState } from "./model";
+import { cloneState, hasNationalData, mergeStates, nationalEnabled, sameSettings, sameState, validateState, type BinderState } from "./model";
 import { BinderStore, STORAGE_NAME, type BinderStoreOptions, type StoredBinder } from "./store";
 import { createBinderController, generateSyncKey, type BinderController, type BinderSnapshot, type RemoteBinder } from "./sync";
 import { BinderRecovery } from "./recovery";
@@ -33,7 +33,10 @@ export function combineMigrationSources(preview: Pick<MigrationPreview, "device"
   if (!selectedLayout) throw new Error("Choose an available binder layout.");
   const sources = collection === "combine" ? [preview.device, preview.legacy, preview.account] : [preview[collection]];
   if (!sources.some(Boolean)) throw new Error("Choose an available collection.");
-  return { schemaVersion: 1, settings: { ...selectedLayout.settings }, ownedDexIds: [...new Set(sources.flatMap(source => source?.ownedDexIds ?? []))].sort((a, b) => a - b) };
+  const combined: BinderState = { schemaVersion: 1, settings: { ...selectedLayout.settings }, ownedDexIds: [...new Set(sources.flatMap(source => source?.ownedDexIds ?? []))].sort((a, b) => a - b) };
+  const enabled = sources.some(source => source !== null && nationalEnabled(source));
+  if (sources.some(source => source?.enabled !== undefined) || nationalEnabled(combined) !== enabled) combined.enabled = enabled;
+  return combined;
 }
 
 /** Guest data is only imported by an explicit migration. Account stores never share an outbox. */
@@ -46,7 +49,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
   let mode: "guest" | "account" = "guest", accountId: string | null = null;
   let retainedAccount: { id: string; email: string } | null = null, activeAccountEmail = "", retryingStorage = false;
   let activeStore = guestStore, accountController: BinderController | null = null;
-  const guest = createBinderController({ ...options, store: guestStore, canSync: () => false, autoSync: false });
+  const guest = createBinderController({ ...options, store: guestStore, canSync: () => false, autoSync: false, optionalDex: true });
   let active = guest, unsubscribeActive: (() => void) | undefined, unsubscribeSession: (() => void) | undefined;
   const listeners = new Set<(value: BinderSnapshot) => void>(), accountListeners = new Set<(value: BinderAccountState) => void>();
   let pendingMigration = false;
@@ -110,7 +113,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       if (!store.persistent) throw new Error("The account copy was saved, but this browser could not save its connection. Retry migration; your original copy remains available.");
       requireAccount(id);
       const bound = accounts.client(id);
-      const controller = createBinderController({ ...options, store, canSync: () => !stopped && verifiedSession && currentUser() === id && mode === "account" && accountId === id && !migrationBusy && !retryingStorage,
+      const controller = createBinderController({ ...options, store, optionalDex: true, canSync: () => !stopped && verifiedSession && currentUser() === id && mode === "account" && accountId === id && !migrationBusy && !retryingStorage,
         transport: async (method, body, clientId) => {
           requireAccount(id);
           if (method === "GET") {
@@ -193,6 +196,14 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     currentPreview = { id: crypto.randomUUID(), accountId: id, device: cloneState(before.state), legacy: null, account: remote?.state ?? null,
       accountRevision: remote?.revision ?? 0, legacyRevision: null, sets: {device: deviceSets, account: accountSets ? validateMaster(accountSets.state) : emptyMaster(), revision: accountSets?.revision ?? 0}, layoutConflict: states.some(state => !sameSettings(state.settings, states[0].settings)) };
     return structuredClone(currentPreview);
+  }
+  async function accountHasBinders(): Promise<boolean> {
+    const id = requireAccount(), client = accounts.client(id), clientId = guestStore.read().clientId;
+    const [national, sets] = await Promise.all([
+      readRemote(client, clientId), client.getDocument<MasterState>(APP, documentName, clientId),
+    ]);
+    requireAccount(id);
+    return !!(national && (nationalEnabled(national.state) || hasNationalData(national.state))) || !!(sets && validateMaster(sets.state).binders.length);
   }
   async function finishJournal(journal: MigrationJournal): Promise<void> {
     const id = requireAccount(journal.accountId), client = accounts.client(id);
@@ -328,10 +339,19 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     } finally { retryingStorage = false; emit(); }
   }
   return {
-    masters, restoreScope, restoreCollections, previousRestore, pendingRestore, resumeRestore, start, snapshot, accountState, previewMigration, migrate, resumeMigration, recheckConnection,
+    masters, restoreScope, restoreCollections, previousRestore, pendingRestore, resumeRestore, start, snapshot, accountState, accountHasBinders, previewMigration, migrate, resumeMigration, recheckConnection,
     subscribe(listener: (value: BinderSnapshot) => void) { listeners.add(listener); listener(snapshot()); return () => listeners.delete(listener); },
     subscribeAccount(listener: (value: BinderAccountState) => void) { accountListeners.add(listener); listener(accountState()); return () => accountListeners.delete(listener); },
     setOwned: (id: number, owned: boolean) => editable().setOwned(id, owned), setSettings: (settings: BinderState["settings"]) => editable().setSettings(settings), replaceState: (state: BinderState) => editable().replaceState(state),
+    setEnabled: (enabled: boolean) => editable().setEnabled(enabled),
+    importSpecies(ids: readonly number[], expected: BinderState, isCurrent: () => boolean) {
+      const target = editable();
+      return target.importSpecies(ids, state => {
+        if (target !== active || retainedAccount || stopped || migrationBusy || !isCurrent() || !sameState(state, expected)) {
+          throw new Error("The collection changed. Review the import again.");
+        }
+      });
+    },
     resolveLayout: (choice: "local" | "remote") => active.resolveLayout(choice), sync: async () => { await switching; return active.sync(); },
     async recoveryBackups(): Promise<string> {
       // Portable recovery intentionally omits private keys and authentication metadata.

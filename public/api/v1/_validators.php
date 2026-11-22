@@ -129,7 +129,9 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
     }
 
     if ($app === 'pokedex-binder') {
-        if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds']) || $state->schemaVersion !== 1 || !accounts_fields($state->settings, ['columns', 'rows', 'useBackSides', 'leadingBlankPockets']) || !is_array($state->ownedDexIds)) {
+        if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds'], ['enabled']) || $state->schemaVersion !== 1
+            || (property_exists($state, 'enabled') && !is_bool($state->enabled))
+            || !accounts_fields($state->settings, ['columns', 'rows', 'useBackSides', 'leadingBlankPockets']) || !is_array($state->ownedDexIds)) {
             accounts_invalid();
         }
 

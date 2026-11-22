@@ -2,9 +2,22 @@
 import BinderPages from "./BinderPages.astro";
 import { BookOpen, ListChecks, Search } from "@lucide/astro";
 ---
-<section class="master-switch dex-toolbar" aria-label="Your binders">
-  <label>Open binder <select id="master-switch"><option value="">National Pokédex</option></select></label>
+<section id="binder-onboarding" class="dex-onboarding" aria-labelledby="binder-onboarding-title" hidden>
+  <h2 id="binder-onboarding-title">Start your first binder</h2>
+  <p>Collect every card in a set, track one Pokémon per species, or bring in a collection you already have.</p>
+  <div class="dex-actions"><button id="first-set" class="dex-primary">Create a set binder</button><button id="first-dex">Add National Pokédex</button><button id="first-import">Import cards</button></div>
+</section>
+<section id="binder-account-onboarding" class="dex-onboarding" aria-labelledby="binder-account-onboarding-title" hidden>
+  <h2 id="binder-account-onboarding-title">Open your account binders</h2>
+  <p id="binder-account-onboarding-message" role="status"></p>
+  <div class="dex-actions"><button id="first-connect" class="dex-primary">Review &amp; connect</button><button id="first-device">Keep using this device</button></div>
+</section>
+<section id="binder-toolbar" class="master-switch dex-toolbar" aria-label="Your binders" hidden>
+  <label>Open binder <select id="master-switch"></select></label>
   <button id="master-new">New set binder</button>
+  <button id="national-add" hidden>Add National Pokédex</button>
+  <button id="import-cards">Import cards</button>
+  <button id="export-cards" hidden>Export owned cards</button>
 </section>
 <p id="master-message" role="status" class="dex-help"></p>
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>

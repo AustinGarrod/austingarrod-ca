@@ -146,8 +146,9 @@ export class BinderStore {
     if (raw !== undefined) { this.current = validateDocument(raw, this.options.species); this.lastPersisted = copyDocument(this.current); this.changeNumber++; }
     this.emit(false); return this.read();
   }
-  async update(change: (doc: StoredBinder) => StoredBinder, broadcast = true): Promise<StoredBinder> {
+  async update(change: (doc: StoredBinder) => StoredBinder, broadcast = true, requirePersistence = false): Promise<StoredBinder> {
     if (!this.database) {
+      if (requirePersistence) throw new Error("Browser storage is unavailable. Reopen the binder and try again.");
       this.current = validateDocument(change(copyDocument(this.current)), this.options.species);
       this.changeNumber++;
       this.emit(broadcast); return this.read();
@@ -176,6 +177,10 @@ export class BinderStore {
       this.database?.close(); this.database = null;
       // Never replace unreadable persisted bytes with a fresh default document.
       this.warning = "This browser could not save the binder. Your saved data has been left untouched; export this session before leaving.";
+      if (requirePersistence) {
+        this.emit(false);
+        throw new Error("The import could not be saved. Reopen the binder and try again.");
+      }
       this.current = next ?? validateDocument(change(copyDocument(this.current)), this.options.species);
       this.changeNumber++;
     }

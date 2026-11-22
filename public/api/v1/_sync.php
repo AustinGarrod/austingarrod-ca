@@ -101,6 +101,17 @@ function accounts_document_pair(mixed $app, mixed $document): array
     return [$app, $document];
 }
 
+function accounts_keep_binder_visibility(string $app, string $document, string $json, ?array $row): string
+{
+    if ($app !== 'pokedex-binder' || $document !== 'binder' || $row === null) return $json;
+    $state = json_decode($json, false, 64, JSON_THROW_ON_ERROR);
+    if (property_exists($state, 'enabled')) return $json;
+    $current = json_decode($row['state_json'], false, 64, JSON_THROW_ON_ERROR);
+    if (!property_exists($current, 'enabled')) return $json;
+    $state->enabled = $current->enabled;
+    return accounts_encode($state);
+}
+
 function accounts_write(PDO $db, string $user, stdClass $body, string $webroot): array
 {
     if (!accounts_fields($body, ['app', 'document', 'schemaVersion', 'state', 'baseRevision', 'clientId', 'mutationSequence', 'operationId'], ['preservePrevious'])
@@ -136,6 +147,7 @@ function accounts_write(PDO $db, string $user, stdClass $body, string $webroot):
         }
 
         accounts_precondition($db, $row, $base, $client);
+        $json = accounts_keep_binder_visibility($app, $document, $json, $row);
         if ($row === null || $row['state_json'] !== $json) {
             if ($row !== null) {
                 if ($preservePrevious) {
@@ -282,8 +294,9 @@ function accounts_migration_commit(PDO $db, string $user, stdClass $body, string
                 accounts_snapshot($db, $user, $app, $name, 'Device before migration', 1, 0, $device[$name]['state_json']);
             }
 
-            accounts_snapshot($db, $user, $app, $name, 'Migration selection', 1, 0, $selected[$name]['state_json']);
-            $row = accounts_save_document($db, $user, $app, $name, 1, $selected[$name]['state_json'], $row);
+            $json = accounts_keep_binder_visibility($app, $name, $selected[$name]['state_json'], $row);
+            accounts_snapshot($db, $user, $app, $name, 'Migration selection', 1, 0, $json);
+            $row = accounts_save_document($db, $user, $app, $name, 1, $json, $row);
             $documents[] = accounts_remote($db, $row, $client);
         }
 

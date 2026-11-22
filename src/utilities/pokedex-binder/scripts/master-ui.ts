@@ -37,8 +37,11 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     page = 1,
     editing: string | null = null,
     renderVersion = 0,
-    started = false;
-  let dexProgress = "",
+    started = false,
+    ready = false;
+  let readVersion = 0, dexProgress = "",
+    hasDex = false,
+    onboarding: "pending" | "device" | "account" = "pending",
     accountVersion = 0;
   let sets: SetSummary[] = [];
   const cache = new Map<string, SetCard[]>(),
@@ -122,11 +125,12 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     });
   }
   async function refresh() {
-    const ticket = ++renderVersion,
+    const ticket = ++readVersion,
       target = scope,
       save = await store.read(target);
-    if (ticket !== renderVersion || target !== scope) return;
+    if (ticket !== readVersion || target !== scope) return;
     state = save.state;
+    ready = true;
     node("master-conflict").hidden = !save.conflict;
     node("master-message").textContent =
       target === "guest"
@@ -136,7 +140,6 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
           : "Set binders synced";
     if (save.conflict)
       node("master-message").textContent = "Two devices changed the same binder. Review the copies by keeping both.";
-    if (!active()) id = "";
     await render();
   }
   function progress(b: SetBinder) {
@@ -163,13 +166,24 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
           .catch(() => {});
       return option;
     });
-    chooser.replaceChildren(new Option("National Pokédex" + dexProgress, ""), ...options);
+    const oldId = id;
+    if (!active()) id = hasDex ? "" : state.binders[0]?.id ?? "";
+    if (oldId !== id) { page = 1; selectedKey = ""; scannerClose(); }
+    chooser.replaceChildren(...(hasDex ? [new Option("National Pokédex" + dexProgress, "")] : []), ...options);
     chooser.value = id;
     const b = active();
-    node("national-workspace").hidden = !!b;
+    const showDex = hasDex && !b;
+    const hasBinders = hasDex || state.binders.length > 0;
+    node("binder-onboarding").hidden = !ready || hasBinders || onboarding !== "device";
+    node("binder-account-onboarding").hidden = !ready || hasBinders || onboarding !== "account";
+    node("binder-toolbar").hidden = !ready || !hasBinders;
+    node("missing-list-controls").hidden = !ready || !hasBinders;
+    node("national-add").hidden = hasDex;
+    node("export-cards").hidden = !state.binders.length;
+    node("national-workspace").hidden = !showDex;
     node("master-workspace").hidden = !b;
-    node("layout-open").hidden = !!b;
-    node("scan-open").hidden = !!b;
+    node("layout-open").hidden = !showDex;
+    node("scan-open").hidden = !showDex;
     node("master-settings").hidden = !b;
     node("master-scan").hidden = !b;
     node<HTMLButtonElement>("master-scan").disabled = !!b && !cache.has(b.setId);
@@ -410,6 +424,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     });
   });
   listen("master-new", "click", () => openEditor());
+  listen("first-set", "click", () => openEditor());
   listen("master-settings", "click", () => openEditor(active()));
   listen("master-fillers", "change", showFillerCutoff);
   listen("master-set", "input", () => {
@@ -523,6 +538,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         selectedKey = ""; listView = false; scope = next;
         id = "";
         state = emptyMaster();
+        ready = false;
         scannerClose();
         for (const name of ["master-editor", "master-extra-dialog"]) dialog(name).close();
         void render().catch(report);
@@ -533,11 +549,26 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
           .then(() => schedule(0))
           .catch(report);
     },
-    dex(owned: number, total: number) {
-      dexProgress = " · " + owned + "/" + total;
-      const option = select("master-switch").options[0];
-      if (option) option.text = "National Pokédex" + dexProgress;
+    dex(enabled: boolean, owned: number, total: number) {
+      const progress = " · " + owned + "/" + total;
+      if (enabled === hasDex && progress === dexProgress) return;
+      const changed = enabled !== hasDex;
+      hasDex = enabled;
+      dexProgress = progress;
+      if (changed) void render().catch(report);
+      else {
+        const option = select("master-switch").options[0];
+        if (enabled && option?.value === "") option.text = "National Pokédex" + dexProgress;
+      }
     },
+    showNational() { id = ""; return render(); },
+    onboarding(value: typeof onboarding) {
+      if (value === onboarding) return;
+      onboarding = value;
+      void render().catch(report);
+    },
+    collection() { return { sets, cards }; },
+    applyCollection(fn: (doc: MasterState) => void) { return change(fn); },
     async missingLists(binderId: string | null) {
       const version = accountVersion;
       const { state: saved } = await store.read(scope);

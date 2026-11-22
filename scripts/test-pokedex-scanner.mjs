@@ -54,10 +54,12 @@ async function context(width = 390) {
   });
   return ctx;
 }
-async function open(ctx) {
+async function open(ctx, addDex = true) {
   const page = await ctx.newPage(); page.on('pageerror', error => allErrors.push(error.message.slice(0, 300)));
   await page.goto(origin + '/utilities/pokedex-binder/');
-  await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false'); return page;
+  await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+  if (addDex) await page.locator('#first-dex').click();
+  return page;
 }
 async function scanner(page) {
   await page.locator('#scan-open').click();
@@ -94,7 +96,10 @@ try {
     assert.equal(await page.evaluate(() => window.__cameraCalls.length), 0); await ctx.close();
   });
   for (const cancel of [false, true]) await scenario(cancel ? 'closing an early scan cancels the camera request' : 'first tap opens before the catalog is ready and starts once', async () => {
-    const ctx = await context(), page = await ctx.newPage();
+    const ctx = await context(), seeded = await open(ctx);
+    await expect(seeded.locator('#national-workspace')).toBeVisible();
+    await seeded.close();
+    const page = await ctx.newPage();
     let releaseCatalog;
     const pending = new Promise(resolve => { releaseCatalog = resolve; });
     await ctx.route('**/catalog/index.json', async route => { await pending; await route.continue(); });
@@ -120,7 +125,7 @@ try {
   await scenario('failed catalog initialization still opens a recoverable dialog', async () => {
     const ctx = await context();
     await ctx.route('**/catalog/index.json', route => route.abort());
-    const page = await open(ctx);
+    const page = await open(ctx, false);
     await page.locator('#scan-open').click();
     await expect(page.locator('#scan-status')).toContainText('binder could not load');
     await expect(page.locator('#scan-reload')).toBeVisible();

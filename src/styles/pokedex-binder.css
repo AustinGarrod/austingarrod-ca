@@ -128,6 +128,17 @@
 .dex-dialog::backdrop { background: rgb(11 28 48 / 55%); }
 .dex-dialog h2 { margin: 0; font-size: 21px; }
 .dex-dialog h3 { font-size: 16px; }
+.dex-onboarding { border: 1px solid var(--line); padding: clamp(16px,3vw,28px); margin: 18px 0; }
+.dex-onboarding h2 { margin: 0; font-size: 22px; }
+.dex-onboarding p { margin: 8px 0 16px; }
+.dex-transfer-dialog { width: min(700px,calc(100vw - 32px)); }
+.dex-transfer-mapping { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(160px,100%),1fr)); gap: 0 12px; }
+.dex-transfer-rows { list-style: none; padding: 0; overflow-wrap: anywhere; }
+.dex-transfer-rows li { border-top: 1px solid var(--line); padding: 10px 0; }
+.dex-transfer-rows li small { display: block; }
+.dex-transfer-filename { overflow-wrap: anywhere; }
+#card-import-review { border-top: 1px solid var(--line); margin-top: 20px; }
+#card-import-mapping { margin-top: 12px; }
 .dex-dialog p { font-size: 13px; }
 .dex-dialog label { display: block; font-size: 12px; font-weight: 600; margin-top: 16px; }
 .dex-dialog label small { display: block; font-size: 11px; font-weight: 400; color: var(--subtle); margin-top: 5px; }

@@ -2,6 +2,7 @@
 import { BookOpen, ChevronRight, Download, Settings2, Search, Cloud, ListChecks, Camera, Check } from "@lucide/astro";
 import BinderPages from "@components/BinderPages.astro";
 import MasterSetBinders from "@components/MasterSetBinders.astro";
+import BinderTransfers from "@components/BinderTransfers.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
@@ -20,7 +21,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <section class="dex-intro">
       <h1><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
-      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open"><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
+      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
     </section>
 
     <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
@@ -28,7 +29,8 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <div id="dex-conflict" class="dex-notice" role="alert" hidden><p>Your binder layout changed on another device. Choose which layout to keep; your Pokémon marks will be merged.</p><button id="conflict-local">Keep this layout</button><button id="conflict-remote">Use synced layout</button></div>
 
     <MasterSetBinders />
-    <div id="national-workspace">
+    <p id="transfer-message" role="status" class="dex-help"></p>
+    <div id="national-workspace" hidden>
     <section class="dex-progress" aria-label="Collection progress">
       <div><span class="dex-label">Collected</span><strong id="owned-count">—</strong></div>
       <div><span class="dex-label">Still to find</span><strong id="missing-count">—</strong></div>
@@ -62,7 +64,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </section>
 
     </div>
-    <section class="dex-export-bar" aria-label="Collection exports">
+    <section id="missing-list-controls" class="dex-export-bar" aria-label="Missing lists" hidden>
       <label class="dex-field-inline">Missing list for <select id="export-scope"><option value="current">Current binder</option><option value="all">All binders</option></select></label>
       <div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div>
     </section>
@@ -70,8 +72,9 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
+  <BinderTransfers />
 
-  <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
+  <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><button id="national-hide" type="button">Hide National Pokédex</button><p class="dex-help">You can add it back with your progress and layout.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
 
   <dialog id="sync-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="sync-title"><div class="dex-section-heading"><h2 id="sync-title">Sync & backup</h2><button type="button" data-close-dialog aria-label="Close sync and backup">×</button></div><p>Your binder saves in this browser. Account sync is optional; review your device and account collections before connecting.</p>
     <section id="binder-account-panel" hidden>

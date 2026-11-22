@@ -382,6 +382,18 @@ try {
   const expiryStart = await request(expired, 'auth', 'email-start', { email: 'expiry@example.test' }); const expiryCode = messages.at(-1).match(/code is:\s*(\d{6})/)[1]; databaseCommand('expire-challenges');
   assert.equal((await request(expired, 'auth', 'email-verify', { challengeId: expiryStart.data.challengeId, code: expiryCode })).status, 401);
   const logout = await request(a, 'auth', 'logout-all', {}); assert.equal(logout.status, 200); assert.equal(logout.data.user, null); assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).status, 401);
+  const visibilityClient = randomUUID();
+  const hiddenDex = write({ ...binder([25]), enabled: false }, 0, visibilityClient);
+  const hiddenSave = await request(b, 'sync', 'write', hiddenDex);
+  assert.equal(hiddenSave.status, 200, JSON.stringify(hiddenSave.data));
+  const legacyEdit = write(binder([1, 25]), hiddenSave.data.document.revision, visibilityClient, 2);
+  const legacySave = await request(b, 'sync', 'write', legacyEdit);
+  assert.equal(legacySave.status, 200);
+  assert.deepEqual(legacySave.data.document.state, { ...binder([1, 25]), enabled: false });
+  assert.deepEqual((await request(b, 'sync', 'write', legacyEdit)).data, legacySave.data);
+  const showDex = write({ ...binder([1, 25]), enabled: true }, legacySave.data.document.revision, visibilityClient, 3);
+  assert.equal((await request(b, 'sync', 'write', showDex)).data.document.state.enabled, true);
+  assert.equal((await request(b, 'sync', 'write', write({ ...binder([1]), enabled: "false" }, showDex.baseRevision + 1, visibilityClient, 4))).status, 422);
   config.enabled = false; saveConfig(); assert.equal((await request(b, 'auth', 'session')).data.enabled, false); assert.equal((await request(b, 'sync', 'read', undefined, { app, document, clientId })).status, 503);
   assert.equal(await callback(a, flow), '/account/?google=failed', 'Disabled accounts must clear an OAuth proof and redirect without diagnostics');
   const unavailableConfig = configFile + '.temporarily-unavailable'; renameSync(configFile, unavailableConfig);
