@@ -1,4 +1,4 @@
-import { addSetImports, exportOwnedCards, groupSetImport, markKey, reviewCards, type CardExportFormat, type ReviewedCard, type TransferCatalog, type TransferMatch } from "../lib/card-transfer";
+import { addSetImports, exportOwnedCards, groupSetImport, markKey, reviewCards, type CardExportFormat, type ReviewedCard, type TcgplayerCondition, type TransferCatalog, type TransferMatch } from "../lib/card-transfer";
 import { sameSave, type MasterState } from "../lib/master";
 import { nationalEnabled, type BinderState } from "../lib/model";
 import { csvByteLimit, mapTransferHeaders, parseTransferCsv, transferFields, transferRows, type ColumnMap, type TransferField, type TransferFormat } from "../lib/transfer-csv";
@@ -300,15 +300,24 @@ export function createTransfers(options: Options) {
   });
 
   const exportScope = select("card-export-scope"), exportFormat = select("card-export-format");
+  const exportCondition = select("card-export-tcgplayer-condition");
   const exportButton = button("card-export-download"), exportError = get("card-export-error"), exportStatus = get("card-export-status");
   let exportGeneration = 0;
-  exportFormat.addEventListener("change", () => { get("card-export-binderloot-help").hidden = exportFormat.value !== "binderloot"; });
+  function updateExportFormat() {
+    const tcgplayer = exportFormat.value === "tcgplayer";
+    get("card-export-binderloot-help").hidden = exportFormat.value !== "binderloot";
+    get("card-export-tcgplayer-options").hidden = !tcgplayer;
+    exportCondition.required = tcgplayer;
+    exportCondition.disabled = !tcgplayer;
+  }
+  exportFormat.addEventListener("change", updateExportFormat);
   exportDialog.addEventListener("close", () => { exportGeneration++; });
   button("export-cards").addEventListener("click", async () => {
     const scope = options.scope(), ticket = ++exportGeneration;
     exportStatus.textContent = exportError.textContent = "";
     exportScope.replaceChildren();
     exportScope.disabled = exportFormat.disabled = false;
+    updateExportFormat();
     exportButton.disabled = true;
     exportDialog.showModal();
     try {
@@ -324,23 +333,27 @@ export function createTransfers(options: Options) {
     event.preventDefault();
     const scope = options.scope(), ticket = exportGeneration, id = exportScope.value;
     const format = exportFormat.value as CardExportFormat;
+    const condition = exportCondition.value as TcgplayerCondition;
     const current = () => exportDialog.open && ticket === exportGeneration && scope === options.scope();
-    exportButton.disabled = exportScope.disabled = exportFormat.disabled = true;
+    exportButton.disabled = exportScope.disabled = exportFormat.disabled = exportCondition.disabled = true;
     exportError.textContent = "";
     exportStatus.textContent = "Preparing owned cards…";
     try {
       const state = await options.sets();
       const binders = id ? state.binders.filter(binder => binder.id === id) : state.binders;
       if (!binders.length) throw new Error("The selected binders changed. Choose them again.");
-      const output = await exportOwnedCards(binders, options.catalog(), format);
+      const output = await exportOwnedCards(binders, options.catalog(), format, condition);
       if (!current()) return;
       exportStatus.textContent = `${output.exported} distinct printings · ${output.omitted} entries omitted.`;
-      if (output.exported) options.download(output.text, `owned-cards-${format}.csv`, "text/csv;charset=utf-8");
+      if (output.exported) options.download(output.text, format === "tcgplayer" ? "tcgplayer-mobile-collection.csv" : `owned-cards-${format}.csv`, "text/csv;charset=utf-8");
       else exportError.textContent = "There are no owned printings for this export format.";
     } catch (cause) {
       if (current()) { exportStatus.textContent = ""; exportError.textContent = (cause as Error).message; }
     } finally {
-      if (current()) exportButton.disabled = exportScope.disabled = exportFormat.disabled = false;
+      if (current()) {
+        exportButton.disabled = exportScope.disabled = exportFormat.disabled = false;
+        updateExportFormat();
+      }
     }
   });
   for (const id of ["first-import", "import-cards"]) button(id).addEventListener("click", openImport);

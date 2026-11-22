@@ -79,6 +79,18 @@ try {
     await page.locator('#card-export-download').click();
     const binderLoot = await readFile(await (await binderLootPromise).path(), 'utf8');
     assert.match(binderLoot, /International,Charizard,4\/102,,Base Set,,Normal Holo,English,Unspecified,1/);
+    await page.locator('#card-export-format').selectOption('tcgplayer');
+    await expect(page.locator('#card-export-tcgplayer-options')).toBeVisible();
+    await expect(page.locator('#card-export-tcgplayer-condition')).toHaveValue('');
+    await page.locator('#card-export-tcgplayer-condition').selectOption('Lightly Played');
+    const tcgplayerPromise = page.waitForEvent('download');
+    await page.locator('#card-export-download').click();
+    const tcgplayer = await tcgplayerPromise;
+    assert.equal(tcgplayer.suggestedFilename(), 'tcgplayer-mobile-collection.csv');
+    const mobileCsv = await readFile(await tcgplayer.path(), 'utf8');
+    assert.match(mobileCsv, /^Collection Name,Created At,ProductID,Condition,Language,Variant,Quantity\r\n/);
+    assert.match(mobileCsv, /,42382,Lightly Played,English,Holofoil,1/);
+    assert.match(mobileCsv, /,502552,Lightly Played,English,Reverse Holofoil,1/);
     await page.keyboard.press('Escape');
 
     await preview(page, '#import-cards', incoming, 'dex');

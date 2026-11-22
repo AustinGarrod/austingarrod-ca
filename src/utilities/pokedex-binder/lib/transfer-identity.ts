@@ -46,4 +46,4 @@ export function findNumberedTransferSets<T extends SetIdentity>(sets: readonly T
   });
 }
 
-export type ProductIdentity = [setId: string, number: string, subtype?: "shadowless"];
+export type ProductIdentity = [setId: string, number: string, subtype?: "shadowless" | null, printings?: string[]];

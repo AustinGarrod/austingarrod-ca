@@ -13,7 +13,7 @@ async function fetchCatalog(path) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const response = await fetch(api + path, { headers, signal: AbortSignal.timeout(20000) });
-      if (response.status === 404 && path.endsWith("/products")) return [];
+      if (response.status === 404 && /\/(?:products|prices)$/.test(path)) return [];
       if (!response.ok) throw new Error(`TCGCSV returned ${response.status} for ${path}`);
       const result = await response.json();
       if (!result.success || !Array.isArray(result.results)) throw new Error(`Invalid catalog response for ${path}`);
@@ -40,14 +40,20 @@ for (const group of groups) {
   const byNumber = Map.groupBy(cards, card => numberKey(card.number));
   const subtype = group.name === "Base Set (Shadowless)" ? "shadowless" : null;
   await setTimeout(275);
+  const listings = await fetchCatalog(`${group.groupId}/products`);
+  await setTimeout(275);
+  // Only the available printing labels are retained. Prices are not part of the crosswalk.
+  const prices = Map.groupBy(await fetchCatalog(`${group.groupId}/prices`), item => item.productId);
   let matchedProducts = 0;
-  for (const product of await fetchCatalog(`${group.groupId}/products`)) {
+  for (const product of listings) {
     const number = product.extendedData?.find(item => item.name === "Number")?.value;
     if (!number || !Number.isSafeInteger(product.productId) || product.productId < 1) continue;
     const candidates = (byNumber.get(numberKey(number)) ?? []).filter(card =>
       cardNameKey(product.name) === cardNameKey(card.name) && (!subtype || card.variants.some(v => v.id.includes("subtype=" + subtype))));
     if (candidates.length !== 1) continue;
-    const entry = [set.id, candidates[0].number, ...(subtype ? [subtype] : [])];
+    const printings = [...new Set((prices.get(product.productId) ?? []).map(item => item.subTypeName)
+      .filter(name => typeof name === "string" && name.trim()))].sort();
+    const entry = [set.id, candidates[0].number, subtype, printings];
     if (Object.hasOwn(products, product.productId) && JSON.stringify(products[product.productId]) !== JSON.stringify(entry)) {
       throw new Error(`Conflicting mapping for Product ID ${product.productId}`);
     }

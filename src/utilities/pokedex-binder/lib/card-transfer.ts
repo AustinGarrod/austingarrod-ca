@@ -31,7 +31,9 @@ function finishOptions(card: SetCard, row: TransferRow, shadowless: boolean): Va
   const explicit = variants.filter(v => identityText(v.label) === key || identityText(v.id) === key);
   if (explicit.length) return explicit;
   if (key === "foil" || key === "true") return variants.filter(v => /^(holo|reverse)(\+|$)/.test(v.id));
-  if (key === "unlimited") return variants.filter(v => shadowless ? !v.id.includes("stamp=") : v.id.includes("subtype=unlimited") || !v.specialty);
+  const unlimited = key.match(/^unlimited(holo(?:foil)?)?$/);
+  if (unlimited) return variants.filter(v => (shadowless ? !v.id.includes("stamp=") : v.id.includes("subtype=unlimited") || !v.specialty)
+    && (!unlimited[1] || v.id.split("+")[0] === "holo"));
   const pattern = key.match(/^(pokeball|masterball)(?:reverseholo(?:foil)?|reversefoil)?$/);
   if (pattern) return variants.filter(v => v.id === `reverse+foil=${pattern[1]}`);
   const edition = key.match(/^(?:1st|first)edition(holo(?:foil)?|normal|nonholo|nonfoil)?$/);
@@ -170,8 +172,37 @@ function binderLootFinish(variant: Variant) {
   return names[id];
 }
 
-export type CardExportFormat = "portable" | "binderloot";
-export async function exportOwnedCards(binders: readonly SetBinder[], catalog: TransferCatalog, format: CardExportFormat) {
+export const tcgplayerConditions = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"] as const;
+export type TcgplayerCondition = typeof tcgplayerConditions[number];
+
+const tcgplayerPrintings: Record<string, readonly string[]> = {
+  normal: ["Normal", "Unlimited"], holo: ["Holofoil", "Unlimited Holofoil"], reverse: ["Reverse Holofoil"],
+  "normal+subtype=unlimited": ["Unlimited", "Normal"], "holo+subtype=unlimited": ["Unlimited Holofoil", "Holofoil"],
+  "normal+subtype=shadowless": ["Unlimited", "Normal"], "holo+subtype=shadowless": ["Unlimited Holofoil", "Holofoil"],
+  "normal+stamp=1st-edition": ["1st Edition"], "holo+stamp=1st-edition": ["1st Edition Holofoil"],
+  "normal+subtype=shadowless+stamp=1st-edition": ["1st Edition"], "holo+subtype=shadowless+stamp=1st-edition": ["1st Edition Holofoil"],
+};
+
+function tcgplayerProduct(products: [string, ProductIdentity][], variant: Variant) {
+  const printings = tcgplayerPrintings[variant.id];
+  if (!printings) return;
+  const shadowless = variant.id.includes("+subtype=shadowless");
+  const matches = products.flatMap(([productId, [, , subtype, listed]]) => {
+    if (shadowless !== (subtype === "shadowless")) return [];
+    const printing = printings.find(name => listed?.includes(name));
+    return printing ? [{ productId, printing }] : [];
+  });
+  if (matches.length === 1) return matches[0];
+}
+
+export type CardExportFormat = "portable" | "binderloot" | "tcgplayer";
+export async function exportOwnedCards(binders: readonly SetBinder[], catalog: TransferCatalog, format: CardExportFormat, condition?: TcgplayerCondition) {
+  const forTcgplayer = format === "tcgplayer";
+  if (forTcgplayer && (!condition || !tcgplayerConditions.includes(condition))) {
+    throw new Error("Choose the condition for the TCGplayer export.");
+  }
+  const products = forTcgplayer ? Map.groupBy(Object.entries(await catalog.products()), ([, [setId, number]]) => `${setId}:${number}`) : null;
+  const createdAt = forTcgplayer ? new Date().toISOString().replace(/Z$/, "+0000") : "";
   const sets = new Map(catalog.sets.map(set => [set.id, set]));
   const rows: (string | number)[][] = [], exported = new Set<string>(), omitted = new Set<string>();
   for (const binder of binders) {
@@ -183,17 +214,22 @@ export async function exportOwnedCards(binders: readonly SetBinder[], catalog: T
       const variant = card?.variants.find(v => v.id === key.slice(colon + 1) && !v.id.startsWith("unspecified"));
       const unique = `${binder.setId}:${key}`;
       if (exported.has(unique) || omitted.has(unique)) continue;
-      const externalFinish = variant && format === "binderloot" ? binderLootFinish(variant) : null;
-      if (!set || !card || !variant || (format === "binderloot" && !externalFinish)) { omitted.add(unique); continue; }
+      if (!set || !card || !variant) { omitted.add(unique); continue; }
+      const externalFinish = format === "binderloot" ? binderLootFinish(variant) : null;
+      const product = products && tcgplayerProduct(products.get(`${set.id}:${card.number}`) ?? [], variant);
+      if ((forTcgplayer && !product) || (format === "binderloot" && !externalFinish)) { omitted.add(unique); continue; }
       exported.add(unique);
-      if (format === "portable") rows.push([set.id, set.code, set.name, card.number, card.name, variant.id, variant.label, "English", 1]);
+      if (product && condition) rows.push(["Pokémon Binder Tracker", createdAt, product.productId, condition, "English", product.printing, 1]);
+      else if (format === "portable") rows.push([set.id, set.code, set.name, card.number, card.name, variant.id, variant.label, "English", 1]);
       else {
         const number = set.printedTotal && /^\d+$/.test(card.number) ? `${card.number}/${set.printedTotal}` : card.number;
         rows.push(["International", card.name, number, "", set.name, "", externalFinish!, "English", "Unspecified", 1, "", "", ""]);
       }
     }
   }
-  const headers = format === "portable" ? ["Set ID", "Set code", "Set name", "Collector number", "Card name", "Variant ID", "Finish", "Language", "Quantity"]
+  const headers = forTcgplayer ? ["Collection Name", "Created At", "ProductID", "Condition", "Language", "Variant", "Quantity"]
+    : format === "portable" ? ["Set ID", "Set code", "Set name", "Collector number", "Card name", "Variant ID", "Finish", "Language", "Quantity"]
     : ["TCG region", "Card name", "Card number", "Card number sorting order", "Expansion", "Rarity", "Card variant", "Card language", "Card condition", "Quantity", "Price", "Total price", "Note"];
-  return { text: csv(headers, rows), exported: exported.size, omitted: omitted.size };
+  const text = csv(headers, rows);
+  return { text: forTcgplayer ? text.slice(1) : text, exported: exported.size, omitted: omitted.size };
 }

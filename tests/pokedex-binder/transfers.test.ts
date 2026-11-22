@@ -107,6 +107,42 @@ describe("collection transfers", () => {
     expect(destination.exported).toBe(2);
   });
 
+  it("exports the mobile collection restore format with exact TCGplayer printings", async () => {
+    const base = newBinder("base1", "Base Set");
+    base.owned = ["4:holo+subtype=unlimited", "4:holo+subtype=shadowless", "4:holo+subtype=shadowless+stamp=1st-edition", "4:holo+subtype=1999-2000-copyright"];
+    const set151 = newBinder("sv03.5", "151");
+    set151.owned = ["001:normal", "001:reverse", "002:*"];
+    await expect(exportOwnedCards([base], catalog, "tcgplayer")).rejects.toThrow(/Choose the condition/);
+    const output = await exportOwnedCards([base, set151, base], catalog, "tcgplayer", "Lightly Played");
+    expect(output.text.startsWith("Collection Name,Created At,ProductID,Condition,Language,Variant,Quantity\r\n")).toBe(true);
+    expect(output.exported).toBe(5);
+    expect(output.omitted).toBe(2);
+    const parsed = parseTransferCsv(output.text);
+    expect(parsed.records.map(({ cells }) => cells.slice(2))).toEqual([
+      ["42382", "Lightly Played", "English", "Holofoil", "1"],
+      ["106999", "Lightly Played", "English", "Unlimited Holofoil", "1"],
+      ["106999", "Lightly Played", "English", "1st Edition Holofoil", "1"],
+      ["502552", "Lightly Played", "English", "Normal", "1"],
+      ["502552", "Lightly Played", "English", "Reverse Holofoil", "1"],
+    ]);
+    const { format, cards } = await parseAndReview(output.text);
+    expect(format).toBe("tcgplayer");
+    expect(cards.map(card => card.match?.variant?.id)).toEqual([
+      "holo+subtype=unlimited", "holo+subtype=shadowless", "holo+subtype=shadowless+stamp=1st-edition", "normal", "reverse",
+    ]);
+  });
+
+  it("omits equally eligible Product IDs and IDs with no verified printing", async () => {
+    const set151 = newBinder("sv03.5", "151");
+    set151.owned = ["001:normal", "002:normal"];
+    const ambiguous: TransferCatalog = { ...catalog, async products() {
+      return { "10": ["sv03.5", "001", null, ["Normal"]], "11": ["sv03.5", "001", null, ["Normal"]], "12": ["sv03.5", "002"] };
+    } };
+    const output = await exportOwnedCards([set151], ambiguous, "tcgplayer", "Near Mint");
+    expect(output).toMatchObject({ exported: 0, omitted: 2 });
+    expect(output.text.split("\r\n")).toHaveLength(2);
+  });
+
   it("supports mapped columns, preserves alphanumeric identifiers and rejects malformed rows", async () => {
     const file = parseTransferCsv('Expansion text,"Printed #",Pokémon,Parallel\nLost Origin,TG01/TG30,Parasect,Normal Holo\nMissing,a,column\n');
     const { rows, invalid } = transferRows(file, { set: 0, number: 1, name: 2, finish: 3 });

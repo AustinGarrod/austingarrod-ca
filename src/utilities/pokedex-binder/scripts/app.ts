@@ -93,7 +93,7 @@ async function initialize() {
   let speciesLookup: ((match: TransferMatch) => readonly number[]) | undefined;
   const transfers = createTransfers({
     catalog: () => ({ ...master.collection(), products() {
-      productLookup ??= fetch(`${root}catalog/tcgplayer-products.json`).then(async response => {
+      productLookup ??= fetch(`${root}catalog/tcgplayer-products.json`, { cache: "no-cache" }).then(async response => {
         if (!response.ok) throw new Error("The TCGplayer card lookup could not load. Try again.");
         return (await response.json()).products as Record<string, ProductIdentity>;
       }).catch(cause => { productLookup = undefined; throw cause; });
