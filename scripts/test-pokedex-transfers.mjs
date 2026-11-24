@@ -91,6 +91,26 @@ try {
     assert.match(mobileCsv, /^Collection Name,Created At,ProductID,Condition,Language,Variant,Quantity\r\n/);
     assert.match(mobileCsv, /,42382,Lightly Played,English,Holofoil,1/);
     assert.match(mobileCsv, /,502552,Lightly Played,English,Reverse Holofoil,1/);
+    await page.locator('#card-export-list').selectOption('missing');
+    await expect(page.locator('#card-export-missing-help')).toBeVisible();
+    await page.locator('#card-export-scope').selectOption({ label: '151' });
+    const missingMobilePromise = page.waitForEvent('download');
+    await page.locator('#card-export-download').click();
+    const missingMobile = await missingMobilePromise;
+    assert.equal(missingMobile.suggestedFilename(), 'missing-cards-tcgplayer.csv');
+    const missingMobileCsv = await readFile(await missingMobile.path(), 'utf8');
+    assert.match(missingMobileCsv, /Pokémon Binder Tracker - Missing Cards,[^,]+,502552,Lightly Played,English,Normal,1/);
+    assert.doesNotMatch(missingMobileCsv, /,502552,Lightly Played,English,Reverse Holofoil,1|,42382,/);
+    await expect(page.locator('#card-export-status')).toContainText('missing entries exported');
+    await page.locator('#card-export-format').selectOption('portable');
+    const missingPortablePromise = page.waitForEvent('download');
+    await page.locator('#card-export-download').click();
+    const missingPortable = await missingPortablePromise;
+    assert.equal(missingPortable.suggestedFilename(), 'missing-cards-portable.csv');
+    const missingPortableCsv = await readFile(await missingPortable.path(), 'utf8');
+    assert.match(missingPortableCsv, /sv03\.5,MEW,151,001,Bulbasaur,normal/);
+    assert.doesNotMatch(missingPortableCsv, /sv03\.5,MEW,151,001,Bulbasaur,reverse|base1,/);
+    assert.equal(await page.locator('#card-export-dialog').evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false, 'Export dialog overflow');
     await page.keyboard.press('Escape');
 
     await preview(page, '#import-cards', incoming, 'dex');

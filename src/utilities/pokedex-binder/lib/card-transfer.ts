@@ -1,5 +1,5 @@
 import { csv } from "./list-export";
-import { newBinder, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
+import { newBinder, setSlots, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
 import { cardNameKey, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
 import type { TransferRow } from "./transfer-csv";
 
@@ -196,34 +196,49 @@ function tcgplayerProduct(products: [string, ProductIdentity][], variant: Varian
 }
 
 export type CardExportFormat = "portable" | "binderloot" | "tcgplayer";
-export async function exportOwnedCards(binders: readonly SetBinder[], catalog: TransferCatalog, format: CardExportFormat, condition?: TcgplayerCondition) {
+export type CardExportList = "owned" | "missing";
+
+export async function exportCards(
+  binders: readonly SetBinder[],
+  catalog: TransferCatalog,
+  { format, list, condition }: { format: CardExportFormat; list: CardExportList; condition?: TcgplayerCondition },
+) {
+  const missing = list === "missing";
   const forTcgplayer = format === "tcgplayer";
   if (forTcgplayer && (!condition || !tcgplayerConditions.includes(condition))) {
     throw new Error("Choose the condition for the TCGplayer export.");
   }
   const products = forTcgplayer ? Map.groupBy(Object.entries(await catalog.products()), ([, [setId, number]]) => `${setId}:${number}`) : null;
   const createdAt = forTcgplayer ? new Date().toISOString().replace(/Z$/, "+0000") : "";
+  const collectionName = missing ? "Pokémon Binder Tracker - Missing Cards" : "Pokémon Binder Tracker";
   const sets = new Map(catalog.sets.map(set => [set.id, set]));
   const rows: (string | number)[][] = [], exported = new Set<string>(), omitted = new Set<string>();
   for (const binder of binders) {
-    if (!binder.owned.length) continue;
+    if (!missing && !binder.owned.length) continue;
     const set = sets.get(binder.setId);
-    const cards = set ? new Map((await catalog.cards(set.id)).map(card => [card.number, card])) : new Map<string, SetCard>();
-    for (const key of binder.owned) {
-      const colon = key.indexOf(":"), card = cards.get(key.slice(0, colon));
-      const variant = card?.variants.find(v => v.id === key.slice(colon + 1) && !v.id.startsWith("unspecified"));
-      const unique = `${binder.setId}:${key}`;
+    const setCards = set ? await catalog.cards(set.id) : [];
+    const cards = new Map(setCards.map(card => [card.number, card]));
+    const keys = missing ? setSlots(binder, setCards).filter(slot => slot.required && !slot.owned).map(slot => slot.key) : binder.owned;
+    for (const key of keys) {
+      const colon = key.indexOf(":"), number = key.slice(0, colon);
+      const card = cards.get(number);
+      const finishId = key.slice(colon + 1);
+      const anyFinish = missing && finishId === "*";
+      const targetId = anyFinish && card?.variants.length === 1 ? card.variants[0].id : finishId;
+      const allowUnspecified = missing && !anyFinish && format === "portable";
+      const variant = card?.variants.find(v => v.id === targetId && (allowUnspecified || !v.id.startsWith("unspecified")));
+      const unique = `${binder.setId}:${variant ? `${number}:${variant.id}` : key}`;
       if (exported.has(unique) || omitted.has(unique)) continue;
-      if (!set || !card || !variant) { omitted.add(unique); continue; }
-      const externalFinish = format === "binderloot" ? binderLootFinish(variant) : null;
-      const product = products && tcgplayerProduct(products.get(`${set.id}:${card.number}`) ?? [], variant);
+      if (!set || !card || (!variant && !(anyFinish && format === "portable"))) { omitted.add(unique); continue; }
+      const externalFinish = format === "binderloot" && variant ? binderLootFinish(variant) : null;
+      const product = products && variant && tcgplayerProduct(products.get(`${set.id}:${card.number}`) ?? [], variant);
       if ((forTcgplayer && !product) || (format === "binderloot" && !externalFinish)) { omitted.add(unique); continue; }
       exported.add(unique);
-      if (product && condition) rows.push(["Pokémon Binder Tracker", createdAt, product.productId, condition, "English", product.printing, 1]);
-      else if (format === "portable") rows.push([set.id, set.code, set.name, card.number, card.name, variant.id, variant.label, "English", 1]);
+      if (product && condition) rows.push([collectionName, createdAt, product.productId, condition, "English", product.printing, 1]);
+      else if (format === "portable") rows.push([set.id, set.code, set.name, card.number, card.name, variant?.id ?? "", variant?.label ?? "Any finish", "English", 1]);
       else {
-        const number = set.printedTotal && /^\d+$/.test(card.number) ? `${card.number}/${set.printedTotal}` : card.number;
-        rows.push(["International", card.name, number, "", set.name, "", externalFinish!, "English", "Unspecified", 1, "", "", ""]);
+        const printedNumber = set.printedTotal && /^\d+$/.test(card.number) ? `${card.number}/${set.printedTotal}` : card.number;
+        rows.push(["International", card.name, printedNumber, "", set.name, "", externalFinish!, "English", "Unspecified", 1, "", "", ""]);
       }
     }
   }

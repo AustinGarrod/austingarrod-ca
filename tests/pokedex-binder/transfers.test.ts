@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { addSetImports, exportOwnedCards, groupSetImport, reviewCards, type TransferCatalog } from "../../src/utilities/pokedex-binder/lib/card-transfer";
+import { addSetImports, exportCards, groupSetImport, reviewCards, type TransferCatalog } from "../../src/utilities/pokedex-binder/lib/card-transfer";
 import { emptyMaster, newBinder, type SetCard, type SetSummary } from "../../src/utilities/pokedex-binder/lib/master";
 import { defaultState, mergeStates, nationalEnabled, validateState } from "../../src/utilities/pokedex-binder/lib/model";
 import { mapTransferHeaders, parseTransferCsv, transferRows } from "../../src/utilities/pokedex-binder/lib/transfer-csv";
@@ -97,12 +97,12 @@ describe("collection transfers", () => {
     expect(state.binders).toHaveLength(2);
     expect(older.owned).toContain("4:*");
     expect(older.specialties).toEqual(["4:holo+subtype=shadowless+stamp=1st-edition"]);
-    const portable = await exportOwnedCards([...state.binders, older], catalog, "portable");
+    const portable = await exportCards([...state.binders, older], catalog, { format: "portable", list: "owned" });
     expect(portable.exported).toBe(2);
     expect(portable.omitted).toBe(2);
     const roundTrip = await parseAndReview(portable.text);
     expect(roundTrip.cards.map(row => row.match?.variant?.id).sort()).toEqual(["holo+subtype=shadowless+stamp=1st-edition", "reverse"]);
-    const destination = await exportOwnedCards(state.binders, catalog, "binderloot");
+    const destination = await exportCards(state.binders, catalog, { format: "binderloot", list: "owned" });
     expect(destination.text).toContain("International,Charizard,4/102,,Base Set,,1st Edition Holo,English,Unspecified,1");
     expect(destination.exported).toBe(2);
   });
@@ -112,8 +112,8 @@ describe("collection transfers", () => {
     base.owned = ["4:holo+subtype=unlimited", "4:holo+subtype=shadowless", "4:holo+subtype=shadowless+stamp=1st-edition", "4:holo+subtype=1999-2000-copyright"];
     const set151 = newBinder("sv03.5", "151");
     set151.owned = ["001:normal", "001:reverse", "002:*"];
-    await expect(exportOwnedCards([base], catalog, "tcgplayer")).rejects.toThrow(/Choose the condition/);
-    const output = await exportOwnedCards([base, set151, base], catalog, "tcgplayer", "Lightly Played");
+    await expect(exportCards([base], catalog, { format: "tcgplayer", list: "owned" })).rejects.toThrow(/Choose the condition/);
+    const output = await exportCards([base, set151, base], catalog, { format: "tcgplayer", list: "owned", condition: "Lightly Played" });
     expect(output.text.startsWith("Collection Name,Created At,ProductID,Condition,Language,Variant,Quantity\r\n")).toBe(true);
     expect(output.exported).toBe(5);
     expect(output.omitted).toBe(2);
@@ -138,9 +138,61 @@ describe("collection transfers", () => {
     const ambiguous: TransferCatalog = { ...catalog, async products() {
       return { "10": ["sv03.5", "001", null, ["Normal"]], "11": ["sv03.5", "001", null, ["Normal"]], "12": ["sv03.5", "002"] };
     } };
-    const output = await exportOwnedCards([set151], ambiguous, "tcgplayer", "Near Mint");
+    const output = await exportCards([set151], ambiguous, { format: "tcgplayer", list: "owned", condition: "Near Mint" });
     expect(output).toMatchObject({ exported: 0, omitted: 2 });
     expect(output.text.split("\r\n")).toHaveLength(2);
+  });
+
+  it("exports missing checklist printings in all formats and counts unsupported entries once", async () => {
+    const binder = newBinder("sv03.5", "151");
+    binder.owned = ["001:normal", "002:normal", "002:reverse"];
+    binder.specialties = ["001:normal+stamp=set-logo"];
+    binder.settings.fillerThrough = 3;
+    binder.extras = [
+      { id: crypto.randomUUID(), number: "1", name: "Required extra", required: true },
+      { id: crypto.randomUUID(), number: "2", name: "Optional extra", required: false },
+    ];
+    const selected = [binder, { ...binder, id: crypto.randomUUID() }];
+    const smallCatalog = { ...catalog, async cards(setId: string) { return (await catalog.cards(setId)).slice(0, 3); } };
+
+    const portable = await exportCards(selected, smallCatalog, { format: "portable", list: "missing" });
+    expect(portable).toMatchObject({ exported: 3, omitted: 1 });
+    expect(parseTransferCsv(portable.text).records.map(row => [row.cells[3], row.cells[5]])).toEqual([
+      ["001", "reverse"], ["001", "normal+stamp=set-logo"], ["003", "holo"],
+    ]);
+    const binderloot = await exportCards(selected, smallCatalog, { format: "binderloot", list: "missing" });
+    expect(binderloot).toMatchObject({ exported: 2, omitted: 2 });
+    expect(binderloot.text).toContain("International,Bulbasaur,001/165,,151,,Reverse Holo,English,Unspecified,1");
+    expect(binderloot.text).toContain("International,Venusaur ex,003/165,,151,,Normal Holo,English,Unspecified,1");
+
+    const mobile = await exportCards(selected, smallCatalog, { format: "tcgplayer", list: "missing", condition: "Near Mint" });
+    expect(mobile).toMatchObject({ exported: 2, omitted: 2 });
+    const rows = parseTransferCsv(mobile.text).records;
+    expect(rows.map(({ cells }) => [cells[0], ...cells.slice(2)])).toEqual([
+      ["Pokémon Binder Tracker - Missing Cards", "502552", "Near Mint", "English", "Reverse Holofoil", "1"],
+      ["Pokémon Binder Tracker - Missing Cards", "502554", "Near Mint", "English", "Holofoil", "1"],
+    ]);
+  });
+
+  it("honors number-only ownership and keeps any-finish gaps in Portable CSV", async () => {
+    const binder = newBinder("sv03.5", "151 numbers");
+    binder.goal = "numbers";
+    binder.owned = ["002:*", "004:normal"];
+    const smallCatalog = { ...catalog, async cards(setId: string) { return (await catalog.cards(setId)).slice(0, 4); } };
+
+    const portable = await exportCards([binder], smallCatalog, { format: "portable", list: "missing" });
+    expect(portable).toMatchObject({ exported: 2, omitted: 0 });
+    expect(parseTransferCsv(portable.text).records.map(row => row.cells.slice(3, 7))).toEqual([
+      ["001", "Bulbasaur", "", "Any finish"], ["003", "Venusaur ex", "holo", "Holo"],
+    ]);
+    const mobile = await exportCards([binder], smallCatalog, { format: "tcgplayer", list: "missing", condition: "Near Mint" });
+    expect(mobile).toMatchObject({ exported: 1, omitted: 1 });
+    expect(mobile.text).toContain(",502554,Near Mint,English,Holofoil,1");
+
+    binder.owned.push("001:*", "003:holo");
+    const complete = await exportCards([binder], smallCatalog, { format: "portable", list: "missing" });
+    expect(complete).toMatchObject({ exported: 0, omitted: 0 });
+    expect(complete.text.split("\r\n")).toHaveLength(2);
   });
 
   it("supports mapped columns, preserves alphanumeric identifiers and rejects malformed rows", async () => {
