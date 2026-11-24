@@ -191,6 +191,9 @@ for entry in master_index:
     shard = master_catalog / (entry["id"] + ".json")
     check(shard.is_file() and sha256(shard) == entry["digest"], f"Invalid set checklist: {entry['id']}")
 scanner_headers = (DIST / "utilities/pokemon-binder/.htaccess").read_text(encoding="utf-8")
+shopify_profile_cache = re.search(r'<Files "shopify-profile\.json">\s+Header set Cache-Control "public, max-age=(\d+)"\s+</Files>', scanner_headers)
+check(shopify_profile_cache is not None and 60 <= int(shopify_profile_cache[1]) <= 86400,
+      "Shopify profile must have a public cache lifetime of at least 60 seconds and at most 24 hours")
 check("camera=(self)" in scanner_headers and "worker-src 'self'" in scanner_headers
       and "'wasm-unsafe-eval'" in scanner_headers, "Scanner camera/worker policy is incomplete")
 check("'unsafe-eval'" not in scanner_headers, "Scanner must not enable JavaScript eval")
