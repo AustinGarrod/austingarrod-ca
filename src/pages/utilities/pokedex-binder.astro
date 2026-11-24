@@ -1,6 +1,8 @@
 ---
-import { BookOpen, ChevronRight, Download, Settings2, Search, Cloud, ListChecks, Camera, Check } from "@lucide/astro";
+import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check } from "@lucide/astro";
+import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
+import BinderToolbar from "@components/BinderToolbar.astro";
 import MasterSetBinders from "@components/MasterSetBinders.astro";
 import BinderTransfers from "@components/BinderTransfers.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -37,31 +39,25 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <div class="dex-completion"><span class="dex-label" id="completion-label">Your National Pokédex</span><progress id="completion-bar" value="0" max="100" aria-labelledby="completion-label"></progress><span id="completion-detail">All species · Any card counts</span></div>
     </section>
 
-    <section class="dex-toolbar" aria-label="Find Pokémon">
-      <label class="dex-search" for="dex-search"><Search size={19} aria-hidden="true" /><span class="sr-only">Search Pokémon name or Pokédex number</span><input id="dex-search" type="search" placeholder="Find a Pokémon or #0001" autocomplete="off" /></label>
-      <label class="dex-field-inline" for="dex-filter"><span>Show</span><select id="dex-filter"><option value="all">All Pokémon</option><option value="missing">Missing</option><option value="owned">Owned</option></select></label>
-      <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
-      <div class="dex-view-toggle" aria-label="View"><button id="view-binder" aria-pressed="true"><BookOpen size={16} aria-hidden="true" /> Binder</button><button id="view-checklist" aria-pressed="false"><ListChecks size={16} aria-hidden="true" /> Checklist</button></div>
-    </section>
+    <BinderToolbar>
+      <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation" aria-label="Generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
+    </BinderToolbar>
     <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label"></p><div id="results-list"></div></section>
 
     <BinderPages />
 
-    <section id="checklist-view" class="dex-checklist" aria-labelledby="checklist-heading" hidden>
-      <div class="dex-section-heading"><h2 id="checklist-heading">Your checklist</h2><span id="checklist-count" class="dex-label" role="status"></span></div>
-      <div class="dex-checklist-controls">
+    <BinderChecklist>
+      <Fragment slot="filters">
         <label for="checklist-set">Filter by set<input id="checklist-set" type="search" list="checklist-sets" placeholder="All sets · Search set name or code" autocomplete="off" aria-describedby="checklist-filter-help" /></label>
         <datalist id="checklist-sets"></datalist>
         <button id="checklist-clear-set">Clear set filter</button>
-        <label for="checklist-sort">Sort checklist<select id="checklist-sort"><option value="dex">Pokédex number ↑</option><option value="dex-desc">Pokédex number ↓</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="collector">Set card number ↑</option><option value="collector-desc">Set card number ↓</option></select></label>
-      </div>
-      <div class="dex-checklist-options"><label><input id="checklist-hide-collected" type="checkbox" /> Hide collected Pokémon</label><span class="dex-help">Click a row to highlight it.</span></div>
-      <nav id="checklist-letters" class="dex-letter-jump" aria-label="Jump to starting letter" hidden>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}</nav>
-      <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
-      <p id="checklist-number-status" class="dex-help" role="status" hidden></p>
-      <button id="checklist-number-retry" type="button" hidden>Retry card numbers</button>
-      <div id="checklist-list"></div><button id="checklist-more" hidden>Show more Pokémon</button>
-    </section>
+      </Fragment>
+      <Fragment slot="help">
+        <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
+        <p id="checklist-number-status" class="dex-help" role="status" hidden></p>
+        <button id="checklist-number-retry" type="button" hidden>Retry card numbers</button>
+      </Fragment>
+    </BinderChecklist>
 
     </div>
     <section id="missing-list-controls" class="dex-export-bar" aria-label="Missing lists" hidden>

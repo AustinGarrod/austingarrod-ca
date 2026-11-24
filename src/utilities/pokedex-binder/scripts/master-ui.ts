@@ -1,5 +1,8 @@
 import type { SetScan } from "./scanner";
 import { binderPages, blankPocket, cardPocket, escape } from "./binder-pages";
+import { binderChecklist } from "./binder-checklist";
+import { renderSetOverview, type OverviewBinder } from "./set-overview";
+import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
 import { createAccountClient } from "../../../../packages/accounts/client";
 import {
   emptyMaster,
@@ -29,7 +32,8 @@ async function json<T>(file: string): Promise<T> {
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
-export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => void, scannerClose: () => void) {
+export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => void, scannerClose: () => void,
+  view: { checklist: boolean }, renderNationalView: () => void, setInfo: Record<string, { symbol?: string }>) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),
@@ -47,7 +51,11 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   const cache = new Map<string, SetCard[]>(),
     pending = new Map<string, Promise<SetCard[]>>();
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("pokedex-set-binders") : null;
-  let selectedKey = "", listView = false;
+  let selectedKey = "", displayedId = "";
+  let overviewOpen = false;
+  const searchInput = input("master-search"), statusSelect = select("master-status");
+  const finishSelect = select("master-checklist-finish");
+  const checklist = binderChecklist("master-", statusSelect, () => void render().catch(report));
   const drawPages = binderPages("master-", n => { page = n; selectedKey = ""; void render().catch(report); });
   const active = () => state.binders.find((b) => b.id === id);
   const label = (s: SetSummary) => s.name + " · " + (s.code || s.id) + " (" + s.id + ")";
@@ -148,46 +156,106 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       required = all.filter((s) => s.required);
     return { pockets, all, required, owned: required.filter((s) => s.owned).length };
   }
-  async function render() {
-    const ticket = ++renderVersion;
+  function clearFilters() {
+    searchInput.value = "";
+    statusSelect.value = "all";
+    finishSelect.value = "";
+    checklist.resetLimit();
+  }
+  function updateFinishes(finishes: string[]) {
+    const current = finishSelect.value;
+    const options = finishSelect.options;
+    if (options.length === finishes.length + 1 && finishes.every((finish, i) => options[i + 1].value === finish)) return;
+    finishSelect.replaceChildren(new Option("All finishes", ""), ...finishes.map(finish => new Option(finish)));
+    finishSelect.value = finishes.includes(current) ? current : "";
+  }
+  function renderBinderOptions(ticket: number, showOverview: boolean) {
     const chooser = select("master-switch");
+    const overviewRows: OverviewBinder[] = [];
+    let framePending = false;
+    function scheduleOverviewUpdate() {
+      if (framePending) return;
+      framePending = true;
+      requestAnimationFrame(() => {
+        framePending = false;
+        if (ticket === renderVersion) renderSetOverview(overviewRows);
+      });
+    }
     const options = state.binders.map((b) => {
       const option = new Option(b.name, b.id);
-      const update = () => {
-        if (ticket === renderVersion) {
-          const p = progress(b);
-          option.text = b.name + " · " + p.owned + "/" + p.required.length;
-        }
+      const set = sets.find(s => s.id === b.setId);
+      const row: OverviewBinder | undefined = showOverview ? {
+        id: b.id, name: b.name, setName: set?.name ?? b.setId, code: set?.code,
+        symbol: setInfo[b.setId]?.symbol, goal: b.goal, progress: { status: "loading" },
+      } : undefined;
+      if (row) overviewRows.push(row);
+      const updateProgress = () => {
+        const { owned, required } = progress(b);
+        option.text = b.name + " · " + owned + "/" + required.length;
+        if (row) row.progress = { status: "ready", owned, required: required.length };
       };
-      if (cache.has(b.setId)) update();
-      else
-        void cards(b.setId)
-          .then(update)
-          .catch(() => {});
+      if (cache.has(b.setId)) updateProgress();
+      else {
+        void cards(b.setId).then(() => {
+          if (ticket !== renderVersion) return;
+          updateProgress();
+          if (row) scheduleOverviewUpdate();
+        }).catch(() => {
+          if (ticket !== renderVersion || !row) return;
+          row.progress = { status: "error" };
+          scheduleOverviewUpdate();
+        });
+      }
       return option;
     });
-    const oldId = id;
+    const national = hasDex ? [new Option("National Pokédex" + dexProgress, "")] : [];
+    chooser.replaceChildren(...national, ...options);
+    if (showOverview) {
+      const prompt = new Option("Choose a binder", "overview");
+      prompt.disabled = prompt.hidden = true;
+      chooser.add(prompt);
+      chooser.value = prompt.value;
+      renderSetOverview(overviewRows);
+    } else chooser.value = id;
+  }
+  async function render() {
+    const ticket = ++renderVersion;
     if (!active()) id = hasDex ? "" : state.binders[0]?.id ?? "";
-    if (oldId !== id) { page = 1; selectedKey = ""; scannerClose(); }
-    chooser.replaceChildren(...(hasDex ? [new Option("National Pokédex" + dexProgress, "")] : []), ...options);
-    chooser.value = id;
-    const b = active();
-    const showDex = hasDex && !b;
+    if (id !== displayedId) {
+      displayedId = id;
+      page = 1;
+      selectedKey = "";
+      checklist.resetSelection();
+      clearFilters();
+      scannerClose();
+    }
     const hasBinders = hasDex || state.binders.length > 0;
+    if (!hasBinders) overviewOpen = false;
+    const showOverview = ready && overviewOpen;
+    renderBinderOptions(ticket, showOverview);
+    const b = showOverview ? undefined : active();
+    const showDex = hasDex && !b && !showOverview;
+    node("set-overview").hidden = !showOverview;
+    node("set-overview-open").setAttribute("aria-pressed", String(showOverview));
     node("binder-onboarding").hidden = !ready || hasBinders || onboarding !== "device";
     node("binder-account-onboarding").hidden = !ready || hasBinders || onboarding !== "account";
     node("binder-toolbar").hidden = !ready || !hasBinders;
-    node("missing-list-controls").hidden = !ready || !hasBinders;
+    node("missing-list-controls").hidden = !ready || !hasBinders || showOverview;
     node("national-add").hidden = hasDex;
     node("export-cards").hidden = !state.binders.length;
-    node("national-workspace").hidden = !showDex;
+    const national = node("national-workspace");
+    const openingNational = showDex && national.hidden;
+    national.hidden = !showDex;
     node("master-workspace").hidden = !b;
     node("layout-open").hidden = !showDex;
     node("scan-open").hidden = !showDex;
     node("master-settings").hidden = !b;
     node("master-scan").hidden = !b;
     node<HTMLButtonElement>("master-scan").disabled = !!b && !cache.has(b.setId);
-    if (!b) return;
+    if (!b) {
+      if (openingNational) renderNationalView();
+      return;
+    }
     if (!cache.has(b.setId)) {
       node("master-title").textContent = b.name;
       node("master-binder-grid").replaceChildren();
@@ -197,7 +265,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       } catch {
         if (ticket === renderVersion) {
           node("master-message").textContent = "Checklist could not load. Choose the binder again to retry.";
-          chooser.value = "";
+          select("master-switch").selectedIndex = -1;
         }
         return;
       }
@@ -230,8 +298,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       return art && slot.category !== "Extra" && !art.missing.includes(slot.number)
         ? "https://assets.tcgdex.net/en/" + [art.series,b.setId,slot.number].map(encodeURIComponent).join("/") + "/low.webp" : null;
     };
-    const search = input("master-search").value.trim().toLowerCase().replace(/^#/, "");
-    const status = select("master-status").value;
+    const search = searchInput.value.trim().toLowerCase().replace(/^#/, "");
+    const status = statusSelect.value;
     const matches = (s: typeof all[number]) => (status === "all" || (status === "owned") === s.owned) &&
       [s.name,s.number,s.finish].some(value => value.toLowerCase().includes(search));
     const filtered = all.filter(matches);
@@ -243,6 +311,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const jump = (s: typeof all[number]) => `<button data-set-jump="${escape(s.key)}" aria-label="View page for ${escape(identity(s))}">View page</button>`;
     const image = (s: typeof all[number]) => artwork(s) ? `<img loading="lazy" alt="" src="${escape(artwork(s))}">` : "";
     const results = node("master-results");
+    const listView = view.checklist;
     results.hidden = listView || !search;
     results.innerHTML = results.hidden ? "" : `<p class="dex-label">${filtered.length} matches</p><div class="set-results">${filtered.map(s =>
       `<div class="dex-result"><strong>${escape(identity(s))}</strong><small>${place(s)}</small>${jump(s)}</div>`).join("")}</div>`;
@@ -253,11 +322,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const focused = document.activeElement?.id;
     if (listView) {
       node("master-binder-grid").replaceChildren();
-      node("master-list-count").textContent = String(filtered.length) + " cards";
-      node("master-list").innerHTML = filtered.map(s => `<div class="dex-checklist-row ${s.owned ? "owned" : ""}">
-        <input id="set-list-${escape(s.key)}" data-key="${escape(s.key)}" type="checkbox" ${s.owned ? "checked" : ""} aria-label="Own ${escape(identity(s))}">
-        <span class="set-checklist-art">${image(s)}</span><div class="dex-checklist-identity"><span class="dex-label">${escape(s.number)}</span><strong>${escape(s.name)}</strong><small>${escape(s.finish)}${s.required ? "" : " · Optional"}</small></div>
-        <div class="dex-checklist-location">${place(s)}</div>${jump(s)}</div>`).join("") || "<p>No matching cards.</p>";
+      updateFinishes([...new Set(all.map(slot => slot.finish))].sort());
+      const finish = finishSelect.value;
+      const rows = finish ? filtered.filter(slot => slot.finish === finish) : filtered;
+      node("master-checklist-clear-filters").hidden = !searchInput.value && status === "all" && !finish;
+      checklist.render(sortSetChecklist(rows, checklist.sort.value as SetChecklistSort), slot => ({
+        ...slot, number: slot.number && "#" + slot.number, image: artwork(slot), actionLabel: identity(slot),
+        detail: slot.finish + (slot.required ? "" : " · Optional"),
+      }));
     } else {
       node("master-list").replaceChildren();
       const counts = new Map<number,{total:number;owned:number}>();
@@ -410,10 +482,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         if (e) e.required = box.checked;
       }
     });
-    selectedKey = ""; listView = false; id = binderId;
-    page = 1;
-    input("master-search").value = "";
-    select("master-status").value = "all";
+    overviewOpen = false;
+    id = binderId;
     await render();
     dialog("master-editor").close();
   }
@@ -434,23 +504,40 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-goal", "change", () => {
     node("master-specialty-section").hidden = select("master-goal").value === "numbers";
   });
-  listen("master-switch", "change", () => {
-    scannerClose(); selectedKey = ""; listView = false;
-    id = select("master-switch").value;
-    page = 1;
-    input("master-search").value = "";
-    select("master-status").value = "all";
+  function openBinder(binderId: string) {
+    overviewOpen = false;
+    id = binderId;
     node("master-message").textContent = "";
     return render();
+  }
+  listen("master-switch", "change", () => openBinder(select("master-switch").value));
+  listen("set-overview-open", "click", async () => {
+    overviewOpen = !overviewOpen;
+    scannerClose();
+    node("master-message").textContent = "";
+    await render();
+    if (overviewOpen) node("set-overview-title").focus();
+  });
+  listen("set-overview-retry", "click", render);
+  node("set-overview").addEventListener("click", event => {
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-overview-binder]");
+    const binderId = button?.dataset.overviewBinder;
+    if (!binderId || !state.binders.some(b => b.id === binderId)) return;
+    void openBinder(binderId).then(() => {
+      if (id === binderId && !overviewOpen) {
+        node(node("master-workspace").hidden ? "master-switch" : "master-title").focus();
+      }
+    }).catch(report);
   });
   for (const [name, event] of [
     ["master-search", "input"],
     ["master-status", "change"],
-
+    ["master-checklist-finish", "change"],
   ])
-    listen(name, event, render);
-  listen("master-view-checklist", "click", () => { listView = true; return render(); });
-  listen("master-view-binder", "click", () => { listView = false; return render(); });
+    listen(name, event, () => { checklist.resetLimit(); return render(); });
+  listen("master-checklist-clear-filters", "click", () => { clearFilters(); finishSelect.focus(); return render(); });
+  listen("master-view-checklist", "click", () => { view.checklist = true; return render(); });
+  listen("master-view-binder", "click", () => { view.checklist = false; return render(); });
   node("master-workspace").addEventListener("error", event => {
     if (event.target instanceof HTMLImageElement) event.target.hidden = true;
   },true);
@@ -459,7 +546,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const b = active(); if (!btn || !b) return;
     const slot = progress(b).all.find(s => s.key === (btn.dataset.setOpen ?? btn.dataset.setJump));
     if (!slot) return;
-    page = slot.page; selectedKey = slot.key; listView = false;
+    page = slot.page; selectedKey = slot.key; view.checklist = false;
     await render();
     if(btn.dataset.setJump) document.getElementById("set-open-grid-"+slot.key)?.focus();
     else if(matchMedia("(max-width: 800px)").matches) {
@@ -535,7 +622,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       if (scope === next && online === available) return;
       accountVersion++;
       if (scope !== next) {
-        selectedKey = ""; listView = false; scope = next;
+        scope = next;
+        overviewOpen = false;
+        renderSetOverview([]);
         id = "";
         state = emptyMaster();
         ready = false;
@@ -561,7 +650,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         if (enabled && option?.value === "") option.text = "National Pokédex" + dexProgress;
       }
     },
-    showNational() { id = ""; return render(); },
+    showNational() { return openBinder(""); },
     onboarding(value: typeof onboarding) {
       if (value === onboarding) return;
       onboarding = value;

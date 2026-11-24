@@ -7,6 +7,158 @@ const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
 await mkdir('output/pokedex-checklist', { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
+
+async function checkSetChecklist(page, width) {
+  await page.locator('#view-binder').click();
+  await page.locator('#set-overview-open').click();
+  await expect(page.locator('#set-overview-empty')).toBeVisible();
+  await expect(page.locator('#set-overview-totals')).toBeHidden();
+  await page.locator('#set-overview-open').click();
+  await page.locator('#master-new').click();
+  await page.locator('#master-set').fill('sv03.5');
+  await page.locator('#master-name').fill('151 checklist');
+  await page.getByRole('button', { name: 'Save binder' }).click();
+  await expect(page.locator('#master-editor')).toBeHidden();
+  const workspace = page.locator('#master-workspace');
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
+  const rows = workspace.locator('.dex-checklist-row');
+  const sort = workspace.getByLabel('Sort checklist');
+  const search = workspace.locator('#master-search');
+  const status = workspace.locator('#master-status');
+  const finish = workspace.locator('#master-checklist-finish');
+  const hideCollected = workspace.getByRole('checkbox', { name: /hide collected/i });
+  const clear = workspace.getByRole('button', { name: 'Clear filters', exact: true });
+  const regular = rows.filter({ has: page.locator('[data-key="001:normal"]') });
+  const reverse = rows.filter({ has: page.locator('[data-key="001:reverse"]') });
+
+  await expect(rows).toHaveCount(100);
+  await workspace.getByRole('button', { name: /show more/i }).click();
+  await expect(rows).toHaveCount(200);
+  await sort.selectOption('name');
+  await expect(rows.first()).toContainText('Abra');
+  await workspace.getByRole('button', { name: 'Jump to Z', exact: true }).click();
+  await expect(workspace.locator('.dex-checklist-name:focus')).toHaveText(/^Z/);
+  await sort.selectOption('collector-desc');
+  await expect(rows.first()).toContainText('Basic Psychic Energy');
+
+  await search.fill('#001');
+  await expect(rows).toHaveCount(2);
+  const location = reverse.locator('.dex-checklist-location');
+  await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
+  await regular.getByRole('checkbox').check();
+  await status.selectOption('owned');
+  await expect(rows).toHaveCount(1);
+  await expect(regular.getByRole('checkbox')).toBeChecked();
+  await status.selectOption('missing');
+  await expect(rows).toHaveCount(1);
+  await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
+  await status.selectOption('all');
+  await search.fill('Bulbasaur');
+  await expect(rows).toHaveCount(3);
+  await finish.selectOption({ label: 'Reverse holo' });
+  await expect(rows).toHaveCount(1);
+  await hideCollected.check();
+  await reverse.getByRole('checkbox').click();
+  await expect(rows).toHaveCount(0);
+  await expect(workspace.locator('#master-list')).toContainText('No cards match');
+  await clear.click();
+  await expect(search).toHaveValue('');
+  await expect(finish).toHaveValue('');
+  await expect(hideCollected).not.toBeChecked();
+  await expect(rows).toHaveCount(100);
+  await search.fill('#001');
+  await expect(rows).toHaveCount(2);
+  await expect(regular.getByRole('checkbox')).toBeChecked();
+  await expect(reverse.getByRole('checkbox')).toBeChecked();
+  await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Set checklist fits the viewport');
+  await page.screenshot({ path: `output/pokedex-checklist/set-${width}.png` });
+
+  const switchBinder = page.locator('#master-switch');
+  const setId = await switchBinder.inputValue();
+  await switchBinder.selectOption('');
+  await expect(page.locator('#view-checklist')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#checklist-view')).toBeVisible();
+  await switchBinder.selectOption(setId);
+  await expect(workspace.getByRole('button', { name: 'Checklist', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(hideCollected).toBeVisible();
+}
+
+async function checkSetOverview(page, width) {
+  await page.locator('#master-switch').selectOption('');
+  await page.locator('#dex-search').fill('#0025');
+  await page.locator('#owned-list-25').check();
+  await expect(page.locator('#owned-count')).toHaveText('1');
+
+  await page.locator('#master-new').click();
+  await page.locator('#master-set').fill('fut2020');
+  await page.locator('#master-name').fill('Futsal numbers');
+  await page.locator('#master-goal').selectOption('numbers');
+  await page.getByRole('button', { name: 'Save binder' }).click();
+  await expect(page.locator('#master-editor')).toBeHidden();
+  const workspace = page.locator('#master-workspace');
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
+  for (const [name, required] of [['Prize card', true], ['Signed copy', false]]) {
+    await page.locator('#master-add-extra').click();
+    await page.locator('#master-extra-name').fill(name);
+    await page.locator('#master-extra-required').setChecked(required);
+    await page.locator('#master-extra-form').getByRole('button', { name: 'Add extra' }).click();
+    await expect(page.locator('#master-extra-dialog')).toBeHidden();
+  }
+  await workspace.getByRole('checkbox', { name: /Own.*Signed copy/ }).check();
+  await workspace.locator('[data-key="1:*"]').check();
+  await expect(page.locator('#master-progress')).toHaveText('1 / 6');
+  await expect(page.locator('#master-optional')).toHaveText('1 / 1');
+  const futsalCatalog = '**/catalog/master-sets/fut2020.json';
+  if (width === 390) await page.route(futsalCatalog, route => route.fulfill({ status: 503 }));
+  await page.reload();
+  await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+
+  const openOverview = page.locator('#set-overview-open');
+  const overview = page.locator('#set-overview');
+  const binder = name => overview.locator('#set-overview-list article').filter({ hasText: name });
+  async function expectBinder(name, owned, required) {
+    const row = binder(name);
+    await expect(row.locator('[data-owned-count]')).toHaveText(String(owned));
+    await expect(row.locator('[data-needed-count]')).toHaveText(String(required - owned));
+    await expect(row.locator('[data-required-count]')).toHaveText(String(required));
+    await expect(row.getByRole('progressbar')).toHaveAttribute('aria-valuetext', `${owned} of ${required} required cards owned`);
+  }
+  async function expectOverall(owned, percentage) {
+    const required = 360 + 6;
+    await expect(page.locator('#set-overview-owned')).toHaveText(String(owned));
+    await expect(page.locator('#set-overview-needed')).toHaveText(String(required - owned));
+    await expect(page.locator('#set-overview-percent')).toHaveText(percentage);
+    const progress = page.locator('#set-overview-progress');
+    await expect.poll(() => progress.evaluate(bar => bar.position)).toBeCloseTo(owned / required, 4);
+  }
+
+  await openOverview.click();
+  await expect(overview).toBeVisible();
+  await expect(overview.locator('[data-overview-binder]')).toHaveCount(2);
+  await expectBinder('151 checklist', 2, 360);
+  if (width === 390) {
+    await expect(binder('Futsal numbers')).toContainText('Set checklist could not load');
+    await expect(page.locator('#set-overview-progress')).toBeHidden();
+    await page.unroute(futsalCatalog);
+    await overview.getByRole('button', { name: 'Retry loading sets' }).click();
+  }
+  await expectBinder('Futsal numbers', 1, 6);
+  await expectOverall(3, '0.8%');
+  await binder('Futsal numbers').locator('[data-overview-binder]').click();
+  await expect(overview).toBeHidden();
+  await expect(page.locator('#master-title')).toContainText('Futsal numbers');
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
+  await workspace.getByRole('checkbox', { name: /Own.*Prize card/ }).check();
+  await expect(page.locator('#master-progress')).toHaveText('2 / 6');
+  await openOverview.click();
+  await expectBinder('151 checklist', 2, 360);
+  await expectBinder('Futsal numbers', 2, 6);
+  await expectOverall(4, '1.1%');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Set overview fits the viewport');
+  await overview.screenshot({ path: `output/pokedex-checklist/overview-${width}.png` });
+}
+
 try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
@@ -167,8 +319,22 @@ try {
     await expect(page.locator('#checklist-set')).toHaveValue('');
     await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
     await expect(abra.locator(cardNumbers)).toBeHidden();
+    await page.locator('#dex-search').fill('Abra');
+    await page.locator('#dex-filter').selectOption('missing');
+    await page.locator('#dex-generation').selectOption('1');
+    await page.locator('#checklist-set').fill('151 (MEW)');
+    await page.locator('#checklist-hide-collected').check();
+    await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(page.locator('#dex-search')).toHaveValue('');
+    await expect(page.locator('#dex-filter')).toHaveValue('all');
+    await expect(page.locator('#dex-generation')).toHaveValue('all');
+    await expect(page.locator('#checklist-set')).toHaveValue('');
+    await expect(page.locator('#checklist-hide-collected')).not.toBeChecked();
+    await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
+    await checkSetChecklist(page, width);
+    await checkSetOverview(page, width);
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`Passed checklist sorting, set/name/ownership/generation filters and stable locations at ${width}px`);
+    console.log(`Passed National and set binder checklists, navigation, and set overview totals at ${width}px`);
   }
 } finally { await browser.close(); }

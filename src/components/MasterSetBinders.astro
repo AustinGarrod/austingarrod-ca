@@ -1,6 +1,9 @@
 ---
 import BinderPages from "./BinderPages.astro";
-import { BookOpen, ListChecks, Search } from "@lucide/astro";
+import BinderChecklist from "./BinderChecklist.astro";
+import BinderToolbar from "./BinderToolbar.astro";
+import SetOverview from "./SetOverview.astro";
+import { LayoutGrid } from "@lucide/astro";
 ---
 <section id="binder-onboarding" class="dex-onboarding" aria-labelledby="binder-onboarding-title" hidden>
   <h2 id="binder-onboarding-title">Start your first binder</h2>
@@ -14,6 +17,7 @@ import { BookOpen, ListChecks, Search } from "@lucide/astro";
 </section>
 <section id="binder-toolbar" class="master-switch dex-toolbar" aria-label="Your binders" hidden>
   <label>Open binder <select id="master-switch"></select></label>
+  <button type="button" id="set-overview-open" aria-controls="set-overview" aria-pressed="false"><LayoutGrid size={16} aria-hidden="true" /> Set overview</button>
   <button id="master-new">New set binder</button>
   <button id="national-add" hidden>Add National Pokédex</button>
   <button id="import-cards">Import cards</button>
@@ -21,18 +25,18 @@ import { BookOpen, ListChecks, Search } from "@lucide/astro";
 </section>
 <p id="master-message" role="status" class="dex-help"></p>
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>
+<SetOverview />
 <section id="master-workspace" hidden aria-labelledby="master-title">
-  <div class="dex-section-heading"><h2 id="master-title"></h2></div>
+  <div class="dex-section-heading"><h2 id="master-title" tabindex="-1"></h2></div>
   <section class="dex-progress" aria-label="Collection progress"><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
-  <section class="dex-toolbar" aria-label="Find set cards">
-    <label class="dex-search"><Search size={19} aria-hidden="true"/><span class="sr-only">Find a card</span><input type="search" id="master-search" placeholder="Find a card or collector number" /></label>
-    <label class="dex-field-inline">Show <select id="master-status"><option value="all">All cards</option><option value="missing">Missing</option><option value="owned">Owned</option></select></label>
+  <BinderToolbar prefix="master-">
     <button id="master-add-extra">Add extra</button>
-    <div class="dex-view-toggle" aria-label="View"><button id="master-view-binder" aria-pressed="true"><BookOpen size={16}/> Binder</button><button id="master-view-checklist" aria-pressed="false"><ListChecks size={16}/> Checklist</button></div>
-  </section>
+  </BinderToolbar>
   <section id="master-results" class="dex-search-results" aria-label="Search results" hidden></section>
   <BinderPages prefix="master-" />
-  <section id="master-checklist" class="dex-checklist" hidden><div class="dex-section-heading"><h2>Your checklist</h2><span id="master-list-count" class="dex-label"></span></div><div id="master-list"></div></section>
+  <BinderChecklist prefix="master-">
+    <label slot="filters" for="master-checklist-finish">Filter by finish<select id="master-checklist-finish"><option value="">All finishes</option></select></label>
+  </BinderChecklist>
 </section>
 <dialog id="master-editor" class="dex-dialog"><form id="master-form">
   <h2 id="master-editor-title">New set binder</h2>

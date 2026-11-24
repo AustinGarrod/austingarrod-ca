@@ -1,0 +1,58 @@
+---
+interface Props {
+  prefix?: "" | "master-";
+}
+const { prefix = "" } = Astro.props;
+const isSet = prefix === "master-";
+const unit = isSet ? "cards" : "Pokémon";
+const id = (part: string) => prefix + "checklist-" + part;
+---
+
+<section id={isSet ? "master-checklist" : id("view")} class="dex-checklist" aria-labelledby={id("heading")} hidden>
+  <div class="dex-section-heading">
+    <h2 id={id("heading")}>Your checklist</h2>
+    <span id={isSet ? "master-list-count" : id("count")} class="dex-label" role="status"></span>
+  </div>
+  <div class="dex-checklist-controls">
+    <slot name="filters" />
+    <label for={id("sort")}>Sort checklist
+      <select id={id("sort")}>
+        {isSet ? <option value="binder">Binder order</option> : <>
+          <option value="dex">Pokédex number ↑</option>
+          <option value="dex-desc">Pokédex number ↓</option>
+        </>}
+        <option value="name">Name A–Z</option>
+        <option value="name-desc">Name Z–A</option>
+        <option value="collector">Set card number ↑</option>
+        <option value="collector-desc">Set card number ↓</option>
+      </select>
+    </label>
+    <button type="button" id={id("clear-filters")} hidden>Clear filters</button>
+  </div>
+  <div class="dex-checklist-options">
+    <label><input id={id("hide-collected")} type="checkbox" /> Hide collected {unit}</label>
+    <span class="dex-help">Click a row to highlight it.</span>
+  </div>
+  <nav id={id("letters")} class="dex-letter-jump" aria-label="Jump to starting letter" hidden>
+    {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button type="button" data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}
+  </nav>
+  <slot name="help" />
+  <div id={isSet ? "master-list" : id("list")}></div>
+  <template id={id("row-template")}>
+    <div class="dex-checklist-row">
+      <input type="checkbox" />
+      <span class="dex-checklist-art"><img width="48" height="48" loading="lazy" alt="" hidden /></span>
+      <div class="dex-checklist-identity">
+        <span class="dex-label"></span>
+        <button type="button" class="dex-checklist-name" aria-pressed="false"></button>
+        <span class="dex-label dex-checklist-card-numbers" hidden></span>
+        <span class="dex-collected-label" hidden>✓ Collected</span>
+      </div>
+      <div class="dex-checklist-location">
+        <span>Page <strong></strong></span><span>Row <strong></strong></span><span>Col <strong></strong></span>
+      </div>
+      <button type="button" class="dex-checklist-jump">View page</button>
+    </div>
+  </template>
+  <button type="button" id={id("more")} hidden>Show more {unit}</button>
+</section>

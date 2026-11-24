@@ -1,6 +1,7 @@
 import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
 import { printLists } from "./print-list";
 import { binderPages, blankPocket, cardPocket } from "./binder-pages";
+import { binderChecklist } from "./binder-checklist";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
 import { defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
@@ -39,10 +40,11 @@ async function initialize() {
   let account: BinderAccountState = controller.accountState();
   let migrationPreview: MigrationPreview | null = null;
   let snapshot: BinderSnapshot = { state: defaultState(), status: "loading", error: null, storageWarning: null, connected: false, key: null, layoutConflict: null };
-  let currentPage = 1, selected: number | null = null, view: "binder" | "checklist" = "binder", checklistLimit = 100, printingQuery = "";
+  let currentPage = 1, selected: number | null = null, printingQuery = "";
+  const view = { checklist: false };
   let loadedPrintings: Printing[] | null = null, detailLoading = false, detailError = false;
   let renderedSpecies: number | null = null;
-  let checklistSelected: number | null = null, hasRendered = false;
+  let hasRendered = false;
   let collectorNumbers: CollectorNumbers | null = null;
   let numberStatus: "idle" | "loading" | "error" = "idle";
   let scanner: CardScanner | null = null;
@@ -51,7 +53,7 @@ async function initialize() {
   const filter = el<HTMLSelectElement>("dex-filter");
   const generation = el<HTMLSelectElement>("dex-generation");
   const checklistSet = el<HTMLInputElement>("checklist-set");
-  const checklistSort = el<HTMLSelectElement>("checklist-sort");
+  const checklist = binderChecklist("", filter, render);
   el("checklist-sets").innerHTML = Object.values(catalog.sets).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))
     .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
@@ -87,7 +89,7 @@ async function initialize() {
       reportFailure(new Error("Scanner window could not open"), "binder.scanner.open", { binder: target ? "set" : "national" });
     }
   }
-  const master = createMasterUI(controller.masters, openScanner, closeScanner);
+  const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets);
   let accountTicket = 0, accountKey = "", onboardingReady = false, onboardingTicket = 0;
   let productLookup: Promise<Record<string, ProductIdentity>> | undefined;
   let speciesLookup: ((match: TransferMatch) => readonly number[]) | undefined;
@@ -180,10 +182,8 @@ async function initialize() {
     el<HTMLProgressElement>("completion-bar").value = count / species.length * 100;
     el("completion-label").textContent = `${(count / species.length * 100).toFixed(1)}% complete`;
     el("completion-detail").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} Pokémon · Any card counts`;
-    el("binder-view").hidden = view !== "binder"; el("checklist-view").hidden = view !== "checklist";
     el("binder-view").classList.toggle("has-details", selected !== null);
     details.hidden = selected === null;
-    el("view-binder").setAttribute("aria-pressed", String(view === "binder")); el("view-checklist").setAttribute("aria-pressed", String(view === "checklist"));
     const pageCounts = new Map<number, { total: number; owned: number }>();
     for (const item of species) {
       const page = locationFor(item.id, settings).page, entry = pageCounts.get(page) ?? { total: 0, owned: 0 };
@@ -202,14 +202,23 @@ async function initialize() {
         row: slot.row, column: slot.column });
     });
     drawPages(currentPage, pages, settings, pageCounts, cells);
-    renderResults(); renderChecklist(); renderDetails(); renderSync();
+    renderNationalView(); renderDetails(); renderSync();
     for (const { id, top } of scrollPositions) { const node = document.getElementById(id); if (node) node.scrollTop = top; }
     renderedSpecies = selected;
     if (focused && document.getElementById(focused) && document.activeElement?.id !== focused) document.getElementById(focused)?.focus({ preventScroll: true });
     if (selection && focused === "printing-search") el<HTMLInputElement>(focused).setSelectionRange(selection[0], selection[1]);
   }
+  function renderNationalView() {
+    if (el("national-workspace").hidden) return;
+    el("binder-view").hidden = view.checklist;
+    el("checklist-view").hidden = !view.checklist;
+    el("view-binder").setAttribute("aria-pressed", String(!view.checklist));
+    el("view-checklist").setAttribute("aria-pressed", String(view.checklist));
+    renderResults();
+    renderChecklist();
+  }
   function renderResults() {
-    const active = !!search.value.trim() && view === "binder";
+    const active = !!search.value.trim() && !view.checklist;
     el("dex-results").hidden = !active;
     if (!active) return;
     const results = filteredSpecies();
@@ -238,13 +247,14 @@ async function initialize() {
     renderChecklist();
   }
   function renderChecklist() {
-    if (view !== "checklist") return;
-    const { species: results, sets } = checklistResults();
+    if (!view.checklist || el("national-workspace").hidden) return;
+    const sort = checklist.sort.value as ChecklistSort;
+    const { species: results, sets } = filterChecklist(filteredSpecies(), catalog.sets, catalog.setSpecies, checklistSet.value, sort, collectorNumbers);
     const showNumbers = sets.length === 1 && results.length > 0;
     if (showNumbers && !collectorNumbers && numberStatus === "idle") void loadCollectorNumbers();
     const numbers = showNumbers ? collectorNumbers?.[sets[0].id] : undefined;
     const status = el("checklist-number-status");
-    const sortByCards = checklistSort.value === "collector" || checklistSort.value === "collector-desc";
+    const sortByCards = sort === "collector" || sort === "collector-desc";
     let message = "";
     if (showNumbers && numberStatus === "loading") message = "Loading card numbers…";
     else if (showNumbers && numberStatus === "error") message = "Card numbers couldn’t load.";
@@ -255,46 +265,17 @@ async function initialize() {
     status.hidden = !message;
     el("checklist-number-retry").hidden = !showNumbers || numberStatus !== "error";
     const owned = new Set(snapshot.state.ownedDexIds);
-    el<HTMLInputElement>("checklist-hide-collected").checked = filter.value === "missing";
-    el("checklist-count").textContent = `${results.length} Pokémon${results.length > checklistLimit ? ` · Showing ${checklistLimit}` : ""}`;
-    const list = el("checklist-list"), visible = results.slice(0, checklistLimit), ids = new Set(visible.map(item => item.id));
-    for (const row of list.querySelectorAll<HTMLElement>("[data-checklist-row]")) if (!ids.has(Number(row.dataset.checklistRow))) row.remove();
-    list.querySelector(".dex-help")?.remove();
-    visible.forEach((item, index) => {
-      let row = document.getElementById(`checklist-row-${item.id}`);
-      if (!row) {
-        row = document.createElement("div"); row.id = `checklist-row-${item.id}`; row.className = "dex-checklist-row"; row.dataset.checklistRow = String(item.id);
-        row.innerHTML = `<input id="owned-list-${item.id}" type="checkbox" data-owned="${item.id}" aria-label="Own ${escape(item.name)}" />${sprite(item, 48)}<div class="dex-checklist-identity"><span class="dex-label">${dex(item.id)}</span><button class="dex-checklist-name" aria-label="Highlight ${escape(item.name)}" aria-pressed="false">${escape(item.name)}</button><span class="dex-label dex-checklist-card-numbers" hidden></span><span class="dex-collected-label" hidden>✓ Collected</span></div><div class="dex-checklist-location"></div><button data-goto="${item.id}" aria-label="Go to ${escape(item.name)} binder page">View page</button>`;
-      }
-      const has = owned.has(item.id);
-      row.classList.toggle("owned", has); row.classList.toggle("selected", item.id === checklistSelected);
-      row.querySelector<HTMLInputElement>("input")!.checked = has;
-      row.querySelector<HTMLElement>(".dex-collected-label")!.hidden = !has;
-      row.querySelector(".dex-checklist-name")!.setAttribute("aria-pressed", String(item.id === checklistSelected));
-      const numberLine = row.querySelector<HTMLElement>(".dex-checklist-card-numbers")!;
+    el("checklist-clear-filters").hidden = !search.value && filter.value === "all" && generation.value === "all" && !checklistSet.value;
+    checklist.render(results, item => {
       const cardNumbers = numbers?.[item.id];
-      const numberLabel = cardNumbers?.length
+      const detail = cardNumbers?.length
         ? `${cardNumbers.length === 1 ? "Card" : "Cards"} ${cardNumbers.map(number => `#${number}`).join(", ")}`
         : "";
-      if (numberLine.textContent !== numberLabel) numberLine.textContent = numberLabel;
-      numberLine.hidden = !numberLabel;
-      const location = row.querySelector<HTMLElement>(".dex-checklist-location")!, loc = locationFor(item.id, snapshot.state.settings, species);
-      const label = locationText(item.id);
-      if (location.getAttribute("aria-label") !== label) {
-        location.setAttribute("aria-label", label);
-        location.innerHTML = `<span>Page <strong>${loc.page}</strong></span><span>Row <strong>${loc.row}</strong></span><span>Col <strong>${loc.column}</strong></span>`;
-      }
-      if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
+      return {
+        key: item.id, name: item.name, number: dex(item.id), owned: owned.has(item.id), detail,
+        image: `${root}sprites/${item.id}.png`, ...locationFor(item.id, snapshot.state.settings, species),
+      };
     });
-    if (!visible.length) list.innerHTML = '<p class="dex-help">No Pokémon match these filters.</p>';
-    const alphabetical = checklistSort.value === "name" || checklistSort.value === "name-desc";
-    el("checklist-letters").hidden = !alphabetical;
-    const letters = new Set(results.map(item => item.name[0].toUpperCase()));
-    for (const button of el("checklist-letters").querySelectorAll<HTMLButtonElement>("[data-letter]")) button.disabled = !letters.has(button.dataset.letter!);
-    el("checklist-more").hidden = results.length <= checklistLimit;
-  }
-  function checklistResults() {
-    return filterChecklist(filteredSpecies(), catalog.sets, catalog.setSpecies, checklistSet.value, checklistSort.value as ChecklistSort, collectorNumbers);
   }
   function renderDetails() {
     const item = species.find(candidate => candidate.id === selected);
@@ -337,7 +318,7 @@ async function initialize() {
       if (selected === id) { loadedPrintings = data; detailLoading = false; renderPrintings(); }
     } catch { if (selected === id) { detailLoading = false; detailError = true; renderPrintings(); } }
   }
-  function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view = "binder"; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
   function renderSync() {
     el("binder-account-panel").hidden = !account.enabled;
     el<HTMLAnchorElement>("binder-account-link").href = accountHref(root);
@@ -423,33 +404,17 @@ async function initialize() {
   details.addEventListener("input", event => { if ((event.target as HTMLElement).id === "printing-search") { printingQuery = (event.target as HTMLInputElement).value; renderPrintings(); } });
   details.addEventListener("click", event => { if ((event.target as HTMLElement).id === "retry-printings" && selected) void selectPokemon(selected, false); });
   document.addEventListener("error", event => { if (event.target instanceof HTMLImageElement && el("dex-app").contains(event.target)) { event.target.hidden = true; } }, true);
-  search.addEventListener("input", () => { checklistLimit = 100; render(); });
-  for (const node of [filter, generation]) node.addEventListener("change", () => { checklistLimit = 100; render(); });
-  checklistSet.addEventListener("input", () => { checklistLimit = 100; renderChecklist(); });
+  search.addEventListener("input", () => { checklist.resetLimit(); render(); });
+  for (const node of [filter, generation]) node.addEventListener("change", () => { checklist.resetLimit(); render(); });
+  checklistSet.addEventListener("input", () => { checklist.resetLimit(); renderChecklist(); });
   el("checklist-number-retry").addEventListener("click", () => { numberStatus = "idle"; renderChecklist(); });
-  checklistSort.addEventListener("change", () => { checklistLimit = 100; renderChecklist(); });
-  el("checklist-hide-collected").addEventListener("change", event => { filter.value = (event.target as HTMLInputElement).checked ? "missing" : "all"; checklistLimit = 100; render(); });
-  el("checklist-list").addEventListener("click", event => {
-    const target = event.target as HTMLElement, row = target.closest<HTMLElement>("[data-checklist-row]");
-    if (!row || target.closest("input,[data-goto]")) return;
-    checklistSelected = Number(row.dataset.checklistRow);
-    for (const item of el("checklist-list").querySelectorAll<HTMLElement>("[data-checklist-row]")) {
-      const active = Number(item.dataset.checklistRow) === checklistSelected;
-      item.classList.toggle("selected", active); item.querySelector(".dex-checklist-name")!.setAttribute("aria-pressed", String(active));
-    }
+  el("checklist-clear-set").addEventListener("click", () => { checklistSet.value = ""; checklist.resetLimit(); renderChecklist(); checklistSet.focus(); });
+  el("checklist-clear-filters").addEventListener("click", () => {
+    search.value = ""; filter.value = generation.value = "all"; checklistSet.value = "";
+    checklist.resetLimit(); render(); checklistSet.focus();
   });
-  el("checklist-letters").addEventListener("click", event => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-letter]"); if (!button) return;
-    const { species: results } = checklistResults(), index = results.findIndex(item => item.name[0].toUpperCase() === button.dataset.letter);
-    if (index < 0) return;
-    checklistLimit = Math.max(checklistLimit, Math.ceil((index + 1) / 100) * 100); renderChecklist();
-    const row = el(`checklist-row-${results[index].id}`); row.scrollIntoView({ block: "center" });
-    row.querySelector<HTMLButtonElement>(".dex-checklist-name")!.focus({ preventScroll: true });
-  });
-  el("checklist-clear-set").addEventListener("click", () => { checklistSet.value = ""; checklistLimit = 100; renderChecklist(); checklistSet.focus(); });
-  el("view-binder").addEventListener("click", () => { view = "binder"; render(); });
-  el("view-checklist").addEventListener("click", () => { view = "checklist"; render(); });
-  el("checklist-more").addEventListener("click", () => { checklistLimit += 100; renderChecklist(); });
+  el("view-binder").addEventListener("click", () => { view.checklist = false; renderNationalView(); });
+  el("view-checklist").addEventListener("click", () => { view.checklist = true; renderNationalView(); });
 
   el("layout-open").addEventListener("click", () => {
     const form = el<HTMLFormElement>("layout-form");

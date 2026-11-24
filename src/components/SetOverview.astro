@@ -1,0 +1,56 @@
+---
+import { ArrowRight } from "@lucide/astro";
+---
+<section id="set-overview" aria-labelledby="set-overview-title" hidden>
+  <header class="set-overview-heading">
+    <h2 id="set-overview-title" tabindex="-1">Set overview</h2>
+    <span id="set-overview-binder-count" class="dex-label"></span>
+  </header>
+  <div id="set-overview-totals" class="set-overview-totals">
+    <dl class="set-overview-counts">
+      <div><dt>Owned</dt><dd id="set-overview-owned" data-owned-count></dd></div>
+      <div><dt>Still needed</dt><dd id="set-overview-needed" data-needed-count></dd></div>
+    </dl>
+    <div class="set-overview-completion">
+      <span class="dex-label">Overall completion</span>
+      <div class="set-overview-measure">
+        <span id="set-overview-percent" data-percent></span>
+        <span><span data-required-count></span> required cards</span>
+      </div>
+      <progress id="set-overview-progress" aria-label="Overall set completion"></progress>
+    </div>
+    <div class="set-overview-feedback">
+      <p id="set-overview-status" role="status"></p>
+      <button id="set-overview-retry" type="button" hidden>Retry loading sets</button>
+    </div>
+  </div>
+  <p id="set-overview-empty" role="status" hidden>No set binders yet. Create a set binder to track its progress here.</p>
+  <div id="set-overview-list" class="set-overview-list"></div>
+  <template id="set-overview-card">
+    <article class="set-overview-card">
+      <header>
+        <div>
+          <p class="set-overview-set"><span data-set-name></span><span data-set-code></span></p>
+          <h3></h3>
+          <p class="set-overview-goal"></p>
+        </div>
+        <img class="set-overview-symbol" width="40" height="40" loading="lazy" alt="" hidden />
+      </header>
+      <div class="set-overview-card-body">
+        <dl class="set-overview-counts">
+          <div><dt>Owned</dt><dd data-owned-count></dd></div>
+          <div><dt>Still needed</dt><dd data-needed-count></dd></div>
+        </dl>
+        <div class="set-overview-completion">
+          <div class="set-overview-measure">
+            <span data-percent></span>
+            <span><span data-required-count></span> required cards</span>
+          </div>
+          <progress></progress>
+        </div>
+        <p class="set-overview-card-status" hidden></p>
+      </div>
+      <footer><button type="button" data-overview-binder>Open binder <ArrowRight size={16} aria-hidden="true" /></button></footer>
+    </article>
+  </template>
+</section>

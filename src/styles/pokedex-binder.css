@@ -188,7 +188,8 @@
   .dex-checklist-row>input { grid-row: 1 / 3; }
   .dex-checklist-row>.dex-checklist-identity { grid-column: 2; }
   .dex-checklist-row>.dex-checklist-location { grid-column: 2 / -1; grid-row: 2; }
-  .dex-checklist-row>[data-goto] { grid-column: 3; grid-row: 1; padding: 7px; }
+  .dex-checklist-art { display: none; }
+  .dex-checklist-jump { grid-column: 3; grid-row: 1; padding: 7px; }
   .dex-checklist-location { gap: 4px; }
   .dex-checklist-location span { padding: 5px; font-size: 11px; }
   .dex-checklist-location strong { font-size: 12px; }
@@ -278,10 +279,50 @@
 #master-extra-options-list label { display: flex; gap: 6px; align-items: center; }
 
 .set-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
-#master-list .dex-checklist-identity > * { display: block; }
+#set-overview-open[aria-pressed=true] { color: white; background: var(--ink); border-color: var(--ink); }
+.set-overview-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 14px; }
+.set-overview-heading h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); line-height: 1.15; }
+.set-overview-totals, .set-overview-card, #set-overview-empty { border: 1px solid var(--line); background: var(--surface); }
+.set-overview-totals { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(0, 3fr); border-top: 2px solid var(--ink); }
+.set-overview-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.set-overview-counts dt, .set-overview-set, .set-overview-measure { font: 500 12px/1.5 'JetBrains Mono', monospace; color: var(--subtle); }
+.set-overview-counts dd, .set-overview-measure { font-variant-numeric: tabular-nums; }
+.set-overview-counts dd { margin: 4px 0 0; font-weight: 650; line-height: 1.1; }
+.set-overview-totals .set-overview-counts > div { padding: 18px 20px; border-right: 1px solid var(--line); }
+.set-overview-totals dd { font-size: clamp(28px, 3vw, 40px); }
+.set-overview-completion { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.set-overview-totals .set-overview-completion { padding: 18px 24px; background: var(--surface-low); }
+.set-overview-measure { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.set-overview-measure [data-percent] { color: var(--secondary); font-weight: 700; }
+.set-overview-totals [data-percent] { font-size: 20px; }
+#set-overview progress { appearance: none; width: 100%; height: 8px; border: 0; background: var(--surface-mid); accent-color: var(--secondary); }
+#set-overview progress::-webkit-progress-bar { background: var(--surface-mid); }
+#set-overview progress::-webkit-progress-value { background: var(--secondary); }
+#set-overview progress::-moz-progress-bar { background: var(--secondary); }
+.set-overview-feedback { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 18px 20px; }
+.set-overview-feedback p, #set-overview-empty { margin: 0; font-size: 14px; }
+#set-overview-empty { padding: 20px; }
+.set-overview-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 20px 0; }
+.set-overview-card { display: flex; flex-direction: column; min-width: 0; }
+.set-overview-card:only-child { width: 100%; max-width: 660px; }
+.set-overview-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+.set-overview-card header > div { min-width: 0; }
+.set-overview-set { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 0 0 6px; overflow-wrap: anywhere; }
+.set-overview-set [data-set-code] { color: var(--secondary); font-weight: 700; }
+.set-overview-card h3 { margin: 0; font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+.set-overview-goal { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.set-overview-symbol { flex: none; width: 40px; height: 40px; object-fit: contain; }
+.set-overview-card-body { margin-top: auto; padding: 20px; }
+.set-overview-card .set-overview-counts { margin-bottom: 16px; }
+.set-overview-card dd { font-size: 24px; }
+.set-overview-card-status { margin: 0; color: var(--muted); font-size: 13px; }
+.set-overview-card footer { border-top: 1px solid var(--line); }
+.pokedex-page .set-overview-card footer button { width: 100%; justify-content: space-between; padding: 12px 20px; border: 0; }
 @media (max-width: 600px) {
-  #master-list .set-checklist-art { display: none; }
-  #master-list [data-set-jump] { grid-column: 3; grid-row: 1; padding: 7px; }
+  .set-overview-totals { grid-template-columns: 1fr; }
+  .set-overview-totals .set-overview-counts > div:last-child { border-right: 0; }
+  .set-overview-totals .set-overview-completion { padding: 14px 18px; border-top: 1px solid var(--line); }
+  .set-overview-list { gap: 12px; }
 }
 #master-list img { width: 44px; height: 56px; object-fit: contain; }
 #master-binder-grid .dex-pocket-open small { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }

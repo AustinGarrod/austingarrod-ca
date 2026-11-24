@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterChecklist, type ChecklistSort } from "../../src/utilities/pokedex-binder/lib/checklist";
+import { filterChecklist, sortSetChecklist, type ChecklistSort } from "../../src/utilities/pokedex-binder/lib/checklist";
 import { DEFAULT_SETTINGS, locationFor } from "../../src/utilities/pokedex-binder/lib/model";
 
 const species = [
@@ -54,5 +54,26 @@ describe("checklist sorting and set filtering", () => {
     for (const sort of ["collector", "collector-desc"] as const) {
       expect(filterChecklist(species, sets, index, "BS", sort, numbers).species.map(item => item.id)).toEqual([25, 63, 1]);
     }
+  });
+});
+
+describe("set binder checklist sorting", () => {
+  const slots = Object.freeze([
+    { name: "Pikachu", number: "TG10", pocket: 1 },
+    { name: "Checklist insert", number: "", pocket: 2 },
+    { name: "Abra", number: "TG02", pocket: 3 },
+    { name: "Pikachu", number: "TG10", pocket: 4 },
+    { name: "Art card", number: " ", pocket: 5 },
+  ]);
+
+  it("sorts collector numbers naturally, preserving pocket order within ties and placing unnumbered extras last", () => {
+    expect(sortSetChecklist(slots, "collector").map(slot => slot.pocket)).toEqual([3, 1, 4, 2, 5]);
+    expect(sortSetChecklist(slots, "collector-desc").map(slot => slot.pocket)).toEqual([1, 4, 3, 2, 5]);
+  });
+
+  it("sorts by name in either direction and restores binder order with original locations", () => {
+    expect(sortSetChecklist(slots, "name").map(slot => slot.pocket)).toEqual([3, 5, 2, 1, 4]);
+    expect(sortSetChecklist(slots, "name-desc").map(slot => slot.pocket)).toEqual([1, 4, 2, 5, 3]);
+    expect(sortSetChecklist(slots, "binder").map(slot => slot.pocket)).toEqual([1, 2, 3, 4, 5]);
   });
 });

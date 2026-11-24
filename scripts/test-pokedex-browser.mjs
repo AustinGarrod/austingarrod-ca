@@ -275,6 +275,7 @@ try {
     await page.locator('#master-workspace').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(output, `master-set-${page.viewportSize().width}.png`) });
     await page.locator('#master-view-checklist').click();
+    await page.locator('#master-workspace').getByLabel('Sort checklist').selectOption('collector');
     await expect(slot('001:reverse')).toBeChecked();
     await expect(slot('001:normal+stamp=set-logo')).not.toBeChecked();
     await expect(slot('004:normal+stamp=set-logo')).toHaveCount(0);
@@ -333,9 +334,11 @@ try {
     await closeDialogs(page);
     await page.locator('#master-switch').selectOption(master);
     await page.locator('#master-view-checklist').click();
+    await page.locator('#master-search').fill('#001');
     await expect(slot('001:reverse')).toBeChecked();
     await expect(page.locator('#master-optional')).toHaveText('0 / 1');
     await page.locator('#master-switch').selectOption('');
+    await page.locator('#view-binder').click();
   }
   async function checkPhysicalPages(page, code, ex, expectedGoal) {
     const ctrl = name => page.locator('#master-' + name);

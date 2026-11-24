@@ -1,0 +1,24 @@
+---
+import { BookOpen, ListChecks, Search } from "@lucide/astro";
+
+interface Props { prefix?: "master-" }
+const { prefix = "" } = Astro.props;
+const national = !prefix;
+const search = national ? "dex-search" : "master-search";
+const status = national ? "dex-filter" : "master-status";
+---
+<section class="dex-toolbar" aria-label={national ? "Find Pokémon" : "Find set cards"}>
+  <label class="dex-search" for={search}>
+    <Search size={19} aria-hidden="true" />
+    <span class="sr-only">{national ? "Search Pokémon name or Pokédex number" : "Search card name, collector number, or finish"}</span>
+    <input id={search} type="search" placeholder={national ? "Find a Pokémon or #0001" : "Find a card or collector number"} autocomplete="off" />
+  </label>
+  <label class="dex-field-inline" for={status}><span>Show</span>
+    <select id={status} aria-label="Show"><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="owned">Owned</option></select>
+  </label>
+  <slot />
+  <div class="dex-view-toggle" aria-label="View">
+    <button id={prefix + "view-binder"} aria-pressed="true"><BookOpen size={16} aria-hidden="true" /> Binder</button>
+    <button id={prefix + "view-checklist"} aria-pressed="false"><ListChecks size={16} aria-hidden="true" /> Checklist</button>
+  </div>
+</section>

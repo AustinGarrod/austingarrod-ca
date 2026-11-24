@@ -2,10 +2,25 @@ import { normalizeSearch, type Species } from "./model";
 
 export interface ChecklistSet { id: string; name: string; code: string | null }
 export type ChecklistSort = "dex" | "dex-desc" | "name" | "name-desc" | "collector" | "collector-desc";
+export type SetChecklistSort = "binder" | "name" | "name-desc" | "collector" | "collector-desc";
 type CollectorNumbers = Record<string, Record<number, readonly string[]>>;
 export const setLabel = (set: ChecklistSet) => `${set.name} (${set.code ?? "Code unavailable"})`;
 const names = new Intl.Collator("en", { sensitivity: "base", ignorePunctuation: true, numeric: true });
 const cardNumbers = new Intl.Collator("en", { numeric: true });
+
+export function sortSetChecklist<T extends { name: string; number: string }>(slots: readonly T[], sort: SetChecklistSort): T[] {
+  const rows = [...slots];
+  if (sort === "binder") return rows;
+  const direction = sort.endsWith("-desc") ? -1 : 1;
+  if (sort === "name" || sort === "name-desc") {
+    return rows.sort((a, b) => direction * names.compare(a.name, b.name));
+  }
+  return rows.sort((a, b) => {
+    const left = a.number.trim(), right = b.number.trim();
+    if (!left || !right) return Number(!left) - Number(!right);
+    return direction * cardNumbers.compare(left, right);
+  });
+}
 
 export function filterChecklist(species: readonly Species[], sets: Record<string, ChecklistSet>, setSpecies: Record<string, number[]>, query: string, sort: ChecklistSort, collectorNumbers?: CollectorNumbers | null) {
   const normalized = normalizeSearch(query.trim());
