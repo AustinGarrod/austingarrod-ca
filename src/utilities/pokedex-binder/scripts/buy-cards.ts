@@ -11,6 +11,7 @@ interface Options {
   binders(): Promise<MasterState>;
   selected(): string;
   inspect(target: PricingTarget): void;
+  closeDetail(): void;
 }
 
 type Finishes = SetCard["variants"];
@@ -49,7 +50,8 @@ function priceOrder(a: number, b: number) {
 }
 
 export function createBuyCards(options: Options) {
-  const modal = node<HTMLDialogElement>("dialog"), list = node("list"), status = node("status"), progress = node("progress");
+  const workspace = node("workspace"), list = node("list"), status = node("status"), progress = node("progress");
+  const empty = node("empty");
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
   const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
@@ -59,10 +61,13 @@ export function createBuyCards(options: Options) {
   let entries: BuyingEntry[] = [], visible: Row[] = [], setErrors = 0, page = 0, version = 0;
   let sets = new Map<string, SetSummary>(), cards = new Map<string, Map<string, Finishes>>();
   let values = new Map<string, MarketPrice>(), marketPending = new Set<string>();
-  let loading = false, failedToLoad = false, needsReload = false;
+  let loading = false, failedToLoad = false, needsReload = false, hasBinders = true;
+  let catalogState: "loading" | "ready" | "error" = "loading";
+  let visited = false, entryFromBinder = false;
   let job: { controller: AbortController; keys: Set<string> } | undefined;
   let expiration: ReturnType<typeof setTimeout> | undefined;
-  let returnPosition: { id: string; scrollTop: number } | undefined;
+  let inspectedRow: string | undefined;
+  const isActive = () => !workspace.hidden;
 
   function choicesFor(entry: BuyingEntry): Finishes {
     return entry.target.variant === "*" ? cards.get(entry.target.setId)?.get(entry.target.number) ?? [] : [];
@@ -113,7 +118,7 @@ export function createBuyCards(options: Options) {
       <div>${storeResults}
         <div class="dex-actions">${picker}
           <button type="button" data-buy-check="${id}" aria-label="Check stores for ${title}" ${!canCheck || job ? "disabled" : ""}>Check stores</button>
-          <button type="button" class="dex-quiet" data-buy-card="${id}" aria-label="Compare offers for ${title}">Compare offers</button>
+          <button type="button" class="dex-quiet" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Compare offers for ${title}">Compare offers</button>
         </div>
       </div>
     </li>`;
@@ -134,7 +139,7 @@ export function createBuyCards(options: Options) {
   }
 
   function draw() {
-    if (!modal.open || loading) return;
+    if (!isActive() || loading || catalogState !== "ready") return;
     const now = Date.now();
     const shops = store.value ? buyingStores.filter(item => item === store.value) : buyingStores;
     const budget = maxPrice.value !== "" ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
@@ -151,11 +156,13 @@ export function createBuyCards(options: Options) {
     page = Math.min(page, pages - 1);
     visible = matching.slice(page * pageSize, (page + 1) * pageSize);
     const count = matching.reduce((sum, row) => sum + row.entry.copies, 0);
-    const summary = failedToLoad ? "The binders couldn’t load. Close this view and try again."
+    const summary = failedToLoad ? "The binders couldn’t load. Switch to Binders and return to try again."
+      : !hasBinders ? "You don’t have any set binders yet."
       : count ? `${count.toLocaleString()} ${count === 1 ? "card" : "cards"} still to find`
       : entries.length ? (availability.value === "stock" ? "No in-stock offers match these filters yet. Choose Any status to check more cards."
         : "No missing cards match this search.") : "No catalog cards still to find.";
     status.textContent = summary + (setErrors ? " Some set checklists couldn’t load." : "");
+    empty.hidden = hasBinders || failedToLoad;
     node("pages").hidden = pages <= 1;
     node("page").textContent = `Page ${page + 1} of ${pages}`;
     prev.disabled = page === 0;
@@ -218,7 +225,7 @@ export function createBuyCards(options: Options) {
 
   async function load(preferred: string) {
     const ticket = ++version;
-    const current = () => modal.open && version === ticket;
+    const current = () => isActive() && version === ticket;
     cancelChecks();
     needsReload = false;
     loading = true;
@@ -229,12 +236,14 @@ export function createBuyCards(options: Options) {
     marketPending = new Set();
     scope.disabled = true;
     checkPage.disabled = true;
+    empty.hidden = true;
     list.replaceChildren();
     node("pages").hidden = true;
     status.textContent = "Checking which cards are missing…";
     try {
       const state = await options.binders();
       if (!current()) return;
+      hasBinders = state.binders.length > 0;
       scope.replaceChildren(new Option("All binders", ""), ...state.binders.map(binder => new Option(binder.name, binder.id)));
       scope.value = state.binders.some(binder => binder.id === preferred) ? preferred : "";
       const selected = state.binders.filter(binder => !scope.value || binder.id === scope.value);
@@ -282,21 +291,40 @@ export function createBuyCards(options: Options) {
     page = 0;
   }
 
-  button("open").addEventListener("click", () => {
-    resetFilters();
-    modal.showModal();
-    void load(options.selected());
-  });
-  modal.addEventListener("close", () => {
-    if (modal.open) return;
+  function activate() {
+    if (catalogState !== "ready") {
+      status.textContent = catalogState === "error" ? "The set catalog couldn’t load. Reload to try again." : "Loading your set binders…";
+      return;
+    }
+    if (!visited) {
+      visited = true;
+      void load(entryFromBinder ? options.selected() : "");
+    } else if (needsReload || marketPending.size || failedToLoad) {
+      void load(scope.value);
+    } else {
+      draw();
+    }
+  }
+
+  function deactivate() {
+    needsReload ||= loading;
+    loading = false;
     version++;
     clearTimeout(expiration);
     cancelChecks();
-  });
+    inspectedRow = undefined;
+    options.closeDetail();
+  }
   for (const field of filters) {
     field.addEventListener(field instanceof HTMLInputElement ? "input" : "change", () => { page = 0; draw(); });
   }
-  scope.addEventListener("change", () => { page = 0; void load(scope.value); });
+  scope.addEventListener("change", () => {
+    if (catalogState !== "ready") return;
+    inspectedRow = undefined;
+    options.closeDetail();
+    page = 0;
+    void load(scope.value);
+  });
   checkPage.addEventListener("click", () => void check(visible));
   clear.addEventListener("click", () => { resetFilters(); draw(); search.focus(); });
   function turnPage(offset: number) {
@@ -318,8 +346,9 @@ export function createBuyCards(options: Options) {
     const row = control && visible.find(item => item.id === (control.dataset.buyCheck ?? control.dataset.buyCard));
     if (!row || !control) return;
     if (control.hasAttribute("data-buy-check")) { void check([row]); return; }
-    returnPosition = { id: row.id, scrollTop: modal.scrollTop };
-    modal.close();
+    inspectedRow = row.id;
+    list.querySelector('[data-buy-card][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
+    control.setAttribute("aria-expanded", "true");
     options.inspect(row.target);
   });
 
@@ -332,26 +361,36 @@ export function createBuyCards(options: Options) {
     },
     recordOffers(target: PricingTarget, results: RetailOffers) {
       quotes.set(printingKey(target), { results, receivedAt: Date.now() });
+      draw();
     },
-    async reopen() {
-      const position = returnPosition;
-      returnPosition = undefined;
-      modal.showModal();
-      if (needsReload || marketPending.size) await load(scope.value);
-      else draw();
-      if (!position || !modal.open) return;
-      list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(position.id)}"]`)?.focus({ preventScroll: true });
-      modal.scrollTop = position.scrollTop;
+    enter(fromBinders: boolean) {
+      if (!visited) entryFromBinder = fromBinders;
+      activate();
+    },
+    leave: deactivate,
+    catalogReady() {
+      catalogState = "ready";
+      if (isActive()) activate();
+    },
+    catalogUnavailable() {
+      catalogState = "error";
+      if (isActive()) activate();
+    },
+    detailClosed() {
+      const id = inspectedRow;
+      inspectedRow = undefined;
+      if (!isActive()) return;
+      const row = id ? list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(id)}"]`) : null;
+      row?.setAttribute("aria-expanded", "false");
+      (row ?? document.getElementById("binder-view-title"))?.focus();
     },
     bindersChanged() {
-      if (modal.open) void load(scope.value);
-      else if (returnPosition) needsReload = true;
+      needsReload = true;
+      if (isActive() && catalogState === "ready" && visited) void load(scope.value);
     },
     scopeChanged() {
-      version++;
-      modal.close();
-      clearTimeout(expiration);
-      cancelChecks();
+      deactivate();
+      resetFilters();
       entries = visible = [];
       sets.clear();
       cards.clear();
@@ -361,7 +400,12 @@ export function createBuyCards(options: Options) {
       marketPending.clear();
       scope.replaceChildren(new Option("All binders", ""));
       list.replaceChildren();
-      returnPosition = undefined;
+      empty.hidden = true;
+      node("pages").hidden = true;
+      checkPage.disabled = true;
+      clear.hidden = true;
+      status.textContent = "Loading your set binders…";
+      needsReload = true;
     },
   };
 }

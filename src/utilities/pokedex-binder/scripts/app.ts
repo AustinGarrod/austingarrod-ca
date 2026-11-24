@@ -13,6 +13,8 @@ import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
 import { reportFailure } from "../../../reporting/browser";
 import { createTransfers } from "./transfers";
 import { createPricingUI } from "./pricing-ui";
+import { createBuyCards } from "./buy-cards";
+import { binderViews } from "./binder-views";
 import { createCatalogSearch } from "./catalog-search";
 import type { TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
@@ -33,6 +35,7 @@ const sprite = (item: Species, size = 64) => `<img src="${root}sprites/${item.id
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 async function initialize() {
+  const navigation = binderViews();
   const response = await fetch(`${root}catalog/index.json`, { cache: "no-cache" });
   if (!response.ok) throw new Error("The Pokémon catalog could not load. Reload to try again; your saved binder is safe.");
   const catalog = await response.json() as Catalog;
@@ -93,9 +96,30 @@ async function initialize() {
   }
   const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets, {
     openPrinting(target) { pricing.openPrinting(target); },
-    bindersChanged() { pricing.bindersChanged(); },
+    bindersChanged() { dashboard.bindersChanged(); },
   });
-  const pricing = createPricingUI({ collection: master.collection, binders: master.backup, selected: () => el<HTMLSelectElement>("master-switch").value });
+  const dashboard = createBuyCards({
+    collection: master.collection,
+    binders: master.backup,
+    selected: () => el<HTMLSelectElement>("master-switch").value,
+    inspect: target => pricing.openBuyingPrinting(target),
+    closeDetail: () => pricing.closeBuyingPrinting(),
+  });
+  const pricing = createPricingUI({
+    collection: master.collection,
+    recentOffers: dashboard.recentOffers,
+    recordOffers: dashboard.recordOffers,
+    onBuyingClose: dashboard.detailClosed,
+  });
+  navigation.subscribe((selected, fromBinders) => {
+    if (selected === "buy-cards") {
+      closeScanner();
+      for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog[open]")) dialog.close();
+      dashboard.enter(fromBinders);
+    } else {
+      dashboard.leave();
+    }
+  });
   const catalogSearch = createCatalogSearch({ openPrinting: pricing.openPrinting });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
@@ -394,14 +418,19 @@ async function initialize() {
       el("transfer-message").textContent = "";
       transfers.scopeChanged();
       pricing.scopeChanged();
+      dashboard.scopeChanged();
     }
     account = value; master.account(value); renderSync();
+    if (changed) dashboard.bindersChanged();
     if (onboardingReady && changed) void updateOnboarding();
   });
   await controller.start();
   onboardingReady = true;
   void updateOnboarding();
-  void master.start().catch(error=>{el("master-message").textContent=error.message;});
+  void master.start().then(dashboard.catalogReady).catch(error => {
+    el("master-message").textContent = error.message;
+    dashboard.catalogUnavailable();
+  });
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", () => openScanner());
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
@@ -577,8 +606,15 @@ async function initialize() {
   }
   exportButton.addEventListener("click", () => void outputList(false));
   printButton.addEventListener("click", () => void outputList(true));
-  window.addEventListener("pagehide", event => { if (!event.persisted) { master.close(); controller.stop(); } });
-  window.addEventListener("pageshow", event => { if (event.persisted) void controller.sync(); });
+  window.addEventListener("pagehide", event => {
+    dashboard.leave();
+    if (!event.persisted) { master.close(); controller.stop(); }
+  });
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted) return;
+    if (!el("buy-cards-workspace").hidden) dashboard.enter(false);
+    void controller.sync();
+  });
 }
 
 void initialize().catch(error => {
@@ -588,6 +624,7 @@ void initialize().catch(error => {
   reportFailure(new Error("Binder initialization failed"), "binder.start");
   el("dex-app").setAttribute("aria-busy", "false");
   el("dex-status").textContent = "Binder could not start";
+  el("buy-cards-status").textContent = "The binder couldn’t load. Reload to try again.";
   el("dex-warning").textContent = error instanceof Error ? error.message : "Reload to try again. Your saved collection is safe.";
   el("dex-warning").hidden = false;
 });

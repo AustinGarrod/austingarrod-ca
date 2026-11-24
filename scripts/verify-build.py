@@ -207,7 +207,7 @@ check("/utilities/pokemon-binder/" in route_file("/utilities/pokedex-binder/").r
 private_regions = {
     "/utilities/pokemon-binder/": [
         "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
-        "catalog-search-dialog", "card-pricing-dialog", "buy-cards-dialog",
+        "catalog-search-dialog", "card-pricing-dialog", "buy-cards-workspace",
         "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog",
     ],
     "/contact/": [".contact-form"],

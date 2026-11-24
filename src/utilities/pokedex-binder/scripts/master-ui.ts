@@ -260,7 +260,6 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("missing-list-controls").hidden = !ready || !hasBinders || showOverview;
     node("national-add").hidden = hasDex;
     node("export-cards").hidden = !state.binders.length;
-    node("buy-cards-open").hidden = !state.binders.length;
     const national = node("national-workspace");
     const openingNational = showDex && national.hidden;
     national.hidden = !showDex;

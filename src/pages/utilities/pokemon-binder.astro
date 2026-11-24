@@ -1,5 +1,5 @@
 ---
-import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search } from "@lucide/astro";
+import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
@@ -7,6 +7,7 @@ import MasterSetBinders from "@components/MasterSetBinders.astro";
 import BinderTransfers from "@components/BinderTransfers.astro";
 import BinderCatalogSearch from "@components/BinderCatalogSearch.astro";
 import BinderPricing from "@components/BinderPricing.astro";
+import BinderBuyCards from "@components/BinderBuyCards.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
@@ -24,8 +25,13 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   </header>
 
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
+    <nav class="dex-binder-nav" aria-label="Pokémon Binder">
+      <a id="binders-open" href="/utilities/pokemon-binder/" data-binder-view="binders" aria-current="page"><BookOpen size={16} aria-hidden="true" /> Binders</a>
+      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy Cards</a>
+    </nav>
+    <div id="binders-workspace">
     <section class="dex-intro">
-      <h1><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
+      <h1 id="binder-view-title" tabindex="-1"><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
       <div class="dex-actions">
         <button id="catalog-search-open" class="dex-primary" type="button" aria-haspopup="dialog" disabled><Search size={16} aria-hidden="true" /> Search cards</button>
         <button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button>
@@ -79,6 +85,8 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div>
     </section>
     <p id="export-message" role="status" class="dex-help"></p>
+    </div>
+    <BinderBuyCards />
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>

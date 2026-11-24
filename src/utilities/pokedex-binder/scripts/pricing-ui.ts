@@ -1,17 +1,19 @@
-import type { MasterState, SetCard, SetSummary } from "../lib/master";
+import type { SetCard, SetSummary } from "../lib/master";
 import {
   cad, calendarDate, freshOffers, marketPrices, offerLifetime, pricingRequest, type PriceHistory,
   type PricingTarget, type RetailOffers,
 } from "../lib/pricing";
 import { escape } from "./binder-pages";
-import { createBuyCards } from "./buy-cards";
 import { createPriceChart } from "./price-chart";
 
 interface Options {
   collection(): { sets: readonly SetSummary[]; cards(setId: string): Promise<SetCard[]> };
-  binders(): Promise<MasterState>;
-  selected(): string;
+  recentOffers(target: PricingTarget): RetailOffers | undefined;
+  recordOffers(target: PricingTarget, offers: RetailOffers): void;
+  onBuyingClose(): void;
 }
+
+type Presentation = "dialog" | "inline";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const select = (id: string) => node<HTMLSelectElement>(id);
@@ -21,6 +23,8 @@ const offerTime = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeSt
 
 export function createPricingUI(options: Options) {
   const prices = dialog("card-pricing-dialog");
+  const inline = node("buy-card-pricing"), content = node("card-pricing-content");
+  const title = node("card-pricing-title"), header = title.closest("header")!, back = button("card-pricing-back");
   const variant = select("card-pricing-variant"), range = select("card-market-range");
   const region = node("card-market-chart-region");
   const drawChart = createPriceChart(node<HTMLCanvasElement>("card-market-chart"),
@@ -29,16 +33,27 @@ export function createPricingUI(options: Options) {
   const refreshOffers = button("card-retail-refresh");
   let target: PricingTarget | undefined, candidates: SetCard["variants"] = [];
   let cardVersion = 0, historyVersion = 0, retailVersion = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined, offerRequest: AbortController | undefined;
-  let returnToBuy = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let offerRequest: AbortController | undefined, historyRequest: AbortController | undefined;
+  let presentation: Presentation | undefined;
   const exact = () => target && !["", "*"].includes(target.variant);
-  const active = (version: number) => version === cardVersion && prices.open;
+  const active = (version: number) => version === cardVersion &&
+    (presentation === "inline" ? !inline.hidden : presentation === "dialog" && prices.open);
   const query = () => ({ set: target!.setId, number: target!.number, variant: target!.variant });
 
   function cancelOffers() {
     retailVersion++;
     offerRequest?.abort();
     clearTimeout(timer);
+  }
+
+  function endPrinting() {
+    presentation = undefined;
+    cardVersion++;
+    historyRequest?.abort();
+    cancelOffers();
+    target = undefined;
+    candidates = [];
   }
 
   async function loadMarket(version: number) {
@@ -60,6 +75,9 @@ export function createPricingUI(options: Options) {
   }
 
   async function loadHistory() {
+    historyRequest?.abort();
+    const controller = new AbortController();
+    historyRequest = controller;
     const version = cardVersion, ticket = ++historyVersion;
     const current = () => active(version) && ticket === historyVersion;
     const status = node("card-market-history-status");
@@ -67,7 +85,8 @@ export function createPricingUI(options: Options) {
     drawChart([]);
     status.textContent = "Loading price history…";
     try {
-      const history = await pricingRequest<PriceHistory>("market", { ...query(), days: range.value }, AbortSignal.timeout(10_000));
+      const history = await pricingRequest<PriceHistory>("market", { ...query(), days: range.value },
+        AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
       if (!current()) return;
       const points = history.points.filter(point => /^\d{4}-\d{2}-\d{2}$/.test(point.date)
         && Number.isFinite(Date.parse(point.date)) && Number.isSafeInteger(point.cents) && point.cents > 0)
@@ -83,6 +102,8 @@ export function createPricingUI(options: Options) {
       drawChart(points);
     } catch {
       if (current()) status.textContent = "Price history is temporarily unavailable.";
+    } finally {
+      if (historyRequest === controller) historyRequest = undefined;
     }
   }
 
@@ -96,9 +117,9 @@ export function createPricingUI(options: Options) {
     refreshOffers.disabled = true;
     try {
       const printing = target!;
-      const previous = refresh ? undefined : dashboard.recentOffers(printing);
+      const previous = refresh ? undefined : options.recentOffers(printing);
       const data = previous ?? await pricingRequest<RetailOffers>("offers", query(), AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]));
-      if (current() && !previous) dashboard.recordOffers(printing, data);
+      if (current() && !previous) options.recordOffers(printing, data);
       function show() {
         if (!current()) return;
         const now = Date.now(), offers = freshOffers(data.offers, now).filter(offer => {
@@ -130,6 +151,7 @@ export function createPricingUI(options: Options) {
 
   function showPrinting() {
     const version = ++cardVersion;
+    historyRequest?.abort();
     cancelOffers();
     node("card-pricing-finish").textContent = target?.finish ?? "";
     node("card-pricing-exact").hidden = !exact();
@@ -140,13 +162,21 @@ export function createPricingUI(options: Options) {
     void loadOffers();
   }
 
-  function openPrinting(printing: PricingTarget, fromBuy = false) {
+  function presentPrinting(printing: PricingTarget, where: Presentation) {
+    const buying = where === "inline";
+    presentation = where;
+    if (buying && prices.open) prices.close();
+    const container = buying ? inline : prices;
+    if (content.parentElement !== container) container.append(content);
+    inline.hidden = !buying;
+    header.classList.toggle("dex-dialog-header", !buying);
+    button("card-pricing-close").hidden = buying;
+    back.hidden = !buying;
+    node("card-pricing-actions").hidden = buying;
     target = printing;
     candidates = [];
-    returnToBuy = fromBuy;
-    node("card-pricing-title").textContent = printing.name;
+    title.textContent = printing.name;
     node("card-pricing-identity").textContent = `${printing.setName} · #${printing.number}`;
-    button("card-pricing-back").hidden = !fromBuy;
     node("card-pricing-variants").hidden = true;
     const image = node<HTMLImageElement>("card-pricing-image");
     const catalog = options.collection();
@@ -160,7 +190,10 @@ export function createPricingUI(options: Options) {
     else image.removeAttribute("src");
     range.value = "30";
     node("card-pricing-status").textContent = exact() ? "" : "Loading printings…";
-    if (!prices.open) prices.showModal();
+    if (buying) {
+      title.focus({ preventScroll: true });
+      inline.scrollIntoView({ block: "start" });
+    } else if (!prices.open) prices.showModal();
     showPrinting();
     const version = cardVersion;
     if (!set) {
@@ -192,6 +225,13 @@ export function createPricingUI(options: Options) {
     });
   }
 
+  function closeBuyingPrinting() {
+    if (presentation !== "inline") return;
+    endPrinting();
+    inline.hidden = true;
+    prices.append(content);
+  }
+
   node("card-pricing-image").addEventListener("error", () => { node("card-pricing-image").hidden = true; });
   variant.addEventListener("change", () => {
     const next = candidates.find(item => item.id === variant.value);
@@ -202,27 +242,22 @@ export function createPricingUI(options: Options) {
   range.addEventListener("change", () => { if (exact()) void loadHistory(); });
   refreshOffers.addEventListener("click", () => { if (exact()) void loadOffers(true); });
   prices.addEventListener("close", () => {
-    if (prices.open) return;
-    cardVersion++;
-    cancelOffers();
-    if (returnToBuy) {
-      returnToBuy = false;
-      void dashboard.reopen();
-    }
+    if (!prices.open && presentation === "dialog") endPrinting();
+  });
+  back.addEventListener("click", () => {
+    if (presentation !== "inline") return;
+    closeBuyingPrinting();
+    options.onBuyingClose();
   });
 
-  const dashboard = createBuyCards({ ...options, inspect: printing => openPrinting(printing, true) });
-  button("card-pricing-back").addEventListener("click", () => prices.close());
-
   return {
-    openPrinting,
-    bindersChanged: dashboard.bindersChanged,
+    openPrinting: (printing: PricingTarget) => presentPrinting(printing, "dialog"),
+    openBuyingPrinting: (printing: PricingTarget) => presentPrinting(printing, "inline"),
+    closeBuyingPrinting,
     scopeChanged() {
-      cardVersion++;
-      cancelOffers();
-      returnToBuy = false;
+      if (presentation === "inline") closeBuyingPrinting();
+      else endPrinting();
       prices.close();
-      dashboard.scopeChanged();
     },
   };
 }

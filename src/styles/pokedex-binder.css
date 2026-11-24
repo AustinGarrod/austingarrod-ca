@@ -186,8 +186,8 @@
 .dex-market-chart canvas { display: block; width: 100%; height: 156px; }
 .dex-market-chart output { font-size: 12px; font-family: 'JetBrains Mono', monospace; }
 .dex-pricing-dialog input[type=range] { padding: 0; accent-color: var(--secondary); }
-.dex-retail-offers, .dex-buy-cards-list { list-style: none; padding: 0; margin: 12px 0; }
-.dex-retail-offers li, .dex-buy-cards-list li {
+.dex-retail-offers { list-style: none; padding: 0; margin: 12px 0; }
+.dex-retail-offers li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -196,10 +196,10 @@
   padding: 12px 0;
   border-top: 1px solid var(--line);
 }
-.dex-retail-offers li:last-child, .dex-buy-cards-list li:last-child { border-bottom: 1px solid var(--line); }
-.dex-retail-offers li > div, .dex-buy-cards-list li > div { display: grid; gap: 4px; min-width: 0; }
+.dex-retail-offers li:last-child { border-bottom: 1px solid var(--line); }
+.dex-retail-offers li > div { display: grid; gap: 4px; min-width: 0; }
 .dex-retail-offers li > div:last-child { text-align: right; }
-.dex-retail-offers span, .dex-buy-cards-list span, .dex-retail-offers small { color: var(--muted); font-size: 12px; }
+.dex-retail-offers span, .dex-retail-offers small { color: var(--muted); font-size: 12px; }
 .dex-retail-offers a { font-size: 12px; }
 @media (max-width: 450px) {
   .dex-pricing-dialog .dex-form-grid { grid-template-columns: 1fr; gap: 0; }
@@ -422,7 +422,6 @@
   .pokedex-page .master-switch button > svg { width: 14px; height: 14px; }
   #set-overview-open { align-self: end; }
 }
-#buy-cards-open { color: var(--secondary); }
 #master-message:empty { display: none; }
 #master-workspace { padding: 4px 0 12px; }
 #master-workspace h2 { overflow-wrap: anywhere; }

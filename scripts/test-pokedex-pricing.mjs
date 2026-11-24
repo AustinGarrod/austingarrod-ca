@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { chromium, expect } from "@playwright/test";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
+const binderUrl = origin + "/utilities/pokemon-binder/";
+const buyingUrl = binderUrl + "?view=buy-cards";
 const browser = await chromium.launch({ headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
 const date = "2026-11-24";
 const market = { asOf: date, prices: [
@@ -12,6 +14,15 @@ const market = { asOf: date, prices: [
 ] };
 const points = [{ date: "2026-11-19", cents: 122 }, { date: "2026-11-21", cents: 130 }, { date, cents: 123 }];
 const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
+const account = { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", email: "buying@example.test" };
+
+async function notifySessionChange(page) {
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("austingarrod.accounts.session.v1");
+    channel.postMessage("session-changed");
+    channel.close();
+  });
+}
 
 function retailerFixture(number, variant, now) {
   const quote = (store, priceCents, condition, conditionRank, age = 0) => ({
@@ -33,20 +44,81 @@ function retailerFixture(number, variant, now) {
 }
 
 try {
+  const emptyContext = await browser.newContext({ viewport: { width: 390, height: 890 } });
+  try {
+    const page = await emptyContext.newPage();
+    let offers = 0;
+    await emptyContext.route("**/*", route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, migrationEnabled: false, user: null, csrfToken: "fixture" } });
+      if (url.pathname.endsWith("/offers.php")) {
+        offers++;
+        return route.abort();
+      }
+      return route.continue();
+    });
+    await page.goto(buyingUrl);
+    const buying = page.locator("#buy-cards-workspace");
+    await expect(buying.getByRole("heading", { name: "Buy Cards", level: 1 })).toBeVisible();
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
+    const setup = buying.getByRole("link", { name: "Go to Binders" });
+    await expect(setup).toBeVisible();
+    await expect(buying.locator("#buy-cards-check")).toBeDisabled();
+    await expect(buying.locator("dialog[open]")).toHaveCount(0);
+    await page.reload();
+    await expect(setup).toBeVisible();
+    await setup.press("Enter");
+    await expect(page).toHaveURL(binderUrl);
+    await expect(page.getByRole("heading", { name: "Pokémon Binder Tracker", level: 1 })).toBeVisible();
+    await expect(page.locator("#binder-onboarding")).toBeVisible();
+    assert.equal(offers, 0, "A fresh dashboard opening and reload must not fetch retailer offers.");
+  } finally {
+    await emptyContext.close();
+  }
+
   for (const width of [320, 390, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 890 } });
     const page = await context.newPage();
     const now = Date.now();
     await page.clock.install({ time: new Date(now) });
     let fixtureCheckedAt = now;
-    let marketGate;
+    let marketGate, offerGate, user = null;
+    const documents = new Map(), staged = new Map();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     const lookups = [];
     await context.route("**/*", async route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
-      if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, user: null, csrfToken: "fixture" } });
+      if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, migrationEnabled: true, user, csrfToken: "fixture" } });
+      if (url.pathname === "/api/v1/sync.php") {
+        if (!user) return route.fulfill({ status: 401, json: { error: { code: "auth_required" } } });
+        const action = url.searchParams.get("action");
+        const body = route.request().postDataJSON();
+        if (action === "read") return route.fulfill({ json: { document: documents.get(url.searchParams.get("document")) ?? null } });
+        if (action === "migration-stage") {
+          if (body.variant === "selected") staged.set(body.document, body.state);
+          return route.fulfill({ json: { staged: true } });
+        }
+        if (action === "migration-commit") {
+          for (const [document, state] of staged) {
+            documents.set(document, { app: "pokedex-binder", document, resourceId: user.id, schemaVersion: 1, revision: 1, acknowledgedSequence: 0, state });
+          }
+          return route.fulfill({ json: { documents: [...documents.values()] } });
+        }
+        if (action === "write") {
+          const document = documents.get(body.document);
+          if (body.mutationSequence > document.acknowledgedSequence) {
+            document.revision++;
+            document.state = body.state;
+            document.acknowledgedSequence = body.mutationSequence;
+          }
+          return route.fulfill({ json: { document } });
+        }
+        return route.fulfill({ status: 400, json: { error: { code: "unknown_action" } } });
+      }
       if (url.pathname.endsWith("/market.php")) {
         if (url.searchParams.has("days")) return route.fulfill({ json: { asOf: date, points } });
         await marketGate;
@@ -57,19 +129,23 @@ try {
         const number = url.searchParams.get("number");
         const variant = url.searchParams.get("variant");
         lookups.push({ set, number, variant });
+        if (offerGate) {
+          await offerGate;
+          return route.abort().catch(() => {});
+        }
         return route.fulfill({ json: retailerFixture(number, variant, fixtureCheckedAt) });
       }
       return route.continue();
     });
-    await page.goto(origin + "/utilities/pokemon-binder/");
+    await page.goto(binderUrl);
     await expect(page.locator("#binder-onboarding")).toBeVisible();
     await page.locator("#catalog-search-open").click();
     await page.locator("#catalog-search-query").fill("Bulbasaur 001/165");
     await page.locator("#catalog-search-set").selectOption("sv03.5");
     await page.locator("#catalog-search-results li").filter({ hasText: "Bulbasaur" }).getByRole("button").first().click();
     await page.locator("#catalog-search-printings li").filter({ hasText: /^Regular/ }).getByRole("button").first().click();
-    const details = page.locator("#card-pricing-dialog");
-    await expect(details).toBeVisible();
+    const priceDialog = page.locator("#card-pricing-dialog");
+    await expect(priceDialog).toBeVisible();
     await expect(page.locator("#card-market-current")).toHaveText("$1.23 CAD");
     await expect(page.locator("#card-market-chart-region")).toBeVisible();
     await page.locator("#card-market-point").press("ArrowLeft");
@@ -79,8 +155,8 @@ try {
     await expect(page.locator("#card-retail-offers li").first()).toContainText("Skyfox Games");
     await expect(page.locator("#card-retail-offers")).not.toContainText("$0.15");
     await expect(page.locator("#card-retail-status")).toContainText("401 Games");
-    assert.equal(await details.evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false);
-    await details.getByRole("button", { name: "Close card prices" }).click();
+    assert.equal(await priceDialog.evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false);
+    await priceDialog.getByRole("button", { name: "Close card prices" }).click();
 
     for (const name of ["First 151", "Second 151"]) {
       await page.locator(name === "First 151" ? "#first-set" : "#master-new").click();
@@ -93,13 +169,38 @@ try {
       await page.locator('[data-checklist-row="001:reverse"]').getByRole("button", { name: /Mark ordered/ }).click();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
+    const buying = page.locator("#buy-cards-workspace");
+    const buyTab = page.locator("#buy-cards-open");
+    const bindersTab = page.locator("#binders-open");
+    const scope = buying.locator("#buy-cards-scope");
+    const inlineDetails = buying.locator("#buy-card-pricing");
+    const activeBinder = await page.locator("#master-switch").inputValue();
+    assert.ok(activeBinder);
+    await buyTab.press("Enter");
+    await expect(page).toHaveURL(buyingUrl);
+    await expect(buyTab).toHaveAttribute("aria-current", "page");
+    await expect(buying.getByRole("heading", { name: "Buy Cards" })).toBeFocused();
+    await expect(scope).toHaveValue(activeBinder);
+    await expect(scope.locator("option:checked")).toHaveText("Second 151");
+    await expect(page.locator("#master-title")).toBeHidden();
+    await page.goBack();
+    await expect(page).toHaveURL(binderUrl);
+    await expect(bindersTab).toHaveAttribute("aria-current", "page");
+    await expect(page.locator("#master-title")).toContainText("Second 151");
+    await expect(page.locator("#master-checklist")).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(buyingUrl);
+    await expect(scope).toBeVisible();
+    await expect(scope).toHaveValue(activeBinder);
+    await bindersTab.click();
+    await expect(page).toHaveURL(binderUrl);
+    await expect(page.locator("#master-title")).toBeVisible();
     await page.locator("#set-overview-open").click();
     await expect(page.locator("#set-overview-totals [data-value-amount]")).toHaveText("$2.46 CAD");
     await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 2 collected");
     await expect(page.locator("#set-overview-list [data-value-amount]")).toHaveText(["$1.23 CAD", "$1.23 CAD"]);
     const lookupCount = lookups.length;
-    await page.locator("#buy-cards-open").click();
-    const buying = page.locator("#buy-cards-dialog");
+    await buyTab.click();
     const search = buying.locator("#buy-cards-filter");
     const finish = buying.locator("#buy-cards-finish");
     const availability = buying.locator("#buy-cards-availability");
@@ -110,7 +211,8 @@ try {
     const checkPage = buying.locator("#buy-cards-check");
     const rows = buying.locator("#buy-cards-list > li");
     await expect(buying).toBeVisible();
-    await page.locator("#buy-cards-scope").selectOption("");
+    await expect(page.locator("#set-overview")).toBeHidden();
+    await scope.selectOption("");
     await search.fill("Bulbasaur 001");
     await expect(rows).toHaveCount(0);
     await search.fill("Ivysaur 002");
@@ -143,16 +245,28 @@ try {
     await maxPrice.fill("");
     await store.selectOption("Skyfox Games");
     await expect(rows).toHaveCount(1);
-    assert.equal(await buying.evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
 
     await rows.first().locator("[data-buy-card]").click();
-    await expect(details).toBeVisible();
-    await expect(page.locator("#card-pricing-title")).toHaveText("Ivysaur");
-    await expect(page.locator("#card-retail-offers li")).toHaveCount(2);
-    await page.locator("#card-pricing-back").click();
+    await expect(inlineDetails).toBeVisible();
+    await expect(inlineDetails.getByRole("heading", { name: "Ivysaur" })).toBeFocused();
+    await expect(inlineDetails.locator("#card-market-chart-region")).toBeVisible();
+    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+    await expect(search).toBeVisible();
+    await expect(rows.first()).toBeVisible();
+    await inlineDetails.locator("#card-pricing-back").press("Enter");
+    await expect(inlineDetails).toBeHidden();
+    await expect(rows.first().locator("[data-buy-card]")).toBeFocused();
     await expect(search).toHaveValue("Ivysaur 002");
     await expect(finish).toHaveValue("Regular");
     await expect(availability).toHaveValue("stock");
+    await expect(store).toHaveValue("Skyfox Games");
+    await expect(rows.first()).toContainText("$2.50");
+    await bindersTab.click();
+    await expect(page.locator("#set-overview")).toBeVisible();
+    await buyTab.click();
+    await expect(search).toHaveValue("Ivysaur 002");
     await expect(store).toHaveValue("Skyfox Games");
     await expect(rows.first()).toContainText("$2.50");
 
@@ -180,6 +294,14 @@ try {
     await nextPage.click();
     await expect(rows.first()).not.toHaveText(firstCardText);
     await expect(rows).toHaveCount(6);
+    const secondPageLabel = await buying.locator("#buy-cards-page").textContent();
+    await page.goBack();
+    await expect(page).toHaveURL(binderUrl);
+    await expect(page.locator("#set-overview")).toBeVisible();
+    await page.goForward();
+    await expect(page).toHaveURL(buyingUrl);
+    await expect(rows).toHaveCount(6);
+    await expect(buying.locator("#buy-cards-page")).toHaveText(secondPageLabel);
     const visibleCards = await rows.allTextContents();
     assert.equal(lookups.length, beforePage, "Changing pages must not fetch retailer offers.");
     await checkPage.click();
@@ -205,7 +327,7 @@ try {
     if (width === 1440) {
       let releaseMarket;
       marketGate = new Promise(resolve => { releaseMarket = resolve; });
-      await buying.getByRole("button", { name: "Close Buy Cards" }).click();
+      await bindersTab.click();
       await page.locator("#master-new").click();
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Any finish 151");
@@ -213,8 +335,9 @@ try {
       await page.getByRole("button", { name: "Save binder", exact: true }).click();
       await expect(page.locator("#master-title")).toContainText("Any finish 151");
       const beforeChoice = lookups.length;
-      await page.locator("#buy-cards-open").click();
-      await buying.locator("#buy-cards-scope").selectOption({ label: "Any finish 151" });
+      await buyTab.click();
+      await scope.selectOption({ label: "Any finish 151" });
+      await availability.selectOption("");
       await search.fill("Ivysaur 002");
       await expect(rows).toHaveCount(1);
       await expect(rows.first().locator("[data-buy-check]")).toBeDisabled();
@@ -229,9 +352,9 @@ try {
       fixtureCheckedAt = await page.evaluate(() => Date.now());
       await expect(rows.first().locator(".dex-buying-market")).toContainText("Loading");
       await rows.first().locator("[data-buy-card]").click();
-      await expect(details).toBeVisible();
-      await expect(page.locator("#card-retail-offers li")).toHaveCount(2);
-      await page.locator("#card-pricing-back").click();
+      await expect(inlineDetails).toBeVisible();
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+      await inlineDetails.locator("#card-pricing-back").click();
       releaseMarket();
       await expect(rows.first().locator(".dex-buying-market")).toContainText("$3.49");
       const beforeInlineCheck = lookups.length;
@@ -239,9 +362,74 @@ try {
       await expect.poll(() => lookups.length).toBe(beforeInlineCheck + 1);
       await expect(rows.first()).toContainText("$2.50");
       assert.deepEqual(lookups.slice(beforeInlineCheck), [{ set: "sv03.5", number: "002", variant: "normal" }]);
+
+      const beforeReload = lookups.length;
+      await page.reload();
+      await expect(page).toHaveURL(buyingUrl);
+      await expect(scope).toHaveValue("");
+      await expect(scope.locator("option")).toHaveCount(4);
+      await expect(search).toHaveValue("");
+      await expect(rows).toHaveCount(6);
+      assert.equal(lookups.length, beforeReload, "A dashboard reload must not fetch retailer offers.");
+
+      await bindersTab.click();
+      user = account;
+      await notifySessionChange(page);
+      await page.locator("#sync-open").click();
+      await page.locator("#binder-account-review").click();
+      await page.locator("#binder-migration-layout").selectOption("device");
+      await page.locator("#binder-migration-form button[type=submit]").click();
+      await expect(page.locator("#dex-status")).toHaveText("Synced · Saved on this device");
+      await expect(page.locator("#binder-migration-dialog")).toBeHidden();
+      await page.locator("#master-new").click();
+      await page.locator("#master-set").fill("sv03.5");
+      await page.locator("#master-name").fill("Account only 151");
+      await page.getByRole("button", { name: "Save binder", exact: true }).click();
+      await expect(page.locator("#master-title")).toContainText("Account only 151");
+      await buyTab.click();
+      await scope.selectOption({ label: "Account only 151" });
+      await search.fill("Ivysaur 002");
+      await expect(rows).toHaveCount(2);
+      fixtureCheckedAt = await page.evaluate(() => Date.now());
+      await rows.first().locator("[data-buy-check]").click();
+      await expect(rows.first()).toContainText("$2.50");
+      await rows.first().locator("[data-buy-card]").click();
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+
+      user = null;
+      await notifySessionChange(page);
+      await expect(page).toHaveURL(buyingUrl);
+      await expect(inlineDetails).toBeHidden();
+      await expect(scope.locator("option").filter({ hasText: "Account only 151" })).toHaveCount(0);
+      await expect(scope.locator("option")).toHaveCount(4);
+      await expect(scope).toHaveValue("");
+      await expect(search).toHaveValue("");
+      await search.fill("Ivysaur 002");
+      await expect(rows.first()).toContainText("Needs a check");
+      await expect(rows.first()).not.toContainText("$2.50");
+
+      let releaseOffer;
+      offerGate = new Promise(resolve => { releaseOffer = resolve; });
+      try {
+        const beforeCheck = lookups.length;
+        await rows.filter({ hasText: "Regular" }).first().locator("[data-buy-check]").click();
+        await expect.poll(() => lookups.length).toBe(beforeCheck + 1);
+        const aborted = page.waitForEvent("requestfailed", {
+          predicate: request => new URL(request.url()).pathname.endsWith("/offers.php"),
+          timeout: 5000,
+        });
+        await Promise.all([aborted, bindersTab.click()]);
+        await expect(buying).toBeHidden();
+        await buyTab.click();
+        await expect(search).toHaveValue("Ivysaur 002");
+        await expect(rows.filter({ hasText: "Regular" }).first()).toContainText("Needs a check");
+      } finally {
+        releaseOffer();
+        offerGate = undefined;
+      }
     }
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`Passed ${width}px card search, pricing, and purchasing dashboard filters, lookups, and expiry.`);
+    console.log(`Passed ${width}px card search, pricing, and purchasing dashboard navigation, filters, lookups, and expiry.`);
   }
 } finally { await browser.close(); }

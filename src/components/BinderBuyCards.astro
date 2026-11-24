@@ -1,0 +1,59 @@
+---
+import { buyingStores } from "../utilities/pokedex-binder/lib/buying-offers";
+import "../styles/pokedex-buying.css";
+---
+<section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden>
+  <header id="buy-cards-heading" class="dex-buying-heading">
+    <p>Find the cards your set binders still need and compare Canadian store offers.</p>
+  </header>
+  <div class="dex-buying-filters">
+    <label class="dex-buying-search">Find a missing card
+      <input id="buy-cards-filter" type="search" placeholder="Name, set, or collector number" autocomplete="off" />
+    </label>
+    <label>Set binders <select id="buy-cards-scope"><option value="">All binders</option></select></label>
+    <label>Finish <select id="buy-cards-finish"><option value="">All finishes</option></select></label>
+    <label>Availability
+      <select id="buy-cards-availability">
+        <option value="">Any status</option><option value="stock">In stock</option>
+        <option value="unchecked">Unchecked</option><option value="none">No offers</option>
+        <option value="unavailable">Unavailable</option>
+      </select>
+    </label>
+    <label>Sort by
+      <select id="buy-cards-sort">
+        <option value="binder">Binder order</option><option value="name">Card name</option>
+        <option value="market">Market price ↑</option><option value="retail">Store price ↑</option>
+      </select>
+    </label>
+  </div>
+  <details id="buy-cards-offer-filters" class="dex-buying-refine">
+    <summary>Store, price, and condition</summary>
+    <div class="dex-buying-filters">
+      <label>Store <select id="buy-cards-store">
+        <option value="">All stores</option>{buyingStores.map(name => <option>{name}</option>)}
+      </select></label>
+      <label>Maximum price (CAD) <input id="buy-cards-max-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Any price" /></label>
+      <label>Minimum condition <select id="buy-cards-condition">
+        <option value="">Any condition</option><option value="0">Near Mint</option><option value="1">Lightly Played</option>
+        <option value="2">Moderately Played</option><option value="3">Heavily Played</option>
+      </select></label>
+    </div>
+  </details>
+  <p class="dex-help">Required cards from your set binders, excluding cards already ordered. Store prices are in CAD before shipping and tax.</p>
+  <div class="dex-buying-summary">
+    <p id="buy-cards-status" role="status">Loading your set binders…</p>
+    <div class="dex-actions">
+      <button id="buy-cards-clear" class="dex-quiet" type="button" hidden>Clear filters</button>
+      <button id="buy-cards-check" class="dex-primary" type="button" disabled>Check this page</button>
+    </div>
+  </div>
+  <p id="buy-cards-progress" role="status"></p>
+  <p id="buy-cards-empty" hidden><a href="/utilities/pokemon-binder/" data-binder-view="binders">Go to Binders</a> to set up or connect a set binder.</p>
+  <section id="buy-card-pricing" class="dex-buying-detail" aria-labelledby="card-pricing-title" hidden></section>
+  <ul id="buy-cards-list" class="dex-buying-list" aria-label="Missing cards and offers"></ul>
+  <nav id="buy-cards-pages" class="dex-buying-pages" aria-label="Missing card pages" hidden>
+    <button id="buy-cards-prev" type="button">Previous</button>
+    <span id="buy-cards-page"></span>
+    <button id="buy-cards-next" type="button">Next</button>
+  </nav>
+</section>
