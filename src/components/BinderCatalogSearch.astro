@@ -1,0 +1,48 @@
+<dialog id="catalog-search-dialog" class="dex-dialog catalog-search-dialog rr-block" data-analytics-private aria-labelledby="catalog-search-title">
+  <div class="dex-section-heading">
+    <h2 id="catalog-search-title">Search cards</h2>
+    <button type="button" data-close-dialog aria-label="Close card search">×</button>
+  </div>
+  <section id="catalog-search-results-panel" aria-label="Find a card">
+    <form id="catalog-search-form" class="catalog-search-filters" role="search">
+      <label>Card, Pokémon, set, or number
+        <input id="catalog-search-query" type="search" maxlength="120" autocomplete="off" placeholder="e.g. Bulbasaur, MEW, or 001/165" />
+      </label>
+      <label>Set
+        <select id="catalog-search-set" disabled><option value="">All sets</option></select>
+      </label>
+    </form>
+    <p id="catalog-search-status" class="dex-help" role="status"></p>
+    <button type="button" id="catalog-search-retry" hidden>Retry loading cards</button>
+    <ol id="catalog-search-results" class="dex-transfer-rows catalog-search-rows" aria-label="Matching cards"></ol>
+    <nav id="catalog-search-pages" class="dex-actions" aria-label="Card search result pages" hidden>
+      <button type="button" id="catalog-search-prev">Previous</button>
+      <span id="catalog-search-page"></span>
+      <button type="button" id="catalog-search-next">Next</button>
+    </nav>
+  </section>
+  <section id="catalog-search-printings-panel" aria-labelledby="catalog-search-card-name" hidden>
+    <button type="button" id="catalog-search-back">Back to results</button>
+    <h3 id="catalog-search-card-name" tabindex="-1"></h3>
+    <p id="catalog-search-card-set" class="dex-help"></p>
+    <p id="catalog-search-printings-status" class="dex-help" role="status"></p>
+    <button type="button" id="catalog-search-printings-retry" hidden>Retry loading printings</button>
+    <ul id="catalog-search-printings" class="dex-transfer-rows catalog-search-rows" aria-label="Choose a printing"></ul>
+  </section>
+</dialog>
+
+<style>
+  .catalog-search-dialog { width: min(680px, calc(100vw - 32px)); }
+  .catalog-search-filters { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+  .catalog-search-filters label { min-width: 0; }
+  .catalog-search-rows :global(li) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+  .catalog-search-rows :global(button) { min-height: 40px; }
+  #catalog-search-printings-panel > button { margin-top: 16px; }
+  #catalog-search-pages { align-items: center; justify-content: center; }
+  @media (max-width: 540px) {
+    .catalog-search-filters { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .catalog-search-filters label + label { margin-top: 0; }
+    .catalog-search-rows :global(li) { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .catalog-search-rows :global(button) { justify-self: start; }
+  }
+</style>

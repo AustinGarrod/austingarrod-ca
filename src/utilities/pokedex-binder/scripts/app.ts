@@ -12,6 +12,8 @@ import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist"
 import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
 import { reportFailure } from "../../../reporting/browser";
 import { createTransfers } from "./transfers";
+import { createPricingUI } from "./pricing-ui";
+import { createCatalogSearch } from "./catalog-search";
 import type { TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
 
@@ -89,7 +91,13 @@ async function initialize() {
       reportFailure(new Error("Scanner window could not open"), "binder.scanner.open", { binder: target ? "set" : "national" });
     }
   }
-  const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets);
+  const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets, {
+    openPrinting(target) { pricing.openPrinting(target); },
+    bindersChanged() { pricing.bindersChanged(); },
+  });
+  const pricing = createPricingUI({ collection: master.collection, binders: master.backup, selected: () => el<HTMLSelectElement>("master-switch").value });
+  const catalogSearch = createCatalogSearch({ openPrinting: pricing.openPrinting });
+  el("catalog-search-open").addEventListener("click", () => catalogSearch.open());
   let accountTicket = 0, accountKey = "", onboardingReady = false, onboardingTicket = 0;
   let productLookup: Promise<Record<string, ProductIdentity>> | undefined;
   let speciesLookup: ((match: TransferMatch) => readonly number[]) | undefined;
@@ -305,7 +313,8 @@ async function initialize() {
       const heading = previous !== card.setId ? `<div class="dex-set-heading"><span>${escape(set?.name ?? "Unknown set")}</span><code>${escape(set?.code ?? "Code not provided")}</code></div>` : ""; previous = card.setId;
       const image = card.image && /^https:\/\/assets\.tcgdex\.net\//.test(card.image) ? card.image : null;
       const highImage = image?.replace(/\/low\.webp$/, "/high.webp");
-      return `${heading}<article class="dex-card-printing">${image ? `<a href="${escape(highImage)}" target="_blank" rel="noopener noreferrer" aria-label="View ${escape(card.name)} ${escape(card.number)} card artwork"><img src="${escape(image)}" alt="${escape(card.name)} card" width="58" height="81" loading="lazy" /></a>` : ""}<div><p class="dex-card-title">${escape(card.name)}</p><p>Collector #${escape(card.number)}</p><small>${escape(card.rarity ?? "Rarity not provided")}</small><small>${escape(set?.releaseDate ?? "Release date not provided")}</small></div></article>`;
+      return `${heading}<article class="dex-card-printing">${image ? `<a href="${escape(highImage)}" target="_blank" rel="noopener noreferrer" aria-label="View ${escape(card.name)} ${escape(card.number)} card artwork"><img src="${escape(image)}" alt="${escape(card.name)} card" width="58" height="81" loading="lazy" /></a>` : ""}<div><p class="dex-card-title">${escape(card.name)}</p><p>Collector #${escape(card.number)}</p><small>${escape(card.rarity ?? "Rarity not provided")}</small><small>${escape(set?.releaseDate ?? "Release date not provided")}</small>
+        <button type="button" data-printing-prices="${escape(card.id)}" aria-haspopup="dialog">Prices and offers</button></div></article>`;
     }).join("");
   }
   async function selectPokemon(id: number, scroll = true) {
@@ -382,6 +391,7 @@ async function initialize() {
       el("print-content").replaceChildren();
       el("transfer-message").textContent = "";
       transfers.scopeChanged();
+      pricing.scopeChanged();
     }
     account = value; master.account(value); renderSync();
     if (onboardingReady && changed) void updateOnboarding();
@@ -409,7 +419,13 @@ async function initialize() {
     if (input.matches("[data-owned]")) void action(() => controller.setOwned(Number(input.dataset.owned), input.checked));
   });
   details.addEventListener("input", event => { if ((event.target as HTMLElement).id === "printing-search") { printingQuery = (event.target as HTMLInputElement).value; renderPrintings(); } });
-  details.addEventListener("click", event => { if ((event.target as HTMLElement).id === "retry-printings" && selected) void selectPokemon(selected, false); });
+  details.addEventListener("click", event => {
+    const element = event.target as Element;
+    if (element.id === "retry-printings" && selected) void selectPokemon(selected, false);
+    const id = element.closest<HTMLElement>("[data-printing-prices]")?.dataset.printingPrices;
+    const card = id && loadedPrintings?.find(item => item.id === id);
+    if (card) pricing.openPrinting({ ...card, setName: catalog.sets[card.setId]?.name ?? card.setId, variant: "*", finish: "" });
+  });
   document.addEventListener("error", event => { if (event.target instanceof HTMLImageElement && el("dex-app").contains(event.target)) { event.target.hidden = true; } }, true);
   search.addEventListener("input", () => { checklist.resetLimit(); render(); });
   for (const node of [filter, generation]) node.addEventListener("change", () => { checklist.resetLimit(); render(); });

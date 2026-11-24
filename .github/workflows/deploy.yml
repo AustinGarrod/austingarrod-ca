@@ -99,7 +99,7 @@ jobs:
           node scripts/strip-public-maps.mjs
           npm run write:deployment-manifest
           npm run verify:dist
-      - name: Run local scanner and Companion browser checks
+      - name: Run local Pokémon Binder and Companion browser checks
         if: env.RUN_BROWSER_CHECKS == 'true'
         run: |
           node scripts/serve-dist.mjs > "$RUNNER_TEMP/portfolio-preview.log" 2>&1 &
@@ -111,6 +111,7 @@ jobs:
           curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4331/utilities/pokemon-binder/ > /dev/null
           npm run test:pokedex:scanner
           npm run test:pokedex:transfers
+          POKEDEX_PRICING_ORIGIN=http://127.0.0.1:4331 npm run test:pokedex:pricing
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:4321/utilities/idle-slayer-companion/ npm run test:companion:e2e -- --workers=3 --retries=1
       - name: Retain browser failure diagnostics
         if: failure() && env.RUN_BROWSER_CHECKS == 'true'

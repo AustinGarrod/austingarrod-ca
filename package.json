@@ -30,6 +30,7 @@
     "test:pokedex:browser": "node scripts/test-pokedex-browser.mjs",
     "test:pokedex:checklist": "node scripts/test-pokedex-checklist.mjs",
     "test:pokedex:transfers": "node scripts/test-pokedex-transfers.mjs",
+    "test:pokedex:pricing": "node scripts/test-pokedex-pricing.mjs",
     "test:php": "node scripts/test-php-reporting.mjs",
     "test:mcp": "node scripts/test-utility-mcp.mjs",
     "test:mcp:parity": "node scripts/test-utility-mcp-parity.mjs",

@@ -1,10 +1,12 @@
 ---
-import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check } from "@lucide/astro";
+import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
 import MasterSetBinders from "@components/MasterSetBinders.astro";
 import BinderTransfers from "@components/BinderTransfers.astro";
+import BinderCatalogSearch from "@components/BinderCatalogSearch.astro";
+import BinderPricing from "@components/BinderPricing.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
@@ -23,7 +25,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <section class="dex-intro">
       <h1><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
-      <div class="dex-actions"><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
+      <div class="dex-actions"><button id="catalog-search-open" type="button" aria-haspopup="dialog"><Search size={16} aria-hidden="true" /> Search cards</button><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
     </section>
 
     <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
@@ -73,6 +75,8 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
   <BinderTransfers />
+  <BinderCatalogSearch />
+  <BinderPricing />
 
   <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><button id="national-hide" type="button">Hide National Pokédex</button><p class="dex-help">You can add it back with your progress and layout.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
 

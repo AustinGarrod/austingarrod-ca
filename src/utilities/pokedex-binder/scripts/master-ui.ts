@@ -22,6 +22,7 @@ import {
 import type { BinderAccountState } from "../lib/accounts";
 import type { MasterStore } from "../lib/master-store";
 import { validateSettings, type CardStatus } from "../lib/model";
+import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => node<HTMLInputElement>(id);
@@ -34,7 +35,8 @@ async function json<T>(file: string): Promise<T> {
   return response.json();
 }
 export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => void, scannerClose: () => void,
-  view: { checklist: boolean }, renderNationalView: () => void, setInfo: Record<string, { symbol?: string }>) {
+  view: { checklist: boolean }, renderNationalView: () => void, setInfo: Record<string, { symbol?: string }>,
+  pricing: { openPrinting(target: PricingTarget): void; bindersChanged(): void }) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),
@@ -138,7 +140,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       target = scope,
       save = await store.read(target);
     if (ticket !== readVersion || target !== scope) return;
+    const changed = !sameSave(state, save.state);
     state = save.state;
+    if (changed) pricing.bindersChanged();
     ready = true;
     node("master-conflict").hidden = !save.conflict;
     node("master-message").textContent =
@@ -190,6 +194,18 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         symbol: setInfo[b.setId]?.symbol, goal: b.goal, progress: { status: "loading" },
       } : undefined;
       if (row) overviewRows.push(row);
+      if (row) {
+        if (!b.owned.length) row.value = valueBinder(b);
+        else void marketPrices(b.setId).then(prices => {
+          if (ticket !== renderVersion) return;
+          row.value = valueBinder(b, prices);
+          scheduleOverviewUpdate();
+        }).catch(() => {
+          if (ticket !== renderVersion) return;
+          row.value = valueBinder(b);
+          scheduleOverviewUpdate();
+        });
+      }
       const updateProgress = () => {
         const { owned, ordered, required } = progress(b);
         option.text = b.name + " · " + owned + "/" + required.length;
@@ -244,6 +260,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("missing-list-controls").hidden = !ready || !hasBinders || showOverview;
     node("national-add").hidden = hasDex;
     node("export-cards").hidden = !state.binders.length;
+    node("buy-cards-open").hidden = !state.binders.length;
     const national = node("national-workspace");
     const openingNational = showDex && national.hidden;
     national.hidden = !showDex;
@@ -357,7 +374,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
     detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(set?.code || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(selected.finish)}</p></div></div>
       <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
-      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label>${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}</div>`;
+      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label><div class="dex-actions">${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}
+      ${selected.category === "Extra" ? "" : '<button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button>'}</div></div>`;
     if (focused && document.activeElement === document.body) document.getElementById(focused)?.focus({preventScroll:true});
   }
   async function specialties() {
@@ -544,6 +562,16 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (event.target instanceof HTMLImageElement) event.target.hidden = true;
   },true);
   node("master-workspace").addEventListener("click", async event => {
+    const element = event.target as Element;
+    if (element.closest("#set-card-prices")) {
+      const binder = active(), set = sets.find(item => item.id === binder?.setId);
+      const printing = binder && progress(binder).all.find(slot => slot.key === selectedKey);
+      if (set && printing && printing.category !== "Extra") pricing.openPrinting({
+        setId: set.id, setName: set.name, number: printing.number, name: printing.name, finish: printing.finish,
+        variant: printing.key.slice(printing.key.indexOf(":") + 1),
+      });
+      return;
+    }
     const order = (event.target as Element).closest<HTMLButtonElement>("[data-set-order]");
     if (order) {
       order.disabled = true;

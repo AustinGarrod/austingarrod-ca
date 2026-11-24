@@ -20,6 +20,11 @@ import { ArrowRight } from "@lucide/astro";
       </div>
       <progress id="set-overview-progress" aria-label="Overall set completion"></progress>
     </div>
+    <div class="set-overview-value" data-market-value>
+      <span class="dex-label">Estimated set binder value</span>
+      <strong data-value-amount></strong>
+      <small data-value-coverage></small>
+    </div>
     <div class="set-overview-feedback">
       <p id="set-overview-status" role="status"></p>
       <button id="set-overview-retry" type="button" hidden>Retry loading sets</button>
@@ -51,6 +56,11 @@ import { ArrowRight } from "@lucide/astro";
           <progress></progress>
         </div>
         <p class="set-overview-card-status" hidden></p>
+        <div class="set-overview-value" data-market-value>
+          <span class="dex-label">Estimated binder value</span>
+          <strong data-value-amount></strong>
+          <small data-value-coverage></small>
+        </div>
       </div>
       <footer><button type="button" data-overview-binder>Open binder <ArrowRight size={16} aria-hidden="true" /></button></footer>
     </article>

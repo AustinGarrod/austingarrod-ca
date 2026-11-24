@@ -1,0 +1,72 @@
+---
+import { ExternalLink, ShoppingBag } from "@lucide/astro";
+---
+<dialog id="card-pricing-dialog" class="dex-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="card-pricing-title">
+  <header class="dex-section-heading">
+    <h2 id="card-pricing-title">Card prices</h2>
+    <button type="button" data-close-dialog aria-label="Close card prices">×</button>
+  </header>
+  <div class="dex-price-card">
+    <img id="card-pricing-image" width="88" height="123" alt="" hidden />
+    <div>
+      <p id="card-pricing-identity" class="dex-label"></p>
+      <p id="card-pricing-finish"></p>
+      <label id="card-pricing-variants" hidden>Printing
+        <select id="card-pricing-variant"></select>
+      </label>
+    </div>
+  </div>
+  <p id="card-pricing-status" role="status"></p>
+  <div id="card-pricing-exact" hidden>
+    <section class="dex-pricing-section" aria-labelledby="card-market-heading">
+      <div class="dex-section-heading">
+        <h3 id="card-market-heading">Market estimate</h3>
+        <a href="https://www.cardmarket.com/en/Pokemon/Products" target="_blank" rel="noopener noreferrer"
+          data-umami-event="outbound-link-click" data-umami-event-destination="cardmarket" aria-label="Cardmarket (opens in new tab)">
+          Cardmarket <ExternalLink size={13} aria-hidden="true" />
+        </a>
+      </div>
+      <p id="card-market-current" class="dex-market-value" role="status"></p>
+      <p id="card-market-date" class="dex-help"></p>
+      <label for="card-market-range">Price history
+        <select id="card-market-range"><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+      </label>
+      <p id="card-market-history-status" role="status"></p>
+      <div id="card-market-chart-region" class="dex-market-chart" hidden>
+        <canvas id="card-market-chart" role="img" aria-label="Cardmarket price history in Canadian dollars"></canvas>
+        <label for="card-market-point">Explore recorded prices
+          <input id="card-market-point" type="range" min="0" max="1" value="0" />
+        </label>
+        <output id="card-market-point-value" for="card-market-point" aria-live="polite"></output>
+      </div>
+    </section>
+    <section class="dex-pricing-section" aria-labelledby="card-retail-heading">
+      <div class="dex-section-heading">
+        <h3 id="card-retail-heading"><ShoppingBag size={17} aria-hidden="true" /> Canadian stores</h3>
+        <button id="card-retail-refresh" type="button">Refresh offers</button>
+      </div>
+      <p class="dex-help">Online availability · Prices before shipping and tax</p>
+      <p id="card-retail-status" role="status"></p>
+      <ul id="card-retail-offers" class="dex-retail-offers"></ul>
+    </section>
+  </div>
+  <div class="dex-dialog-actions">
+    <button id="card-pricing-back" type="button" hidden>Back to Buy Cards</button>
+    <button type="button" data-close-dialog>Done</button>
+  </div>
+</dialog>
+
+<dialog id="buy-cards-dialog" class="dex-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="buy-cards-title">
+  <header class="dex-section-heading">
+    <h2 id="buy-cards-title">Buy Cards</h2>
+    <button type="button" data-close-dialog aria-label="Close Buy Cards">×</button>
+  </header>
+  <div class="dex-form-grid">
+    <label>Set binders <select id="buy-cards-scope"></select></label>
+    <label>Find a missing card <input id="buy-cards-filter" type="search" autocomplete="off" /></label>
+  </div>
+  <p class="dex-help">Compare in-stock offers from 401 Games, Deck Out Gaming, and Skyfox Games in Oshawa.</p>
+  <p id="buy-cards-status" role="status"></p>
+  <ul id="buy-cards-list" class="dex-buy-cards-list"></ul>
+  <button id="buy-cards-more" type="button" hidden>Show more cards</button>
+</dialog>

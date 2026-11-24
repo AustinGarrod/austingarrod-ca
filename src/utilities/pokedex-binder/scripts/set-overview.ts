@@ -1,3 +1,5 @@
+import { cad, calendarDate, sumBinderValues, type BinderValue } from "../lib/pricing";
+
 export type OverviewProgress =
   | { status: "ready"; owned: number; ordered: number; required: number }
   | { status: "loading" | "error" };
@@ -10,6 +12,7 @@ export interface OverviewBinder {
   symbol?: string;
   goal: "numbers" | "variants";
   progress: OverviewProgress;
+  value?: BinderValue;
 }
 
 const counts = new Intl.NumberFormat("en-CA");
@@ -30,6 +33,14 @@ function showProgress(container: HTMLElement, progress: OverviewProgress) {
   bar.max = required || 1;
   bar.value = owned;
   bar.setAttribute("aria-valuetext", `${counts.format(owned)} of ${counts.format(required)} required cards owned`);
+}
+
+function showValue(container: HTMLElement, value?: BinderValue) {
+  const amount = container.querySelector("[data-value-amount]")!;
+  const coverage = container.querySelector("[data-value-coverage]")!;
+  amount.textContent = value ? (value.priced || !value.collected ? cad(value.cents) + " CAD" : "Price unavailable") : "Loading…";
+  coverage.textContent = value ? `${counts.format(value.priced)} of ${counts.format(value.collected)} collected cards priced`
+    + (value.asOf && value.priced && Number.isFinite(Date.parse(value.asOf)) ? " · Cardmarket · " + calendarDate(value.asOf) : "") : "";
 }
 
 function overallProgress(rows: readonly OverviewBinder[]): OverviewProgress {
@@ -56,6 +67,7 @@ export function renderSetOverview(rows: readonly OverviewBinder[]) {
     `${counts.format(rows.length)} ${rows.length === 1 ? "set binder" : "set binders"}`;
   const total = overallProgress(rows);
   showProgress(totals, total);
+  showValue(totals, rows.every(row => row.value !== undefined) ? sumBinderValues(rows.map(row => row.value!)) : undefined);
 
   const feedback = totals.querySelector<HTMLElement>(".set-overview-feedback")!;
   const status = document.getElementById("set-overview-status")!;
@@ -95,6 +107,7 @@ export function renderSetOverview(rows: readonly OverviewBinder[]) {
     open.setAttribute("aria-label", "Open binder " + row.name);
     card.querySelector("progress")!.setAttribute("aria-label", row.name + " completion");
     showProgress(card, row.progress);
+    showValue(card, row.value);
     const cardStatus = card.querySelector<HTMLElement>(".set-overview-card-status")!;
     cardStatus.hidden = row.progress.status === "ready";
     cardStatus.textContent = row.progress.status === "error" ? "Set checklist could not load."

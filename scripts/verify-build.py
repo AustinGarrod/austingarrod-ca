@@ -182,6 +182,9 @@ if scanner_manifest.is_file():
 check((scanner_assets / "ATTRIBUTION.txt").is_file(), "Missing scanner attribution")
 check((DIST / "utilities/pokedex-binder/catalog/scan-index.json").is_file(), "Missing scanner name index")
 check((DIST / "utilities/pokedex-binder/catalog/tcgplayer-products.json").is_file(), "Missing TCGplayer Product ID crosswalk")
+check((DIST / "utilities/pokedex-binder/catalog/cardmarket-printings.json").is_file(), "Missing Cardmarket printing crosswalk")
+check((DIST / "utilities/pokemon-binder/catalog/cards.json").is_file(), "Missing Pokémon Binder card search index")
+check((DIST / "utilities/pokemon-binder/shopify-profile.json").is_file(), "Missing Pokémon Binder Shopify profile")
 master_catalog = DIST / "utilities/pokedex-binder/catalog/master-sets"
 master_index = json.loads((master_catalog / "index.json").read_text(encoding="utf-8"))
 for entry in master_index:
@@ -199,7 +202,10 @@ check("/utilities/pokemon-binder/" in route_file("/utilities/pokedex-binder/").r
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
-    "/utilities/pokemon-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content"],
+    "/utilities/pokemon-binder/": [
+        "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
+        "catalog-search-dialog", "card-pricing-dialog", "buy-cards-dialog",
+    ],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
@@ -506,6 +512,8 @@ for config, filename in [
     ("utilities/radius-map/api/.htaccess", "geocode.php"),
     ("utilities/pokedex-binder/api/.htaccess", "binder.php"),
     ("utilities/pokedex-binder/api/.htaccess", "reports.php"),
+    ("utilities/pokemon-binder/api/.htaccess", "market.php"),
+    ("utilities/pokemon-binder/api/.htaccess", "offers.php"),
 ]:
     config_path = DIST / config
     handler = f'<Files "{filename}">\n  SetHandler application/x-httpd-alt-php84___lsphp\n</Files>'
@@ -513,6 +521,13 @@ for config, filename in [
         config_path.is_file() and handler in config_path.read_text(encoding="utf-8"),
         f"Missing scoped HostPapa PHP 8.4 handler for {filename} in {config}",
     )
+
+pricing_api = DIST / "utilities/pokemon-binder/api"
+for filename in ("market.php", "offers.php", "_market.php", "_offers.php"):
+    check((pricing_api / filename).is_file(), f"Missing Pokémon Binder pricing file {filename}")
+if (pricing_api / ".htaccess").is_file():
+    check('^_.*\\.php$">\n  Require all denied' in (pricing_api / ".htaccess").read_text(encoding="utf-8"),
+          "Pokémon Binder pricing helpers must be private")
 
 geocode_path = DIST / "utilities" / "radius-map" / "api" / "geocode.php"
 check(geocode_path.is_file(), "Missing Radius Map PHP geocoder")

@@ -4,3 +4,4 @@ Species metadata: PokéAPI (https://pokeapi.co/). Card metadata: TCGdex (https:/
 Species sprites: PokeAPI/sprites (https://github.com/PokeAPI/sprites). See the accompanying license notices.
 Card coverage reflects the pinned catalog snapshot and may be incomplete. National Dex ownership is tracked by species. Set binders track card numbers and printings.
 TCGplayer Product ID crosswalk: matched using public catalog metadata supplied by TCGCSV (https://tcgcsv.com/).
+Market estimates: Cardmarket public Pokémon price guide (https://www.cardmarket.com/en/Pokemon/Data/Price-Guide) converted with Bank of Canada exchange rates (https://www.bankofcanada.ca/rates/exchange/daily-exchange-rates/).
