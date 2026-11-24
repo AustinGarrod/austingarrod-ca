@@ -1,5 +1,6 @@
 import { setSlots, type SetBinder, type SetCard, type SetSummary } from "./master";
 import { normalizeSearch } from "./model";
+import { numberKey } from "./transfer-identity";
 
 export interface PricingTarget {
   setId: string;
@@ -23,7 +24,11 @@ export interface RetailOffer {
   checkedAt: string;
   url: string;
 }
-export interface RetailOffers { offers: RetailOffer[]; unavailableStores: string[] }
+export interface RetailOffers {
+  offers: RetailOffer[];
+  unavailableStores: string[];
+  checkedStores?: Record<string, string>;
+}
 export interface BinderValue { cents: number; priced: number; collected: number; asOf: string | null }
 
 const formatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", currencyDisplay: "symbol" });
@@ -76,16 +81,24 @@ export function groupBuyingEntries(targets: readonly PricingTarget[]): BuyingEnt
 }
 
 export function matchesBuyingEntry({ target }: BuyingEntry, query: string) {
-  const words = query.trim().split(/\s+/).map(normalizeSearch).filter(Boolean);
+  const words = query.trim().replace(/\s*\/\s*/g, "/").split(/\s+/);
   const fields = [target.setName, target.setId, target.number, target.name, target.finish].map(normalizeSearch);
-  return words.every(word => fields.some(field => field.includes(word)));
+  return words.every(word => {
+    const collector = word.match(/^#?([a-z]*\d+[a-z]*)(?:\/[a-z]*\d+[a-z]*)?$/i);
+    if (collector && numberKey(collector[1]) === numberKey(target.number)) return true;
+    const normalized = normalizeSearch(word);
+    return fields.some(field => field.includes(normalized));
+  });
+}
+
+export function freshOfferCheck(checkedAt: string, now: number) {
+  const age = now - Date.parse(checkedAt);
+  return age >= -60_000 && age < offerLifetime;
 }
 
 export function freshOffers(offers: readonly RetailOffer[], now: number) {
-  return offers.filter(offer => {
-    const age = now - Date.parse(offer.checkedAt);
-    return age >= -60_000 && age < offerLifetime;
-  }).sort((a, b) => a.conditionRank - b.conditionRank || a.priceCents - b.priceCents || a.store.localeCompare(b.store));
+  return offers.filter(offer => freshOfferCheck(offer.checkedAt, now))
+    .sort((a, b) => a.conditionRank - b.conditionRank || a.priceCents - b.priceCents || a.store.localeCompare(b.store));
 }
 
 const api = "/utilities/pokemon-binder/api/";

@@ -8,6 +8,30 @@ assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname)
 await mkdir('output/pokedex-checklist', { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
 
+async function checkControlSizing(page) {
+  const viewport = page.viewportSize();
+  for (const width of [320, 390, 820, 1440]) {
+    await page.setViewportSize({ width, height: viewport.height });
+    const controls = await page.locator([
+      '#master-switch', '#set-overview-open', '#master-workspace .dex-search',
+      '#master-status', '#master-add-extra', '#master-view-binder', '#master-view-checklist',
+      '#master-page-prev', '#master-page-select', '#master-page-next',
+      '#position-list', '#export-scope', '#export-csv', '#print-missing',
+    ].join(', ')).evaluateAll(nodes => nodes.map(node => {
+      const { width, height } = node.getBoundingClientRect();
+      return { id: node.id || 'binder search', width, height };
+    }));
+    for (const control of controls) {
+      assert.ok(Math.abs(control.height - 44) < 1, `${control.id} is ${control.height}px tall at ${width}px`);
+      assert.ok(control.width >= 44, `${control.id} is at least 44px wide at ${width}px`);
+    }
+    const widthOf = id => controls.find(control => control.id === id).width;
+    assert.ok(Math.abs(widthOf('master-view-binder') - widthOf('master-view-checklist')) < 1, 'Binder view toggles share the available width');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `No control overflow at ${width}px`);
+  }
+  await page.setViewportSize(viewport);
+}
+
 async function checkSetChecklist(page, width) {
   await page.locator('#view-binder').click();
   await page.locator('#set-overview-open').click();
@@ -20,6 +44,9 @@ async function checkSetChecklist(page, width) {
   await page.getByRole('button', { name: 'Save binder' }).click();
   await expect(page.locator('#master-editor')).toBeHidden();
   const workspace = page.locator('#master-workspace');
+  await workspace.getByRole('button', { name: 'Binder', exact: true }).click();
+  await expect(page.locator('#master-page-heading')).toHaveText('Page 1');
+  await checkControlSizing(page);
   await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
   const rows = workspace.locator('.dex-checklist-row');
   const sort = workspace.getByLabel('Sort checklist');

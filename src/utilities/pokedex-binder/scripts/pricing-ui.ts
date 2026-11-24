@@ -1,10 +1,10 @@
 import type { MasterState, SetCard, SetSummary } from "../lib/master";
 import {
-  cad, calendarDate, freshOffers, groupBuyingEntries, marketPrices, matchesBuyingEntry,
-  missingPrintings, offerLifetime, pricingRequest, type BuyingEntry, type PriceHistory,
+  cad, calendarDate, freshOffers, marketPrices, offerLifetime, pricingRequest, type PriceHistory,
   type PricingTarget, type RetailOffers,
 } from "../lib/pricing";
 import { escape } from "./binder-pages";
+import { createBuyCards } from "./buy-cards";
 import { createPriceChart } from "./price-chart";
 
 interface Options {
@@ -17,11 +17,10 @@ const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getEl
 const select = (id: string) => node<HTMLSelectElement>(id);
 const dialog = (id: string) => node<HTMLDialogElement>(id);
 const button = (id: string) => node<HTMLButtonElement>(id);
-const choiceCount = 24;
 const offerTime = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" });
 
 export function createPricingUI(options: Options) {
-  const prices = dialog("card-pricing-dialog"), buy = dialog("buy-cards-dialog");
+  const prices = dialog("card-pricing-dialog");
   const variant = select("card-pricing-variant"), range = select("card-market-range");
   const region = node("card-market-chart-region");
   const drawChart = createPriceChart(node<HTMLCanvasElement>("card-market-chart"),
@@ -87,7 +86,7 @@ export function createPricingUI(options: Options) {
     }
   }
 
-  async function loadOffers() {
+  async function loadOffers(refresh = false) {
     cancelOffers();
     const version = cardVersion, ticket = retailVersion, controller = new AbortController();
     offerRequest = controller;
@@ -96,7 +95,10 @@ export function createPricingUI(options: Options) {
     retailerStatus.textContent = "Checking Canadian stores…";
     refreshOffers.disabled = true;
     try {
-      const data = await pricingRequest<RetailOffers>("offers", query(), AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]));
+      const printing = target!;
+      const previous = refresh ? undefined : dashboard.recentOffers(printing);
+      const data = previous ?? await pricingRequest<RetailOffers>("offers", query(), AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]));
+      if (current() && !previous) dashboard.recordOffers(printing, data);
       function show() {
         if (!current()) return;
         const now = Date.now(), offers = freshOffers(data.offers, now).filter(offer => {
@@ -158,7 +160,6 @@ export function createPricingUI(options: Options) {
     else image.removeAttribute("src");
     range.value = "30";
     node("card-pricing-status").textContent = exact() ? "" : "Loading printings…";
-    if (fromBuy && buy.open) buy.close();
     if (!prices.open) prices.showModal();
     showPrinting();
     const version = cardVersion;
@@ -199,95 +200,29 @@ export function createPricingUI(options: Options) {
     showPrinting();
   });
   range.addEventListener("change", () => { if (exact()) void loadHistory(); });
-  refreshOffers.addEventListener("click", () => { if (exact()) void loadOffers(); });
+  refreshOffers.addEventListener("click", () => { if (exact()) void loadOffers(true); });
   prices.addEventListener("close", () => {
-    if (!prices.open) { cardVersion++; cancelOffers(); }
-  });
-
-  const scopeSelect = select("buy-cards-scope"), filter = node<HTMLInputElement>("buy-cards-filter");
-  const more = button("buy-cards-more"), buyStatus = node("buy-cards-status"), list = node("buy-cards-list");
-  let entries: BuyingEntry[] = [], matching: BuyingEntry[] = [], limit = choiceCount, buyVersion = 0;
-  let checklistErrors = 0, loading = false;
-  function drawBuy() {
-    matching = entries.filter(row => matchesBuyingEntry(row, filter.value));
-    more.hidden = matching.length <= limit;
-    const cards = matching.reduce((count, row) => count + row.copies, 0);
-    const summary = cards ? `${cards.toLocaleString()} ${cards === 1 ? "card" : "cards"} still to find`
-      : entries.length ? "No missing cards match this search." : "No catalog cards still to find.";
-    buyStatus.textContent = summary + (checklistErrors ? " Some set checklists couldn’t load." : "");
-    list.innerHTML = matching.slice(0, limit).map(({ target, copies }, index) =>
-      `<li><div><strong>${escape(target.name)}</strong><span>${escape(target.setName)} · #${escape(target.number)} · ${escape(target.finish)}${copies > 1 ? " · " + copies + " needed" : ""}</span></div>
-      <button type="button" data-buy-card="${index}" aria-label="Compare offers for ${escape(target.name)} #${escape(target.number)} ${escape(target.finish)}">Compare offers</button></li>`).join("");
-  }
-  async function loadBuy(preferred: string) {
-    const ticket = ++buyVersion;
-    const current = () => buy.open && ticket === buyVersion;
-    entries = [];
-    matching = [];
-    list.replaceChildren();
-    more.hidden = true;
-    scopeSelect.disabled = filter.disabled = true;
-    loading = true;
-    buyStatus.textContent = "Checking which cards are missing…";
-    try {
-      const state = await options.binders();
-      if (!current()) return;
-      scopeSelect.replaceChildren(new Option("All set binders", ""), ...state.binders.map(binder => new Option(binder.name, binder.id)));
-      scopeSelect.value = state.binders.some(binder => binder.id === preferred) ? preferred : "";
-      const selected = state.binders.filter(binder => !scopeSelect.value || binder.id === scopeSelect.value);
-      const catalog = options.collection();
-      const results = await Promise.allSettled(selected.map(async binder => {
-        const set = catalog.sets.find(item => item.id === binder.setId);
-        if (!set) throw new Error("Set catalog unavailable.");
-        return missingPrintings(binder, set, await catalog.cards(binder.setId));
-      }));
-      if (!current()) return;
-      checklistErrors = results.filter(result => result.status === "rejected").length;
-      entries = groupBuyingEntries(results.flatMap(result => result.status === "fulfilled" ? result.value : []));
-      drawBuy();
-    } catch {
-      if (current()) buyStatus.textContent = "The binders could not load. Close this view and try again.";
-    } finally {
-      if (current()) { scopeSelect.disabled = filter.disabled = false; loading = false; }
+    if (prices.open) return;
+    cardVersion++;
+    cancelOffers();
+    if (returnToBuy) {
+      returnToBuy = false;
+      void dashboard.reopen();
     }
-  }
+  });
 
-  button("buy-cards-open").addEventListener("click", () => {
-    filter.value = "";
-    limit = choiceCount;
-    buy.showModal();
-    void loadBuy(options.selected());
-  });
-  button("card-pricing-back").addEventListener("click", () => {
-    if (!returnToBuy) return;
-    prices.close();
-    buy.showModal();
-    void loadBuy(scopeSelect.value);
-  });
-  buy.addEventListener("close", () => { if (!buy.open) { buyVersion++; loading = false; } });
-  scopeSelect.addEventListener("change", () => { limit = choiceCount; void loadBuy(scopeSelect.value); });
-  filter.addEventListener("input", () => { limit = choiceCount; if (!loading) drawBuy(); });
-  more.addEventListener("click", () => { limit += choiceCount; drawBuy(); });
-  list.addEventListener("click", event => {
-    const button = (event.target as Element).closest<HTMLButtonElement>("[data-buy-card]");
-    if (!button) return;
-    const row = matching[Number(button.dataset.buyCard)];
-    if (row) openPrinting(row.target, true);
-  });
+  const dashboard = createBuyCards({ ...options, inspect: printing => openPrinting(printing, true) });
+  button("card-pricing-back").addEventListener("click", () => prices.close());
 
   return {
     openPrinting,
-    bindersChanged() { if (buy.open) void loadBuy(scopeSelect.value); },
+    bindersChanged: dashboard.bindersChanged,
     scopeChanged() {
-      buyVersion++;
       cardVersion++;
       cancelOffers();
       returnToBuy = false;
-      buy.close();
       prices.close();
-      entries = matching = [];
-      list.replaceChildren();
-      scopeSelect.replaceChildren();
+      dashboard.scopeChanged();
     },
   };
 }

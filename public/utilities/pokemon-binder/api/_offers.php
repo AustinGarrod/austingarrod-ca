@@ -252,6 +252,8 @@ function binder_offer_rows(array $target, array $store, array $products, int $ch
             || !preg_match('/^\/products\/[a-zA-Z0-9_-]+\/?$/D', $url['path'] ?? '')) {
             continue;
         }
+        parse_str($url['query'] ?? '', $query);
+        $attribution = array_filter(array_intersect_key($query, ['shcgid' => true, 'shclid' => true]), 'is_string');
         foreach (is_array($product['variants'] ?? null) ? $product['variants'] : [] as $variant) {
             if (!is_array($variant) || ($variant['availability']['available'] ?? false) !== true
                 || ($variant['price']['currency'] ?? '') !== 'CAD' || !is_int($variant['price']['amount'] ?? null)
@@ -261,9 +263,13 @@ function binder_offer_rows(array $target, array $store, array $products, int $ch
             $condition = binder_offer_condition($variant);
             if ($condition !== null) {
                 $productUrl = 'https://' . $url['host'] . $url['path'];
+                $parameters = $attribution;
                 $variantId = $variant['id'] ?? '';
                 if (is_string($variantId) && preg_match('/^gid:\/\/shopify\/ProductVariant\/([0-9]{1,20})$/D', $variantId, $id)) {
-                    $productUrl .= '?variant=' . $id[1];
+                    $parameters['variant'] = $id[1];
+                }
+                if ($parameters) {
+                    $productUrl .= '?' . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
                 }
                 $offers[] = [
                     'store' => $store['name'],
@@ -425,40 +431,60 @@ function binder_offer_rate_allowed(int $now): bool
     }
 }
 
+function binder_offer_result(array $checks): array
+{
+    $offers = [];
+    $unavailable = [];
+    $checked = [];
+    foreach (BINDER_OFFER_STORES as $store) {
+        $check = $checks[$store['host']] ?? null;
+        if ($check === null) {
+            $unavailable[] = $store['name'];
+            continue;
+        }
+        // A cache hit must report when the store was checked, including for an empty result.
+        $checked[$store['name']] = gmdate(DATE_ATOM, $check['expiresAt'] - BINDER_OFFER_TTL);
+        array_push($offers, ...$check['offers']);
+    }
+    usort($offers, static fn(array $left, array $right): int =>
+        [$left['conditionRank'], $left['priceCents'], $left['store']] <=> [$right['conditionRank'], $right['priceCents'], $right['store']]);
+    return [
+        'offers' => array_values(array_unique($offers, SORT_REGULAR)),
+        'unavailableStores' => $unavailable,
+        'checkedStores' => (object) $checked,
+    ];
+}
+
 function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFILE): array
 {
     if (!preg_match('/^(?:normal|holo|reverse)(?:\+|$)/', $target['variant']['id'])) {
-        return ['offers' => [], 'unavailableStores' => []];
+        return ['offers' => [], 'unavailableStores' => [], 'checkedStores' => (object) []];
     }
     $useCache = $profile === BINDER_OFFER_PROFILE && function_exists('apcu_enabled') && apcu_enabled();
     $key = hash('sha256', implode('|', [$target['set']['digest'], $target['card']['number'], $target['variant']['id']]));
     $fresh = time();
-    $offers = [];
+    $checks = [];
     $lookup = [];
     foreach (BINDER_OFFER_STORES as $store) {
         $cacheKey = 'pokemon-binder-offers:v1:' . $store['host'] . ':' . $key;
         $cached = $useCache ? apcu_fetch($cacheKey) : false;
         if (is_array($cached) && $cached['expiresAt'] > $fresh) {
-            array_push($offers, ...$cached['offers']);
+            $checks[$store['host']] = $cached;
         } else {
             $lookup[$cacheKey] = $store;
         }
     }
-    $unavailable = [];
     $results = $lookup && binder_offer_rate_allowed($fresh) ? binder_offer_fetch($lookup, binder_offer_query($target), $profile) : [];
     foreach ($lookup as $cacheKey => $store) {
         $rows = $results[$store['host']] ?? null;
         if ($rows === null) {
-            $unavailable[] = $store['name'];
             continue;
         }
-        $matches = binder_offer_rows($target, $store, $rows, $fresh);
+        $check = ['offers' => binder_offer_rows($target, $store, $rows, $fresh), 'expiresAt' => $fresh + BINDER_OFFER_TTL];
+        $checks[$store['host']] = $check;
         if ($useCache) {
-            apcu_store($cacheKey, ['offers' => $matches, 'expiresAt' => $fresh + BINDER_OFFER_TTL], BINDER_OFFER_TTL);
+            apcu_store($cacheKey, $check, BINDER_OFFER_TTL);
         }
-        array_push($offers, ...$matches);
     }
-    usort($offers, static fn(array $left, array $right): int =>
-        [$left['conditionRank'], $left['priceCents'], $left['store']] <=> [$right['conditionRank'], $right['priceCents'], $right['store']]);
-    return ['offers' => array_values(array_unique($offers, SORT_REGULAR)), 'unavailableStores' => $unavailable];
+    return binder_offer_result($checks);
 }

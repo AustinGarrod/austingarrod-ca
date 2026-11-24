@@ -1,5 +1,7 @@
 ---
 import { ExternalLink, ShoppingBag } from "@lucide/astro";
+import { buyingStores } from "../utilities/pokedex-binder/lib/buying-offers";
+import "../styles/pokedex-buying.css";
 ---
 <dialog id="card-pricing-dialog" class="dex-dialog dex-collection-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="card-pricing-title">
   <header class="dex-dialog-header">
@@ -56,17 +58,57 @@ import { ExternalLink, ShoppingBag } from "@lucide/astro";
   </div>
 </dialog>
 
-<dialog id="buy-cards-dialog" class="dex-dialog dex-collection-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="buy-cards-title">
+<dialog id="buy-cards-dialog" class="dex-dialog dex-collection-dialog dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="buy-cards-title">
   <header class="dex-dialog-header">
     <h2 id="buy-cards-title">Buy Cards</h2>
     <button type="button" data-close-dialog aria-label="Close Buy Cards">×</button>
   </header>
-  <div class="dex-form-grid">
-    <label>Set binders <select id="buy-cards-scope"></select></label>
-    <label>Find a missing card <input id="buy-cards-filter" type="search" autocomplete="off" /></label>
+  <div class="dex-buying-filters">
+    <label class="dex-buying-search">Find a missing card
+      <input id="buy-cards-filter" type="search" placeholder="Name, set, or collector number" autocomplete="off" />
+    </label>
+    <label>Set binders <select id="buy-cards-scope"><option value="">All binders</option></select></label>
+    <label>Finish <select id="buy-cards-finish"><option value="">All finishes</option></select></label>
+    <label>Availability
+      <select id="buy-cards-availability">
+        <option value="">Any status</option><option value="stock">In stock</option>
+        <option value="unchecked">Unchecked</option><option value="none">No offers</option>
+        <option value="unavailable">Unavailable</option>
+      </select>
+    </label>
+    <label>Sort by
+      <select id="buy-cards-sort">
+        <option value="binder">Binder order</option><option value="name">Card name</option>
+        <option value="market">Market price ↑</option><option value="retail">Store price ↑</option>
+      </select>
+    </label>
   </div>
-  <p class="dex-help">Compare in-stock offers from 401 Games, Deck Out Gaming, and Skyfox Games in Oshawa.</p>
-  <p id="buy-cards-status" role="status"></p>
-  <ul id="buy-cards-list" class="dex-buy-cards-list"></ul>
-  <button id="buy-cards-more" type="button" hidden>Show more cards</button>
+  <details id="buy-cards-offer-filters" class="dex-buying-refine">
+    <summary>Store, price, and condition</summary>
+    <div class="dex-buying-filters">
+      <label>Store <select id="buy-cards-store">
+        <option value="">All stores</option>{buyingStores.map(name => <option>{name}</option>)}
+      </select></label>
+      <label>Maximum price (CAD) <input id="buy-cards-max-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Any price" /></label>
+      <label>Minimum condition <select id="buy-cards-condition">
+        <option value="">Any condition</option><option value="0">Near Mint</option><option value="1">Lightly Played</option>
+        <option value="2">Moderately Played</option><option value="3">Heavily Played</option>
+      </select></label>
+    </div>
+  </details>
+  <p class="dex-help">Required cards from your set binders, excluding cards already ordered. Store prices are in CAD before shipping and tax.</p>
+  <div class="dex-buying-summary">
+    <p id="buy-cards-status" role="status"></p>
+    <div class="dex-actions">
+      <button id="buy-cards-clear" class="dex-quiet" type="button" hidden>Clear filters</button>
+      <button id="buy-cards-check" class="dex-primary" type="button" disabled>Check this page</button>
+    </div>
+  </div>
+  <p id="buy-cards-progress" role="status"></p>
+  <ul id="buy-cards-list" class="dex-buying-list" aria-label="Missing cards and offers"></ul>
+  <nav id="buy-cards-pages" class="dex-buying-pages" aria-label="Missing card pages" hidden>
+    <button id="buy-cards-prev" type="button">Previous</button>
+    <span id="buy-cards-page"></span>
+    <button id="buy-cards-next" type="button">Next</button>
+  </nav>
 </dialog>

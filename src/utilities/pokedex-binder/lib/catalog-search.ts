@@ -84,7 +84,7 @@ export function searchCards(index: ReturnType<typeof createCardIndex>, input: st
   return matches.sort((a, b) => a.rank - b.rank).map(({ result }) => result);
 }
 
-export function catalogArtwork(set: CatalogSearchSet, number: string): string | null {
+export function catalogArtwork(set: Pick<SetSummary, "id" | "artwork">, number: string): string | null {
   return set.artwork && !set.artwork.missing.includes(number)
     ? "https://assets.tcgdex.net/en/" + [set.artwork.series, set.id, number].map(encodeURIComponent).join("/") + "/low.webp"
     : null;

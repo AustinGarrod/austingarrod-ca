@@ -48,6 +48,13 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     }]);
   });
 
+  it("keeps Shopify attribution when linking to the matched variant", () => {
+    const [offer] = offers([{
+      ...store401, url: store401.url + "?shcgid=group%2F1&variant=999&shclid=click%261&utm_source=extra#fragment",
+    }]);
+    expect(offer.url).toBe(store401.url + "?shcgid=group%2F1&shclid=click%261&variant=12345");
+  });
+
   it("recognizes the Deck Out and Skyfox formats for an unlimited holo card", () => {
     const vintage = { set: "base5", number: "9", variant: "holo" };
     const heavierPlay = { ...printing, title: "Heavily Played Holofoil", options: [{ name: "Title", label: "Heavily Played Holofoil" }] };
@@ -111,5 +118,28 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     expect(runPhp("binder_offer_products($input)", `event: message\r\ndata: ${valid}\r\n\r\n`)).toEqual([store401]);
     expect(runPhp("binder_offer_products($input)", JSON.stringify({ result: { isError: true } }))).toBeNull();
     expect(runPhp("binder_offer_products($input)", JSON.stringify({ result: { structuredContent: { ucp: { status: "partial" }, products: [store401] } } }))).toBeNull();
+  });
+
+  it("reports original check times even for stores with no offers", () => {
+    const [offer] = offers([store401]);
+    const result = runPhp(`binder_offer_result(array_map(static fn(array $check): array => [
+      'expiresAt' => $check['checkedAt'] + BINDER_OFFER_TTL, 'offers' => $check['offers'],
+    ], $input))`, {
+      "store.401games.ca": { checkedAt: 1771000000, offers: [offer, offer] },
+      "deckoutgaming.ca": { checkedAt: 1770999700, offers: [] },
+    });
+    expect(result).toEqual({
+      offers: [offer],
+      unavailableStores: ["Skyfox Games"],
+      checkedStores: {
+        "401 Games": offer.checkedAt,
+        "Deck Out Gaming": new Date(1770999700 * 1000).toISOString().replace(".000Z", "+00:00"),
+      },
+    });
+    expect(runPhp("binder_offer_result([])")).toEqual({
+      offers: [],
+      unavailableStores: ["401 Games", "Deck Out Gaming", "Skyfox Games"],
+      checkedStores: {},
+    });
   });
 });

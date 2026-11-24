@@ -25,13 +25,8 @@
   overflow-wrap: anywhere;
 }
 
-.dex-collection-dialog :is(button, select, .dex-file-label) {
-  min-height: 44px;
-  font-size: 13px;
-}
-
 .dex-collection-dialog .dex-dialog-header button {
-  flex: 0 0 44px;
+  flex: 0 0 var(--dex-control-height);
   padding: 0;
   border-color: transparent;
   font-size: 22px;
@@ -78,7 +73,6 @@
 
 .dex-collection-dialog :is(input:not([type="file"], [type="checkbox"]), select) {
   margin: 5px 0 0;
-  min-height: 44px;
 }
 
 .dex-collection-dialog .dex-form-grid {
@@ -234,6 +228,7 @@
 }
 
 .pokedex-page .dex-collection-dialog input[type="range"] {
+  min-height: var(--dex-control-height);
   padding: 0;
   border: 0;
   background: transparent;

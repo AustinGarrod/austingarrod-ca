@@ -1,0 +1,203 @@
+.dex-dialog.dex-buying-dashboard {
+  width: min(1120px, calc(100vw - 32px));
+}
+
+.dex-buying-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.dex-buying-dashboard .dex-buying-filters label {
+  min-width: 0;
+  margin: 0;
+}
+
+.dex-buying-refine {
+  margin-top: 12px;
+  border-block: 1px solid var(--line);
+}
+
+.dex-buying-refine summary {
+  display: list-item;
+  min-height: 44px;
+  padding: 11px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dex-buying-refine .dex-buying-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 720px;
+  padding-bottom: 12px;
+}
+
+.dex-buying-summary,
+.dex-buying-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.dex-buying-dashboard .dex-buying-summary p {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.dex-buying-list {
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.dex-buying-list:empty {
+  display: none;
+}
+
+.dex-buying-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px 20px;
+  align-items: start;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.dex-buying-identity {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+
+.dex-buying-identity img {
+  flex: none;
+  width: 42px;
+  height: auto;
+  aspect-ratio: 63 / 88;
+  object-fit: contain;
+}
+
+.dex-buying-identity strong {
+  display: block;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.dex-buying-identity small,
+.dex-buying-market span,
+.dex-buying-market small {
+  display: block;
+}
+
+.dex-buying-dashboard .dex-buying-market {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+.dex-buying-market strong,
+.dex-buying-offers a {
+  font-variant-numeric: tabular-nums;
+}
+
+.dex-buying-offers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.dex-buying-offers > div {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--surface-low);
+}
+
+.dex-buying-offers > [data-availability="stock"] {
+  background: #edf7f4;
+}
+
+.dex-buying-offers dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.dex-buying-offers dd {
+  margin: 4px 0 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dex-buying-offers a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--secondary);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dex-buying-offers small {
+  display: block;
+}
+
+.dex-buying-row .dex-actions {
+  align-items: end;
+  gap: 4px 6px;
+  margin-top: 8px;
+}
+
+.dex-buying-row .dex-actions label {
+  flex: 1 1 140px;
+  margin: 0;
+}
+
+.dex-buying-pages {
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 820px) {
+  .dex-buying-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dex-buying-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .dex-buying-row {
+    grid-template-columns: 1fr;
+  }
+  .dex-buying-refine .dex-buying-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dex-buying-offers {
+    grid-template-columns: 1fr;
+  }
+  .dex-buying-offers > div {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+    gap: 8px;
+  }
+  .dex-buying-offers dd {
+    margin: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .dex-buying-filters,
+  .dex-buying-refine .dex-buying-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
