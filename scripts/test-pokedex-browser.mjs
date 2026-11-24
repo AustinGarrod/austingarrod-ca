@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 // Uses a random temporary database and private config, never the production API.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'dist');
-assert.ok(existsSync(join(dist, 'utilities/pokedex-binder/index.html')), 'Run npm run build before the browser checks.');
+assert.ok(existsSync(join(dist, 'utilities/pokemon-binder/index.html')), 'Run npm run build before the browser checks.');
 assert.ok(process.env.POKEDEX_TEST_DSN, 'Set POKEDEX_TEST_DSN to an isolated localhost MySQL/MariaDB DSN.');
 const php = process.env.PHP_BINARY || 'php';
 const phpDirectory = execFileSync(php, ['-r', 'echo dirname(PHP_BINARY);'], { encoding: 'utf8' }).trim();
@@ -29,7 +29,7 @@ await new Promise((resolve, reject) => { portSocket.once('error', reject); portS
 const port = portSocket.address().port;
 await new Promise(resolve => portSocket.close(resolve));
 const origin = `http://127.0.0.1:${port}`;
-const app = `${origin}/utilities/pokedex-binder/`;
+const app = `${origin}/utilities/pokemon-binder/`;
 const config = { dsn: process.env.POKEDEX_TEST_DSN.replace(/;?dbname=[^;]*/i, '') + `;dbname=${databaseName}`, username: env.POKEDEX_TEST_USER || 'root', password: env.POKEDEX_TEST_PASSWORD || '', rateLimitDirectory: join(temporary, 'limits'), rateLimitSecret: randomBytes(32).toString('hex'), allowedOrigin: origin };
 env.POKEDEX_CONFIG = join(temporary, 'config.php');
 writeFileSync(env.POKEDEX_CONFIG, `<?php return json_decode(base64_decode('${Buffer.from(JSON.stringify(config)).toString('base64')}'), true, 512, JSON_THROW_ON_ERROR);`);
@@ -413,7 +413,7 @@ try {
       await smoke.goto(origin + route);
       await expect(smoke.locator('main')).toHaveCount(1);
       assert.equal(await smoke.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `Desktop overflow at ${route}`);
-      if (route === '/utilities/') await expect(smoke.locator('a[href="/utilities/pokedex-binder/"]').first()).toBeVisible();
+      if (route === '/utilities/') await expect(smoke.locator('a[href="/utilities/pokemon-binder/"]').first()).toBeVisible();
     }
     await smoke.setViewportSize({ width: 390, height: 844 });
     await smoke.goto(origin + '/');

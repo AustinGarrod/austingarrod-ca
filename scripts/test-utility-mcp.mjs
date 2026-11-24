@@ -208,10 +208,25 @@ try {
   const readSet=(id,status)=>tool(binder,writer,'get_set_binder',{binderId:id,status,query:'Bulbasaur'});
   const slot=(await readSet(binderId,'missing')).items.find(s=>s.key==='001:reverse');
   assert.equal(slot.pocket,2);
+  const order = await preview(binder,writer,'set_slot_status',{binderId,key:slot.key,status:'ordered'});
+  assert.ok((await readSet(binderId,'missing')).items.some(item=>item.key===slot.key));
+  await tool(binder,writer,'apply_change',{previewId:order.previewId});
+  assert.equal((await readSet(binderId,'ordered')).items[0].key,slot.key);
+  assert.ok(!(await readSet(binderId,'missing')).items.some(item=>item.key===slot.key));
   await edit(binder,writer,'set_slot_ownership',{binderId,key:slot.key,owned:true});
   assert.equal((await readSet(binderId,'owned')).items[0].key,slot.key);
+  assert.equal((await readSet(binderId,'ordered')).total,0);
   assert.equal((await readSet(sets.items[1].binderId,'owned')).total,0);
   await tool(binder,reader,'get_set_binder',{binderId},'binder_not_found');
+
+  await edit(binder,writer,'set_status',{dexIds:[7],status:'ordered'});
+  const ordered = await tool(binder,writer,'get_collection',{status:'ordered'});
+  assert.equal(ordered.orderedCount,1);
+  assert.deepEqual(ordered.items.map(item=>[item.id,item.status]),[[7,'ordered']]);
+  assert.equal((await tool(binder,writer,'get_collection',{status:'missing',query:'Squirtle'})).total,0);
+  await edit(binder,writer,'set_status',{dexIds:[7],status:'missing'});
+  assert.equal((await tool(binder,writer,'get_collection',{status:'ordered'})).total,0);
+  assert.equal((await tool(binder,writer,'get_collection',{status:'missing',query:'Squirtle'})).items[0].id,7);
 
   stage = 'synced Slayer operations';
   const recommendation = (await tool(slayer, slayerWriter, 'recommend_upgrades', { limit: 1 })).suggestions[0];

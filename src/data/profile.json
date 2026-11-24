@@ -168,20 +168,20 @@
   ],
   "utilities": [
     {
-      "slug": "pokedex-binder",
+      "slug": "pokemon-binder",
       "title": "Pokémon Binder Tracker",
       "label": "Pokémon collection planner",
       "summary": "Build a National Pokédex or a master set of English Pokémon cards. Track card finishes, find their pockets, and see what’s missing.",
       "capabilities": [
         "Visualize binder pages with custom pocket dimensions and reserved spaces",
-        "Track owned and missing Pokémon in National Pokédex order",
+        "Track collected, ordered, and missing cards",
         "Browse physical English cards, collector numbers, and set codes",
         "Create named set binders, export backups, or sync through your account"
       ],
       "stack": ["Astro", "TypeScript", "IndexedDB", "PHP", "MySQL"],
       "status": "Available",
       "icon": "book-open",
-      "lastModified": "2026-11-13"
+      "lastModified": "2026-11-24"
     },
     {
       "slug": "radius-map",

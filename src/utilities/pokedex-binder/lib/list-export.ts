@@ -4,6 +4,7 @@ export interface ListRow extends PocketLocation {
   number: number | string;
   name: string;
   owned: boolean;
+  ordered?: boolean;
   finish?: string;
   required?: boolean;
 }
@@ -28,7 +29,7 @@ export function csv(header: string[], rows: Cell[][], quoteAll = false) {
 
 const locationHeaders = ["Page", "Sheet", "Side", "Pocket", "Row", "Column"];
 const location = (r: ListRow) => [r.page, r.sheet, r.side, r.pocket, r.row, r.column];
-const status = (r: ListRow) => r.owned ? "Owned" : "Missing";
+const status = (r: ListRow) => r.owned ? "Owned" : r.ordered ? "Ordered" : "Missing";
 const goal = (r: ListRow) => r.required === false ? "Optional" : "Required";
 
 export function nationalCsv(rows: ListRow[]) {

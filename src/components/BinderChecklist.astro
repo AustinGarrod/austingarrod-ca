@@ -30,7 +30,7 @@ const id = (part: string) => prefix + "checklist-" + part;
     <button type="button" id={id("clear-filters")} hidden>Clear filters</button>
   </div>
   <div class="dex-checklist-options">
-    <label><input id={id("hide-collected")} type="checkbox" /> Hide collected {unit}</label>
+    <label><input id={id("hide-collected")} type="checkbox" /> Show only missing {unit}</label>
     <span class="dex-help">Click a row to highlight it.</span>
   </div>
   <nav id={id("letters")} class="dex-letter-jump" aria-label="Jump to starting letter" hidden>
@@ -46,7 +46,8 @@ const id = (part: string) => prefix + "checklist-" + part;
         <span class="dex-label"></span>
         <button type="button" class="dex-checklist-name" aria-pressed="false"></button>
         <span class="dex-label dex-checklist-card-numbers" hidden></span>
-        <span class="dex-collected-label" hidden>✓ Collected</span>
+        <span class="dex-collected-label" hidden></span>
+        <button type="button" class="dex-order-button"></button>
       </div>
       <div class="dex-checklist-location">
         <span>Page <strong></strong></span><span>Row <strong></strong></span><span>Col <strong></strong></span>

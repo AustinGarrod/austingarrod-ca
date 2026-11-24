@@ -1,10 +1,10 @@
 import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
 import { printLists } from "./print-list";
-import { binderPages, blankPocket, cardPocket } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, orderButton } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
-import { defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
+import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
@@ -153,8 +153,8 @@ async function initialize() {
     });
   }
   function matches(item: Species) {
-    const has = snapshot.state.ownedDexIds.includes(item.id);
-    return (filter.value === "all" || (filter.value === "owned" ? has : !has)) && (generation.value === "all" || item.generation === Number(generation.value));
+    const status = cardStatus(snapshot.state.ownedDexIds.includes(item.id), snapshot.state.orderedDexIds?.includes(item.id) ?? false);
+    return (filter.value === "all" || filter.value === status) && (generation.value === "all" || item.generation === Number(generation.value));
   }
   function filteredSpecies() { return searchSpecies(species, search.value).filter(matches); }
   function locationText(id: number) {
@@ -173,12 +173,14 @@ async function initialize() {
     const selection = activeInput ? [activeInput.selectionStart, activeInput.selectionEnd] : null;
     const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
       .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
-    const owned = new Set(snapshot.state.ownedDexIds), count = owned.size;
+    const owned = new Set(snapshot.state.ownedDexIds), count = owned.size, ordered = new Set(snapshot.state.orderedDexIds);
     master.dex(nationalEnabled(snapshot.state), count, species.length);
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
     renderFeedback();
-    el("owned-count").textContent = count.toLocaleString(); el("missing-count").textContent = (species.length - count).toLocaleString();
+    el("owned-count").textContent = count.toLocaleString();
+    el("ordered-count").textContent = ordered.size.toLocaleString();
+    el("missing-count").textContent = (species.length - count - ordered.size).toLocaleString();
     el<HTMLProgressElement>("completion-bar").value = count / species.length * 100;
     el("completion-label").textContent = `${(count / species.length * 100).toFixed(1)}% complete`;
     el("completion-detail").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} Pokémon · Any card counts`;
@@ -198,7 +200,7 @@ async function initialize() {
       const item = slot.species;
       if (!item) return blankPocket(slot.pocket, slot.reserved ? "Reserved" : "Empty pocket");
       return cardPocket({ id: item.id, number: dex(item.id), name: item.name, image: root + "sprites/" + item.id + ".png",
-        owned: owned.has(item.id), selected: selected === item.id, dimmed: !matches(item) || !searched.has(item.id),
+        owned: owned.has(item.id), ordered: ordered.has(item.id), selected: selected === item.id, dimmed: !matches(item) || !searched.has(item.id),
         row: slot.row, column: slot.column });
     });
     drawPages(currentPage, pages, settings, pageCounts, cells);
@@ -218,7 +220,7 @@ async function initialize() {
     renderChecklist();
   }
   function renderResults() {
-    const active = !!search.value.trim() && !view.checklist;
+    const active = (!!search.value.trim() || filter.value === "ordered") && !view.checklist;
     el("dex-results").hidden = !active;
     if (!active) return;
     const results = filteredSpecies();
@@ -265,6 +267,7 @@ async function initialize() {
     status.hidden = !message;
     el("checklist-number-retry").hidden = !showNumbers || numberStatus !== "error";
     const owned = new Set(snapshot.state.ownedDexIds);
+    const ordered = new Set(snapshot.state.orderedDexIds);
     el("checklist-clear-filters").hidden = !search.value && filter.value === "all" && generation.value === "all" && !checklistSet.value;
     checklist.render(results, item => {
       const cardNumbers = numbers?.[item.id];
@@ -272,7 +275,7 @@ async function initialize() {
         ? `${cardNumbers.length === 1 ? "Card" : "Cards"} ${cardNumbers.map(number => `#${number}`).join(", ")}`
         : "";
       return {
-        key: item.id, name: item.name, number: dex(item.id), owned: owned.has(item.id), detail,
+        key: item.id, name: item.name, number: dex(item.id), owned: owned.has(item.id), ordered: ordered.has(item.id), detail,
         image: `${root}sprites/${item.id}.png`, ...locationFor(item.id, snapshot.state.settings, species),
       };
     });
@@ -282,6 +285,9 @@ async function initialize() {
     if (!item) return;
     const loc = locationFor(item.id, snapshot.state.settings, species);
     details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2><p class="dex-help">Sheet ${loc.sheet} · ${titleCase(loc.side)}</p></div></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div></div><label class="dex-owned-label"><input id="detail-owned" type="checkbox" data-owned="${item.id}" ${snapshot.state.ownedDexIds.includes(item.id) ? "checked" : ""} /> I have a card for this slot</label><h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
+    if (!snapshot.state.ownedDexIds.includes(item.id)) {
+      details.querySelector(".dex-owned-label")?.insertAdjacentHTML("afterend", orderButton(item.id, snapshot.state.orderedDexIds?.includes(item.id) ?? false));
+    }
     renderPrintings();
   }
   function renderPrintings() {
@@ -321,7 +327,7 @@ async function initialize() {
   function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
   function renderSync() {
     el("binder-account-panel").hidden = !account.enabled;
-    el<HTMLAnchorElement>("binder-account-link").href = accountHref(root);
+    el<HTMLAnchorElement>("binder-account-link").href = accountHref("/utilities/pokemon-binder/");
     el("binder-account-link").textContent = account.user ? "Manage account & recovery" : "Sign in with email or Google";
     el("binder-account-status").textContent = account.retainedAccount ? `This open binder belongs to ${account.retainedAccount.email}. Your account changed, and this binder has changes that could not be saved on this device. Export its JSON backup before leaving, or retry saving to finish switching accounts.` : account.offline ? `Saved on this device for ${account.user?.email ?? "your account"}. Reconnect and sign in before syncing.` : account.mode === "account" ? `Syncing with ${account.user?.email ?? "your account"}.` : account.user
       ? `Signed in as ${account.user.email}. Review your device and account copies before connecting them.`
@@ -391,11 +397,12 @@ async function initialize() {
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {
-    const button = (event.target as Element).closest<HTMLElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog]");
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-order]");
     if (!button) return;
     if (button.hasAttribute("data-pokemon")) void selectPokemon(Number(button.dataset.pokemon));
     if (button.hasAttribute("data-goto")) goToPokemon(Number(button.dataset.goto));
     if (button.hasAttribute("data-close-dialog")) button.closest("dialog")?.close();
+    if (button.dataset.order) void action(() => controller.setStatus(Number(button.dataset.order), button.dataset.ordered === "true" ? "missing" : "ordered"), button);
   });
   document.addEventListener("change", event => {
     const input = event.target as HTMLInputElement;
@@ -511,33 +518,41 @@ async function initialize() {
   const printButton = el<HTMLButtonElement>("print-missing");
   const scopeSelect = el<HTMLSelectElement>("export-scope");
   const binderSelect = el<HTMLSelectElement>("master-switch");
+  const positionList = el<HTMLSelectElement>("position-list");
+  positionList.addEventListener("change", () => {
+    const ordered = positionList.value === "ordered";
+    exportButton.lastChild!.textContent = ordered ? " Export ordered CSV" : " Export missing CSV";
+    printButton.textContent = ordered ? "Print ordered list" : "Print missing list";
+    el("export-message").textContent = "";
+  });
   async function outputList(print: boolean) {
     const all = scopeSelect.value === "all";
     const selectedId = binderSelect.value;
     const scope = controller.restoreScope();
+    const status = positionList.value === "ordered" ? "ordered" : "missing";
     const lists: BinderList[] = [];
     exportButton.disabled = printButton.disabled = true;
     const message = el("export-message");
-    message.textContent = "Preparing missing list…";
+    message.textContent = `Preparing ${status} list…`;
     try {
       if ((all || !selectedId) && nationalEnabled(snapshot.state)) {
         lists.push({ name: "National Pokédex", setName: "", settings: snapshot.state.settings,
-          rows: nationalRows(species, snapshot.state, true) });
+          rows: nationalRows(species, snapshot.state, status) });
       }
-      if (all || selectedId) lists.push(...await master.missingLists(all ? null : selectedId));
+      if (all || selectedId) lists.push(...await master.positionLists(all ? null : selectedId, status));
       if (!lists.length) throw new Error("Choose an active binder first.");
-      if (controller.restoreScope() !== scope || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
+      if (controller.restoreScope() !== scope || status !== positionList.value || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
         throw new Error("The collection selection changed. Request the list again.");
       }
-      if (print) printLists(lists, all);
+      if (print) printLists(lists, all, status);
       else {
         const text = all ? combinedCsv(lists) : selectedId ? setListCsv(lists[0].rows) : nationalCsv(lists[0].rows);
         const filename = all ? "all-binders" : selectedId ? lists[0].name : "pokedex";
-        download(text, filename + "-missing.csv", "text/csv;charset=utf-8");
+        download(text, filename + "-" + status + ".csv", "text/csv;charset=utf-8");
       }
       message.textContent = "";
     } catch (error) {
-      message.textContent = error instanceof Error ? error.message : "The missing list could not load. Try again.";
+      message.textContent = error instanceof Error ? error.message : "The card list could not load. Try again.";
     } finally {
       exportButton.disabled = printButton.disabled = false;
     }

@@ -19,31 +19,37 @@ function mcp_visible_item(array $visible, mixed $system, mixed $id): stdClass
     return $visible[$system][$id];
 }
 
-function mcp_binder_change(string $root, stdClass $state, stdClass $input): array
+function mcp_binder_change(string $root, stdClass $state, stdClass $input, bool $useStatus = false): array
 {
-    mcp_change_fields($input, ['dexIds', 'owned']);
-    if (!is_bool($input->owned) || !is_array($input->dexIds) || count($input->dexIds) < 1 || count($input->dexIds) > 50) {
-        accounts_fail(422, 'invalid_ownership', 'Supply up to 50 National Dex IDs and the desired ownership.');
+    mcp_change_fields($input, ['dexIds', $useStatus ? 'status' : 'owned']);
+    if ((!$useStatus && !is_bool($input->owned)) || !is_array($input->dexIds) || count($input->dexIds) < 1 || count($input->dexIds) > 50) {
+        accounts_fail(422, 'invalid_ownership', 'Supply up to 50 National Dex IDs and the desired card status.');
     }
+    $status = $useStatus ? $input->status : ($input->owned ? 'owned' : 'missing');
+    if (!in_array($status, ['owned', 'ordered', 'missing'], true)) accounts_invalid();
     $species = array_column(mcp_binder_catalog($root)->species, null, 'id');
     $owned = array_fill_keys($state->ownedDexIds, true);
+    $ordered = array_fill_keys($state->orderedDexIds ?? [], true);
     $changes = [];
     foreach ($input->dexIds as $id) {
         if (!is_int($id) || !isset($species[$id])) {
             accounts_fail(422, 'unknown_species', 'Use a National Dex ID returned by the catalog.');
         }
-        if ($input->owned !== isset($owned[$id])) {
-            $changes[] = ['dexId' => $id, 'name' => $species[$id]->name, 'owned' => $input->owned];
-            if ($input->owned) {
-                $owned[$id] = true;
-            } else {
-                unset($owned[$id]);
-            }
-        }
+        $before = binder_card_status(isset($owned[$id]), isset($ordered[$id]));
+        if ($useStatus ? $before === $status : $input->owned === isset($owned[$id])) continue;
+        $changes[] = ['dexId' => $id, 'name' => $species[$id]->name] + ($useStatus
+            ? ['previousStatus' => $before, 'status' => $status] : ['owned' => $input->owned]);
+        unset($owned[$id], $ordered[$id]);
+        if ($status === 'owned') $owned[$id] = true;
+        if ($status === 'ordered') $ordered[$id] = true;
     }
     $state->ownedDexIds = array_keys($owned);
     sort($state->ownedDexIds, SORT_NUMERIC);
-    return ['ownershipChanges' => $changes];
+    if ($ordered) {
+        $state->orderedDexIds = array_keys($ordered);
+        sort($state->orderedDexIds, SORT_NUMERIC);
+    } else unset($state->orderedDexIds);
+    return [$useStatus ? 'statusChanges' : 'ownershipChanges' => $changes];
 }
 
 function mcp_observe(stdClass $map, stdClass $progress, array $visible, stdClass $input, string $observedAt): void
@@ -240,8 +246,8 @@ function mcp_slayer_change(
 
 function mcp_operation_document(string $app, string $operation): string
 {
-    if ($app === 'pokedex-binder' && $operation === 'set_slot_ownership') return 'master-sets';
-    if ($app === 'pokedex-binder' && $operation === 'set_ownership') {
+    if ($app === 'pokedex-binder' && in_array($operation, ['set_slot_ownership', 'set_slot_status'], true)) return 'master-sets';
+    if ($app === 'pokedex-binder' && in_array($operation, ['set_ownership', 'set_status'], true)) {
         return 'binder';
     }
     if ($app === 'idle-slayer-companion') {
@@ -333,7 +339,9 @@ function mcp_plan_change(PDO $db, array $grant, string $root, string $operation,
         $state = mcp_state($snapshot);
         $summary = ['recoveryCopy' => accounts_recovery_metadata($snapshot), 'replacesRevision' => (int)$row['revision']];
     } elseif ($app === 'pokedex-binder') {
-        $summary = $document === 'master-sets' ? master_change($root, $state, $input) : mcp_binder_change($root, $state, $input);
+        $summary = $document === 'master-sets'
+            ? master_change($root, $state, $input, $operation === 'set_slot_status')
+            : mcp_binder_change($root, $state, $input, $operation === 'set_status');
     } else {
         [$map, $catalog] = mcp_slayer_catalogs($root);
         $progress = mcp_slayer_progress($primaryRow, $map->revision);

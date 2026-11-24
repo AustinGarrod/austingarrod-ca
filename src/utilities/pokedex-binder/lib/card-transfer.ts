@@ -1,5 +1,6 @@
 import { csv } from "./list-export";
 import { newBinder, setSlots, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
+import type { CardStatus } from "./model";
 import { cardNameKey, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
 import type { TransferRow } from "./transfer-csv";
 
@@ -154,7 +155,16 @@ export function addSetImports(state: MasterState, groups: SetImportGroup[], dest
     }
     const target = binder ?? newBinder(set.id, set.name.slice(0, 100));
     if (!binder) state.binders.push(target);
-    target.owned = [...new Set([...target.owned, ...marks.map(markKey)])].sort();
+    const added = new Set(marks.map(markKey));
+    target.owned = [...new Set([...target.owned, ...added])].sort();
+    if (target.ordered) {
+      const numbers = new Set(marks.map(match => match.card.number));
+      target.ordered = target.ordered.filter(key => {
+        const number = key.slice(0, key.indexOf(":"));
+        return !added.has(key) && !added.has(number + ":*") && !(key.endsWith(":*") && numbers.has(number));
+      });
+      if (!target.ordered.length) delete target.ordered;
+    }
     const specialties = marks.filter(match => match.variant?.specialty && !target.specialties.includes(match.variant.id)).map(markKey);
     target.specialties = [...new Set([...target.specialties, ...specialties])].sort();
   }
@@ -196,7 +206,7 @@ function tcgplayerProduct(products: [string, ProductIdentity][], variant: Varian
 }
 
 export type CardExportFormat = "portable" | "binderloot" | "tcgplayer";
-export type CardExportList = "owned" | "missing";
+export type CardExportList = CardStatus;
 
 export async function exportCards(
   binders: readonly SetBinder[],
@@ -210,22 +220,24 @@ export async function exportCards(
   }
   const products = forTcgplayer ? Map.groupBy(Object.entries(await catalog.products()), ([, [setId, number]]) => `${setId}:${number}`) : null;
   const createdAt = forTcgplayer ? new Date().toISOString().replace(/Z$/, "+0000") : "";
-  const collectionName = missing ? "Pokémon Binder Tracker - Missing Cards" : "Pokémon Binder Tracker";
+  const collectionName = list === "owned" ? "Pokémon Binder Tracker"
+    : list === "ordered" ? "Pokémon Binder Tracker - Ordered Cards" : "Pokémon Binder Tracker - Missing Cards";
   const sets = new Map(catalog.sets.map(set => [set.id, set]));
   const rows: (string | number)[][] = [], exported = new Set<string>(), omitted = new Set<string>();
   for (const binder of binders) {
-    if (!missing && !binder.owned.length) continue;
+    const marks = list === "ordered" ? binder.ordered ?? [] : binder.owned;
+    if (!missing && !marks.length) continue;
     const set = sets.get(binder.setId);
     const setCards = set ? await catalog.cards(set.id) : [];
     const cards = new Map(setCards.map(card => [card.number, card]));
-    const keys = missing ? setSlots(binder, setCards).filter(slot => slot.required && !slot.owned).map(slot => slot.key) : binder.owned;
+    const keys = missing ? setSlots(binder, setCards).filter(slot => slot.required && slot.status === "missing").map(slot => slot.key) : marks;
     for (const key of keys) {
       const colon = key.indexOf(":"), number = key.slice(0, colon);
       const card = cards.get(number);
       const finishId = key.slice(colon + 1);
-      const anyFinish = missing && finishId === "*";
+      const anyFinish = list !== "owned" && finishId === "*";
       const targetId = anyFinish && card?.variants.length === 1 ? card.variants[0].id : finishId;
-      const allowUnspecified = missing && !anyFinish && format === "portable";
+      const allowUnspecified = list !== "owned" && !anyFinish && format === "portable";
       const variant = card?.variants.find(v => v.id === targetId && (allowUnspecified || !v.id.startsWith("unspecified")));
       const unique = `${binder.setId}:${variant ? `${number}:${variant.id}` : key}`;
       if (exported.has(unique) || omitted.has(unique)) continue;

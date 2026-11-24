@@ -44,14 +44,18 @@ export function blankPocket(position: number, label: string, filler = false) {
 }
 interface Pocket {
   id: string | number; number: string; name: string; finish?: string; image?: string | null;
-  owned: boolean; selected: boolean; dimmed: boolean; row: number; column: number; set?: boolean;
+  owned: boolean; ordered: boolean; selected: boolean; dimmed: boolean; row: number; column: number; set?: boolean;
 }
 export function cardPocket(p: Pocket) {
   const id = escape(p.id), ns = p.set ? "set-" : "";
   const title = escape(p.name), number = escape(p.number), finish = escape(p.finish ?? "");
   const art = p.image ? `<img src="${escape(p.image)}" width="64" height="64" loading="lazy" alt=""/>` : "";
-  return `<div class="dex-pocket ${p.owned ? "owned" : ""} ${p.selected ? "selected" : ""} ${p.dimmed ? "dimmed" : ""}">
+  return `<div class="dex-pocket ${p.owned ? "owned" : p.ordered ? "ordered" : ""} ${p.selected ? "selected" : ""} ${p.dimmed ? "dimmed" : ""}">
     <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, row ${p.row}, column ${p.column}. View card references" aria-pressed="${p.selected}">
       <span class="dex-pocket-number">${number}</span>${art}<span class="dex-pocket-name">${title}</span>${finish ? `<small>${finish}</small>` : ""}</button>
-    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Own ${title}${finish ? " " + finish : ""}"/><span>${p.owned ? "Owned" : "Missing"}</span></label></div>`;
+    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Own ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>${p.owned ? "Owned" : p.ordered ? "Ordered" : "Missing"}</span></label></div>`;
+}
+
+export function orderButton(id: string | number, ordered: boolean, isSet = false) {
+  return `<button type="button" id="${isSet ? "set-" : ""}detail-order" class="dex-order-button" data-${isSet ? "set-" : ""}order="${escape(id)}" data-ordered="${ordered}">${ordered ? "Clear order" : "Mark ordered"}</button>`;
 }

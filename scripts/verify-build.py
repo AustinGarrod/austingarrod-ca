@@ -187,16 +187,19 @@ master_index = json.loads((master_catalog / "index.json").read_text(encoding="ut
 for entry in master_index:
     shard = master_catalog / (entry["id"] + ".json")
     check(shard.is_file() and sha256(shard) == entry["digest"], f"Invalid set checklist: {entry['id']}")
-scanner_headers = (DIST / "utilities/pokedex-binder/.htaccess").read_text(encoding="utf-8")
+scanner_headers = (DIST / "utilities/pokemon-binder/.htaccess").read_text(encoding="utf-8")
 check("camera=(self)" in scanner_headers and "worker-src 'self'" in scanner_headers
       and "'wasm-unsafe-eval'" in scanner_headers, "Scanner camera/worker policy is incomplete")
 check("'unsafe-eval'" not in scanner_headers, "Scanner must not enable JavaScript eval")
 check("camera=()" in (DIST / ".htaccess").read_text(encoding="utf-8"), "Root camera restriction must remain")
-check(not (DIST / "utilities/pokedex-binder/sw.js").exists(), "Binder must not install a service worker")
+for binder_path in ("utilities/pokemon-binder", "utilities/pokedex-binder"):
+    check(not (DIST / binder_path / "sw.js").exists(), "Binder must not install a service worker")
+check("/utilities/pokemon-binder/" in route_file("/utilities/pokedex-binder/").read_text(encoding="utf-8"),
+      "The old binder route must redirect to the new address")
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 private_regions = {
-    "/utilities/pokedex-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content"],
+    "/utilities/pokemon-binder/": ["dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content"],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",

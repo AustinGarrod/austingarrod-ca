@@ -37,7 +37,7 @@ try {
       return route.continue();
     });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
-    await page.goto(`${origin}/utilities/pokedex-binder/`);
+    await page.goto(`${origin}/utilities/pokemon-binder/`);
     await page.locator('#first-device').click();
     await page.locator('#first-dex').click();
     await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');

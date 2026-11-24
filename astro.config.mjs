@@ -38,6 +38,9 @@ function radiusMapGeocodeDevProxy() {
 export default defineConfig({
   site: "https://austingarrod.ca",
   output: "static",
+  redirects: {
+    "/utilities/pokedex-binder": { status: 301, destination: "/utilities/pokemon-binder/" }
+  },
   vite: {
     build: { sourcemap: "hidden", assetsInlineLimit: 0 },
     plugins: [radiusMapGeocodeDevProxy()]

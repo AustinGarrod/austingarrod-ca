@@ -7,6 +7,9 @@ ErrorDocument 404 /404.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Keep old binder page links working alongside existing catalog and API URLs.
+  RewriteRule ^utilities/pokedex-binder(?:/index\.html|/)?$ https://austingarrod.ca/utilities/pokemon-binder/ [R=301,L,NE]
+
   # Collapse explicit index.html URLs directly to the canonical HTTPS route.
   # Companion precache verifies physical HTML entries without following redirects.
   RewriteCond %{REQUEST_URI} !^/utilities/idle-slayer-companion/ [NC]

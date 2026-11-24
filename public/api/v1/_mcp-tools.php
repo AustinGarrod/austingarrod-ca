@@ -75,10 +75,12 @@ function mcp_binder_read(string $tool, string $root, ?array $row, array $args): 
         mcp_missing_save();
     }
     $owned = array_fill_keys($state->ownedDexIds ?? [], true);
+    $ordered = array_fill_keys($state->orderedDexIds ?? [], true);
     $status = $args['status'] ?? 'all';
     $eligible = $set === null ? null : array_fill_keys($catalog->setSpecies->{$set} ?? [], true);
     $matches = [];
     $ownedCount = 0;
+    $orderedCount = 0;
     $matchingSpeciesCount = 0;
     foreach ($species as $id => $item) {
         if (($eligible !== null && !isset($eligible[$id])) || !mcp_text_match($query, $item->name, (string)$id)) {
@@ -90,14 +92,17 @@ function mcp_binder_read(string $tool, string $root, ?array $row, array $args): 
         }
         ++$matchingSpeciesCount;
         $present = isset($owned[$id]);
+        $pending = isset($ordered[$id]);
+        $cardStatus = binder_card_status($present, $pending);
         $ownedCount += (int)$present;
-        if ($status === 'all' || ($status === 'owned') === $present) {
-            $matches[] = (array)$item + ['owned' => $present];
+        $orderedCount += (int)$pending;
+        if ($status === 'all' || $status === $cardStatus) {
+            $matches[] = (array)$item + ['owned' => $present, 'ordered' => $pending, 'status' => $cardStatus];
         }
     }
     return ($state === null ? [] : [
         'revision' => (int)$row['revision'], 'ownedCount' => $ownedCount,
-        'missingCount' => $matchingSpeciesCount - $ownedCount,
+        'orderedCount' => $orderedCount, 'missingCount' => $matchingSpeciesCount - $ownedCount - $orderedCount,
         'scope' => $set ?? 'national-dex',
     ]) + mcp_page($matches, $offset, $limit);
 }

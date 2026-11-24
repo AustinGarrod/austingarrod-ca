@@ -1,5 +1,5 @@
 export type OverviewProgress =
-  | { status: "ready"; owned: number; required: number }
+  | { status: "ready"; owned: number; ordered: number; required: number }
   | { status: "loading" | "error" };
 
 export interface OverviewBinder {
@@ -20,9 +20,10 @@ function showProgress(container: HTMLElement, progress: OverviewProgress) {
   container.querySelector<HTMLElement>(".set-overview-counts")!.hidden = !ready;
   container.querySelector<HTMLElement>(".set-overview-completion")!.hidden = !ready;
   if (!ready) return;
-  const { owned, required } = progress;
+  const { owned, ordered, required } = progress;
   container.querySelector("[data-owned-count]")!.textContent = counts.format(owned);
-  container.querySelector("[data-needed-count]")!.textContent = counts.format(required - owned);
+  container.querySelector("[data-ordered-count]")!.textContent = counts.format(ordered);
+  container.querySelector("[data-needed-count]")!.textContent = counts.format(required - owned - ordered);
   container.querySelector("[data-required-count]")!.textContent = counts.format(required);
   container.querySelector("[data-percent]")!.textContent = percentages.format(required ? owned / required : 0);
   const bar = container.querySelector("progress")!;
@@ -33,16 +34,18 @@ function showProgress(container: HTMLElement, progress: OverviewProgress) {
 
 function overallProgress(rows: readonly OverviewBinder[]): OverviewProgress {
   let owned = 0;
+  let ordered = 0;
   let required = 0;
   let loading = false;
   for (const { progress } of rows) {
     if (progress.status === "error") return { status: "error" };
     if (progress.status === "ready") {
       owned += progress.owned;
+      ordered += progress.ordered;
       required += progress.required;
     } else loading = true;
   }
-  return loading ? { status: "loading" } : { status: "ready", owned, required };
+  return loading ? { status: "loading" } : { status: "ready", owned, ordered, required };
 }
 
 export function renderSetOverview(rows: readonly OverviewBinder[]) {

@@ -1,5 +1,5 @@
 import type { SetScan } from "./scanner";
-import { binderPages, blankPocket, cardPocket, escape } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, escape, orderButton } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
@@ -12,6 +12,7 @@ import {
   newBinder,
   setPockets,
   setSlots,
+  setSlotStatus,
   validateMaster,
   type MasterState,
   type SetBinder,
@@ -20,7 +21,7 @@ import {
 } from "../lib/master";
 import type { BinderAccountState } from "../lib/accounts";
 import type { MasterStore } from "../lib/master-store";
-import { validateSettings } from "../lib/model";
+import { validateSettings, type CardStatus } from "../lib/model";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => node<HTMLInputElement>(id);
@@ -154,7 +155,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const pockets = setPockets(b, cache.get(b.setId) ?? []),
       all = pockets.filter(isCardPocket),
       required = all.filter((s) => s.required);
-    return { pockets, all, required, owned: required.filter((s) => s.owned).length };
+    return { pockets, all, required, owned: required.filter(s => s.owned).length, ordered: required.filter(s => s.ordered).length };
   }
   function clearFilters() {
     searchInput.value = "";
@@ -190,9 +191,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       } : undefined;
       if (row) overviewRows.push(row);
       const updateProgress = () => {
-        const { owned, required } = progress(b);
+        const { owned, ordered, required } = progress(b);
         option.text = b.name + " · " + owned + "/" + required.length;
-        if (row) row.progress = { status: "ready", owned, required: required.length };
+        if (row) row.progress = { status: "ready", owned, ordered, required: required.length };
       };
       if (cache.has(b.setId)) updateProgress();
       else {
@@ -273,7 +274,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       node("master-workspace").hidden = false;
       node<HTMLButtonElement>("master-scan").disabled = false;
     }
-    const { pockets, all, required, owned } = progress(b),
+    const { pockets, all, required, owned, ordered } = progress(b),
       extras = all.filter((s) => !s.required);
     node("master-title").textContent = b.name + " · " + (sets.find((s) => s.id === b.setId)?.name ?? b.setId);
     node("master-progress").textContent = owned + " / " + required.length;
@@ -291,7 +292,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         missingFinishes.map((k) => "#" + k.slice(0, -2)).join(", ") +
         ". Your earlier number marks are saved.";
     node("master-owned").textContent = String(owned);
-    node("master-missing").textContent = String(required.length - owned);
+    node("master-ordered").textContent = String(ordered);
+    node("master-missing").textContent = String(required.length - owned - ordered);
     const set = sets.find(s => s.id === b.setId);
     const artwork = (slot: typeof all[number]) => {
       const art = set?.artwork;
@@ -300,7 +302,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     };
     const search = searchInput.value.trim().toLowerCase().replace(/^#/, "");
     const status = statusSelect.value;
-    const matches = (s: typeof all[number]) => (status === "all" || (status === "owned") === s.owned) &&
+    const matches = (s: typeof all[number]) => (status === "all" || status === s.status) &&
       [s.name,s.number,s.finish].some(value => value.toLowerCase().includes(search));
     const filtered = all.filter(matches);
     const count = Math.max(1,pockets.at(-1)?.page ?? 1);
@@ -312,7 +314,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const image = (s: typeof all[number]) => artwork(s) ? `<img loading="lazy" alt="" src="${escape(artwork(s))}">` : "";
     const results = node("master-results");
     const listView = view.checklist;
-    results.hidden = listView || !search;
+    results.hidden = listView || (!search && status !== "ordered");
     results.innerHTML = results.hidden ? "" : `<p class="dex-label">${filtered.length} matches</p><div class="set-results">${filtered.map(s =>
       `<div class="dex-result"><strong>${escape(identity(s))}</strong><small>${place(s)}</small>${jump(s)}</div>`).join("")}</div>`;
     node("master-binder-view").hidden = listView;
@@ -344,7 +346,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         if (!p) return blankPocket(i+1, (page-1)*capacity+i < b.settings.leadingBlankPockets ? "Reserved" : "Empty pocket");
         if (!isCardPocket(p)) return blankPocket(i+1,"Filler after #" + p.number,true);
         return cardPocket({set:true,id:p.key,number:p.number && "#" + p.number,name:p.name,finish:p.finish + (p.required ? "" : " · Optional"),
-          owned:p.owned,selected:p.key === selectedKey,dimmed:!matches(p),row:p.row,column:p.column,image:artwork(p)});
+          owned:p.owned,ordered:p.ordered,selected:p.key === selectedKey,dimmed:!matches(p),row:p.row,column:p.column,image:artwork(p)});
       });
       drawPages(page,count,b.settings,counts,cells);
       const optional = extras.filter(s => s.page === page);
@@ -355,7 +357,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
     detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(set?.code || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(selected.finish)}</p></div></div>
       <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
-      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label></div>`;
+      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label>${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}</div>`;
     if (focused && document.activeElement === document.body) document.getElementById(focused)?.focus({preventScroll:true});
   }
   async function specialties() {
@@ -542,6 +544,15 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (event.target instanceof HTMLImageElement) event.target.hidden = true;
   },true);
   node("master-workspace").addEventListener("click", async event => {
+    const order = (event.target as Element).closest<HTMLButtonElement>("[data-set-order]");
+    if (order) {
+      order.disabled = true;
+      try {
+        await edit(b => setSlotStatus(b, order.dataset.setOrder!, order.dataset.ordered === "true" ? "missing" : "ordered"));
+      } catch (error) { report(error); }
+      finally { order.disabled = false; }
+      return;
+    }
     const btn = (event.target as Element).closest<HTMLElement>("[data-set-open],[data-set-jump]");
     const b = active(); if (!btn || !b) return;
     const slot = progress(b).all.find(s => s.key === (btn.dataset.setOpen ?? btn.dataset.setJump));
@@ -658,7 +669,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     },
     collection() { return { sets, cards }; },
     applyCollection(fn: (doc: MasterState) => void) { return change(fn); },
-    async missingLists(binderId: string | null) {
+    async positionLists(binderId: string | null, status: CardStatus) {
       const version = accountVersion;
       const { state: saved } = await store.read(scope);
       const binders = binderId === null ? saved.binders : saved.binders.filter(b => b.id === binderId);
@@ -667,7 +678,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         const catalog = await cards(b.setId);
         const set = sets.find(s => s.id === b.setId);
         return { name: b.name, setName: set?.name ?? b.setId, settings: b.settings,
-          rows: setSlots(b, catalog).filter(slot => !slot.owned) };
+          rows: setSlots(b, catalog).filter(slot => slot.status === status) };
       }));
       if (version !== accountVersion) throw new Error("The account changed. Request the list again.");
       return lists;
@@ -694,7 +705,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
             }
           }
         }
-        if (b.owned.some((k) => !keys.has(k)) || b.specialties.some((k) => !special.has(k)))
+        if ([...b.owned, ...(b.ordered ?? [])].some((k) => !keys.has(k)) || b.specialties.some((k) => !special.has(k)))
           throw new Error("This backup contains a printing outside the installed checklist.");
       }
     },

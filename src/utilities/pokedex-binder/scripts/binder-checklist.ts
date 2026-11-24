@@ -8,6 +8,7 @@ interface ChecklistRow extends Pick<PocketLocation, "page" | "row" | "column"> {
   image?: string | null;
   actionLabel?: string;
   owned: boolean;
+  ordered: boolean;
 }
 
 function setText(node: Element, text: string) {
@@ -49,7 +50,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   list.addEventListener("click", event => {
     const target = event.target as Element;
     const row = target.closest<HTMLElement>("[data-checklist-row]");
-    if (!row || target.closest("input, .dex-checklist-jump")) return;
+    if (!row || target.closest("input, .dex-checklist-jump, .dex-order-button")) return;
     const previous = list.querySelector<HTMLElement>(".selected");
     if (previous && previous !== row) highlight(previous, false);
     selectedKey = row.dataset.checklistRow!;
@@ -85,6 +86,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
       row.querySelector<HTMLButtonElement>(".dex-checklist-jump")!.dataset[isSet ? "setJump" : "goto"] = key;
     }
     row.classList.toggle("owned", entry.owned);
+    row.classList.toggle("ordered", entry.ordered);
     highlight(row, selectedKey === key);
     const actionLabel = entry.actionLabel ?? entry.name;
     const box = row.querySelector("input")!;
@@ -97,7 +99,16 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     const detail = row.querySelector<HTMLElement>(".dex-checklist-card-numbers")!;
     setText(detail, entry.detail ?? "");
     detail.hidden = !entry.detail;
-    row.querySelector<HTMLElement>(".dex-collected-label")!.hidden = !entry.owned;
+    const label = row.querySelector<HTMLElement>(".dex-collected-label")!;
+    label.hidden = !entry.owned && !entry.ordered;
+    setText(label, entry.owned ? "✓ Collected" : "Ordered");
+    const order = row.querySelector<HTMLButtonElement>(".dex-order-button")!;
+    order.hidden = entry.owned;
+    order.dataset[isSet ? "setOrder" : "order"] = key;
+    order.dataset.ordered = String(entry.ordered);
+    const orderAction = entry.ordered ? "Clear order" : "Mark ordered";
+    setText(order, orderAction);
+    order.setAttribute("aria-label", orderAction + " for " + actionLabel);
     const image = row.querySelector("img")!;
     if (image.getAttribute("src") !== (entry.image ?? null)) {
       if (entry.image) image.setAttribute("src", entry.image);

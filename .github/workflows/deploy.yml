@@ -108,7 +108,7 @@ jobs:
           scanner_pid=$!
           trap 'kill "$preview_pid" "$scanner_pid" 2>/dev/null || true; wait "$preview_pid" "$scanner_pid" 2>/dev/null || true' EXIT
           curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4321/ > /dev/null
-          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4331/utilities/pokedex-binder/ > /dev/null
+          curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4331/utilities/pokemon-binder/ > /dev/null
           npm run test:pokedex:scanner
           npm run test:pokedex:transfers
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:4321/utilities/idle-slayer-companion/ npm run test:companion:e2e -- --workers=3 --retries=1

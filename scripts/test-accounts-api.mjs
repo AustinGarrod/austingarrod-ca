@@ -394,6 +394,14 @@ try {
   const showDex = write({ ...binder([1, 25]), enabled: true }, legacySave.data.document.revision, visibilityClient, 3);
   assert.equal((await request(b, 'sync', 'write', showDex)).data.document.state.enabled, true);
   assert.equal((await request(b, 'sync', 'write', write({ ...binder([1]), enabled: "false" }, showDex.baseRevision + 1, visibilityClient, 4))).status, 422);
+  const order = write({ ...binder([1, 25]), orderedDexIds: [4, 7] }, showDex.baseRevision + 1, visibilityClient, 4);
+  const orderResult = await request(b, 'sync', 'write', order);
+  assert.equal(orderResult.status, 200);
+  const olderTab = write(binder([1, 4, 25]), orderResult.data.document.revision, visibilityClient, 5);
+  const olderTabResult = await request(b, 'sync', 'write', olderTab);
+  assert.deepEqual(olderTabResult.data.document.state.orderedDexIds, [7]);
+  const clearOrder = write({ ...binder([1, 4, 25]), orderedDexIds: [] }, olderTabResult.data.document.revision, visibilityClient, 6);
+  assert.deepEqual((await request(b, 'sync', 'write', clearOrder)).data.document.state.orderedDexIds, []);
   config.enabled = false; saveConfig(); assert.equal((await request(b, 'auth', 'session')).data.enabled, false); assert.equal((await request(b, 'sync', 'read', undefined, { app, document, clientId })).status, 503);
   assert.equal(await callback(a, flow), '/account/?google=failed', 'Disabled accounts must clear an OAuth proof and redirect without diagnostics');
   const unavailableConfig = configFile + '.temporarily-unavailable'; renameSync(configFile, unavailableConfig);

@@ -1,11 +1,11 @@
 import type { BinderList } from "../lib/list-export";
 import { escape } from "./binder-pages";
 
-export function printLists(lists: BinderList[], all: boolean) {
-  const title = all ? "All binders · Missing cards" : lists[0].name + " · Missing cards";
+export function printLists(lists: BinderList[], all: boolean, status: "ordered" | "missing") {
+  const title = (all ? "All binders" : lists[0].name) + (status === "ordered" ? " · Ordered cards" : " · Missing cards");
   const sections = lists.map((list, index) => {
     const heading = all ? "<h2>" + (index + 1) + ". " + escape(list.name) + "</h2>" : "";
-    const description = [list.setName, list.rows.length + " still to find",
+    const description = [list.setName, list.rows.length + (status === "ordered" ? " ordered" : " still to find"),
       list.settings.columns + " × " + list.settings.rows + " pockets per side"].filter(Boolean).join(" · ");
     const rows = list.rows.map(r => {
       const national = !list.setName;

@@ -56,7 +56,7 @@ async function context(width = 390) {
 }
 async function open(ctx, addDex = true) {
   const page = await ctx.newPage(); page.on('pageerror', error => allErrors.push(error.message.slice(0, 300)));
-  await page.goto(origin + '/utilities/pokedex-binder/');
+  await page.goto(origin + '/utilities/pokemon-binder/');
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
   if (addDex) await page.locator('#first-dex').click();
   return page;
@@ -104,7 +104,7 @@ try {
     const pending = new Promise(resolve => { releaseCatalog = resolve; });
     await ctx.route('**/catalog/index.json', async route => { await pending; await route.continue(); });
     try {
-      await page.goto(origin + '/utilities/pokedex-binder/', { waitUntil: 'domcontentloaded' });
+      await page.goto(origin + '/utilities/pokemon-binder/', { waitUntil: 'domcontentloaded' });
       await page.locator('#scan-open').click();
       await expect(page.locator('#scan-dialog')).toBeVisible();
       await expect(page.locator('#scan-status')).toHaveText('Loading your binder…');
@@ -138,7 +138,7 @@ try {
   await ctx.route('**/_astro/scanner.*.js', route => route.abort());
   await scenario('lazy start, same-origin OCR worker and production CSP', async () => {
     assert.equal(requests.some(url => url.includes('scanner-assets')), false);
-    const headers = await (await page.request.get(origin + '/utilities/pokedex-binder/')).headers();
+    const headers = await (await page.request.get(origin + '/utilities/pokemon-binder/')).headers();
     assert.match(headers['permissions-policy'], /camera=\(self\)/); assert.match(headers['content-security-policy'], /wasm-unsafe-eval/);
     const rootHeaders = await (await page.request.get(origin + '/')).headers(); assert.match(rootHeaders['permissions-policy'], /camera=\(\)/);
     await scanner(page);

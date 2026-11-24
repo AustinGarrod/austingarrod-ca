@@ -130,7 +130,7 @@ async function login(page, email, waitForCooldown = false) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Account page horizontal overflow');
 }
 async function openBinder(page) {
-  await page.goto(origin + '/utilities/pokedex-binder/');
+  await page.goto(origin + '/utilities/pokemon-binder/');
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
 }
 async function adoptBinder(page, chooseAccount) {

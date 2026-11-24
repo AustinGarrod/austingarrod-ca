@@ -26,9 +26,14 @@ function mcp_change_schema(string $app): array
     $boolean = ['type' => 'boolean'];
     $defs = ['restore_recovery' => [['id' => $id], ['id']]];
     if ($app === 'pokedex-binder') {
+        $status = ['type' => 'string', 'enum' => ['missing', 'ordered', 'owned']];
+        $dexIds = ['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 1], 'minItems' => 1, 'maxItems' => 50, 'uniqueItems' => true];
+        $slot = ['binderId' => $id, 'key' => ['type' => 'string', 'maxLength' => 256]];
         $defs['set_slot_ownership'] = [['binderId'=>$id,'key'=>['type'=>'string','maxLength'=>256],'owned'=>$boolean],['binderId','key','owned']];
+        $defs['set_slot_status'] = [$slot + ['status' => $status], ['binderId', 'key', 'status']];
+        $defs['set_status'] = [['dexIds' => $dexIds, 'status' => $status], ['dexIds', 'status']];
         $defs['set_ownership'] = [[
-            'dexIds' => ['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 1], 'minItems' => 1, 'maxItems' => 50, 'uniqueItems' => true],
+            'dexIds' => $dexIds,
             'owned' => $boolean,
         ], ['dexIds', 'owned']];
     } else {
@@ -89,9 +94,9 @@ function mcp_tools(string $app): array
         $set = ['setId' => ['type' => 'string', 'maxLength' => 64]];
         $tools += [
             'list_set_binders' => ['List named set binders', 'Find synced binder IDs and progress by binder or expansion name.', $page + $query],
-            'get_set_binder' => ['Read a set binder', 'Find cards, printing keys, finishes and physical locations in a named binder.', $page + $query + [
+            'get_set_binder' => ['Read a set binder', 'Find cards, printing keys, statuses, finishes and physical locations in a named binder.', $page + $query + [
                 'binderId' => ['type'=>'string','maxLength'=>36],
-                'status' => ['type'=>'string','enum'=>['all','owned','missing']],
+                'status' => ['type'=>'string','enum'=>['all','owned','ordered','missing']],
             ], ['binderId']],
             'search_catalog' => ['Search the Pokédex catalog', 'Search English physical card sets or National Dex species by name or ID.', $page + $query + $set + [
                 'kind' => ['type' => 'string', 'enum' => ['species', 'sets']],
@@ -99,8 +104,8 @@ function mcp_tools(string $app): array
             'list_printings' => ['List card printings', 'List English physical card printings for a National Dex ID. Optionally filter by set.', $page + $set + [
                 'dexId' => ['type' => 'integer', 'minimum' => 1],
             ], ['dexId']],
-            'get_collection' => ['Read synced Binder', 'Find your synced owned or missing Pokémon. Optionally filter by set and species name.', $page + $query + $set + [
-                'status' => ['type' => 'string', 'enum' => ['all', 'owned', 'missing']],
+            'get_collection' => ['Read synced Binder', 'Find your synced collected, ordered or missing Pokémon. Optionally filter by set and species name.', $page + $query + $set + [
+                'status' => ['type' => 'string', 'enum' => ['all', 'owned', 'ordered', 'missing']],
             ]],
         ];
     } else {

@@ -1,4 +1,4 @@
-import { cloneState, mergeStates, nationalEnabled, record, sameState, validateSettings, validateState, type BinderSettings, type BinderState } from "./model";
+import { cloneState, mergeStates, nationalEnabled, record, sameState, validateSettings, validateState, type BinderSettings, type BinderState, type CardStatus } from "./model";
 import { BinderStore, type BinderStoreOptions, type StoredBinder } from "./store";
 
 export type BinderStatus = "loading" | "local" | "syncing" | "synced" | "pending" | "error" | "conflict";
@@ -247,16 +247,26 @@ export function createBinderController(options: BinderControllerOptions) {
     }, true, requirePersistence);
     emit(); schedule();
   }
-  async function setOwned(id: number, owned: boolean): Promise<void> {
+  async function setStatus(id: number, status: CardStatus): Promise<void> {
     if (!options.species.some(item => item.id === id)) throw new Error("This Pokémon is not in the catalog.");
-    await edit(state => { const ids = new Set(state.ownedDexIds); if (owned) ids.add(id); else ids.delete(id); state.ownedDexIds = [...ids].sort((a, b) => a - b); return state; });
+    await edit(state => {
+      state.ownedDexIds = state.ownedDexIds.filter(value => value !== id);
+      const ordered = (state.orderedDexIds ?? []).filter(value => value !== id);
+      if (status === "owned") state.ownedDexIds.push(id);
+      if (status === "ordered") ordered.push(id);
+      if (ordered.length || state.orderedDexIds) state.orderedDexIds = ordered;
+      return state;
+    });
   }
+  const setOwned = (id: number, owned: boolean) => setStatus(id, owned ? "owned" : "missing");
   async function setSettings(settings: BinderSettings): Promise<void> { const validated = validateSettings(settings); await edit(state => ({ ...state, settings: validated })); }
   async function setEnabled(enabled: boolean): Promise<void> { await edit(state => ({ ...state, enabled })); }
   async function importSpecies(ids: readonly number[], check: (current: BinderState) => void): Promise<void> {
     await edit(state => {
       check(state);
-      return { ...state, enabled: true, ownedDexIds: [...new Set([...state.ownedDexIds, ...ids])] };
+      const owned = new Set([...state.ownedDexIds, ...ids]);
+      return { ...state, enabled: true, ownedDexIds: [...owned],
+        ...(state.orderedDexIds ? { orderedDexIds: state.orderedDexIds.filter(id => !owned.has(id)) } : {}) };
     }, false, true);
   }
   async function replaceState(state: BinderState): Promise<void> { await edit(() => state, true); }
@@ -315,6 +325,6 @@ export function createBinderController(options: BinderControllerOptions) {
     stopped = true; clearInterval(interval); clearTimeout(debounce); unsubscribeStore?.(); store.close(); listeners.clear();
     if (typeof window !== "undefined") { window.removeEventListener("focus", refreshEvent); window.removeEventListener("online", refreshEvent); document.removeEventListener("visibilitychange", visibilityEvent); }
   }
-  return { start, subscribe, snapshot, setOwned, setSettings, setEnabled, importSpecies, replaceState, createSync, checkKey, connect, disconnect, deleteCloud, sync, resolveLayout, stop };
+  return { start, subscribe, snapshot, setOwned, setStatus, setSettings, setEnabled, importSpecies, replaceState, createSync, checkKey, connect, disconnect, deleteCloud, sync, resolveLayout, stop };
 }
 export type BinderController = ReturnType<typeof createBinderController>;

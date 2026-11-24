@@ -195,6 +195,25 @@ describe("collection transfers", () => {
     expect(complete.text.split("\r\n")).toHaveLength(2);
   });
 
+  it("exports ordered printings separately and moves an imported arrival into owned", async () => {
+    const binder = newBinder("sv03.5", "151");
+    binder.owned = ["001:normal"];
+    binder.ordered = ["001:reverse"];
+    const smallCatalog = { ...catalog, async cards(setId: string) { return (await catalog.cards(setId)).slice(0, 2); } };
+    const missing = await exportCards([binder], smallCatalog, { format: "portable", list: "missing" });
+    expect(missing.text).not.toContain("Bulbasaur");
+    const ordered = await exportCards([binder], smallCatalog, { format: "portable", list: "ordered" });
+    expect(ordered).toMatchObject({ exported: 1, omitted: 0 });
+    expect(ordered.text).toContain("001,Bulbasaur,reverse");
+    const mobile = await exportCards([binder], smallCatalog, { format: "tcgplayer", list: "ordered", condition: "Near Mint" });
+    expect(mobile.text).toContain(",502552,Near Mint,English,Reverse Holofoil,1");
+    const { cards } = await parseAndReview(ordered.text);
+    const state = { ...emptyMaster(), binders: [binder] };
+    addSetImports(state, groupSetImport([cards[0].match!], state), new Map([[binder.setId, binder.id]]));
+    expect(binder.ordered).toBeUndefined();
+    expect(binder.owned).toEqual(["001:normal", "001:reverse"]);
+  });
+
   it("supports mapped columns, preserves alphanumeric identifiers and rejects malformed rows", async () => {
     const file = parseTransferCsv('Expansion text,"Printed #",Pokémon,Parallel\nLost Origin,TG01/TG30,Parasect,Normal Holo\nMissing,a,column\n');
     const { rows, invalid } = transferRows(file, { set: 0, number: 1, name: 2, finish: 3 });

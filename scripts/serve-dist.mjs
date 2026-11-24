@@ -15,8 +15,9 @@ createServer((request, response) => {
     const headers = { 'content-type': types[extname(file)] || 'application/octet-stream', 'cache-control': 'no-cache' };
     // Optional faithful Apache header simulation for camera/WASM checks; never enabled by ordinary CI serving.
     if (process.env.POKEDEX_SCANNER_HEADERS === '1') {
-      const config = url.pathname.startsWith('/utilities/pokedex-binder/')
-        ? readFileSync(resolve(root, 'utilities/pokedex-binder/.htaccess'), 'utf8') : readFileSync(resolve(root, '.htaccess'), 'utf8');
+      const headerPath = url.pathname.startsWith('/utilities/pokemon-binder/') ? 'utilities/pokemon-binder/.htaccess'
+        : url.pathname.startsWith('/utilities/pokedex-binder/') ? 'utilities/pokedex-binder/.htaccess' : '.htaccess';
+      const config = readFileSync(resolve(root, headerPath), 'utf8');
       for (const name of ['Content-Security-Policy', 'Permissions-Policy']) {
         const value = config.match(new RegExp(`Header set ${name} "([^"]+)"`))?.[1];
         if (value) headers[name] = value;

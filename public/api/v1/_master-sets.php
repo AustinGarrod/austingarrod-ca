@@ -28,11 +28,12 @@ function master_validate(mixed $state, string $root): void
     $ids = [];
     $known = [];
     foreach ($state->binders as $b) {
-        if (!accounts_fields($b, ['id','name','setId','settings','goal','order','owned','specialties','extras'])
+        if (!accounts_fields($b, ['id','name','setId','settings','goal','order','owned','specialties','extras'], ['ordered'])
             || !is_string($b->id) || !preg_match('/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/D', $b->id) || isset($ids[$b->id])
             || !is_string($b->name) || trim($b->name) === '' || mb_strlen($b->name) > 100 || !is_string($b->setId) || !isset($index[$b->setId])
             || !in_array($b->goal,['numbers','variants'],true) || !in_array($b->order,['together','sections'],true)
-            || !master_strings($b->owned,256) || !master_strings($b->specialties,200) || !is_array($b->extras)) accounts_invalid();
+            || !master_strings($b->owned,256) || !master_strings($b->specialties,200) || !is_array($b->extras)
+            || (property_exists($b,'ordered') && (!master_strings($b->ordered,256) || array_intersect($b->owned,$b->ordered)))) accounts_invalid();
         $ids[$b->id] = true;
         $s = $b->settings;
         if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough'])
@@ -60,14 +61,20 @@ function master_validate(mixed $state, string $root): void
                 || !is_string($e->number) || mb_strlen($e->number)>32 || !is_bool($e->required)) accounts_invalid();
             $keys['extra:'.$e->id] = true;
         }
-        foreach ($b->owned as $key) if (!isset($keys[$key])) accounts_invalid();
+        foreach (array_merge($b->owned,$b->ordered ?? []) as $key) if (!isset($keys[$key])) accounts_invalid();
         foreach ($b->specialties as $key) if (!isset($specialties[$key])) accounts_invalid();
     }
+}
+
+function binder_card_status(bool $owned, bool $ordered): string
+{
+    return $owned ? 'owned' : ($ordered ? 'ordered' : 'missing');
 }
 
 function master_slots(stdClass $b, array $cards): array
 {
     $main = []; $parallel = []; $owned = array_fill_keys($b->owned,true);
+    $ordered = array_fill_keys($b->ordered ?? [],true);
     foreach ($cards as $card) {
         $prefix = $card->number.':';
         $variants = array_values(array_filter($card->variants,fn($v)=>!$v->specialty || in_array($v->id,$b->specialties,true) || in_array($prefix.$v->id,$b->specialties,true)));
@@ -76,8 +83,11 @@ function master_slots(stdClass $b, array $cards): array
         if ($any) $variants = [(object)['id'=>'*','label'=>'Any finish']];
         foreach ($variants as $i=>$v) {
             $key = $prefix.$v->id;
-            $present = isset($owned[$key]) || ($any && array_any($card->variants,fn($value)=>isset($owned[$prefix.$value->id])));
-            $slot = ['key'=>$key,'number'=>$card->number,'name'=>$card->name,'category'=>$card->category,'finish'=>$v->label,'owned'=>$present,'required'=>true];
+            $has = fn($marks) => isset($marks[$key]) || ($any && array_any($card->variants,fn($value)=>isset($marks[$prefix.$value->id])));
+            $present = $has($owned);
+            $pending = !$present && $has($ordered);
+            $slot = ['key'=>$key,'number'=>$card->number,'name'=>$card->name,'category'=>$card->category,'finish'=>$v->label,
+                'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>true];
             if ($i && $b->order === 'sections') $parallel[] = $slot;
             else $main[] = $slot;
         }
@@ -85,7 +95,12 @@ function master_slots(stdClass $b, array $cards): array
             && (int)$card->number >= 1 && (int)$card->number <= $b->settings->fillerThrough) $main[] = null;
     }
     $slots = array_merge($main,$parallel);
-    foreach ($b->extras as $e) $slots[] = ['key'=>'extra:'.$e->id,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra','owned'=>isset($owned['extra:'.$e->id]),'required'=>$e->required];
+    foreach ($b->extras as $e) {
+        $key = 'extra:'.$e->id;
+        $present = isset($owned[$key]); $pending = isset($ordered[$key]);
+        $slots[] = ['key'=>$key,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra',
+            'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>$e->required];
+    }
     $layout = $b->settings; $capacity = $layout->rows*$layout->columns;
     foreach ($slots as $i=>&$slot) {
         if ($slot === null) continue;
@@ -105,10 +120,13 @@ function master_read(string $tool, string $root, ?array $row, array $args): arra
         $slots = master_slots($binder,master_cards($root,$binder->setId,$index));
         $goal = array_filter($slots,fn($s)=>$s['required']); $extras = array_filter($slots,fn($s)=>!$s['required']);
         $summary = ['binderId'=>$binder->id,'name'=>$binder->name,'setId'=>$binder->setId,'goal'=>$binder->goal,
-            'required'=>count($goal),'collected'=>count(array_filter($goal,fn($s)=>$s['owned'])),'optional'=>count($extras),'optionalCollected'=>count(array_filter($extras,fn($s)=>$s['owned']))];
+            'required'=>count($goal),'collected'=>count(array_filter($goal,fn($s)=>$s['owned'])),'ordered'=>count(array_filter($goal,fn($s)=>$s['ordered'])),
+            'missing'=>count(array_filter($goal,fn($s)=>$s['status']==='missing')),
+            'optional'=>count($extras),'optionalCollected'=>count(array_filter($extras,fn($s)=>$s['owned'])),
+            'optionalOrdered'=>count(array_filter($extras,fn($s)=>$s['ordered']))];
         if ($tool === 'get_set_binder') {
             $status = $args['status'] ?? 'all';
-            $items = array_filter($slots,fn($s)=>($status==='all' || ($status==='owned')===$s['owned']) && mcp_text_match($args['query']??'',$s['name'],$s['number'],$s['finish']));
+            $items = array_filter($slots,fn($s)=>($status==='all' || $status===$s['status']) && mcp_text_match($args['query']??'',$s['name'],$s['number'],$s['finish']));
             return $summary + mcp_page($items,$args['offset']??0,$args['limit']??20);
         }
         $matches[] = $summary;
@@ -117,28 +135,40 @@ function master_read(string $tool, string $root, ?array $row, array $args): arra
     return mcp_page($matches,$args['offset']??0,$args['limit']??20);
 }
 
-function master_change(string $root, stdClass $state, stdClass $input): array
+function master_change(string $root, stdClass $state, stdClass $input, bool $useStatus = false): array
 {
-    mcp_change_fields($input,['binderId','key','owned']);
-    if (!is_string($input->key) || !is_bool($input->owned)) accounts_invalid();
+    mcp_change_fields($input,['binderId','key',$useStatus ? 'status' : 'owned']);
+    if (!is_string($input->key) || (!$useStatus && !is_bool($input->owned))) accounts_invalid();
+    $status = $useStatus ? $input->status : ($input->owned ? 'owned' : 'missing');
+    if (!in_array($status,['owned','ordered','missing'],true)) accounts_invalid();
     foreach ($state->binders as $b) {
         if ($b->id !== $input->binderId) continue;
         $slots = array_column(master_slots($b,master_cards($root,$b->setId,master_set_index($root))),null,'key');
         $key = $input->key;
         if (!isset($slots[$key])) accounts_fail(422,'unknown_slot','Choose a printing from this binder.');
+        $slot = $slots[$key];
+        $summary = ['binderId'=>$b->id,'binderName'=>$b->name,'slot'=>$slot,'requestedStatus'=>$status];
+        if (!$useStatus) $summary['requestedOwned'] = $input->owned;
+        if ($useStatus ? $slot['status'] === $status : $slot['owned'] === $input->owned) return $summary;
         $marks = array_fill_keys($b->owned,true);
+        $orders = array_fill_keys($b->ordered ?? [],true);
         $prefix = substr($key,0,strpos($key,':')+1);
-        if ($input->owned) {
-            if (!$slots[$key]['owned']) $marks[$key] = true;
-            if (!str_ends_with($key,':*')) unset($marks[$prefix.'*']);
-        } else {
-            unset($marks[$key]);
-            if (str_ends_with($key,':*')) foreach (array_keys($marks) as $mark) if (str_starts_with($mark,$prefix)) unset($marks[$mark]);
+        $any = str_ends_with($key,':*');
+        if ($any) {
+            if ($status !== 'owned') foreach (array_keys($marks) as $mark) if (str_starts_with($mark,$prefix)) unset($marks[$mark]);
+            foreach (array_keys($orders) as $mark) if (str_starts_with($mark,$prefix)) unset($orders[$mark]);
         }
-        if ($slots[$key]['owned'] !== $input->owned) {
-            $b->owned = array_keys($marks); sort($b->owned,SORT_STRING);
-        }
-        return ['binderId'=>$b->id,'binderName'=>$b->name,'slot'=>$slots[$key],'requestedOwned'=>$input->owned];
+        if ($status === 'owned') {
+            $marks[$key] = true;
+            if (!$any) unset($marks[$prefix.'*'],$orders[$prefix.'*']);
+        } else unset($marks[$key]);
+        if ($status === 'ordered') $orders[$key] = true;
+        else unset($orders[$key]);
+        $b->owned = array_keys($marks); sort($b->owned,SORT_STRING);
+        if ($orders) {
+            $b->ordered = array_keys($orders); sort($b->ordered,SORT_STRING);
+        } else unset($b->ordered);
+        return $summary;
     }
     accounts_fail(404,'binder_not_found','Choose a synced set binder.');
 }

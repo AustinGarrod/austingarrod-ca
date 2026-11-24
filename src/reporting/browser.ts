@@ -4,8 +4,10 @@ import { redactReporting } from "./privacy";
 
 // Keep the existing geocoder contract without dropping request/status/timing diagnostics.
 function withoutGeocodeQuery<T>(value: T): T {
-  return redactReporting(value, location.pathname.startsWith("/utilities/pokedex-binder/"));
+  return redactReporting(value, binderPage);
 }
+
+const binderPage = /^\/utilities\/(?:pokemon|pokedex)-binder\//.test(location.pathname);
 
 // Login and recovery pages must not initialize diagnostics or record credentials.
 const enabled = !location.pathname.startsWith("/account/")
@@ -13,7 +15,7 @@ const enabled = !location.pathname.startsWith("/account/")
 if (enabled && !Sentry.getClient()) {
   Sentry.init({
     dsn: "https://8b561c6564244066bd2960053ed220cd@reports.garrod.house/8",
-    tunnel: location.origin === "https://austingarrod.ca" && location.pathname.startsWith("/utilities/pokedex-binder/")
+    tunnel: location.origin === "https://austingarrod.ca" && binderPage
       ? new URL("/utilities/pokedex-binder/api/reports.php", location.origin).href
       : undefined,
     release: build.release,

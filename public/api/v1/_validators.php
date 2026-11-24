@@ -129,8 +129,9 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
     }
 
     if ($app === 'pokedex-binder') {
-        if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds'], ['enabled']) || $state->schemaVersion !== 1
+        if (!accounts_fields($state, ['schemaVersion', 'settings', 'ownedDexIds'], ['enabled', 'orderedDexIds']) || $state->schemaVersion !== 1
             || (property_exists($state, 'enabled') && !is_bool($state->enabled))
+            || (property_exists($state, 'orderedDexIds') && !is_array($state->orderedDexIds))
             || !accounts_fields($state->settings, ['columns', 'rows', 'useBackSides', 'leadingBlankPockets']) || !is_array($state->ownedDexIds)) {
             accounts_invalid();
         }
@@ -151,7 +152,7 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
             $allowed[$species['id']] = true;
         }
         $seen = [];
-        foreach ($state->ownedDexIds as $id) {
+        foreach (array_merge($state->ownedDexIds, $state->orderedDexIds ?? []) as $id) {
             if (!is_int($id) || !isset($allowed[$id]) || isset($seen[$id])) {
                 accounts_invalid();
             }

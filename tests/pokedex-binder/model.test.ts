@@ -58,6 +58,13 @@ describe("Pokédex search and portable backups", () => {
     expect(csv).toContain("17,Pokémon 17,Missing,2,1,back,1,1,1");
     expect(csv.split("\r\n")).toHaveLength(18);
   });
+  it("keeps ordered Pokémon in backups and excludes them from missing exports", () => {
+    const state = { ...defaultState(), ownedDexIds: [1], orderedDexIds: [2] };
+    expect(importBackup(exportBackup(state), species)).toEqual(state);
+    expect(exportCsv(species.slice(0, 3), state)).toContain("2,Pokémon 2,Ordered");
+    expect(exportCsv(species.slice(0, 3), state, true)).not.toContain("2,Pokémon 2,");
+    expect(() => validateState({ ...state, orderedDexIds: [1] }, species)).toThrow(/duplicate/);
+  });
 });
 
 describe("net-state reconciliation", () => {
@@ -76,5 +83,13 @@ describe("net-state reconciliation", () => {
     expect(merged.layoutConflict).toBe(true);
     expect(merged.state.settings).toEqual(local.settings);
     expect(mergeStates(base, local, local).layoutConflict).toBe(false);
+  });
+  it("preserves independent orders while a competing collection mark wins", () => {
+    const base = defaultState();
+    const local = { ...base, orderedDexIds: [1, 2] };
+    const remote = { ...base, ownedDexIds: [1], orderedDexIds: [3] };
+    const expected = { ...base, ownedDexIds: [1], orderedDexIds: [2, 3] };
+    expect(mergeStates(base, local, remote).state).toEqual(expected);
+    expect(mergeStates(base, remote, local).state).toEqual(expected);
   });
 });

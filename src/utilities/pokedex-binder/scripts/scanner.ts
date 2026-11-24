@@ -58,7 +58,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       const action = s.owned ? s.finish + " · Already collected" : finishes.length === 1 ? "Mark collected" : "Mark " + s.finish;
       const single = finishes.length === 1 && !s.owned;
       return `<button type="button" data-finish="${escape(s.key)}" ${saving || s.owned ? "disabled" : ""} class="${single ? "dex-primary" : ""}">
-        <strong>${escape(action)}</strong>${single ? `<span>${escape(s.finish)}</span>` : ""}
+        <strong>${escape(action)}</strong>${single ? `<span>${escape(s.finish)}</span>` : ""}${s.ordered ? "<span>Ordered</span>" : ""}
         <small>Page ${s.page} · Row ${s.row} · Column ${s.column}</small></button>`;
     }).join("");
     node("set-scan-finishes").innerHTML = buttons;
@@ -245,19 +245,21 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     node("scan-choice-help").hidden = !!item;
     node("scan-candidates").hidden = !!item;
     const mark = node<HTMLButtonElement>("scan-mark"), next = node<HTMLButtonElement>("scan-next");
+    const status = (id: number) => snapshot.state.ownedDexIds.includes(id) ? "Already collected"
+      : snapshot.state.orderedDexIds?.includes(id) ? "Ordered" : "Missing";
     mark.hidden = !item || snapshot.state.ownedDexIds.includes(item.id); mark.disabled = saving;
     next.disabled = saving; next.classList.toggle("dex-primary", mark.hidden);
     for (const button of node("scan-candidates").querySelectorAll<HTMLElement>("[data-scan-species]")) {
       const id = Number(button.dataset.scanSpecies), loc = locationFor(id, snapshot.state.settings, options.species);
       button.setAttribute("aria-pressed", String(id === selected));
-      button.querySelector(".scan-choice-owned")!.textContent = snapshot.state.ownedDexIds.includes(id) ? "Already collected" : "Missing";
+      button.querySelector(".scan-choice-owned")!.textContent = status(id);
       button.querySelector(".scan-choice-location")!.textContent = `Page ${loc.page} · Row ${loc.row} · Column ${loc.column}`;
     }
     if (!item) return;
     const owned = snapshot.state.ownedDexIds.includes(item.id), loc = locationFor(item.id, snapshot.state.settings, options.species);
     const text = (id: string, value: string) => { if (node(id).textContent !== value) node(id).textContent = value; };
     text("scan-pokemon-name", item.name); text("scan-dex-number", `#${String(item.id).padStart(4, "0")}`);
-    text("scan-owned-status", owned ? "Already collected" : "Missing"); node("scan-owned-status").dataset.owned = String(owned);
+    text("scan-owned-status", status(item.id)); node("scan-owned-status").dataset.owned = String(owned);
     const image = node<HTMLImageElement>("scan-pokemon-sprite"), source = `/utilities/pokedex-binder/sprites/${item.id}.png`;
     if (image.getAttribute("src") !== source) image.src = source;
     node("scan-location").setAttribute("aria-label", `Page ${loc.page} · Sheet ${loc.sheet} ${loc.side} · Row ${loc.row} · Column ${loc.column}`);

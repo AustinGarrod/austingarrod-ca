@@ -1,6 +1,7 @@
 import { type AccountClient, type DocumentWrite, type RemoteDocument } from "../../../../packages/accounts/client";
 import { BinderRecovery } from "./recovery";
 import { emptyMaster, sameSave as equal, validateMaster, type MasterState, type SetBinder } from "./master";
+import { cardMarks, mergeCardMarks } from "./model";
 
 export const app = "pokedex-binder",
   documentName = "master-sets";
@@ -66,18 +67,19 @@ function mergeLibrary(
         Object.assign(merged, { [key]: structuredClone(local[key]) });
       }
       if (merged) {
-        for (const key of ["owned", "specialties"] as const) {
-          const values = new Set(other[key]),
-            original = new Set(before[key]),
-            desired = new Set(local[key]);
-          for (const k of new Set([...original, ...desired])) {
-            if (original.has(k) !== desired.has(k)) {
-              if (desired.has(k)) values.add(k);
-              else values.delete(k);
-            }
-          }
-          merged[key] = [...values].sort();
-        }
+        const marks = (binder: SetBinder) => cardMarks(binder.owned, binder.ordered);
+        const statuses = mergeCardMarks(marks(before), marks(local), marks(other));
+        const owned: string[] = [], ordered: string[] = [];
+        for (const [key, status] of statuses) (status === "owned" ? owned : ordered).push(key);
+        merged.owned = owned.sort();
+        if (ordered.length) merged.ordered = ordered.sort();
+        else delete merged.ordered;
+        const specialties = new Set(other.specialties);
+        const previous = new Set(before.specialties);
+        const next = new Set(local.specialties);
+        for (const key of previous) if (!next.has(key)) specialties.delete(key);
+        for (const key of next) if (!previous.has(key)) specialties.add(key);
+        merged.specialties = [...specialties].sort();
         const extras = new Map(other.extras.map((e) => [e.id, e]));
         for (const eid of new Set([...before.extras, ...local.extras].map((e) => e.id))) {
           const prior = before.extras.find((e) => e.id === eid),

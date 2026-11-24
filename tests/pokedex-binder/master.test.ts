@@ -7,6 +7,7 @@ import {
   markSlot,
   newBinder,
   setSlots,
+  setSlotStatus,
   setPockets,
   setCsv,
   validateMaster,
@@ -164,6 +165,20 @@ describe("set catalog and independent pocket goals", () => {
     }
   });
 
+  it("tracks ordered slots and clears their orders when collected or cancelled", () => {
+    const binder = newBinder("sv03.5", "151");
+    setSlotStatus(binder, "001:normal", "ordered");
+    setSlotStatus(binder, "001:reverse", "ordered");
+    expect(setSlots(binder, cards).slice(0, 2).map(slot => slot.status)).toEqual(["ordered", "ordered"]);
+    markSlot(binder, "001:normal", true);
+    expect(binder.ordered).toEqual(["001:reverse"]);
+    expect(setSlots(binder, cards).slice(0, 2).map(slot => slot.status)).toEqual(["owned", "ordered"]);
+    setSlotStatus(binder, "001:reverse", "missing");
+    expect(binder.ordered).toBeUndefined();
+    expect(validateMaster({ schemaVersion: 1, binders: [binder] }).binders[0].owned).toEqual(["001:normal"]);
+    expect(() => validateMaster({ schemaVersion: 1, binders: [{ ...binder, ordered: binder.owned }] })).toThrow();
+  });
+
   const phpVersion = spawnSync(process.env.PHP_BINARY || "php", ["-r", "echo PHP_VERSION_ID;"], { encoding: "utf8" });
   it.skipIf(Number(phpVersion.stdout || 0) < 80400)(
     "matches every assistant slot and physical location for the complete 151 checklist",
@@ -175,6 +190,8 @@ describe("set catalog and independent pocket goals", () => {
       b.settings.fillerThrough = 165;
       markSlot(b, "001:reverse", true);
       b.extras = [{ id: crypto.randomUUID(), number: "P", name: "Promo", required: false }];
+      setSlotStatus(b, "001:normal", "ordered");
+      setSlotStatus(b, "extra:" + b.extras[0].id, "ordered");
       const php =
         "require 'public/api/v1/_master-sets.php'; [$b,$cards]=json_decode(stream_get_contents(STDIN)); echo json_encode(master_slots($b,$cards));";
       const actual = execFileSync(process.env.PHP_BINARY || "php", ["-r", php], {

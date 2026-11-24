@@ -307,8 +307,9 @@ export function createTransfers(options: Options) {
   function updateExportOptions() {
     const tcgplayer = exportFormat.value === "tcgplayer";
     const missing = exportList.value === "missing";
-    get("card-export-owned-help").hidden = missing;
+    get("card-export-owned-help").hidden = exportList.value !== "owned";
     get("card-export-missing-help").hidden = !missing;
+    get("card-export-pending-help").hidden = exportList.value === "owned";
     get("card-export-binderloot-help").hidden = exportFormat.value !== "binderloot";
     get("card-export-tcgplayer-options").hidden = !tcgplayer;
     exportCondition.required = tcgplayer;
@@ -352,7 +353,7 @@ export function createTransfers(options: Options) {
       if (!binders.length) throw new Error("The selected binders changed. Choose them again.");
       const output = await exportCards(binders, options.catalog(), { format, list, condition });
       if (!current()) return;
-      const exportedLabel = list === "missing" ? "missing entries exported" : "distinct printings";
+      const exportedLabel = list === "owned" ? "distinct printings" : `${list} entries exported`;
       exportStatus.textContent = `${output.exported} ${exportedLabel} · ${output.omitted} entries omitted.`;
       const filename = format === "tcgplayer" && list === "owned" ? "tcgplayer-mobile-collection.csv" : `${list}-cards-${format}.csv`;
       if (output.exported) options.download(output.text, filename, "text/csv;charset=utf-8");

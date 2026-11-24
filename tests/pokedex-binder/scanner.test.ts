@@ -34,7 +34,7 @@ describe("card title matching", () => {
 });
 describe("set card recognition", () => {
   const slot = (number: string, name: string, finish = "normal"): Slot => ({
-    key: number + ":" + finish, number, name, finish, required: true, owned: false, category: "Pokemon",
+    key: number + ":" + finish, number, name, finish, required: true, owned: false, ordered: false, status: "missing", category: "Pokemon",
   });
   const slots = [slot("001", "Mew"), slot("001", "Mew", "reverse"), slot("007", "Mewtwo"), slot("TG05", "Mewtwo")];
   const skipTitle = async (): Promise<string> => { throw Error("Unnecessary title OCR"); };

@@ -10,7 +10,7 @@ import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 import "../../styles/pokedex-binder.css";
 
-const utility = utilities.find((item) => item.slug === "pokedex-binder");
+const utility = utilities.find((item) => item.slug === "pokemon-binder");
 if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missing.");
 ---
 
@@ -35,6 +35,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <div id="national-workspace" hidden>
     <section class="dex-progress" aria-label="Collection progress">
       <div><span class="dex-label">Collected</span><strong id="owned-count">—</strong></div>
+      <div><span class="dex-label">Ordered</span><strong id="ordered-count">—</strong></div>
       <div><span class="dex-label">Still to find</span><strong id="missing-count">—</strong></div>
       <div class="dex-completion"><span class="dex-label" id="completion-label">Your National Pokédex</span><progress id="completion-bar" value="0" max="100" aria-labelledby="completion-label"></progress><span id="completion-detail">All species · Any card counts</span></div>
     </section>
@@ -60,8 +61,11 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </BinderChecklist>
 
     </div>
-    <section id="missing-list-controls" class="dex-export-bar" aria-label="Missing lists" hidden>
-      <label class="dex-field-inline">Missing list for <select id="export-scope"><option value="current">Current binder</option><option value="all">All binders</option></select></label>
+    <section id="missing-list-controls" class="dex-export-bar" aria-label="Card lists" hidden>
+      <div class="dex-actions">
+        <label class="dex-field-inline">Card list <select id="position-list"><option value="missing">Missing cards</option><option value="ordered">Ordered cards</option></select></label>
+        <label class="dex-field-inline">Binders <select id="export-scope"><option value="current">Current binder</option><option value="all">All binders</option></select></label>
+      </div>
       <div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div>
     </section>
     <p id="export-message" role="status" class="dex-help"></p>
@@ -120,7 +124,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </section>
     <section id="scan-recovery" class="dex-scan-recovery" hidden><p id="scan-recovery-text"></p><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
   </dialog>
-  <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable missing cards"></section>
+  <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable card list"></section>
   <script is:inline>
     // Accept the first tap even while the application module, catalog or account is loading.
     (() => {

@@ -1,7 +1,7 @@
 import { adoptSets, emptyMaster, sameSave, validateMaster, type MasterState } from "./master";
 import { MasterStore, documentName } from "./master-store";
 import { createAccountClient, getSession, refreshSession, subscribeSession, type AccountSession } from "../../../../packages/accounts/client";
-import { cloneState, hasNationalData, mergeStates, nationalEnabled, sameSettings, sameState, validateState, type BinderState } from "./model";
+import { cloneState, hasNationalData, mergeStates, nationalEnabled, sameSettings, sameState, validateState, type BinderState, type CardStatus } from "./model";
 import { BinderStore, STORAGE_NAME, type BinderStoreOptions, type StoredBinder } from "./store";
 import { createBinderController, generateSyncKey, type BinderController, type BinderSnapshot, type RemoteBinder } from "./sync";
 import { BinderRecovery } from "./recovery";
@@ -33,7 +33,10 @@ export function combineMigrationSources(preview: Pick<MigrationPreview, "device"
   if (!selectedLayout) throw new Error("Choose an available binder layout.");
   const sources = collection === "combine" ? [preview.device, preview.legacy, preview.account] : [preview[collection]];
   if (!sources.some(Boolean)) throw new Error("Choose an available collection.");
-  const combined: BinderState = { schemaVersion: 1, settings: { ...selectedLayout.settings }, ownedDexIds: [...new Set(sources.flatMap(source => source?.ownedDexIds ?? []))].sort((a, b) => a - b) };
+  const owned = new Set(sources.flatMap(source => source?.ownedDexIds ?? []));
+  const ordered = new Set(sources.flatMap(source => source?.orderedDexIds ?? []).filter(id => !owned.has(id)));
+  const combined: BinderState = { schemaVersion: 1, settings: { ...selectedLayout.settings }, ownedDexIds: [...owned].sort((a, b) => a - b),
+    ...(ordered.size ? { orderedDexIds: [...ordered].sort((a, b) => a - b) } : {}) };
   const enabled = sources.some(source => source !== null && nationalEnabled(source));
   if (sources.some(source => source?.enabled !== undefined) || nationalEnabled(combined) !== enabled) combined.enabled = enabled;
   return combined;
@@ -343,6 +346,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     subscribe(listener: (value: BinderSnapshot) => void) { listeners.add(listener); listener(snapshot()); return () => listeners.delete(listener); },
     subscribeAccount(listener: (value: BinderAccountState) => void) { accountListeners.add(listener); listener(accountState()); return () => accountListeners.delete(listener); },
     setOwned: (id: number, owned: boolean) => editable().setOwned(id, owned), setSettings: (settings: BinderState["settings"]) => editable().setSettings(settings), replaceState: (state: BinderState) => editable().replaceState(state),
+    setStatus: (id: number, status: CardStatus) => editable().setStatus(id, status),
     setEnabled: (enabled: boolean) => editable().setEnabled(enabled),
     importSpecies(ids: readonly number[], expected: BinderState, isCurrent: () => boolean) {
       const target = editable();

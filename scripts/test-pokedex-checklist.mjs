@@ -26,7 +26,7 @@ async function checkSetChecklist(page, width) {
   const search = workspace.locator('#master-search');
   const status = workspace.locator('#master-status');
   const finish = workspace.locator('#master-checklist-finish');
-  const hideCollected = workspace.getByRole('checkbox', { name: /hide collected/i });
+  const hideCollected = workspace.getByRole('checkbox', { name: /show only missing/i });
   const clear = workspace.getByRole('button', { name: 'Clear filters', exact: true });
   const regular = rows.filter({ has: page.locator('[data-key="001:normal"]') });
   const reverse = rows.filter({ has: page.locator('[data-key="001:reverse"]') });
@@ -193,7 +193,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(`${origin}/utilities/pokedex-binder/`);
+    await page.goto(`${origin}/utilities/pokemon-binder/`);
     await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
     await page.locator('#first-dex').click();
     await expect(page.locator('#pokemon-details')).toBeHidden();
@@ -271,7 +271,7 @@ try {
     await page.evaluate(() => window.getSelection().removeAllRanges());
     await expect(abra).toHaveClass(/selected/);
     const otherTab = await context.newPage();
-    await otherTab.goto(`${origin}/utilities/pokedex-binder/`);
+    await otherTab.goto(`${origin}/utilities/pokemon-binder/`);
     await expect(otherTab.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
     await abra.locator('.dex-checklist-name').evaluate(node => {
       const range = document.createRange(); range.selectNodeContents(node);

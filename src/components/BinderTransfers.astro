@@ -32,7 +32,7 @@ import { tcgplayerConditions } from "../utilities/pokedex-binder/lib/card-transf
 <dialog id="card-export-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="card-export-title">
   <div class="dex-section-heading"><h2 id="card-export-title">Export cards</h2><button type="button" data-close-dialog aria-label="Close export">×</button></div>
   <form id="card-export-form">
-    <label>Cards to export<select id="card-export-list"><option value="owned">Owned cards</option><option value="missing">Missing cards</option></select></label>
+    <label>Cards to export<select id="card-export-list"><option value="owned">Owned cards</option><option value="missing">Missing cards</option><option value="ordered">Ordered cards</option></select></label>
     <label>Set binders<select id="card-export-scope"></select></label>
     <label>CSV format<select id="card-export-format"><option value="portable">Portable CSV</option><option value="binderloot">BinderLoot CSV</option><option value="tcgplayer">TCGplayer mobile CSV</option></select></label>
     <p id="card-export-binderloot-help" class="dex-help" hidden>In BinderLoot, choose the TCG Collector importer.</p>
@@ -43,7 +43,8 @@ import { tcgplayerConditions } from "../utilities/pokedex-binder/lib/card-transf
       </label>
     </div>
     <p id="card-export-owned-help" class="dex-help">Each distinct printing and finish counts as one copy. Pokédex checkmarks, unknown finishes, and custom extras are available in your JSON backup.</p>
-    <p id="card-export-missing-help" class="dex-help" hidden>Missing cards follow each selected binder’s checklist. Portable CSV can list cards with any finish. BinderLoot and TCGplayer require an exact printing.</p>
+    <p id="card-export-missing-help" class="dex-help" hidden>Missing cards are the checklist entries you still need to find.</p>
+    <p id="card-export-pending-help" class="dex-help" hidden>Portable CSV can list cards with any finish. BinderLoot and TCGplayer require an exact printing.</p>
     <p id="card-export-status" role="status"></p>
     <p id="card-export-error" role="alert" class="dex-error"></p>
     <div class="dex-dialog-actions"><button id="card-export-download" class="dex-primary" type="submit">Download CSV</button></div>
