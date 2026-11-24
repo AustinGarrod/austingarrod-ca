@@ -471,6 +471,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-form-error").textContent = "";
     await specialties();
     dialog("master-editor").showModal();
+    input(b ? "master-name" : "master-set").focus({ preventScroll: true });
   }
   async function saveForm() {
     const set = chosenSet();
@@ -607,6 +608,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-add-extra", "click", () => {
     node<HTMLFormElement>("master-extra-form").reset();
     dialog("master-extra-dialog").showModal();
+    input("master-extra-name").focus({ preventScroll: true });
   });
   node("master-extra-form").addEventListener("submit", (event) => {
     event.preventDefault();

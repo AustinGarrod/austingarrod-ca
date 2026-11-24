@@ -1,8 +1,8 @@
-<dialog id="catalog-search-dialog" class="dex-dialog catalog-search-dialog rr-block" data-analytics-private aria-labelledby="catalog-search-title">
-  <div class="dex-section-heading">
+<dialog id="catalog-search-dialog" class="dex-dialog dex-collection-dialog catalog-search-dialog rr-block" data-analytics-private aria-labelledby="catalog-search-title">
+  <header class="dex-dialog-header">
     <h2 id="catalog-search-title">Search cards</h2>
     <button type="button" data-close-dialog aria-label="Close card search">×</button>
-  </div>
+  </header>
   <section id="catalog-search-results-panel" aria-label="Find a card">
     <form id="catalog-search-form" class="catalog-search-filters" role="search">
       <label>Card, Pokémon, set, or number
@@ -30,19 +30,3 @@
     <ul id="catalog-search-printings" class="dex-transfer-rows catalog-search-rows" aria-label="Choose a printing"></ul>
   </section>
 </dialog>
-
-<style>
-  .catalog-search-dialog { width: min(680px, calc(100vw - 32px)); }
-  .catalog-search-filters { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
-  .catalog-search-filters label { min-width: 0; }
-  .catalog-search-rows :global(li) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-  .catalog-search-rows :global(button) { min-height: 40px; }
-  #catalog-search-printings-panel > button { margin-top: 16px; }
-  #catalog-search-pages { align-items: center; justify-content: center; }
-  @media (max-width: 540px) {
-    .catalog-search-filters { grid-template-columns: minmax(0, 1fr); gap: 0; }
-    .catalog-search-filters label + label { margin-top: 0; }
-    .catalog-search-rows :global(li) { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-    .catalog-search-rows :global(button) { justify-self: start; }
-  }
-</style>

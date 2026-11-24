@@ -53,7 +53,7 @@ export function cardPocket(p: Pocket) {
   return `<div class="dex-pocket ${p.owned ? "owned" : p.ordered ? "ordered" : ""} ${p.selected ? "selected" : ""} ${p.dimmed ? "dimmed" : ""}">
     <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, row ${p.row}, column ${p.column}. View card references" aria-pressed="${p.selected}">
       <span class="dex-pocket-number">${number}</span>${art}<span class="dex-pocket-name">${title}</span>${finish ? `<small>${finish}</small>` : ""}</button>
-    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Own ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>${p.owned ? "Owned" : p.ordered ? "Ordered" : "Missing"}</span></label></div>`;
+    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Own ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>${p.owned ? "Collected" : p.ordered ? "Ordered" : "Missing"}</span></label></div>`;
 }
 
 export function orderButton(id: string | number, ordered: boolean, isSet = false) {

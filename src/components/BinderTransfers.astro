@@ -2,19 +2,21 @@
 import { tcgplayerConditions } from "../utilities/pokedex-binder/lib/card-transfer";
 ---
 
-<dialog id="card-import-dialog" class="dex-dialog dex-transfer-dialog rr-block" data-analytics-private aria-labelledby="card-import-title">
-  <div class="dex-section-heading"><h2 id="card-import-title">Import cards</h2><button type="button" data-close-dialog aria-label="Close import">×</button></div>
-  <p>Open a collection CSV from TCG Collector, Collectr, TCGplayer, or another tracker. Your file is read in this browser.</p>
-  <form id="card-import-form">
+<dialog id="card-import-dialog" class="dex-dialog dex-collection-dialog dex-transfer-dialog rr-block" data-analytics-private aria-labelledby="card-import-title">
+  <header class="dex-dialog-header"><h2 id="card-import-title">Import cards</h2><button type="button" data-close-dialog aria-label="Close import">×</button></header>
+  <p class="dex-dialog-intro">Open a collection CSV from TCG Collector, Collectr, TCGplayer, or another tracker. Your file is read in this browser.</p>
+  <form id="card-import-form" class="dex-dialog-form">
     <div class="dex-form-grid">
       <label>Import into<select id="card-import-target"><option value="sets">Set binders</option><option value="dex">National Pokédex</option></select></label>
       <label>CSV format<select id="card-import-format"><option value="auto">Detect from file</option><option value="tcgcollector">TCG Collector</option><option value="collectr">Collectr</option><option value="tcgplayer">TCGplayer</option><option value="custom">Map columns</option></select></label>
     </div>
-    <label for="card-import-file" class="dex-file-label">Choose CSV file<input id="card-import-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" required /></label>
-    <p id="card-import-filename" class="dex-help dex-transfer-filename" hidden></p>
+    <div class="dex-transfer-file">
+      <label for="card-import-file" class="dex-file-label">Choose CSV file<input id="card-import-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" required /></label>
+      <p id="card-import-filename" class="dex-help dex-transfer-filename" hidden></p>
+    </div>
     <details id="card-import-mapping" hidden><summary>Map CSV columns</summary><div id="card-import-columns" class="dex-transfer-mapping"></div></details>
     <p class="dex-help">Imports track ownership. Extra copies, condition, grades, prices, and notes stay in your original file.</p>
-    <button id="card-import-preview" type="submit" class="dex-primary" disabled>Preview import</button>
+    <div><button id="card-import-preview" type="submit" class="dex-primary" disabled>Preview import</button></div>
   </form>
   <section id="card-import-review" aria-labelledby="card-review-title" hidden>
     <h3 id="card-review-title">Review matches</h3>
@@ -29,14 +31,14 @@ import { tcgplayerConditions } from "../utilities/pokedex-binder/lib/card-transf
   <p id="card-import-error" role="alert" class="dex-error"></p>
 </dialog>
 
-<dialog id="card-export-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="card-export-title">
-  <div class="dex-section-heading"><h2 id="card-export-title">Export cards</h2><button type="button" data-close-dialog aria-label="Close export">×</button></div>
-  <form id="card-export-form">
+<dialog id="card-export-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="card-export-title">
+  <header class="dex-dialog-header"><h2 id="card-export-title">Export cards</h2><button type="button" data-close-dialog aria-label="Close export">×</button></header>
+  <form id="card-export-form" class="dex-dialog-form">
     <label>Cards to export<select id="card-export-list"><option value="owned">Owned cards</option><option value="missing">Missing cards</option><option value="ordered">Ordered cards</option></select></label>
     <label>Set binders<select id="card-export-scope"></select></label>
     <label>CSV format<select id="card-export-format"><option value="portable">Portable CSV</option><option value="binderloot">BinderLoot CSV</option><option value="tcgplayer">TCGplayer mobile CSV</option></select></label>
     <p id="card-export-binderloot-help" class="dex-help" hidden>In BinderLoot, choose the TCG Collector importer.</p>
-    <div id="card-export-tcgplayer-options" hidden>
+    <div id="card-export-tcgplayer-options" class="dex-dialog-note" hidden>
       <p class="dex-help">In TCGplayer, open Collection and choose Import a list via file.</p>
       <label>Condition for exported cards<select id="card-export-tcgplayer-condition" disabled><option value="">Choose a condition</option>{tcgplayerConditions.map(condition => <option>{condition}</option>)}</select>
         <small>This condition applies to every row. For mixed conditions, edit the Condition column before importing.</small>

@@ -97,7 +97,9 @@ async function initialize() {
   });
   const pricing = createPricingUI({ collection: master.collection, binders: master.backup, selected: () => el<HTMLSelectElement>("master-switch").value });
   const catalogSearch = createCatalogSearch({ openPrinting: pricing.openPrinting });
-  el("catalog-search-open").addEventListener("click", () => catalogSearch.open());
+  const searchCards = el<HTMLButtonElement>("catalog-search-open");
+  searchCards.addEventListener("click", () => catalogSearch.open());
+  searchCards.disabled = false;
   let accountTicket = 0, accountKey = "", onboardingReady = false, onboardingTicket = 0;
   let productLookup: Promise<Record<string, ProductIdentity>> | undefined;
   let speciesLookup: ((match: TransferMatch) => readonly number[]) | undefined;

@@ -55,11 +55,11 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     const name = first ? [first.number && "#" + first.number, first.name].filter(Boolean).join(" · ") : "";
     node("set-scan-name").textContent = name || (candidateIds.length ? "Choose a card" : "Find a card");
     const buttons = finishes.map(s => {
-      const action = s.owned ? s.finish + " · Already collected" : finishes.length === 1 ? "Mark collected" : "Mark " + s.finish;
       const single = finishes.length === 1 && !s.owned;
-      return `<button type="button" data-finish="${escape(s.key)}" ${saving || s.owned ? "disabled" : ""} class="${single ? "dex-primary" : ""}">
-        <strong>${escape(action)}</strong>${single ? `<span>${escape(s.finish)}</span>` : ""}${s.ordered ? "<span>Ordered</span>" : ""}
-        <small>Page ${s.page} · Row ${s.row} · Column ${s.column}</small></button>`;
+      return `<button type="button" data-finish="${escape(s.key)}" data-collected="${s.owned}" ${saving || s.owned ? "disabled" : ""} class="${single ? "dex-primary" : ""}">
+        <span class="dex-scan-finish-name"><strong>${escape(s.finish)}</strong>${s.ordered ? "<small>Ordered</small>" : ""}</span>
+        <small class="dex-scan-finish-location">Page ${s.page} · Row ${s.row} · Column ${s.column}</small>
+        <span class="dex-scan-finish-action">${s.owned ? "Already collected" : "Mark collected"}</span></button>`;
     }).join("");
     node("set-scan-finishes").innerHTML = buttons;
     node("set-scan-search-panel").hidden = !!selectedCard && !!first;
@@ -70,7 +70,9 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       `<button type="button" data-scan-card="${escape(id)}"><span>${escape(slot.number)}</span> ${escape(slot.name)}</button>`).join("");
     if (!cards.size) choices.textContent = "No matching cards in this binder.";
     else if (!first && cards.size > 30) choices.insertAdjacentHTML("beforeend", "<p>Type to narrow the list.</p>");
-    node<HTMLButtonElement>("set-scan-next").disabled = saving;
+    const next = node<HTMLButtonElement>("set-scan-next");
+    next.disabled = saving;
+    next.classList.toggle("dex-primary", finishes.length > 0 && finishes.every(slot => slot.owned));
   }
   let retryAfter = 0, resultNotice = "";
   const say = (text: string) => { if (node("scan-status").textContent !== text) node("scan-status").textContent = text; };
@@ -105,8 +107,13 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     releaseImages(); saving = false;
   }
   function close() { setPhase("closed"); stopResources(); gate = new CaptureGate(); selected = null; if (dialog.open) dialog.close(); }
-  function pause(message: string) { stopResources(); setPhase("paused"); say(message); node("scan-recovery-text").textContent = message; }
-  function fail(message: string) { stopResources(); setPhase("error"); say(message); node("scan-recovery-text").textContent = message; }
+  function pause(message: string) { stopResources(); setPhase("paused"); say(message); }
+  function fail(message: string, permissionDenied = false) {
+    stopResources();
+    dialog.toggleAttribute("data-camera-denied", permissionDenied);
+    setPhase("error");
+    say(message);
+  }
   function resizeGuide() {
     const bounds = video.getBoundingClientRect();
     guide.style.width = `${Math.max(80, Math.min(bounds.width * .84, (bounds.height - 28) * 63 / 88, 380))}px`;
@@ -150,8 +157,8 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       }
       const denied = error instanceof DOMException && ["NotAllowedError", "SecurityError"].includes(error.name);
       logStartup(denied ? "permission_denied" : error instanceof DOMException && error.name === "NotFoundError" ? "no_camera" : "camera_start_failed");
-      fail(denied ? "Camera permission was denied. Allow camera access in your browser, then try again—or search manually."
-        : "The camera or scanner could not start. Check your connection and camera access, then try again—or search manually.");
+      fail(denied ? "Camera permission was denied. Allow camera access in your browser, then resume the camera or search manually."
+        : "The camera or scanner could not start. Check your connection and camera access, then try again—or search manually.", denied);
     }
   }
   function sourceCrop() {

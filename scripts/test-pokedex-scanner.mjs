@@ -198,6 +198,8 @@ try {
   await scenario('denied camera and manual search do not claim an unsaved collection', async () => {
     const ctx = await context(), page = await open(ctx); await page.evaluate(() => { window.__denyCamera = true; });
     await page.locator('#scan-open').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'error');
+    await expect(page.getByText('Camera permission was denied.', { exact: false })).toHaveCount(1);
+    await expect(page.locator('#scan-reload')).toBeHidden();
     await page.locator('#scan-recovery-search').click(); await page.locator('#scan-search').fill('25'); await page.locator('#scan-search-results [data-scan-species="25"]').click();
     await page.locator('#scan-mark').click(); await expect(page.locator('#owned-count')).toHaveText('1'); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'paused');
     await ctx.close();
@@ -255,6 +257,7 @@ try {
     const ctx = await context(); await ctx.route('**/scanner-assets/v1/worker.min.js', route => route.abort());
     const page = await open(ctx); await page.locator('#scan-open').click();
     await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'error', { timeout: 15000 });
+    await expect(page.locator('#scan-reload')).toBeVisible();
     assert.equal(await page.evaluate(() => window.__cameraCount), 0);
     await expect(page.locator('#scan-recovery-search')).toBeVisible(); await ctx.close();
   });

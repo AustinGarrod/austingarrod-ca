@@ -50,7 +50,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   list.addEventListener("click", event => {
     const target = event.target as Element;
     const row = target.closest<HTMLElement>("[data-checklist-row]");
-    if (!row || target.closest("input, .dex-checklist-jump, .dex-order-button")) return;
+    if (!row || target.closest(".dex-checklist-mark, .dex-checklist-jump, .dex-order-button")) return;
     const previous = list.querySelector<HTMLElement>(".selected");
     if (previous && previous !== row) highlight(previous, false);
     selectedKey = row.dataset.checklistRow!;
@@ -99,9 +99,8 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     const detail = row.querySelector<HTMLElement>(".dex-checklist-card-numbers")!;
     setText(detail, entry.detail ?? "");
     detail.hidden = !entry.detail;
-    const label = row.querySelector<HTMLElement>(".dex-collected-label")!;
-    label.hidden = !entry.owned && !entry.ordered;
-    setText(label, entry.owned ? "✓ Collected" : "Ordered");
+    const label = row.querySelector<HTMLElement>(".dex-collection-state")!;
+    setText(label, entry.owned ? "Collected" : entry.ordered ? "Ordered" : "Missing");
     const order = row.querySelector<HTMLButtonElement>(".dex-order-button")!;
     order.hidden = entry.owned;
     order.dataset[isSet ? "setOrder" : "order"] = key;

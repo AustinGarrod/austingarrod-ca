@@ -259,7 +259,7 @@ try {
     holdPatch = new Promise(resolve => { releasePatch = resolve; });
     await page.locator('#owned-list-63').check();
     await expect(abra).toHaveClass(/owned/);
-    await expect(abra.locator('.dex-collected-label')).toBeVisible();
+    await expect(abra.getByText('Collected', { exact: true })).toBeVisible();
     await expect(page.locator('#dex-status')).not.toHaveText('Synced · Saved on this device');
     await abra.locator('.dex-checklist-name').evaluate(node => {
       const range = document.createRange(); range.selectNodeContents(node);

@@ -1,8 +1,8 @@
 ---
 import { ExternalLink, ShoppingBag } from "@lucide/astro";
 ---
-<dialog id="card-pricing-dialog" class="dex-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="card-pricing-title">
-  <header class="dex-section-heading">
+<dialog id="card-pricing-dialog" class="dex-dialog dex-collection-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="card-pricing-title">
+  <header class="dex-dialog-header">
     <h2 id="card-pricing-title">Card prices</h2>
     <button type="button" data-close-dialog aria-label="Close card prices">×</button>
   </header>
@@ -52,12 +52,12 @@ import { ExternalLink, ShoppingBag } from "@lucide/astro";
   </div>
   <div class="dex-dialog-actions">
     <button id="card-pricing-back" type="button" hidden>Back to Buy Cards</button>
-    <button type="button" data-close-dialog>Done</button>
+    <button type="button" class="dex-primary" data-close-dialog>Done</button>
   </div>
 </dialog>
 
-<dialog id="buy-cards-dialog" class="dex-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="buy-cards-title">
-  <header class="dex-section-heading">
+<dialog id="buy-cards-dialog" class="dex-dialog dex-collection-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="buy-cards-title">
+  <header class="dex-dialog-header">
     <h2 id="buy-cards-title">Buy Cards</h2>
     <button type="button" data-close-dialog aria-label="Close Buy Cards">×</button>
   </header>

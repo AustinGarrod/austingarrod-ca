@@ -27,11 +27,10 @@ const id = (part: string) => prefix + "checklist-" + part;
         <option value="collector-desc">Set card number ↓</option>
       </select>
     </label>
-    <button type="button" id={id("clear-filters")} hidden>Clear filters</button>
+    <button type="button" id={id("clear-filters")} class="dex-quiet" hidden>Clear filters</button>
   </div>
   <div class="dex-checklist-options">
     <label><input id={id("hide-collected")} type="checkbox" /> Show only missing {unit}</label>
-    <span class="dex-help">Click a row to highlight it.</span>
   </div>
   <nav id={id("letters")} class="dex-letter-jump" aria-label="Jump to starting letter" hidden>
     {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter => <button type="button" data-letter={letter} aria-label={`Jump to ${letter}`}>{letter}</button>)}
@@ -40,19 +39,21 @@ const id = (part: string) => prefix + "checklist-" + part;
   <div id={isSet ? "master-list" : id("list")}></div>
   <template id={id("row-template")}>
     <div class="dex-checklist-row">
-      <input type="checkbox" />
+      <label class="dex-checklist-mark"><input type="checkbox" /></label>
       <span class="dex-checklist-art"><img width="48" height="48" loading="lazy" alt="" hidden /></span>
       <div class="dex-checklist-identity">
         <span class="dex-label"></span>
         <button type="button" class="dex-checklist-name" aria-pressed="false"></button>
         <span class="dex-label dex-checklist-card-numbers" hidden></span>
-        <span class="dex-collected-label" hidden></span>
-        <button type="button" class="dex-order-button"></button>
+        <div class="dex-checklist-state">
+          <span class="dex-collection-state"></span>
+          <button type="button" class="dex-order-button dex-quiet"></button>
+        </div>
       </div>
       <div class="dex-checklist-location">
-        <span>Page <strong></strong></span><span>Row <strong></strong></span><span>Col <strong></strong></span>
+        <span>Page <strong></strong></span><span>Row <strong></strong></span><span>Column <strong></strong></span>
       </div>
-      <button type="button" class="dex-checklist-jump">View page</button>
+      <button type="button" class="dex-checklist-jump dex-quiet">View page</button>
     </div>
   </template>
   <button type="button" id={id("more")} hidden>Show more {unit}</button>

@@ -11,6 +11,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 import "../../styles/pokedex-binder.css";
+import "../../styles/pokedex-binder-dialogs.css";
 
 const utility = utilities.find((item) => item.slug === "pokemon-binder");
 if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missing.");
@@ -25,7 +26,14 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <section class="dex-intro">
       <h1><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
-      <div class="dex-actions"><button id="catalog-search-open" type="button" aria-haspopup="dialog"><Search size={16} aria-hidden="true" /> Search cards</button><button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="layout-open" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button><button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button><button id="master-settings" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button><button id="sync-open"><Cloud size={16} aria-hidden="true" /> Sync & backup</button></div>
+      <div class="dex-actions">
+        <button id="catalog-search-open" class="dex-primary" type="button" aria-haspopup="dialog" disabled><Search size={16} aria-hidden="true" /> Search cards</button>
+        <button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button>
+        <button id="layout-open" class="dex-quiet" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button>
+        <button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button>
+        <button id="master-settings" class="dex-quiet" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
+        <button id="sync-open" class="dex-quiet"><Cloud size={16} aria-hidden="true" /> Sync & backup</button>
+      </div>
     </section>
 
     <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
@@ -53,7 +61,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <Fragment slot="filters">
         <label for="checklist-set">Filter by set<input id="checklist-set" type="search" list="checklist-sets" placeholder="All sets · Search set name or code" autocomplete="off" aria-describedby="checklist-filter-help" /></label>
         <datalist id="checklist-sets"></datalist>
-        <button id="checklist-clear-set">Clear set filter</button>
+        <button id="checklist-clear-set" class="dex-quiet">Clear set filter</button>
       </Fragment>
       <Fragment slot="help">
         <p id="checklist-filter-help" class="dex-help">Sets show available English printings. Collected status counts any card.</p>
@@ -78,17 +86,44 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <BinderCatalogSearch />
   <BinderPricing />
 
-  <dialog id="layout-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="layout-title"><form id="layout-form"><div class="dex-section-heading"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></div><p>Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p><div class="dex-form-grid"><label>Columns<input name="columns" type="number" min="1" max="6" required /></label><label>Rows<input name="rows" type="number" min="1" max="6" required /></label></div><label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label><label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label><p class="dex-help">Changing the layout keeps all of your owned Pokémon.</p><button id="national-hide" type="button">Hide National Pokédex</button><p class="dex-help">You can add it back with your progress and layout.</p><p id="layout-error" class="dex-error" role="alert"></p><div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div></form></dialog>
+  <dialog id="layout-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="layout-title">
+    <form id="layout-form">
+      <header class="dex-dialog-header"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></header>
+      <p class="dex-dialog-intro">Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p>
+      <div class="dex-form-grid">
+        <label>Columns<input name="columns" type="number" min="1" max="6" required /></label>
+        <label>Rows<input name="rows" type="number" min="1" max="6" required /></label>
+      </div>
+      <label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label>
+      <label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label>
+      <p class="dex-help">Changing the layout keeps all of your collected Pokémon.</p>
+      <button id="national-hide" type="button" class="dex-quiet">Hide National Pokédex</button>
+      <p class="dex-help">You can add it back with your progress and layout.</p>
+      <p id="layout-error" class="dex-error" role="alert"></p>
+      <div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div>
+    </form>
+  </dialog>
 
-  <dialog id="sync-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="sync-title"><div class="dex-section-heading"><h2 id="sync-title">Sync & backup</h2><button type="button" data-close-dialog aria-label="Close sync and backup">×</button></div><p>Your binder saves in this browser. Account sync is optional; review your device and account collections before connecting.</p>
+  <dialog id="sync-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="sync-title">
+    <header class="dex-dialog-header"><h2 id="sync-title">Sync &amp; backup</h2><button type="button" data-close-dialog aria-label="Close sync and backup">×</button></header>
+    <p id="sync-message" class="dex-notice" role="status"></p>
     <section id="binder-account-panel" hidden>
-      <h3>One account for your utilities</h3><p id="binder-account-status" class="dex-help"></p>
+      <h3>Account sync</h3><p id="binder-account-status" class="dex-help"></p>
       <a id="binder-account-link" href="/account/?returnTo=%2Futilities%2Fpokedex-binder%2F">Sign in with email or Google</a>
       <div class="dex-actions"><button id="binder-account-review" hidden>Review & connect account</button><button id="binder-account-resume" hidden>Resume saved migration</button><button id="binder-account-sync" hidden>Sync account now</button><button id="binder-account-recheck" hidden>Retry saving & account connection</button><button id="binder-recovery-download" hidden>Download migration backups</button></div>
       <p class="dex-help">Connecting keeps recovery copies of your device and account data.</p>
-    </section><p id="sync-message" class="dex-notice" role="status"></p><section class="dex-backups"><h3>Collection backup</h3><button id="resume-restore" hidden>Finish interrupted backup restore</button><button id="previous-restore" hidden>Download collection from before restore</button><p>Download a copy before clearing browser data. Backups contain your collection and layout, including all named set binders.</p><div class="dex-backup-actions"><button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button><label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label></div></section><p id="sync-error" class="dex-error" role="alert"></p></dialog>
-  <dialog id="binder-migration-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="binder-migration-title">
-    <form id="binder-migration-form"><div class="dex-section-heading"><h2 id="binder-migration-title">Review your binder copies</h2><button type="button" data-close-dialog aria-label="Close migration review">×</button></div>
+    </section>
+    <section class="dex-backups">
+      <h3>Collection backup</h3>
+      <button id="resume-restore" hidden>Finish interrupted backup restore</button>
+      <button id="previous-restore" hidden>Download collection from before restore</button>
+      <p class="dex-help">Download your collection and binder layouts before clearing browser data.</p>
+      <div class="dex-backup-actions"><button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button><label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label></div>
+    </section>
+    <p id="sync-error" class="dex-error" role="alert"></p>
+  </dialog>
+  <dialog id="binder-migration-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="binder-migration-title">
+    <form id="binder-migration-form"><header class="dex-dialog-header"><h2 id="binder-migration-title">Review your binder copies</h2><button type="button" data-close-dialog aria-label="Close migration review">×</button></header>
       <div id="binder-migration-summary" role="status"></div>
       <p>Every original copy is kept for recovery. Combining keeps a Pokémon collected if any copy has it marked.</p>
       <label>Collection<select id="binder-migration-collection"><option value="combine">Combine all collected Pokémon</option><option value="device">Use this device's collection</option><option value="account">Use the account collection</option></select></label>
@@ -99,15 +134,21 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   </dialog>
   <dialog id="confirm-dialog" class="dex-dialog rr-block" data-analytics-private aria-labelledby="confirm-title"><h2 id="confirm-title">Replace this binder?</h2><p id="confirm-text"></p><button id="confirm-backup">Download current backup</button><div class="dex-dialog-actions"><button id="confirm-cancel">Cancel</button><button id="confirm-accept" class="dex-primary">Continue</button></div></dialog>
   <dialog id="scan-dialog" class="dex-scan-dialog rr-block" data-phase="loading" data-analytics-private aria-labelledby="scan-title">
-    <header class="dex-scan-heading"><h2 id="scan-title"><Camera size={21} aria-hidden="true" /> <span id="scan-title-label">Scan cards</span></h2><form method="dialog"><button id="scan-close" aria-label="Close scanner">Close</button></form></header>
+    <header class="dex-scan-heading"><h2 id="scan-title"><Camera size={21} aria-hidden="true" /> <span id="scan-title-label">Scan cards</span></h2><form method="dialog"><button id="scan-close" class="dex-scan-secondary" aria-label="Close scanner">Close</button></form></header>
     <p id="scan-status" class="dex-scan-status" role="status" aria-live="polite">Loading your binder…</p>
     <button id="scan-reload" type="button">Reload binder</button>
     <p class="dex-scan-privacy">Recognition stays on this device. Photos aren’t saved or uploaded.</p>
     <p id="scan-notice" class="dex-scan-notice" role="alert"></p>
     <div id="scan-camera" class="dex-scan-camera"><video id="scan-video" autoplay muted playsinline aria-label="Live card camera"></video><div id="scan-guide" class="dex-scan-guide" aria-hidden="true"><span>Card name at the top</span></div></div>
-    <div id="scan-camera-actions" class="dex-scan-actions"><button id="scan-capture">Capture now</button><button id="scan-flash" aria-pressed="false" hidden>Flash off</button><button id="scan-manual">Search manually</button><button id="scan-rescan">Rescan same card</button><p id="scan-flash-notice" role="status"></p></div>
+    <div id="scan-camera-actions" class="dex-scan-actions">
+      <button id="scan-capture" class="dex-primary">Capture now</button>
+      <button id="scan-flash" aria-pressed="false" hidden>Flash off</button>
+      <button id="scan-manual" class="dex-scan-secondary">Search manually</button>
+      <button id="scan-rescan" class="dex-scan-secondary">Rescan same card</button>
+      <p id="scan-flash-notice" role="status"></p>
+    </div>
     <div id="set-photo-controls"><label id="set-photo-label" class="dex-file-label" hidden>Use a photo<input id="master-photo" type="file" accept="image/*" /></label></div>
-    <section id="set-scan-result" class="dex-scan-result" hidden>
+    <section id="set-scan-result" class="dex-scan-result" aria-labelledby="set-scan-name" hidden>
       <div class="dex-scan-result-body"><h3 id="set-scan-name"></h3>
         <div id="set-scan-finishes" class="dex-scan-candidates"></div>
         <div class="dex-set-scan-alternatives"><button id="set-scan-correct" class="dex-scan-correct">Change card</button><span id="set-result-photo"></span></div>
@@ -126,7 +167,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       </div>
       <footer class="dex-scan-result-actions"><button id="scan-mark" class="dex-primary" hidden><Check size={17} aria-hidden="true" /> Mark collected</button><button id="scan-next">Scan next <ChevronRight size={17} aria-hidden="true" /></button></footer>
     </section>
-    <section id="scan-recovery" class="dex-scan-recovery" hidden><p id="scan-recovery-text"></p><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
+    <section id="scan-recovery" class="dex-scan-recovery" hidden><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
   </dialog>
   <section id="print-content" class="dex-print-only rr-block" data-analytics-private aria-label="Printable card list"></section>
   <script is:inline>
