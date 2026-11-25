@@ -64,8 +64,8 @@ function priceOrder(a: number, b: number) {
 }
 
 export function createBuyCards(options: Options) {
-  const workspace = node("workspace"), list = node("list"), status = node("status"), progress = node("progress");
-  const empty = node("empty");
+  const workspace = node("workspace"), list = node("list"), status = node("status");
+  const empty = node("empty"), progress = node("check-status"), countdown = node("countdown");
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
   const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
@@ -267,11 +267,17 @@ export function createBuyCards(options: Options) {
     scheduleExpiration(now, quoteExpiry);
   }
 
+  function showProgress(message: string, seconds = 0) {
+    const timer = seconds > 0 ? `Store checks will resume in ${seconds} ${seconds === 1 ? "second" : "seconds"}. ` : "";
+    if (countdown.textContent !== timer) countdown.textContent = timer;
+    if (progress.textContent !== message) progress.textContent = message;
+  }
+
   function cancelChecks() {
     job?.controller.abort();
     job = undefined;
     cancel.hidden = true;
-    progress.textContent = "";
+    showProgress("");
   }
 
   async function check(targets: Map<string, PricingTarget>, kind: CheckKind = "manual") {
@@ -289,27 +295,26 @@ export function createBuyCards(options: Options) {
     job = lookup;
     let cursor = 0;
 
-    function report() {
+    function report(wait = rateLimitedUntil - Date.now()) {
       if (kind === "refresh") return;
-      const wait = Math.ceil((rateLimitedUntil - Date.now()) / 1_000);
-      const message = wait > 0
-        ? `Store checks will resume in about ${wait} seconds. ${lookup.completed} of ${lookup.total} printings checked.`
-        : `Checking store prices · ${lookup.completed} of ${lookup.total} printings`;
-      if (progress.textContent !== message) progress.textContent = message;
+      const seconds = Math.ceil(wait / 1_000);
+      const count = `${lookup.completed} of ${lookup.total} printings`;
+      showProgress(seconds > 0 ? `${count} checked.` : `Checking store prices · ${count}`, seconds);
     }
 
     async function waitForCapacity() {
       while (!signal.aborted) {
         const wait = rateLimitedUntil - Date.now();
         if (wait <= 0) return true;
-        report();
+        report(wait);
+        const delay = kind === "refresh" ? wait : wait % 1_000 || 1_000;
         await new Promise<void>(resolve => {
           const finishWaiting = () => {
             clearTimeout(timer);
             signal.removeEventListener("abort", finishWaiting);
             resolve();
           };
-          const timer = setTimeout(finishWaiting, wait);
+          const timer = setTimeout(finishWaiting, delay);
           signal.addEventListener("abort", finishWaiting, { once: true });
         });
       }
@@ -350,8 +355,8 @@ export function createBuyCards(options: Options) {
     const restoreFocus = document.activeElement === cancel;
     job = undefined;
     if (kind !== "refresh") {
-      progress.textContent = `Checked ${lookup.completed} of ${lookup.total} printings.`
-        + (lookup.unavailable ? ` Some stores couldn’t be checked for ${lookup.unavailable} ${lookup.unavailable === 1 ? "printing" : "printings"}.` : "");
+      showProgress(`Checked ${lookup.completed} of ${lookup.total} printings.`
+        + (lookup.unavailable ? ` Some stores couldn’t be checked for ${lookup.unavailable} ${lookup.unavailable === 1 ? "printing" : "printings"}.` : ""));
     }
     draw();
     if (restoreFocus) (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
@@ -472,7 +477,7 @@ export function createBuyCards(options: Options) {
     const { kind, completed, total } = job;
     refreshPaused = true;
     cancelChecks();
-    progress.textContent = `Stopped after ${completed} of ${total} printings.`;
+    showProgress(`Stopped after ${completed} of ${total} printings.`);
     draw();
     (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
   });

@@ -8,7 +8,7 @@ const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1]].map(
   const cards = JSON.parse(await readFile(file, "utf8")).slice(0, count);
   return [set, cards.map(card => ({ ...card, variants: card.variants.filter(item => !item.specialty) }))];
 })));
-const rateLimited = { offers: [], unavailableStores: [], checkedStores: {}, retryAfter: 2 };
+const rateLimited = { offers: [], unavailableStores: [], checkedStores: {}, retryAfter: 4 };
 const key = ({ set, number, variant }) => [set, number, variant].join("/");
 const initialPrice = 250;
 
@@ -57,6 +57,7 @@ export async function testFullBuyCards(browser, origin) {
     const buyTab = page.locator("#buy-cards-open"), bindersTab = page.locator("#binders-open");
     const checkAll = buying.locator("#buy-cards-check-all"), stop = buying.locator("#buy-cards-cancel");
     const progress = buying.locator("#buy-cards-progress"), scope = buying.locator("#buy-cards-scope");
+    const countdownStatus = buying.getByRole("timer");
     const search = buying.locator("#buy-cards-filter"), availability = buying.locator("#buy-cards-availability");
     const finish = buying.locator("#buy-cards-finish");
 
@@ -87,14 +88,29 @@ export async function testFullBuyCards(browser, origin) {
     assert.deepEqual(lookups, [], "Opening Buy Cards, paging, and filtering must not check previously unchecked printings.");
     await expect(buying.locator("#buy-cards-watches")).toHaveCount(0);
 
+    const freezeAt = await page.evaluate(() => Date.now() + 5_000);
+    await page.clock.pauseAt(freezeAt);
+    const countdownUpdates = await countdownStatus.evaluateHandle(status => {
+      const messages = [];
+      new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) messages.push(node.textContent ?? "");
+        }
+      }).observe(status, { childList: true });
+      return messages;
+    });
     throttle = "always";
-    await checkAll.click();
-    await expect(progress).toContainText(/will resume/i);
-    await stop.click();
+    await checkAll.dispatchEvent("click");
+    await expect(countdownStatus).toHaveText("Store checks will resume in 4 seconds.");
+    await page.clock.runFor(1_000);
+    await expect(countdownStatus).toHaveText("Store checks will resume in 3 seconds.");
+    await expect(stop).toBeVisible();
+    await stop.dispatchEvent("click");
     await expect(progress).toContainText(/stopped/i);
+    await expect(countdownStatus).toBeEmpty();
     await expect(checkAll).toBeEnabled();
     const afterStop = lookups.length;
-    await page.clock.fastForward(3_000);
+    await page.clock.runFor(4_000);
     assert.equal(lookups.length, afterStop, "Cancel must stop the paused work when its retry time arrives.");
 
     // The shortened collection has seven missing numbers, including one on the second page.
@@ -102,10 +118,26 @@ export async function testFullBuyCards(browser, origin) {
       .flatMap(card => card.variants.map(printing => key({ set: "sv03.5", number: card.number, variant: printing.id }))).sort();
     throttle = "once";
     const scopedStart = lookups.length;
-    await checkAll.click();
-    await expect(progress).toContainText(/will resume/i);
-    await page.clock.fastForward(3_000);
+    await checkAll.dispatchEvent("click");
+    await expect(countdownStatus).toHaveText("Store checks will resume in 4 seconds.");
+    const throttledPrinting = lookups.slice(scopedStart).find(lookup => lookup.throttled);
+    assert.ok(throttledPrinting);
+    for (const countdown of ["3 seconds", "2 seconds", "1 second"]) {
+      await page.clock.runFor(1_000);
+      await expect(countdownStatus).toHaveText("Store checks will resume in " + countdown + ".");
+    }
+    await page.clock.runFor(999);
+    const triedAgain = lookups.slice(scopedStart).some(lookup => !lookup.throttled && key(lookup) === key(throttledPrinting));
+    assert.equal(triedAgain, false, "The browser must wait for the full server delay.");
+    await expect(countdownStatus).toHaveText("Store checks will resume in 1 second.");
+    await page.clock.runFor(1);
     await expect(progress).toContainText("Checked " + expected.length + " of " + expected.length + " printings");
+    await expect(countdownStatus).toBeEmpty();
+    const messages = await countdownUpdates.jsonValue();
+    assert.ok(messages.some(message => message.includes("resume in 1 second.")));
+    assert.ok(!messages.some(message => /resume in 0 second/.test(message)), "The countdown must never show zero.");
+    await countdownUpdates.dispose();
+    await page.clock.resume();
     await expect(checkAll).toBeEnabled();
     const scoped = lookups.slice(scopedStart);
     const deferred = scoped.filter(lookup => lookup.throttled);
@@ -184,7 +216,7 @@ export async function testFullBuyCards(browser, origin) {
     assert.ok(lookups.slice(beforeReload).some(lookup => key(lookup) === visiblePrinting),
       "A previously checked printing can refresh after reopening an expired dashboard in a new document.");
     assert.deepEqual(errors, []);
-    console.log("Passed full-binder store checks, rate-limit recovery, cancellation, and visible offer refresh.");
+    console.log("Passed full-binder store checks, rate-limit countdown and recovery, cancellation, and visible offer refresh.");
   } finally {
     await context.close();
   }

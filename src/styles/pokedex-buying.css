@@ -116,7 +116,7 @@
   font-size: 14px;
 }
 
-.dex-buying-dashboard #buy-cards-progress:empty {
+.dex-buying-dashboard #buy-cards-progress:has(> span:empty + span:empty) {
   margin: 0;
 }
 
