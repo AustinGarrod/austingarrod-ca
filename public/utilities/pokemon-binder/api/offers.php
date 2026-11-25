@@ -31,7 +31,12 @@ try {
         binder_offer_response(['error' => 'Choose a known card printing.'], 400);
         return;
     }
-    binder_offer_response(binder_offer_lookup($target));
+    $stores = binder_offer_stores($_GET['stores'] ?? null);
+    if ($stores === null) {
+        binder_offer_response(['error' => 'Choose known retailers.'], 400);
+        return;
+    }
+    binder_offer_response(binder_offer_lookup($target, stores: $stores));
 } catch (Throwable) {
     binder_offer_response(['error' => 'Store offers are temporarily unavailable.'], 503);
 }

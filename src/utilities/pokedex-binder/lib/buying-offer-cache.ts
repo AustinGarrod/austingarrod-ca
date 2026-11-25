@@ -14,7 +14,7 @@ interface Snapshot {
   checks: Map<BuyingStore, StoreCheck>;
   failures: Map<BuyingStore, number>;
 }
-interface LookupOptions { force?: boolean; signal?: AbortSignal }
+interface LookupOptions { force?: boolean; signal?: AbortSignal; stores?: readonly BuyingStore[] }
 
 const emptyOffers = (): RetailOffers => ({ offers: [], unavailableStores: [] });
 const storeName = "checks";
@@ -125,6 +125,7 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
   const deadlines = new Set<number>();
   const refreshes = new Map<string, RefreshInterest>();
   const pending = new Map<string, { controller: AbortController; signal: AbortSignal; result: Promise<RetailOffers> }>();
+  const storeRetryAt = new Map<BuyingStore, number>();
   let hydration: Promise<void> | undefined;
   let generation = 0, retryAt = 0;
 
@@ -202,7 +203,8 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
       ...observations.map(check => Date.parse(check.checkedAt) + interestLifetime));
     if (until > now) {
       const expiry = nextExpiry(key, now);
-      const due = results.retryAfter ? Math.min(expiry, now + results.retryAfter * 1000)
+      const retryDelay = Math.min(results.retryAfter ?? Infinity, ...Object.values(results.storeRetryAfter ?? {}));
+      const due = Number.isFinite(retryDelay) ? Math.min(expiry, now + retryDelay * 1000)
         : Number.isFinite(expiry) ? expiry : now + offerLifetime;
       refreshes.set(key, { due, until });
       if (observations.length) await storage.write(scope(), key, accepted, until).catch(() => {});
@@ -215,36 +217,61 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     if (ticket === generation) return peek(printingKey(target), Date.now());
   }
 
-  async function check(target: PricingTarget, { force = false, signal }: LookupOptions = {}): Promise<RetailOffers> {
+  function retailerWait(stores: readonly BuyingStore[], now: number) {
+    const delays: Record<string, number> = {};
+    for (const store of stores) {
+      const delay = Math.ceil(((storeRetryAt.get(store) ?? 0) - now) / 1000);
+      if (delay > 0) delays[store] = delay;
+    }
+    return Object.keys(delays).length ? delays : undefined;
+  }
+
+  async function check(target: PricingTarget, { force = false, signal, stores = buyingStores }: LookupOptions = {}): Promise<RetailOffers> {
     const ticket = generation, key = printingKey(target);
     const previous = await read(target);
     signal?.throwIfAborted();
     if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
-    if (!force && previous && Object.keys(previous.checkedStores ?? {}).length) return previous;
-    const existing = pending.get(key);
-    if (existing && !existing.signal.aborted) return existing.result;
-    const wait = retryAt - Date.now();
+    if (!force && previous && stores.some(store => previous.checkedStores?.[store])) return previous;
+
+    const now = Date.now(), wait = retryAt - now;
     if (wait > 0) return { ...(previous ?? emptyOffers()), retryAfter: Math.ceil(wait / 1000) };
+    const deferred = retailerWait(stores, now);
+    const ready = buyingStores.filter(store => stores.includes(store) && !deferred?.[store]);
+    if (!ready.length) return { ...(previous ?? emptyOffers()), storeRetryAfter: deferred };
+
+    const requestKey = JSON.stringify([key, stores, ready]);
+    const existing = pending.get(requestKey);
+    if (existing && !existing.signal.aborted) return existing.result;
     const controller = new AbortController();
     const network = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
-    const result = pricingRequest<RetailOffers>("offers", { set: target.setId, number: target.number, variant: target.variant },
-      AbortSignal.any([network, AbortSignal.timeout(20_000)]))
-      .catch(() => ({ ...emptyOffers(), unavailableStores: [...buyingStores] }))
+    const query: Record<string, string> = { set: target.setId, number: target.number, variant: target.variant };
+    if (ready.length !== buyingStores.length) query.stores = ready.join(",");
+    const result = pricingRequest<RetailOffers>("offers", query, AbortSignal.any([network, AbortSignal.timeout(20_000)]))
+      .catch(() => ({ ...emptyOffers(), unavailableStores: ready }))
       .then(async data => {
         network.throwIfAborted();
         if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
+        const received = Date.now();
         const delay = data.retryAfter;
         const retryAfter = typeof delay === "number" && Number.isSafeInteger(delay) && delay > 0 ? Math.min(delay, 60) : undefined;
-        if (retryAfter) retryAt = Math.max(retryAt, Date.now() + retryAfter * 1000);
-        await record(target, { ...data, retryAfter });
+        if (retryAfter) retryAt = Math.max(retryAt, received + retryAfter * 1000);
+        for (const store of ready) {
+          const seconds = data.storeRetryAfter?.[store];
+          if (typeof seconds !== "number" || seconds <= 0 || !Number.isSafeInteger(seconds)) continue;
+          const resume = received + seconds * 1000;
+          if (Number.isSafeInteger(resume)) storeRetryAt.set(store, Math.max(storeRetryAt.get(store) ?? 0, resume));
+        }
+
+        const waiting = stores.filter(store => !ready.includes(store) || data.storeRetryAfter?.[store]);
+        const storeRetryAfter = retailerWait(waiting, received);
+        await record(target, { ...data, retryAfter, storeRetryAfter });
         network.throwIfAborted();
-        const merged = peek(key, Date.now()) ?? emptyOffers();
-        return retryAfter ? { ...merged, retryAfter } : merged;
+        return { ...(peek(key, Date.now()) ?? emptyOffers()), retryAfter, storeRetryAfter };
       }).finally(() => {
-        if (pending.get(key)?.controller === controller) pending.delete(key);
+        if (pending.get(requestKey)?.controller === controller) pending.delete(requestKey);
         changed();
       });
-    pending.set(key, { controller, signal: network, result });
+    pending.set(requestKey, { controller, signal: network, result });
     return result;
   }
 

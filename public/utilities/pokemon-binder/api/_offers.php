@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/_shopify-auth.php';
+
 const BINDER_OFFER_STORES = [
     ['name' => '401 Games', 'host' => 'store.401games.ca', 'hosts' => ['store.401games.ca']],
     ['name' => 'Deck Out Gaming', 'host' => 'deckoutgaming.ca', 'hosts' => ['deckoutgaming.ca', 'www.deckoutgaming.ca']],
@@ -336,7 +338,24 @@ function binder_offer_products(string $body): ?array
     return ($data['ucp']['status'] ?? null) === 'success' && is_array($data['products'] ?? null) ? $data['products'] : null;
 }
 
-function binder_offer_fetch(array $stores, string $query, string $profile): array
+function binder_offer_headers(?array $auth): array
+{
+    $headers = [
+        'Content-Type: application/json',
+        'Accept: application/json, text/event-stream',
+        'MCP-Protocol-Version: 2025-11-25',
+        'Mcp-Method: tools/call',
+        'Mcp-Name: search_catalog',
+        'User-Agent: PokemonBinderTracker/1.0 (+https://austingarrod.ca/utilities/pokemon-binder/)',
+    ];
+    if ($auth !== null) {
+        $headers[] = 'Authorization: Bearer ' . $auth['token'];
+        $headers[] = 'Shopify-Buyer-IP: ' . $auth['buyerIp'];
+    }
+    return $headers;
+}
+
+function binder_offer_fetch(array $stores, string $query, string $profile, ?array $auth): array
 {
     if (!function_exists('curl_multi_init')) {
         return [];
@@ -345,6 +364,8 @@ function binder_offer_fetch(array $stores, string $query, string $profile): arra
     $body = binder_offer_payload($query, $profile);
     $handles = [];
     $bodies = [];
+    $retryHeaders = [];
+    $headers = binder_offer_headers($auth);
     $maxBytes = 2_000_000;
     try {
         foreach ($stores as $store) {
@@ -362,14 +383,15 @@ function binder_offer_fetch(array $stores, string $query, string $profile): arra
                 CURLOPT_TIMEOUT_MS => 5000,
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_ENCODING => '',
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Accept: application/json, text/event-stream',
-                    'MCP-Protocol-Version: 2025-11-25',
-                    'Mcp-Method: tools/call',
-                    'Mcp-Name: search_catalog',
-                    'User-Agent: PokemonBinderTracker/1.0 (+https://austingarrod.ca/utilities/pokemon-binder/)',
-                ],
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$retryHeaders, $host): int {
+                    if (str_starts_with($line, 'HTTP/')) {
+                        unset($retryHeaders[$host]);
+                    } elseif (strncasecmp($line, 'Retry-After:', 12) === 0 && strlen($line) <= 128) {
+                        $retryHeaders[$host] = trim(substr($line, 12));
+                    }
+                    return strlen($line);
+                },
                 CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$bodies, $host, $maxBytes): int {
                     $size = strlen($chunk);
                     if (strlen($bodies[$host]) + $size > $maxBytes) {
@@ -391,9 +413,19 @@ function binder_offer_fetch(array $stores, string $query, string $profile): arra
         $results = [];
         while ($message = curl_multi_info_read($multi)) {
             $host = array_search($message['handle'], $handles, true);
-            if ($host !== false && $message['result'] === CURLE_OK
-                && curl_getinfo($message['handle'], CURLINFO_RESPONSE_CODE) === 200) {
-                $results[$host] = binder_offer_products($bodies[$host]);
+            if ($host === false) {
+                continue;
+            }
+            $status = curl_getinfo($message['handle'], CURLINFO_RESPONSE_CODE);
+            $results[$host] = [
+                'status' => $status,
+                'products' => $status === 200 && $message['result'] === CURLE_OK ? binder_offer_products($bodies[$host]) : null,
+            ];
+            if ($status === 429) {
+                $now = time();
+                $header = $retryHeaders[$host] ?? null;
+                $delay = binder_offer_store_wait($host, $now, true, $header);
+                $results[$host]['retryAt'] = $now + ($delay ?? binder_offer_retry_delay($header, $now) ?? 10);
             }
         }
         return $results;
@@ -405,14 +437,20 @@ function binder_offer_fetch(array $stores, string $query, string $profile): arra
     }
 }
 
+function binder_offer_state_file(string $name)
+{
+    $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'austingarrod-binder-offers';
+    if (is_link($directory) || (!is_dir($directory) && !@mkdir($directory, 0700) && !is_dir($directory))) {
+        return false;
+    }
+    $file = $directory . DIRECTORY_SEPARATOR . $name;
+    return is_link($file) ? false : @fopen($file, 'c+');
+}
+
 // Zero reserves a lookup. A positive delay means the window is full, while null means the limiter is unavailable.
 function binder_offer_reserve(int $now): ?int
 {
-    $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'austingarrod-binder-offers';
-    if (!is_dir($directory) && !@mkdir($directory, 0700) && !is_dir($directory)) {
-        return null;
-    }
-    $handle = @fopen($directory . DIRECTORY_SEPARATOR . 'request-rate', 'c+');
+    $handle = binder_offer_state_file('request-rate');
     if ($handle === false) {
         return null;
     }
@@ -436,21 +474,85 @@ function binder_offer_reserve(int $now): ?int
     }
 }
 
-function binder_offer_result(array $checks, int $retryAfter = 0): array
+function binder_offer_retry_delay(?string $header, int $now): ?int
+{
+    if ($header === null || $header === '' || str_contains($header, "\0")) {
+        return null;
+    }
+    if (ctype_digit($header)) {
+        return max(1, min((int) $header, PHP_INT_MAX - $now));
+    }
+    $date = DateTimeImmutable::createFromFormat(DATE_RFC7231, $header, new DateTimeZone('UTC'));
+    if ($date === false || DateTimeImmutable::getLastErrors() !== false) {
+        return null;
+    }
+    return max(1, $date->getTimestamp() - $now);
+}
+
+// The store cooldown is shared across workers and independent of the keyless request budget.
+function binder_offer_store_wait(string $host, int $now, bool $throttled = false, ?string $header = null): ?int
+{
+    $handle = binder_offer_state_file('retry-' . hash('sha256', $host));
+    if ($handle === false) {
+        return null;
+    }
+    try {
+        if (!flock($handle, $throttled ? LOCK_EX : LOCK_SH)) {
+            return null;
+        }
+        $raw = stream_get_contents($handle, 128);
+        $state = $raw === false || $raw === '' ? [] : json_decode($raw, true);
+        $until = (int) ($state['until'] ?? 0);
+        if (!$throttled) {
+            return max(0, $until - $now);
+        }
+        $attempt = $until >= $now - 300 ? min(6, (int) ($state['attempt'] ?? 0) + 1) : 1;
+        $delay = binder_offer_retry_delay($header, $now) ?? min(300, 10 * (2 ** ($attempt - 1)) + random_int(0, 3));
+        $until = max($until, $now + $delay);
+        $content = json_encode(['until' => $until, 'attempt' => $attempt], JSON_THROW_ON_ERROR);
+        if (ftruncate($handle, 0) && rewind($handle) && fwrite($handle, $content) === strlen($content)) {
+            return $until - $now;
+        }
+        return null;
+    } finally {
+        fclose($handle);
+    }
+}
+
+function binder_offer_stores(mixed $requested): ?array
+{
+    if ($requested === null) {
+        return BINDER_OFFER_STORES;
+    }
+    if (!is_string($requested) || strlen($requested) > 80) {
+        return null;
+    }
+    $names = explode(',', $requested);
+    $stores = array_values(array_filter(BINDER_OFFER_STORES, static fn(array $store): bool => in_array($store['name'], $names, true)));
+    return count($stores) === count($names) ? $stores : null;
+}
+
+function binder_offer_result(array $checks, int $retryAfter = 0, array $stores = BINDER_OFFER_STORES, array $waiting = []): array
 {
     $offers = [];
     $unavailable = [];
     $checked = [];
-    foreach (BINDER_OFFER_STORES as $store) {
-        $check = $checks[$store['host']] ?? null;
+    $storeRetryAfter = [];
+    $now = time();
+    foreach ($stores as $store) {
+        $host = $store['host'];
+        $name = $store['name'];
+        $check = $checks[$host] ?? null;
         if ($check === null) {
-            if ($retryAfter === 0) {
-                $unavailable[] = $store['name'];
+            if (isset($waiting[$host])) {
+                $storeRetryAfter[$name] = max(1, min(86400, $waiting[$host] - $now));
+            } elseif ($retryAfter === 0) {
+                $unavailable[] = $name;
             }
             continue;
         }
         // A cache hit must report when the store was checked, including for an empty result.
-        $checked[$store['name']] = gmdate(DATE_ATOM, $check['expiresAt'] - BINDER_OFFER_TTL);
+        $checked[$name] = gmdate(DATE_ATOM, $check['expiresAt'] - BINDER_OFFER_TTL);
         array_push($offers, ...$check['offers']);
     }
     usort($offers, static fn(array $left, array $right): int =>
@@ -459,10 +561,11 @@ function binder_offer_result(array $checks, int $retryAfter = 0): array
         'offers' => array_values(array_unique($offers, SORT_REGULAR)),
         'unavailableStores' => $unavailable,
         'checkedStores' => (object) $checked,
-    ] + ($retryAfter > 0 ? ['retryAfter' => $retryAfter] : []);
+    ] + ($retryAfter > 0 ? ['retryAfter' => $retryAfter] : [])
+        + ($storeRetryAfter === [] ? [] : ['storeRetryAfter' => (object) $storeRetryAfter]);
 }
 
-function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFILE): array
+function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFILE, array $stores = BINDER_OFFER_STORES): array
 {
     if (!preg_match('/^(?:normal|holo|reverse)(?:\+|$)/', $target['variant']['id'])) {
         return ['offers' => [], 'unavailableStores' => [], 'checkedStores' => (object) []];
@@ -472,33 +575,59 @@ function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFI
     $fresh = time();
     $checks = [];
     $lookup = [];
-    foreach (BINDER_OFFER_STORES as $store) {
-        $cacheKey = 'pokemon-binder-offers:v1:' . $store['host'] . ':' . $key;
+    $waiting = [];
+    foreach ($stores as $store) {
+        $host = $store['host'];
+        $cacheKey = 'pokemon-binder-offers:v1:' . $host . ':' . $key;
         $cached = $useCache ? apcu_fetch($cacheKey) : false;
         if (is_array($cached) && $cached['expiresAt'] > $fresh) {
-            $checks[$store['host']] = $cached;
-        } else {
+            $checks[$host] = $cached;
+            continue;
+        }
+        $delay = binder_offer_store_wait($host, $fresh);
+        if ($delay === 0) {
             $lookup[$cacheKey] = $store;
+        } elseif ($delay !== null) {
+            $waiting[$host] = $fresh + $delay;
         }
     }
     if (!$lookup) {
-        return binder_offer_result($checks);
+        return binder_offer_result($checks, 0, $stores, $waiting);
     }
-    $retryAfter = binder_offer_reserve($fresh);
-    if ($retryAfter !== 0) {
-        return binder_offer_result($checks, $retryAfter ?? 0);
+    $auth = $profile === BINDER_OFFER_PROFILE ? binder_shopify_auth() : null;
+    if ($auth === null) {
+        $delay = binder_offer_reserve(time());
+        if ($delay !== 0) {
+            return binder_offer_result($checks, $delay ?? 0, $stores, $waiting);
+        }
     }
-    $results = binder_offer_fetch($lookup, binder_offer_query($target), $profile);
+    $query = binder_offer_query($target);
+    $results = binder_offer_fetch($lookup, $query, $profile, $auth);
+    if ($auth !== null) {
+        $rejected = array_filter($lookup, static fn(array $store): bool => ($results[$store['host']]['status'] ?? 0) === 401);
+        if ($rejected && ($renewed = binder_shopify_auth($auth['token'])) !== null) {
+            $retry = array_filter($rejected, static fn(array $store): bool => binder_offer_store_wait($store['host'], time()) === 0);
+            if ($retry) {
+                $results = array_replace($results, binder_offer_fetch($retry, $query, $profile, $renewed));
+            }
+        }
+    }
     foreach ($lookup as $cacheKey => $store) {
-        $rows = $results[$store['host']] ?? null;
+        $host = $store['host'];
+        $response = $results[$host] ?? [];
+        if (isset($response['retryAt'])) {
+            $waiting[$host] = $response['retryAt'];
+            continue;
+        }
+        $rows = $response['products'] ?? null;
         if ($rows === null) {
             continue;
         }
         $check = ['offers' => binder_offer_rows($target, $store, $rows, $fresh), 'expiresAt' => $fresh + BINDER_OFFER_TTL];
-        $checks[$store['host']] = $check;
+        $checks[$host] = $check;
         if ($useCache) {
             apcu_store($cacheKey, $check, BINDER_OFFER_TTL);
         }
     }
-    return binder_offer_result($checks);
+    return binder_offer_result($checks, 0, $stores, $waiting);
 }

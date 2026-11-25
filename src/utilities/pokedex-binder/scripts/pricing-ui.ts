@@ -129,7 +129,9 @@ export function createPricingUI(options: Options) {
         const messages = [];
         if (checking) messages.push("Checking Canadian stores…");
         if (data.retryAfter) messages.push(`Store checks are busy. Try again in about ${data.retryAfter} seconds.`);
-        if (!checking && !offers.length && !data.retryAfter) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
+        const waitingStores = Object.keys(data.storeRetryAfter ?? {});
+        if (waitingStores.length) messages.push(`Waiting to check ${waitingStores.join(", ")}. Refresh offers to retry.`);
+        if (!checking && !offers.length && !data.retryAfter && !waitingStores.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
           : data.unavailableStores.length >= 3 ? "Canadian stores are temporarily unavailable."
           : "No exact in-stock offers found.");
         if (data.unavailableStores.length && data.unavailableStores.length < 3) {

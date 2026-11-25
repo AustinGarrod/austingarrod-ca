@@ -30,6 +30,13 @@ interface Row {
 
 type CheckKind = "manual" | "all" | "refresh";
 
+interface CheckWork {
+  key: string;
+  target: PricingTarget;
+  stores?: readonly BuyingStore[];
+  unavailable?: boolean;
+}
+
 interface CheckJob {
   kind: CheckKind;
   controller: AbortController;
@@ -285,7 +292,8 @@ export function createBuyCards(options: Options) {
     if (job) cancelChecks();
     if (kind !== "refresh") refreshPaused = false;
 
-    const work = [...targets];
+    const work = [...targets].map(([key, target]): CheckWork => ({ key, target }));
+    const deferred: (CheckWork & { resumeAt: number })[] = [];
     const lookup: CheckJob = {
       kind, controller: new AbortController(), keys: new Set(targets.keys()),
       total: work.length, completed: 0, unavailable: 0,
@@ -293,32 +301,29 @@ export function createBuyCards(options: Options) {
     const signal = lookup.controller.signal;
     const focusStop = kind !== "refresh" && (document.activeElement === checkPage || document.activeElement === checkAll);
     job = lookup;
-    let cursor = 0;
+    let cursor = 0, inFlight = 0;
 
     function report(wait = rateLimitedUntil - Date.now()) {
       if (kind === "refresh") return;
-      const seconds = Math.ceil(wait / 1_000);
+      const seconds = inFlight === 0 ? Math.ceil(wait / 1_000) : 0;
       const count = `${lookup.completed} of ${lookup.total} printings`;
       showProgress(seconds > 0 ? `${count} checked.` : `Checking store prices · ${count}`, seconds);
     }
 
-    async function waitForCapacity() {
-      while (!signal.aborted) {
-        const wait = rateLimitedUntil - Date.now();
-        if (wait <= 0) return true;
-        report(wait);
-        const delay = kind === "refresh" ? wait : wait % 1_000 || 1_000;
-        await new Promise<void>(resolve => {
-          const finishWaiting = () => {
-            clearTimeout(timer);
-            signal.removeEventListener("abort", finishWaiting);
-            resolve();
-          };
-          const timer = setTimeout(finishWaiting, delay);
-          signal.addEventListener("abort", finishWaiting, { once: true });
-        });
-      }
-      return false;
+    async function waitUntil(resumeAt: number) {
+      const wait = resumeAt - Date.now();
+      if (wait <= 0 || signal.aborted) return;
+      report(wait);
+      const delay = kind === "refresh" ? Math.min(wait, 2_147_483_647) : wait % 1_000 || 1_000;
+      await new Promise<void>(resolve => {
+        const finishWaiting = () => {
+          clearTimeout(timer);
+          signal.removeEventListener("abort", finishWaiting);
+          resolve();
+        };
+        const timer = setTimeout(finishWaiting, delay);
+        signal.addEventListener("abort", finishWaiting, { once: true });
+      });
     }
 
     report();
@@ -326,23 +331,49 @@ export function createBuyCards(options: Options) {
     if (focusStop) cancel.focus({ preventScroll: true });
 
     async function pull() {
-      while (cursor < work.length && job === lookup) {
-        const [key, target] = work[cursor++];
+      while (job === lookup) {
+        let item = work[cursor];
+        if (item) {
+          cursor++;
+        } else {
+          const now = Date.now();
+          const ready = deferred.findIndex(candidate => candidate.resumeAt <= now);
+          if (ready < 0) {
+            if (!deferred.length) return;
+            await waitUntil(Math.max(rateLimitedUntil, Math.min(...deferred.map(candidate => candidate.resumeAt))));
+            continue;
+          }
+          [item] = deferred.splice(ready, 1);
+        }
+
+        const { key, target, stores } = item;
         while (job === lookup) {
-          let result: RetailOffers | undefined = kind === "all" ? quotes.peek(key, Date.now()) : undefined;
+          let result: RetailOffers | undefined = kind === "all" && !stores ? quotes.peek(key, Date.now()) : undefined;
           if (!result || !buyingStores.every(shop => result?.checkedStores?.[shop])) {
-            if (!await waitForCapacity() || job !== lookup) return;
+            while (job === lookup && rateLimitedUntil > Date.now()) await waitUntil(rateLimitedUntil);
+            if (job !== lookup) return;
+            inFlight++;
             report();
-            result = await quotes.check(target, { force: true, signal }).catch(() => undefined);
+            result = await quotes.check(target, { force: true, signal, stores }).catch(() => undefined);
+            inFlight--;
             if (job !== lookup) return;
           }
           if (result?.retryAfter) {
             rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + result.retryAfter * 1_000);
             continue;
           }
-          if (!result || result.unavailableStores.length) lookup.unavailable++;
-          lookup.keys.delete(key);
-          lookup.completed++;
+
+          const unavailable = item.unavailable || !result || result.unavailableStores.length > 0;
+          const delays = result?.storeRetryAfter ?? {};
+          const waiting = buyingStores.filter(shop => delays[shop] > 0);
+          if (waiting.length) {
+            const seconds = Math.min(...waiting.map(shop => delays[shop]));
+            deferred.push({ key, target, stores: waiting, resumeAt: Date.now() + seconds * 1_000, unavailable });
+          } else {
+            if (unavailable) lookup.unavailable++;
+            lookup.keys.delete(key);
+            lookup.completed++;
+          }
           report();
           draw();
           break;

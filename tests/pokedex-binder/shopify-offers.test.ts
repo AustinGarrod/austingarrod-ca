@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -179,9 +179,76 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
       expect(result.lastSecond).toBe(1);
       expect(result.nextWindow).toBe(0);
     } finally {
-      rmSync(join(limiter, "request-rate"), { force: true });
-      if (existsSync(limiter)) rmdirSync(limiter);
-      rmdirSync(directory);
+      removeLimiter(directory, limiter);
     }
   });
+
+  it("adds token-tier credentials only to the retailer Catalog headers", () => {
+    const anonymous = runPhp("binder_offer_headers(null)");
+    expect(anonymous).not.toContainEqual(expect.stringMatching(/^(Authorization|Shopify-Buyer-IP):/));
+    expect(runPhp("binder_offer_headers($input)", { token: "fixture-token", buyerIp: "8.8.8.8" })).toEqual([
+      ...anonymous, "Authorization: Bearer fixture-token", "Shopify-Buyer-IP: 8.8.8.8",
+    ]);
+  });
+
+  it("accepts only exact retailer names and reports only the requested stores", () => {
+    const expression = "array_column(binder_offer_stores($input), 'name')";
+    expect(runPhp(expression, "401 Games,Skyfox Games")).toEqual(["401 Games", "Skyfox Games"]);
+    expect(runPhp(expression)).toEqual(["401 Games", "Deck Out Gaming", "Skyfox Games"]);
+    for (const selection of ["", "https://example.org", "401 Games,401 Games", "401 Games,wrong", ["401 Games"]]) {
+      expect(runPhp("binder_offer_stores($input)", selection)).toBeNull();
+    }
+    expect(runPhp("binder_offer_result([], stores: binder_offer_stores($input))", "Skyfox Games")).toEqual({
+      offers: [], unavailableStores: ["Skyfox Games"], checkedStores: {},
+    });
+  });
+
+  it("honors both Retry-After formats and persists cooldown for just the affected retailer", () => {
+    const directory = mkdtempSync(join(tmpdir(), "binder-store-cooldown-"));
+    const limiter = join(directory, "austingarrod-binder-offers");
+    const args = ["-d", `sys_temp_dir=${directory}`, "-d", "apc.enabled=0"];
+    try {
+      const waits = runPhp(`(static function () {
+        $host = BINDER_OFFER_STORES[0]['host'];
+        $now = time();
+        $duration = binder_offer_store_wait($host, $now, true, '150');
+        return [
+          $duration,
+          binder_offer_store_wait($host, $now + 20, true, '1'),
+          binder_offer_store_wait(BINDER_OFFER_STORES[1]['host'], $now),
+          binder_offer_store_wait($host, $now + 150),
+          binder_offer_retry_delay(gmdate(DATE_RFC7231, $now + 61), $now),
+          binder_offer_retry_delay('unrecognized', $now),
+        ];
+      })()`, null, args);
+      expect(waits).toEqual([150, 130, 0, 0, 61, null]);
+      const cooled = runPhp("binder_offer_lookup(binder_offer_target('public', $input), stores: binder_offer_stores('401 Games'))", target, args);
+      expect(cooled).toEqual({ offers: [], unavailableStores: [], checkedStores: {}, storeRetryAfter: { "401 Games": expect.any(Number) } });
+      expect(cooled.storeRetryAfter["401 Games"]).toBeGreaterThan(60);
+    } finally {
+      removeLimiter(directory, limiter);
+    }
+  });
+
+  it("keeps the other retailer's original quote while a store waits", () => {
+    const [offer] = offers([store401]);
+    const result = runPhp(`binder_offer_result(
+      ['store.401games.ca' => ['expiresAt' => 1771000000 + BINDER_OFFER_TTL, 'offers' => [$input]]],
+      stores: binder_offer_stores('401 Games,Skyfox Games'),
+      waiting: ['skyfoxgames.com' => time() + 75]
+    )`, offer);
+    expect(result).toEqual({
+      offers: [offer], unavailableStores: [], checkedStores: { "401 Games": offer.checkedAt },
+      storeRetryAfter: { "Skyfox Games": expect.any(Number) },
+    });
+    expect(result.storeRetryAfter["Skyfox Games"]).toBeGreaterThan(60);
+  });
 });
+
+function removeLimiter(directory: string, limiter: string) {
+  if (existsSync(limiter)) {
+    for (const file of readdirSync(limiter)) rmSync(join(limiter, file));
+    rmdirSync(limiter);
+  }
+  rmdirSync(directory);
+}

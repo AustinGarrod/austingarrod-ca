@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
 
 const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
-const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1]].map(async ([set, count]) => {
+const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 4]].map(async ([set, count]) => {
   const file = new URL("../public/utilities/pokedex-binder/catalog/master-sets/" + set + ".json", import.meta.url);
   const cards = JSON.parse(await readFile(file, "utf8")).slice(0, count);
   return [set, cards.map(card => ({ ...card, variants: card.variants.filter(item => !item.specialty) }))];
@@ -20,7 +20,7 @@ export async function testFullBuyCards(browser, origin) {
   const start = Date.now();
   await page.clock.install({ time: new Date(start) });
   const lookups = [];
-  let observed = start, cents = initialPrice, throttle = "none";
+  let observed = start, cents = initialPrice, throttle = "none", limitedStore = false;
   try {
     await context.route("**/*", async route => {
       const url = new URL(route.request().url());
@@ -37,12 +37,16 @@ export async function testFullBuyCards(browser, origin) {
         if (throttle === "once") throttle = "none";
         lookups.push({ ...lookup, throttled });
         if (throttled) return route.fulfill({ json: rateLimited });
+        const requested = lookup.stores ? lookup.stores.split(",") : stores;
+        const deferred = limitedStore && requested.includes(stores[0]);
+        const checked = deferred ? requested.filter(store => store !== stores[0]) : requested;
         const checkedAt = new Date(observed).toISOString();
         return route.fulfill({ json: {
-          offers: [{ store: stores[0], priceCents: cents, currency: "CAD", condition: "Near Mint", conditionRank: 0,
-            checkedAt, url: "https://store.401games.ca/products/example-printing?variant=1" }],
-          checkedStores: Object.fromEntries(stores.map(store => [store, checkedAt])),
+          offers: checked.includes(stores[0]) ? [{ store: stores[0], priceCents: cents, currency: "CAD", condition: "Near Mint", conditionRank: 0,
+            checkedAt, url: "https://store.401games.ca/products/example-printing?variant=1" }] : [],
+          checkedStores: Object.fromEntries(checked.map(store => [store, checkedAt])),
           unavailableStores: [],
+          ...(deferred ? { storeRetryAfter: { [stores[0]]: 75 } } : {}),
         } });
       }
       if (url.pathname.endsWith("/watches.php") || url.pathname.endsWith("/retail-feed.php")) {
@@ -215,8 +219,47 @@ export async function testFullBuyCards(browser, origin) {
     await expect(rows.first()).toContainText("$6.40");
     assert.ok(lookups.slice(beforeReload).some(lookup => key(lookup) === visiblePrinting),
       "A previously checked printing can refresh after reopening an expired dashboard in a new document.");
+    await bindersTab.click();
+    await page.locator("#master-new").click();
+    await page.locator("#master-set").fill("base1");
+    await page.locator("#master-name").fill("Base Set cooldown test");
+    await page.locator("#master-goal").selectOption("numbers");
+    await page.getByRole("button", { name: "Save binder", exact: true }).click();
+    await expect(page.locator("#master-title")).toContainText("Base Set cooldown test");
+    await buyTab.click();
+    await scope.selectOption({ label: "Base Set cooldown test" });
+    await search.fill("");
+    await finish.selectOption("");
+    await availability.selectOption("");
+    await expect(checkAll).toBeEnabled();
+
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 5_000));
+    observed = await page.evaluate(() => Date.now());
+    limitedStore = true;
+    const storeStart = lookups.length;
+    const basePrintings = smallCatalog.get("base1").flatMap(card => card.variants.map(printing =>
+      key({ set: "base1", number: card.number, variant: printing.id }))).sort();
+    await checkAll.dispatchEvent("click");
+    await expect(countdownStatus).toHaveText("Store checks will resume in 75 seconds.");
+    const firstPass = lookups.slice(storeStart);
+    assert.deepEqual(firstPass.map(key).sort(), basePrintings, "Healthy retailers should finish every printing before the wait.");
+    assert.ok(firstPass.some(lookup => lookup.stores === stores.slice(1).join(",")),
+      "Later printings should skip the retailer with a known cooldown.");
+    await expect(rows.first().locator(".dex-buying-offers")).toContainText("No matching offer");
+
+    await page.clock.runFor(74_999);
+    assert.deepEqual(lookups.slice(storeStart), firstPass, "A retailer delay longer than 60 seconds must be honored.");
+    await expect(countdownStatus).toHaveText("Store checks will resume in 1 second.");
+    limitedStore = false;
+    await page.clock.runFor(1);
+    await expect(progress).toContainText(`Checked ${basePrintings.length} of ${basePrintings.length} printings`);
+    const retries = lookups.slice(storeStart + firstPass.length);
+    assert.deepEqual(retries.map(key).sort(), basePrintings);
+    assert.ok(retries.every(lookup => lookup.stores === stores[0]), "Retry only the retailer that reported a cooldown.");
+    await page.clock.resume();
+
     assert.deepEqual(errors, []);
-    console.log("Passed full-binder store checks, rate-limit countdown and recovery, cancellation, and visible offer refresh.");
+    console.log("Passed full-binder store checks, global and per-retailer rate-limit recovery, cancellation, and visible offer refresh.");
   } finally {
     await context.close();
   }
