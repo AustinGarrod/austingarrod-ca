@@ -28,6 +28,17 @@ interface Row {
   cheapest: number;
 }
 
+type CheckKind = "manual" | "all" | "refresh";
+
+interface CheckJob {
+  kind: CheckKind;
+  controller: AbortController;
+  keys: Set<string>;
+  total: number;
+  completed: number;
+  unavailable: number;
+}
+
 const pageSize = 6;
 const node = <T extends HTMLElement = HTMLElement>(part: string) => document.getElementById("buy-cards-" + part) as T;
 const select = (id: string) => node<HTMLSelectElement>(id);
@@ -58,7 +69,7 @@ export function createBuyCards(options: Options) {
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
   const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
-  const checkPage = button("check"), clear = button("clear");
+  const checkPage = button("check"), checkAll = button("check-all"), cancel = button("cancel"), clear = button("clear");
   const filters = [search, finish, availability, store, maxPrice, condition, sort];
   const picks = new Map<string, string>();
   const quotes = createBuyOfferCache(options.offerScope, draw);
@@ -68,13 +79,25 @@ export function createBuyCards(options: Options) {
   let loading = false, failedToLoad = false, needsReload = false, hasBinders = true;
   let catalogState: "loading" | "ready" | "error" = "loading";
   let visited = false, entryFromBinder = false;
-  let job: { controller: AbortController; keys: Set<string> } | undefined;
+  let job: CheckJob | undefined;
+  let binderTargets = new Map<string, PricingTarget>();
+  let rateLimitedUntil = 0, refreshPaused = false;
   let expiration: ReturnType<typeof setTimeout> | undefined;
   let inspectedRow: string | undefined;
   const isActive = () => !workspace.hidden;
 
   function choicesFor(entry: BuyingEntry): Finishes {
     return entry.target.variant === "*" ? cards.get(entry.target.setId)?.get(entry.target.number) ?? [] : [];
+  }
+
+  function targetsFor(target: PricingTarget, choices: Finishes) {
+    return target.variant === "*"
+      ? choices.map(choice => ({ ...target, variant: choice.id, finish: choice.label }))
+      : [target];
+  }
+
+  function checkableTargets(targets: readonly PricingTarget[]) {
+    return new Map(targets.filter(canCheckPrinting).map(target => [printingKey(target), target]));
   }
 
   function fillFinishes() {
@@ -126,11 +149,13 @@ export function createBuyCards(options: Options) {
 
   function rowMarkup(row: Row) {
     const { target, choices, entry, price, stores } = row;
-    const id = escape(row.id), checking = job?.keys.has(printingKey(target)) ?? false;
+    const id = escape(row.id);
+    const checking = targetsFor(target, choices).some(printing => job?.keys.has(printingKey(printing)));
     const set = sets.get(target.setId);
     const image = set && catalogArtwork(set, target.number);
     const title = escape(target.name + " #" + target.number + " " + target.finish);
     const canCheck = canCheckPrinting(target);
+    const manualCheck = job && job.kind !== "refresh";
     const picker = choices.length > 1
       ? `<label>Printing <select data-buy-finish="${id}" aria-label="Choose a finish for ${escape(target.name)}">
        <option value="">Choose a finish</option>${choices.map(choice =>
@@ -149,23 +174,51 @@ export function createBuyCards(options: Options) {
       </div>
       <div>${storeResults}
         <div class="dex-actions">${picker}
-          <button type="button" data-buy-check="${id}" aria-label="Check stores for ${title}" ${!canCheck || job ? "disabled" : ""}>Check stores</button>
+          <button type="button" data-buy-check="${id}" aria-label="Check stores for ${title}" ${!canCheck || manualCheck ? "disabled" : ""}>Check stores</button>
           <button type="button" class="dex-quiet" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Compare offers for ${title}">Compare offers</button>
         </div>
       </div>
     </li>`;
   }
 
-  function scheduleExpiration(now: number) {
+  function canRefresh() {
+    return isActive() && !document.hidden && !loading && catalogState === "ready" && !job && !refreshPaused;
+  }
+
+  function visibleTargets() {
+    return checkableTargets(visible.flatMap(row => targetsFor(row.target, row.choices)));
+  }
+
+  function refreshVisible() {
+    const now = Date.now();
+    if (canRefresh() && now >= rateLimitedUntil) {
+      const due = new Map([...visibleTargets()].filter(([key]) => quotes.refreshAt(key, now) <= now));
+      if (due.size) {
+        void check(due, "refresh");
+        return;
+      }
+    }
+    draw();
+  }
+
+  function scheduleExpiration(now: number, quoteExpiry: number) {
     clearTimeout(expiration);
-    const earliest = quotes.expire(now);
-    if (Number.isFinite(earliest)) expiration = setTimeout(draw, Math.max(1, earliest - now));
+    let earliest = quoteExpiry;
+    if (canRefresh()) {
+      for (const key of visibleTargets().keys()) {
+        earliest = Math.min(earliest, Math.max(rateLimitedUntil, quotes.refreshAt(key, now)));
+      }
+    }
+    if (Number.isFinite(earliest)) expiration = setTimeout(refreshVisible, Math.max(1, earliest - now));
   }
 
   function draw() {
     const now = Date.now();
-    scheduleExpiration(now);
-    if (!isActive() || loading || catalogState !== "ready") return;
+    const quoteExpiry = quotes.expire(now);
+    if (!isActive() || document.hidden || loading || catalogState !== "ready") {
+      scheduleExpiration(now, quoteExpiry);
+      return;
+    }
     const shops = store.value ? buyingStores.filter(item => item === store.value) : buyingStores;
     const budget = Number.isFinite(maxPrice.valueAsNumber) ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
     const grade = condition.value !== "" ? Number(condition.value) : Infinity;
@@ -196,7 +249,10 @@ export function createBuyCards(options: Options) {
     node("page").textContent = `Page ${page + 1} of ${pages}`;
     prev.disabled = page === 0;
     next.disabled = page >= pages - 1;
-    checkPage.disabled = Boolean(job) || !visible.some(row => canCheckPrinting(row.target));
+    const manualCheck = !!job && job.kind !== "refresh";
+    checkPage.disabled = manualCheck || !visible.some(row => canCheckPrinting(row.target));
+    checkAll.disabled = manualCheck || !binderTargets.size;
+    cancel.hidden = !manualCheck;
     clear.hidden = filters.every(input => !input.value || input === sort && sort.value === "binder");
 
     const active = document.activeElement as HTMLElement | null;
@@ -206,41 +262,99 @@ export function createBuyCards(options: Options) {
     if (attribute && focused && active && !active.isConnected) {
       const replacement = list.querySelector<HTMLElement>(`[${attribute}="${CSS.escape(focused)}"]:not(:disabled)`);
       const alternative = list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(focused)}"]`);
-      (replacement ?? alternative ?? checkPage).focus({ preventScroll: true });
+      (replacement ?? alternative ?? (manualCheck ? cancel : checkPage)).focus({ preventScroll: true });
     }
+    scheduleExpiration(now, quoteExpiry);
   }
 
   function cancelChecks() {
     job?.controller.abort();
     job = undefined;
+    cancel.hidden = true;
     progress.textContent = "";
   }
 
-  async function check(rows: readonly Row[]) {
-    if (job) return;
-    const targets = new Map(rows.filter(row => canCheckPrinting(row.target)).map(row => [printingKey(row.target), row.target]));
-    if (!targets.size) return;
+  async function check(targets: Map<string, PricingTarget>, kind: CheckKind = "manual") {
+    if (!targets.size || job && job.kind !== "refresh") return;
+    if (job) cancelChecks();
+    if (kind !== "refresh") refreshPaused = false;
+
     const work = [...targets];
-    const lookup = { controller: new AbortController(), keys: new Set(targets.keys()) };
+    const lookup: CheckJob = {
+      kind, controller: new AbortController(), keys: new Set(targets.keys()),
+      total: work.length, completed: 0, unavailable: 0,
+    };
+    const signal = lookup.controller.signal;
+    const focusStop = kind !== "refresh" && (document.activeElement === checkPage || document.activeElement === checkAll);
     job = lookup;
-    let cursor = 0, completed = 0;
-    progress.textContent = `Checking stores for ${work.length} ${work.length === 1 ? "printing" : "printings"}…`;
+    let cursor = 0;
+
+    function report() {
+      if (kind === "refresh") return;
+      const wait = Math.ceil((rateLimitedUntil - Date.now()) / 1_000);
+      const message = wait > 0
+        ? `Store checks will resume in about ${wait} seconds. ${lookup.completed} of ${lookup.total} printings checked.`
+        : `Checking store prices · ${lookup.completed} of ${lookup.total} printings`;
+      if (progress.textContent !== message) progress.textContent = message;
+    }
+
+    async function waitForCapacity() {
+      while (!signal.aborted) {
+        const wait = rateLimitedUntil - Date.now();
+        if (wait <= 0) return true;
+        report();
+        await new Promise<void>(resolve => {
+          const finishWaiting = () => {
+            clearTimeout(timer);
+            signal.removeEventListener("abort", finishWaiting);
+            resolve();
+          };
+          const timer = setTimeout(finishWaiting, wait);
+          signal.addEventListener("abort", finishWaiting, { once: true });
+        });
+      }
+      return false;
+    }
+
+    report();
     draw();
+    if (focusStop) cancel.focus({ preventScroll: true });
+
     async function pull() {
       while (cursor < work.length && job === lookup) {
         const [key, target] = work[cursor++];
-        await quotes.check(target, { force: true, signal: lookup.controller.signal }).catch(() => {});
-        if (job !== lookup) return;
-        lookup.keys.delete(key);
-        completed++;
-        draw();
+        while (job === lookup) {
+          let result: RetailOffers | undefined = kind === "all" ? quotes.peek(key, Date.now()) : undefined;
+          if (!result || !buyingStores.every(shop => result?.checkedStores?.[shop])) {
+            if (!await waitForCapacity() || job !== lookup) return;
+            report();
+            result = await quotes.check(target, { force: true, signal }).catch(() => undefined);
+            if (job !== lookup) return;
+          }
+          if (result?.retryAfter) {
+            rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + result.retryAfter * 1_000);
+            continue;
+          }
+          if (!result || result.unavailableStores.length) lookup.unavailable++;
+          lookup.keys.delete(key);
+          lookup.completed++;
+          report();
+          draw();
+          break;
+        }
       }
     }
+
     await Promise.all([pull(), pull()]);
     if (job !== lookup) return;
+    const restoreFocus = document.activeElement === cancel;
     job = undefined;
-    progress.textContent = `Checked ${completed} ${completed === 1 ? "printing" : "printings"}.`;
+    if (kind !== "refresh") {
+      progress.textContent = `Checked ${lookup.completed} of ${lookup.total} printings.`
+        + (lookup.unavailable ? ` Some stores couldn’t be checked for ${lookup.unavailable} ${lookup.unavailable === 1 ? "printing" : "printings"}.` : "");
+    }
     draw();
+    if (restoreFocus) (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
   }
 
   async function load(preferred: string) {
@@ -252,10 +366,11 @@ export function createBuyCards(options: Options) {
     failedToLoad = false;
     setErrors = 0;
     entries = visible = [];
+    binderTargets.clear();
     values = new Map();
     marketPending = new Set();
     scope.disabled = true;
-    checkPage.disabled = true;
+    checkPage.disabled = checkAll.disabled = true;
     empty.hidden = true;
     list.replaceChildren();
     node("pages").hidden = true;
@@ -279,6 +394,7 @@ export function createBuyCards(options: Options) {
         const set = sets.get(binder.setId), data = loaded.get(binder.setId);
         return set && data ? missingPrintings(binder, set, data) : [];
       }));
+      binderTargets = checkableTargets(entries.flatMap(entry => targetsFor(entry.target, choicesFor(entry))));
       fillFinishes();
       const ids = [...new Set(entries.map(entry => entry.target.setId))];
       marketPending = new Set(ids);
@@ -322,7 +438,7 @@ export function createBuyCards(options: Options) {
     } else if (needsReload || marketPending.size || failedToLoad) {
       void load(scope.value);
     } else {
-      draw();
+      refreshVisible();
     }
   }
 
@@ -334,8 +450,13 @@ export function createBuyCards(options: Options) {
     inspectedRow = undefined;
     options.closeDetail();
   }
+  function changeVisibleRows() {
+    if (job?.kind === "refresh") cancelChecks();
+    draw();
+  }
+
   for (const field of filters) {
-    field.addEventListener(field instanceof HTMLInputElement ? "input" : "change", () => { page = 0; draw(); });
+    field.addEventListener(field instanceof HTMLInputElement ? "input" : "change", () => { page = 0; changeVisibleRows(); });
   }
   scope.addEventListener("change", () => {
     if (catalogState !== "ready") return;
@@ -344,11 +465,25 @@ export function createBuyCards(options: Options) {
     page = 0;
     void load(scope.value);
   });
-  checkPage.addEventListener("click", () => void check(visible));
-  clear.addEventListener("click", () => { resetFilters(); draw(); search.focus(); });
+  checkPage.addEventListener("click", () => void check(checkableTargets(visible.map(row => row.target))));
+  checkAll.addEventListener("click", () => void check(binderTargets, "all"));
+  cancel.addEventListener("click", () => {
+    if (!job || job.kind === "refresh") return;
+    const { kind, completed, total } = job;
+    refreshPaused = true;
+    cancelChecks();
+    progress.textContent = `Stopped after ${completed} of ${total} printings.`;
+    draw();
+    (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && job?.kind === "refresh") cancelChecks();
+    refreshVisible();
+  });
+  clear.addEventListener("click", () => { resetFilters(); changeVisibleRows(); search.focus(); });
   function turnPage(offset: number) {
     page += offset;
-    draw();
+    changeVisibleRows();
     list.querySelector<HTMLElement>("[data-buy-card]")?.focus();
   }
   next.addEventListener("click", () => turnPage(1));
@@ -358,13 +493,13 @@ export function createBuyCards(options: Options) {
     if (!control?.dataset.buyFinish) return;
     if (control.value) picks.set(control.dataset.buyFinish, control.value);
     else picks.delete(control.dataset.buyFinish);
-    draw();
+    changeVisibleRows();
   });
   list.addEventListener("click", event => {
     const control = (event.target as Element).closest<HTMLButtonElement>("[data-buy-check], [data-buy-card]");
     const row = control && visible.find(item => item.id === (control.dataset.buyCheck ?? control.dataset.buyCard));
     if (!row || !control) return;
-    if (control.hasAttribute("data-buy-check")) { void check([row]); return; }
+    if (control.hasAttribute("data-buy-check")) { void check(checkableTargets([row.target])); return; }
     inspectedRow = row.id;
     list.querySelector('[data-buy-card][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
     control.setAttribute("aria-expanded", "true");
@@ -376,6 +511,7 @@ export function createBuyCards(options: Options) {
     checkOffers: quotes.check,
     enter(fromBinders: boolean) {
       if (!visited) entryFromBinder = fromBinders;
+      refreshPaused = false;
       activate();
     },
     leave: deactivate,
@@ -403,6 +539,7 @@ export function createBuyCards(options: Options) {
       deactivate();
       resetFilters();
       entries = visible = [];
+      binderTargets.clear();
       sets.clear();
       cards.clear();
       picks.clear();
@@ -413,7 +550,7 @@ export function createBuyCards(options: Options) {
       list.replaceChildren();
       empty.hidden = true;
       node("pages").hidden = true;
-      checkPage.disabled = true;
+      checkPage.disabled = checkAll.disabled = true;
       clear.hidden = true;
       status.textContent = "Loading your set binders…";
       needsReload = true;

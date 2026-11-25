@@ -29,6 +29,7 @@ export interface RetailOffers {
   unavailableStores: string[];
   checkedStores?: Record<string, string>;
   expiresAt?: Record<string, string>;
+  retryAfter?: number;
 }
 export interface BinderValue { cents: number; priced: number; collected: number; asOf: string | null }
 

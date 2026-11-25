@@ -128,7 +128,8 @@ export function createPricingUI(options: Options) {
             aria-label="Open ${escape(offer.store)} listing (opens in new tab)">View listing</a></div></li>`).join("");
         const messages = [];
         if (checking) messages.push("Checking Canadian stores…");
-        if (!checking && !offers.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
+        if (data.retryAfter) messages.push(`Store checks are busy. Try again in about ${data.retryAfter} seconds.`);
+        if (!checking && !offers.length && !data.retryAfter) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
           : data.unavailableStores.length >= 3 ? "Canadian stores are temporarily unavailable."
           : "No exact in-stock offers found.");
         if (data.unavailableStores.length && data.unavailableStores.length < 3) {
@@ -142,8 +143,9 @@ export function createPricingUI(options: Options) {
       }
       const previous = await options.readOffers(printing);
       if (!current()) return;
-      if (previous) show(previous, refresh);
-      if (!previous || refresh) show(await options.checkOffers(printing, { force: refresh }), false);
+      const needsCheck = refresh || !Object.keys(previous?.checkedStores ?? {}).length;
+      if (previous) show(previous, needsCheck);
+      if (needsCheck) show(await options.checkOffers(printing, { force: refresh }), false);
     } catch {
       if (current()) retailerStatus.textContent = "Canadian offers are temporarily unavailable. Try refreshing.";
     } finally {

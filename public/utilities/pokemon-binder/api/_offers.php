@@ -9,6 +9,8 @@ const BINDER_OFFER_STORES = [
 ];
 const BINDER_OFFER_PROFILE = 'https://austingarrod.ca/utilities/pokemon-binder/shopify-profile.json';
 const BINDER_OFFER_TTL = 540;
+const BINDER_OFFER_RATE_LIMIT = 24;
+const BINDER_OFFER_RATE_WINDOW = 60;
 
 function binder_offer_target(string $root, array $query): ?array
 {
@@ -403,35 +405,38 @@ function binder_offer_fetch(array $stores, string $query, string $profile): arra
     }
 }
 
-function binder_offer_rate_allowed(int $now): bool
+// Zero reserves a lookup. A positive delay means the window is full, while null means the limiter is unavailable.
+function binder_offer_reserve(int $now): ?int
 {
     $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'austingarrod-binder-offers';
     if (!is_dir($directory) && !@mkdir($directory, 0700) && !is_dir($directory)) {
-        return false;
+        return null;
     }
     $handle = @fopen($directory . DIRECTORY_SEPARATOR . 'request-rate', 'c+');
     if ($handle === false) {
-        return false;
+        return null;
     }
     try {
         if (!flock($handle, LOCK_EX)) {
-            return false;
+            return null;
         }
         $timestamps = array_filter(
             preg_split('/\R/', trim((string) stream_get_contents($handle, 1024))) ?: [],
-            static fn(string $stamp): bool => ctype_digit($stamp) && (int) $stamp > $now - 60
+            static fn(string $stamp): bool => ctype_digit($stamp) && (int) $stamp > $now - BINDER_OFFER_RATE_WINDOW
         );
-        if (count($timestamps) >= 24) {
-            return false;
+        if (count($timestamps) >= BINDER_OFFER_RATE_LIMIT) {
+            $remaining = (int) min($timestamps) + BINDER_OFFER_RATE_WINDOW - $now;
+            return max(1, min(BINDER_OFFER_RATE_WINDOW, $remaining));
         }
         $timestamps[] = (string) $now;
-        return ftruncate($handle, 0) && rewind($handle) && fwrite($handle, implode("\n", $timestamps)) !== false;
+        $content = implode("\n", $timestamps);
+        return ftruncate($handle, 0) && rewind($handle) && fwrite($handle, $content) === strlen($content) ? 0 : null;
     } finally {
         fclose($handle);
     }
 }
 
-function binder_offer_result(array $checks): array
+function binder_offer_result(array $checks, int $retryAfter = 0): array
 {
     $offers = [];
     $unavailable = [];
@@ -439,7 +444,9 @@ function binder_offer_result(array $checks): array
     foreach (BINDER_OFFER_STORES as $store) {
         $check = $checks[$store['host']] ?? null;
         if ($check === null) {
-            $unavailable[] = $store['name'];
+            if ($retryAfter === 0) {
+                $unavailable[] = $store['name'];
+            }
             continue;
         }
         // A cache hit must report when the store was checked, including for an empty result.
@@ -452,7 +459,7 @@ function binder_offer_result(array $checks): array
         'offers' => array_values(array_unique($offers, SORT_REGULAR)),
         'unavailableStores' => $unavailable,
         'checkedStores' => (object) $checked,
-    ];
+    ] + ($retryAfter > 0 ? ['retryAfter' => $retryAfter] : []);
 }
 
 function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFILE): array
@@ -474,7 +481,14 @@ function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFI
             $lookup[$cacheKey] = $store;
         }
     }
-    $results = $lookup && binder_offer_rate_allowed($fresh) ? binder_offer_fetch($lookup, binder_offer_query($target), $profile) : [];
+    if (!$lookup) {
+        return binder_offer_result($checks);
+    }
+    $retryAfter = binder_offer_reserve($fresh);
+    if ($retryAfter !== 0) {
+        return binder_offer_result($checks, $retryAfter ?? 0);
+    }
+    $results = binder_offer_fetch($lookup, binder_offer_query($target), $profile);
     foreach ($lookup as $cacheKey => $store) {
         $rows = $results[$store['host']] ?? null;
         if ($rows === null) {

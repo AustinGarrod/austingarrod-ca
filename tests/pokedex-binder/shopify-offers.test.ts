@@ -1,17 +1,20 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, rmdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const php = process.env.PHP_BINARY || "php";
 const phpVersion = spawnSync(php, ["-r", "echo PHP_VERSION_ID;"], { encoding: "utf8" });
 
-function runPhp(expression: string, input?: unknown) {
+function runPhp(expression: string, input?: unknown, args: string[] = []) {
   const code = [
     "require 'public/utilities/pokemon-binder/api/_offers.php';",
     "set_error_handler(static function($severity, $message) { throw new ErrorException($message, 0, $severity); });",
     "$input = json_decode(stream_get_contents(STDIN), true, 64, JSON_THROW_ON_ERROR);",
     `echo json_encode(${expression}, JSON_THROW_ON_ERROR);`,
   ].join("\n");
-  return JSON.parse(execFileSync(php, ["-r", code], { input: JSON.stringify(input ?? null), encoding: "utf8" }));
+  return JSON.parse(execFileSync(php, [...args, "-r", code], { input: JSON.stringify(input ?? null), encoding: "utf8" }));
 }
 
 const target = { set: "sv03.5", number: "135", variant: "reverse" };
@@ -122,12 +125,14 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
 
   it("reports original check times even for stores with no offers", () => {
     const [offer] = offers([store401]);
-    const result = runPhp(`binder_offer_result(array_map(static fn(array $check): array => [
-      'expiresAt' => $check['checkedAt'] + BINDER_OFFER_TTL, 'offers' => $check['offers'],
-    ], $input))`, {
+    const checks = {
       "store.401games.ca": { checkedAt: 1771000000, offers: [offer, offer] },
       "deckoutgaming.ca": { checkedAt: 1770999700, offers: [] },
-    });
+    };
+    const cachedStores = `array_map(static fn(array $check): array => [
+      'expiresAt' => $check['checkedAt'] + BINDER_OFFER_TTL, 'offers' => $check['offers'],
+    ], $input)`;
+    const result = runPhp(`binder_offer_result(${cachedStores})`, checks);
     expect(result).toEqual({
       offers: [offer],
       unavailableStores: ["Skyfox Games"],
@@ -136,10 +141,47 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
         "Deck Out Gaming": new Date(1770999700 * 1000).toISOString().replace(".000Z", "+00:00"),
       },
     });
+    expect(runPhp(`binder_offer_result(${cachedStores}, 17)`, checks)).toEqual({
+      ...result,
+      unavailableStores: [],
+      retryAfter: 17,
+    });
     expect(runPhp("binder_offer_result([])")).toEqual({
       offers: [],
       unavailableStores: ["401 Games", "Deck Out Gaming", "Skyfox Games"],
       checkedStores: {},
     });
+  });
+
+  it("defers an uncached printing until the shared rolling budget reopens", () => {
+    const directory = mkdtempSync(join(tmpdir(), "binder-offer-rate-"));
+    const limiter = join(directory, "austingarrod-binder-offers");
+    try {
+      const result = runPhp(`(static function ($target) {
+        $now = time();
+        $granted = [];
+        for ($index = 0; $index < 24; $index++) {
+          $granted[] = binder_offer_reserve($now);
+        }
+        return [
+          'granted' => $granted,
+          'lookup' => binder_offer_lookup(binder_offer_target('public', $target)),
+          'lastSecond' => binder_offer_reserve($now + 59),
+          'nextWindow' => binder_offer_reserve($now + 60),
+        ];
+      })($input)`, target, ["-d", `sys_temp_dir=${directory}`, "-d", "apc.enabled=0"]);
+      expect(result.granted).toEqual(Array(24).fill(0));
+      expect(result.lookup).toEqual({
+        offers: [], unavailableStores: [], checkedStores: {}, retryAfter: expect.any(Number),
+      });
+      expect(result.lookup.retryAfter).toBeGreaterThan(0);
+      expect(result.lookup.retryAfter).toBeLessThanOrEqual(60);
+      expect(result.lastSecond).toBe(1);
+      expect(result.nextWindow).toBe(0);
+    } finally {
+      rmSync(join(limiter, "request-rate"), { force: true });
+      if (existsSync(limiter)) rmdirSync(limiter);
+      rmdirSync(directory);
+    }
   });
 });

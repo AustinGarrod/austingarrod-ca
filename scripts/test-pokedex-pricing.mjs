@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { chromium, expect } from "@playwright/test";
+import { testFullBuyCards } from "./test-pokedex-buying-bulk.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binderUrl = origin + "/utilities/pokemon-binder/";
@@ -68,6 +69,7 @@ try {
     const setup = buying.getByRole("link", { name: "Go to Binders" });
     await expect(setup).toBeVisible();
     await expect(buying.locator("#buy-cards-check")).toBeDisabled();
+    await expect(buying.locator("#buy-cards-check-all")).toBeDisabled();
     await expect(buying.locator("dialog[open]")).toHaveCount(0);
     await page.reload();
     await expect(setup).toBeVisible();
@@ -335,15 +337,16 @@ try {
     await availability.selectOption("stock");
     await expect(rows).toHaveCount(1);
     await page.clock.fastForward(301_000);
-    await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Deck Out Gaming" })).toContainText("Needs a check");
+    await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Deck Out Gaming" })).not.toContainText("$1.80");
     await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Skyfox Games" })).toContainText("$2.50");
     await page.clock.fastForward(300_000);
     await expect(rows).toHaveCount(0);
-    await availability.selectOption("unchecked");
+    await availability.selectOption("");
     await expect(rows).toHaveCount(2);
-    await expect(rows.first()).toContainText("Needs a check");
-    await expect(rows.first()).not.toContainText("$2.50");
-    await expect(rows.first()).not.toContainText("In stock");
+    const expiredRow = rows.filter({ hasText: "Regular" });
+    await expect(expiredRow).not.toContainText("$2.50");
+    await expect(expiredRow).not.toContainText("In stock");
+    await expect(rows.filter({ hasText: "Reverse holo" })).toContainText("Needs a check");
 
     if (width === 1440) {
       let releaseMarket;
@@ -391,10 +394,11 @@ try {
       await expect(scope.locator("option")).toHaveCount(4);
       await expect(search).toHaveValue("");
       await expect(rows).toHaveCount(6);
-      assert.equal(lookups.length, beforeReload, "A dashboard reload must not fetch retailer offers.");
       await search.fill("Ivysaur 002");
       await expect(rows.first()).toContainText("$2.50");
       await expect(rows.first()).toContainText("Checked");
+      assert.ok(!lookups.slice(beforeReload).some(({ set, number, variant }) =>
+        set === "sv03.5" && number === "002" && variant === "normal"), "A dashboard reload should reuse a fresh store check.");
 
       await bindersTab.click();
       user = account;
@@ -461,4 +465,5 @@ try {
     await context.close();
     console.log(`Passed ${width}px card search, pricing, and purchasing dashboard navigation, filters, lookups, and expiry.`);
   }
+  await testFullBuyCards(browser, origin);
 } finally { await browser.close(); }

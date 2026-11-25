@@ -8,6 +8,8 @@ interface StoreCheck {
   offers: RetailOffer[];
 }
 interface SavedCheck extends StoreCheck { scope: string; key: string }
+interface SavedInterest { scope: string; key: string; expiresAt: number }
+interface RefreshInterest { due: number; until: number }
 interface Snapshot {
   checks: Map<BuyingStore, StoreCheck>;
   failures: Map<BuyingStore, number>;
@@ -16,6 +18,8 @@ interface LookupOptions { force?: boolean; signal?: AbortSignal }
 
 const emptyOffers = (): RetailOffers => ({ offers: [], unavailableStores: [] });
 const storeName = "checks";
+const interestStore = "checkedPrintings";
+const interestLifetime = 60 * 60_000;
 
 function storeChecks(results: RetailOffers, now: number): StoreCheck[] {
   const offers = freshOffers(results.offers, now, results.expiresAt);
@@ -41,11 +45,16 @@ function createStorage() {
   let opening: Promise<IDBDatabase> | undefined;
   function open() {
     opening ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open("austingarrod.utilities.pokemon-binder.offers", 1);
-      request.onupgradeneeded = () => {
-        const store = request.result.createObjectStore(storeName, { keyPath: ["scope", "key", "store"] });
-        store.createIndex("scope", "scope");
-        store.createIndex("expiresAt", "expiresAt");
+      const request = indexedDB.open("austingarrod.utilities.pokemon-binder.offers", 2);
+      request.onupgradeneeded = event => {
+        if (event.oldVersion < 1) {
+          const store = request.result.createObjectStore(storeName, { keyPath: ["scope", "key", "store"] });
+          store.createIndex("scope", "scope");
+          store.createIndex("expiresAt", "expiresAt");
+        }
+        const interests = request.result.createObjectStore(interestStore, { keyPath: ["scope", "key"] });
+        interests.createIndex("scope", "scope");
+        interests.createIndex("expiresAt", "expiresAt");
       };
       request.onsuccess = () => {
         request.result.onversionchange = () => { request.result.close(); opening = undefined; };
@@ -56,14 +65,14 @@ function createStorage() {
     });
     return opening;
   }
-  function transaction<T>(database: IDBDatabase, use: (store: IDBObjectStore, result: (value: T) => void) => void) {
+  function transaction<T>(database: IDBDatabase, use: (tx: IDBTransaction, result: (value: T) => void) => void) {
     return new Promise<T>((resolve, reject) => {
-      const tx = database.transaction(storeName, "readwrite");
+      const tx = database.transaction([storeName, interestStore], "readwrite");
       let value: T;
       tx.oncomplete = () => resolve(value);
       tx.onabort = () => reject(tx.error);
       tx.onerror = () => reject(tx.error);
-      use(tx.objectStore(storeName), next => { value = next; });
+      use(tx, next => { value = next; });
     });
   }
   function deleteExpired(store: IDBObjectStore, now: number) {
@@ -77,24 +86,35 @@ function createStorage() {
   }
   return {
     async read(scope: string, now: number) {
-      return transaction<SavedCheck[]>(await open(), (store, result) => {
-        deleteExpired(store, now);
-        const request = store.index("scope").getAll(scope);
-        request.onsuccess = () => result(request.result);
+      return transaction<{ checks: SavedCheck[]; interests: SavedInterest[] }>(await open(), (tx, result) => {
+        const checks = tx.objectStore(storeName), interests = tx.objectStore(interestStore);
+        const savedChecks = checks.index("scope").getAll(scope);
+        const savedInterests = interests.index("scope").getAll(scope);
+        savedInterests.onsuccess = () => result({ checks: savedChecks.result, interests: savedInterests.result });
+        deleteExpired(checks, now);
+        deleteExpired(interests, now);
       });
     },
-    async write(scope: string, key: string, checks: StoreCheck[]) {
-      await transaction<void>(await open(), store => {
+    async write(scope: string, key: string, checks: StoreCheck[], until: number) {
+      await transaction<void>(await open(), tx => {
+        const store = tx.objectStore(storeName), interests = tx.objectStore(interestStore);
         for (const check of checks) {
           const request = store.get([scope, key, check.store]);
           request.onsuccess = () => {
             if (acceptCheck(request.result, check, Date.now())) store.put({ ...check, scope, key } satisfies SavedCheck);
           };
         }
+        const existing = interests.get([scope, key]);
+        existing.onsuccess = () => {
+          if ((existing.result?.expiresAt ?? 0) < until) interests.put({ scope, key, expiresAt: until } satisfies SavedInterest);
+        };
       });
     },
     async prune(now: number) {
-      await transaction<void>(await open(), store => deleteExpired(store, now));
+      await transaction<void>(await open(), tx => {
+        deleteExpired(tx.objectStore(storeName), now);
+        deleteExpired(tx.objectStore(interestStore), now);
+      });
     },
   };
 }
@@ -103,9 +123,10 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
   const storage = createStorage();
   const snapshots = new Map<string, Snapshot>();
   const deadlines = new Set<number>();
+  const refreshes = new Map<string, RefreshInterest>();
   const pending = new Map<string, { controller: AbortController; signal: AbortSignal; result: Promise<RetailOffers> }>();
   let hydration: Promise<void> | undefined;
-  let generation = 0;
+  let generation = 0, retryAt = 0;
 
   function snapshot(key: string) {
     let value = snapshots.get(key);
@@ -116,23 +137,37 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     return value;
   }
 
+  function refreshAt(key: string, now: number) {
+    const interest = refreshes.get(key);
+    return interest && interest.until > now ? Math.max(interest.due, retryAt) : Infinity;
+  }
+
+  function nextExpiry(key: string, now: number) {
+    return Math.min(...[...snapshot(key).checks.values()].map(check => check.expiresAt).filter(at => at > now));
+  }
+
   function hydrate() {
     const ticket = generation, owner = scope();
-    hydration ??= storage.read(owner, Date.now()).then(checks => {
+    hydration ??= storage.read(owner, Date.now()).then(({ checks, interests }) => {
       if (ticket !== generation || owner !== scope()) return;
       const now = Date.now();
+      for (const { key, expiresAt } of interests) {
+        if (expiresAt > now) refreshes.set(key, { due: now, until: expiresAt });
+      }
       for (const { scope: _scope, key, ...check } of checks) {
         const { checks: saved } = snapshot(key);
         if (acceptCheck(saved.get(check.store), check, now)) {
           saved.set(check.store, check);
           deadlines.add(check.expiresAt);
+          const until = Math.max(refreshes.get(key)?.until ?? 0, Date.parse(check.checkedAt) + interestLifetime);
+          refreshes.set(key, { due: nextExpiry(key, now), until });
         }
       }
     }).catch(() => {});
     return hydration;
   }
 
-  function peek(key: string, now: number) {
+  function peek(key: string, now: number): RetailOffers | undefined {
     const snapshot = snapshots.get(key);
     if (!snapshot) return;
     const checks = [...snapshot.checks.values()].filter(check => check.expiresAt > now);
@@ -144,13 +179,14 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
       checkedStores: Object.fromEntries(checks.map(check => [check.store, check.checkedAt])),
       expiresAt: Object.fromEntries(checks.map(check => [check.store, new Date(check.expiresAt).toISOString()])),
       unavailableStores,
-    } satisfies RetailOffers;
+    };
   }
 
   async function record(target: PricingTarget, results: RetailOffers) {
     const key = printingKey(target), now = Date.now();
     const accepted: StoreCheck[] = [], state = snapshot(key);
-    for (const check of storeChecks(results, now)) {
+    const observations = storeChecks(results, now);
+    for (const check of observations) {
       state.failures.delete(check.store);
       if (!acceptCheck(state.checks.get(check.store), check, now)) continue;
       state.checks.set(check.store, check);
@@ -162,7 +198,15 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
         state.failures.set(store, now + offerLifetime);
       }
     }
-    if (accepted.length) await storage.write(scope(), key, accepted).catch(() => {});
+    const until = Math.max(refreshes.get(key)?.until ?? 0,
+      ...observations.map(check => Date.parse(check.checkedAt) + interestLifetime));
+    if (until > now) {
+      const expiry = nextExpiry(key, now);
+      const due = results.retryAfter ? Math.min(expiry, now + results.retryAfter * 1000)
+        : Number.isFinite(expiry) ? expiry : now + offerLifetime;
+      refreshes.set(key, { due, until });
+      if (observations.length) await storage.write(scope(), key, accepted, until).catch(() => {});
+    }
   }
 
   async function read(target: PricingTarget) {
@@ -176,9 +220,11 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     const previous = await read(target);
     signal?.throwIfAborted();
     if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
-    if (previous && !force) return previous;
+    if (!force && previous && Object.keys(previous.checkedStores ?? {}).length) return previous;
     const existing = pending.get(key);
     if (existing && !existing.signal.aborted) return existing.result;
+    const wait = retryAt - Date.now();
+    if (wait > 0) return { ...(previous ?? emptyOffers()), retryAfter: Math.ceil(wait / 1000) };
     const controller = new AbortController();
     const network = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
     const result = pricingRequest<RetailOffers>("offers", { set: target.setId, number: target.number, variant: target.variant },
@@ -187,9 +233,13 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
       .then(async data => {
         network.throwIfAborted();
         if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
-        await record(target, data);
+        const delay = data.retryAfter;
+        const retryAfter = typeof delay === "number" && Number.isSafeInteger(delay) && delay > 0 ? Math.min(delay, 60) : undefined;
+        if (retryAfter) retryAt = Math.max(retryAt, Date.now() + retryAfter * 1000);
+        await record(target, { ...data, retryAfter });
         network.throwIfAborted();
-        return peek(key, Date.now()) ?? emptyOffers();
+        const merged = peek(key, Date.now()) ?? emptyOffers();
+        return retryAfter ? { ...merged, retryAfter } : merged;
       }).finally(() => {
         if (pending.get(key)?.controller === controller) pending.delete(key);
         changed();
@@ -214,6 +264,10 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
       }
       if (!checks.size && !failures.size) snapshots.delete(key);
     }
+    for (const [key, interest] of refreshes) {
+      if (interest.until > now) next = Math.min(next, interest.until);
+      else { refreshes.delete(key); expired = true; }
+    }
     if (expired) void storage.prune(now).catch(() => {});
     return next;
   }
@@ -224,7 +278,8 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     for (const { controller } of pending.values()) controller.abort();
     pending.clear();
     snapshots.clear();
+    refreshes.clear();
   }
 
-  return { hydrate, peek, read, check, expire, reset };
+  return { hydrate, peek, read, check, expire, refreshAt, reset };
 }
