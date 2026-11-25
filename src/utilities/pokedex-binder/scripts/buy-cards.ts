@@ -70,6 +70,13 @@ function priceOrder(a: number, b: number) {
   return a === b ? 0 : a < b ? -1 : 1;
 }
 
+function formatWait(seconds: number) {
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  const hours = Math.floor(seconds / 3_600);
+  const minutes = Math.floor(seconds % 3_600 / 60);
+  return hours > 0 ? `${hours}h ${minutes}m ${seconds % 60}s` : `${minutes}m ${seconds % 60}s`;
+}
+
 export function createBuyCards(options: Options) {
   const workspace = node("workspace"), list = node("list"), status = node("status");
   const empty = node("empty"), progress = node("check-status"), countdown = node("countdown");
@@ -274,8 +281,8 @@ export function createBuyCards(options: Options) {
     scheduleExpiration(now, quoteExpiry);
   }
 
-  function showProgress(message: string, seconds = 0) {
-    const timer = seconds > 0 ? `Store checks will resume in ${seconds} ${seconds === 1 ? "second" : "seconds"}. ` : "";
+  function showProgress(message: string, seconds = 0, retailer?: BuyingStore) {
+    const timer = seconds > 0 ? `${retailer ?? "Store"} checks will resume in ${formatWait(seconds)}. ` : "";
     if (countdown.textContent !== timer) countdown.textContent = timer;
     if (progress.textContent !== message) progress.textContent = message;
   }
@@ -293,7 +300,7 @@ export function createBuyCards(options: Options) {
     if (kind !== "refresh") refreshPaused = false;
 
     const work = [...targets].map(([key, target]): CheckWork => ({ key, target }));
-    const deferred: (CheckWork & { resumeAt: number })[] = [];
+    const deferred: (CheckWork & { stores: readonly BuyingStore[]; resumeAt: number })[] = [];
     const lookup: CheckJob = {
       kind, controller: new AbortController(), keys: new Set(targets.keys()),
       total: work.length, completed: 0, unavailable: 0,
@@ -303,17 +310,17 @@ export function createBuyCards(options: Options) {
     job = lookup;
     let cursor = 0, inFlight = 0;
 
-    function report(wait = rateLimitedUntil - Date.now()) {
+    function report(wait = rateLimitedUntil - Date.now(), retailer?: BuyingStore) {
       if (kind === "refresh") return;
       const seconds = inFlight === 0 ? Math.ceil(wait / 1_000) : 0;
       const count = `${lookup.completed} of ${lookup.total} printings`;
-      showProgress(seconds > 0 ? `${count} checked.` : `Checking store prices · ${count}`, seconds);
+      showProgress(seconds > 0 ? `${count} checked.` : `Checking store prices · ${count}`, seconds, retailer);
     }
 
-    async function waitUntil(resumeAt: number) {
+    async function waitUntil(resumeAt: number, retailer?: BuyingStore) {
       const wait = resumeAt - Date.now();
       if (wait <= 0 || signal.aborted) return;
-      report(wait);
+      report(wait, retailer);
       const delay = kind === "refresh" ? Math.min(wait, 2_147_483_647) : wait % 1_000 || 1_000;
       await new Promise<void>(resolve => {
         const finishWaiting = () => {
@@ -340,7 +347,11 @@ export function createBuyCards(options: Options) {
           const ready = deferred.findIndex(candidate => candidate.resumeAt <= now);
           if (ready < 0) {
             if (!deferred.length) return;
-            await waitUntil(Math.max(rateLimitedUntil, Math.min(...deferred.map(candidate => candidate.resumeAt))));
+            const next = Math.min(...deferred.map(candidate => candidate.resumeAt));
+            const firstStore = deferred[0].stores[0];
+            const retailer = next >= rateLimitedUntil && deferred.every(candidate =>
+              candidate.stores.length === 1 && candidate.stores[0] === firstStore) ? firstStore : undefined;
+            await waitUntil(Math.max(rateLimitedUntil, next), retailer);
             continue;
           }
           [item] = deferred.splice(ready, 1);

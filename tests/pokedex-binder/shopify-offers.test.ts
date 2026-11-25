@@ -243,6 +243,33 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     });
     expect(result.storeRetryAfter["Skyfox Games"]).toBeGreaterThan(60);
   });
+
+  it("backs off once per retailer cooldown and honors a longer explicit wait", () => {
+    const directory = mkdtempSync(join(tmpdir(), "binder-store-cooldown-"));
+    const limiter = join(directory, "austingarrod-binder-offers");
+    try {
+      const [initial, duplicate, extended, remaining, next] = runPhp(`(static function () {
+        $host = BINDER_OFFER_STORES[0]['host'];
+        $now = time();
+        return [
+          binder_offer_store_wait($host, $now, true),
+          binder_offer_store_wait($host, $now, true),
+          binder_offer_store_wait($host, $now + 2, true, '25'),
+          binder_offer_store_wait($host, $now + 23, true),
+          binder_offer_store_wait($host, $now + 27, true),
+        ];
+      })()`, null, ["-d", `sys_temp_dir=${directory}`]);
+      expect(initial).toBeGreaterThanOrEqual(10);
+      expect(initial).toBeLessThanOrEqual(13);
+      expect(duplicate).toBe(initial);
+      expect(extended).toBe(25);
+      expect(remaining).toBe(4);
+      expect(next).toBeGreaterThanOrEqual(20);
+      expect(next).toBeLessThanOrEqual(23);
+    } finally {
+      removeLimiter(directory, limiter);
+    }
+  });
 });
 
 function removeLimiter(directory: string, limiter: string) {

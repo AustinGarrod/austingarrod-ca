@@ -506,9 +506,17 @@ function binder_offer_store_wait(string $host, int $now, bool $throttled = false
         if (!$throttled) {
             return max(0, $until - $now);
         }
-        $attempt = $until >= $now - 300 ? min(6, (int) ($state['attempt'] ?? 0) + 1) : 1;
-        $delay = binder_offer_retry_delay($header, $now) ?? min(300, 10 * (2 ** ($attempt - 1)) + random_int(0, 3));
-        $until = max($until, $now + $delay);
+        $delay = binder_offer_retry_delay($header, $now);
+        // Concurrent requests can receive a 429 for the same cooldown.
+        if ($until > $now && ($delay === null || $delay <= $until - $now)) {
+            return $until - $now;
+        }
+        $attempt = (int) ($state['attempt'] ?? 0);
+        if ($until <= $now) {
+            $attempt = $until >= $now - 300 ? min(6, $attempt + 1) : 1;
+        }
+        $delay ??= min(300, 10 * (2 ** ($attempt - 1)) + random_int(0, 3));
+        $until = $now + $delay;
         $content = json_encode(['until' => $until, 'attempt' => $attempt], JSON_THROW_ON_ERROR);
         if (ftruncate($handle, 0) && rewind($handle) && fwrite($handle, $content) === strlen($content)) {
             return $until - $now;

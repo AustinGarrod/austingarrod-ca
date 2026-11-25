@@ -240,7 +240,7 @@ export async function testFullBuyCards(browser, origin) {
     const basePrintings = smallCatalog.get("base1").flatMap(card => card.variants.map(printing =>
       key({ set: "base1", number: card.number, variant: printing.id }))).sort();
     await checkAll.dispatchEvent("click");
-    await expect(countdownStatus).toHaveText("Store checks will resume in 75 seconds.");
+    await expect(countdownStatus).toHaveText("401 Games checks will resume in 1m 15s.");
     const firstPass = lookups.slice(storeStart);
     assert.deepEqual(firstPass.map(key).sort(), basePrintings, "Healthy retailers should finish every printing before the wait.");
     assert.ok(firstPass.some(lookup => lookup.stores === stores.slice(1).join(",")),
@@ -249,7 +249,7 @@ export async function testFullBuyCards(browser, origin) {
 
     await page.clock.runFor(74_999);
     assert.deepEqual(lookups.slice(storeStart), firstPass, "A retailer delay longer than 60 seconds must be honored.");
-    await expect(countdownStatus).toHaveText("Store checks will resume in 1 second.");
+    await expect(countdownStatus).toHaveText("401 Games checks will resume in 1 second.");
     limitedStore = false;
     await page.clock.runFor(1);
     await expect(progress).toContainText(`Checked ${basePrintings.length} of ${basePrintings.length} printings`);
