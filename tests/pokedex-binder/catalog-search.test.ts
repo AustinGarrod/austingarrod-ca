@@ -55,5 +55,5 @@ describe("card catalog search", () => {
     expect(searchCards(masterSets, "Energy", "sv03.5")).toContainEqual(expect.objectContaining({ number: "207" }));
     expect(searchCards(masterSets, "Unown #?", "exu")).toMatchObject([{ number: "%3F", name: "Unown" }]);
     expect(searchCards(masterSets, "#!", "exu")).toMatchObject([{ number: "!", name: "Unown" }]);
-  });
+  }, 30_000); // Generating the shipped index reads every species and set shard.
 });
