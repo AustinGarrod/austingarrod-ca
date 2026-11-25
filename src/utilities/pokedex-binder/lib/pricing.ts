@@ -107,12 +107,24 @@ export function freshOffers(offers: readonly RetailOffer[], now: number, expires
 
 const api = "/utilities/pokemon-binder/api/";
 
-export async function pricingRequest<T>(endpoint: "market" | "offers", query: Record<string, string>, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(api + endpoint + ".php?" + new URLSearchParams(query), {
-    credentials: "omit", signal, headers: { Accept: "application/json" },
+async function requestPrices<T>(path: string, signal?: AbortSignal, body?: string): Promise<T> {
+  const response = await fetch(api + path, {
+    credentials: "omit", signal, headers: { Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
+    ...(body ? { method: "POST", body } : {}),
   });
   if (!response.ok) throw new Error("Pricing is temporarily unavailable.");
   return await response.json() as T;
+}
+
+export function pricingRequest<T>(endpoint: "market" | "offers", query: Record<string, string>, signal?: AbortSignal) {
+  return requestPrices<T>(endpoint + ".php?" + new URLSearchParams(query), signal);
+}
+
+export async function batchRetailOffers(targets: readonly { set: string; number: string; variant: string; stores?: readonly string[] }[],
+  signal: AbortSignal) {
+  const { results } = await requestPrices<{ results: RetailOffers[] }>("offers.php", signal, JSON.stringify({ targets }));
+  if (!Array.isArray(results) || results.length !== targets.length) throw new Error("Pricing returned an incomplete batch.");
+  return results;
 }
 
 const requests = new Map<string, { deadline: number; prices: Promise<MarketSet> }>();

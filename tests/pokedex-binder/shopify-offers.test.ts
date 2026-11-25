@@ -34,6 +34,23 @@ const store401 = {
   variants: [printing],
 };
 
+const secondTarget = { ...target, number: "025" };
+const secondPrint = {
+  ...store401,
+  title: "Pikachu - 025/165 - Common - Reverse Holo",
+  url: "https://store.401games.ca/products/pikachu-025-165",
+  variants: [{ ...printing, id: "gid://shopify/ProductVariant/34567", availability: { available: false } }],
+};
+const offeredPrint = {
+  ...store401,
+  variants: [printing, {
+    ...printing,
+    id: "gid://shopify/ProductVariant/23456",
+    availability: { available: false },
+    options: [{ name: "Condition", label: "Lightly Played" }],
+  }],
+};
+
 function offers(products: unknown[], store = 0, card = target) {
   return runPhp("binder_offer_rows(binder_offer_target('public', $input['card']), BINDER_OFFER_STORES[$input['store']], $input['products'], 1771000000)", { products, store, card });
 }
@@ -270,7 +287,124 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
       removeLimiter(directory, limiter);
     }
   });
+
+  it("validates a bounded batch of distinct printings and an exact retailer list", () => {
+    const parse = "binder_offer_batch_targets('public', $input)";
+    const selected = { ...target, stores: ["Skyfox Games"] };
+    expect(runPhp(parse, { targets: [selected, secondTarget] })).toMatchObject([
+      { target: { card: { number: "135" } }, stores: [{ name: "Skyfox Games" }] },
+      { target: { card: { number: "025" } }, stores: [{ name: "401 Games" }, { name: "Deck Out Gaming" }, { name: "Skyfox Games" }] },
+    ]);
+    for (const input of [[], [target, target], Array(11).fill(target), [{ ...target, stores: [] }],
+      [{ ...target, stores: ["401 Games,Deck Out Gaming"] }], [{ ...target, stores: ["401 Games", "401 Games"] }]]) {
+      expect(runPhp(parse, { targets: input })).toBeNull();
+    }
+  });
+
+  it("batches expired observations and avoids transport and auth for fresh hits, including empty results", () => {
+    const { cold, cached, refreshed, requests, authCalls } = offerBatchScenario("complete");
+    expect(cached).toEqual(cold);
+    expect(authCalls).toBe(2);
+    expect(cold[1]).toMatchObject({ offers: [], checkedStores: { "401 Games": expect.any(String) } });
+    expect(refreshed[0]).toMatchObject({ offers: [
+      { priceCents: 850, condition: "Near Mint" },
+      { priceCents: 850, condition: "Lightly Played" },
+    ] });
+    expect(refreshed[1]).toMatchObject({ offers: [{ priceCents: 850, condition: "Near Mint" }] });
+    expect(requests.map(([name]: [string, string[]]) => name)).toEqual(["search_catalog", "search_catalog", "lookup_catalog"]);
+    expect(requests[2][1]).toEqual(["gid://shopify/ProductVariant/12345", "gid://shopify/ProductVariant/23456", "gid://shopify/ProductVariant/34567"]);
+  });
+
+  it("searches only the affected printing after a partial lookup misses a known condition", () => {
+    const { refreshed, requests } = offerBatchScenario("partial");
+    expect(refreshed[0]).toMatchObject({ offers: [{ priceCents: 300, condition: "Near Mint" }] });
+    expect(refreshed[1]).toMatchObject({ offers: [{ priceCents: 850, condition: "Near Mint" }] });
+    expect(requests.slice(2)).toEqual([
+      ["lookup_catalog", expect.any(Array)],
+      ["search_catalog", "Jolteon 135/165 Scarlet & Violet 151 Reverse holo"],
+    ]);
+  });
+
+  it("honors a rate-limited lookup without sending fallback searches", () => {
+    const { refreshed, requests } = offerBatchScenario("throttled");
+    expect(refreshed).toEqual(Array(2).fill({
+      offers: [], checkedStores: {}, unavailableStores: [], storeRetryAfter: { "401 Games": expect.any(Number) },
+    }));
+    expect(requests.slice(2)).toEqual([["lookup_catalog", expect.any(Array)]]);
+  });
+
+  it("sends lookups in CAD and accepts the Shopify lookup envelope with omitted or partial status", () => {
+    const ids = [printing.id];
+    expect(runPhp("json_decode(binder_offer_payload($input, BINDER_OFFER_PROFILE), true)", ids)).toMatchObject({
+      params: { name: "lookup_catalog", arguments: { catalog: { ids, context: { address_country: "CA", currency: "CAD" } } } },
+    });
+    expect(runPhp("binder_offer_headers(null, 'lookup_catalog')")).toContain("Mcp-Name: lookup_catalog");
+    for (const status of [undefined, "partial"]) {
+      const fixture = JSON.stringify({ result: { structuredContent: { ucp: { version: "2026-08-25", status }, products: [store401] } } });
+      expect(runPhp("binder_offer_products($input, 'lookup_catalog')", fixture)).toEqual([store401]);
+    }
+  });
 });
+
+function offerBatchScenario(mode: "complete" | "partial" | "throttled") {
+  const directory = mkdtempSync(join(tmpdir(), "binder-offer-batch-"));
+  const limiter = join(directory, "austingarrod-binder-offers");
+  try {
+    return runPhp(`(static function ($input) {
+      $items = binder_offer_batch_targets('public', $input);
+      $host = BINDER_OFFER_STORES[0]['host'];
+      $requests = [];
+      $authCalls = 0;
+      $authenticate = static function () use (&$authCalls): array {
+        $authCalls++;
+        return ['token' => 'fixture', 'buyerIp' => '8.8.8.8'];
+      };
+      $fetch = static function (array $queries, string $tool) use ($input, $host, &$requests): array {
+        $query = $queries[$host];
+        $requests[] = [$tool, $query];
+        if ($tool === 'search_catalog') {
+          $product = str_starts_with($query, 'Jolteon ') ? $input['products'][0] : $input['products'][1];
+          return [$host => ['status' => 200, 'products' => [$product]]];
+        }
+        if ($input['mode'] === 'throttled') {
+          return [$host => ['status' => 429, 'retryAt' => time() + 180]];
+        }
+        $products = $input['products'];
+        if ($input['mode'] === 'partial') {
+          array_pop($products[0]['variants']);
+        }
+        foreach ($products as &$product) {
+          // Lookup can omit the listing URL. Reuse the validated search URL only for the exact correlated ID.
+          unset($product['url']);
+          foreach ($product['variants'] as &$variant) {
+            $variant['inputs'] = [['id' => $variant['id'], 'match' => 'exact']];
+            $variant['availability']['available'] = true;
+            $variant['price']['amount'] = 850;
+          }
+          unset($variant);
+        }
+        unset($product);
+        return [$host => ['status' => 200, 'products' => array_reverse($products)]];
+      };
+      $cold = binder_offer_lookups($items, fetch: $fetch, authenticate: $authenticate);
+      $cached = binder_offer_lookups($items, fetch: $fetch, authenticate: $authenticate);
+      foreach ($items as $item) {
+        $key = binder_offer_cache_key(binder_offer_printing_key($item['target']), $host);
+        $slot = binder_offer_cache_file($key, 'c+');
+        ftruncate($slot, 0);
+        fclose($slot);
+      }
+      $refreshed = binder_offer_lookups($items, fetch: $fetch, authenticate: $authenticate);
+      return compact('cold', 'cached', 'refreshed', 'requests', 'authCalls');
+    })($input)`, {
+      targets: [target, secondTarget].map(item => ({ ...item, stores: ["401 Games"] })),
+      products: [offeredPrint, secondPrint],
+      mode,
+    }, ["-d", `sys_temp_dir=${directory}`, "-d", "apc.enabled=0"]);
+  } finally {
+    removeLimiter(directory, limiter);
+  }
+}
 
 function removeLimiter(directory: string, limiter: string) {
   if (existsSync(limiter)) {

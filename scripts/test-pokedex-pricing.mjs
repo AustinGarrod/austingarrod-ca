@@ -93,7 +93,7 @@ try {
     const documents = new Map(), staged = new Map();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    const lookups = [];
+    const lookups = [], requestedStores = [];
     await context.route("**/*", async route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
@@ -130,16 +130,26 @@ try {
         return route.fulfill({ json: market });
       }
       if (url.pathname.endsWith("/offers.php")) {
-        const set = url.searchParams.get("set");
-        const number = url.searchParams.get("number");
-        const variant = url.searchParams.get("variant");
-        lookups.push({ set, number, variant });
+        const batch = route.request().method() === "POST";
+        const targets = batch ? route.request().postDataJSON().targets : [Object.fromEntries(url.searchParams)];
+        lookups.push(...targets.map(({ set, number, variant }) => ({ set, number, variant })));
         if (offerGate) {
           await offerGate;
           return route.abort().catch(() => {});
         }
-        return route.fulfill({ json: retailerFailure ? { offers: [], unavailableStores: stores }
-          : retailerFixture(number, variant, fixtureCheckedAt, skyfoxPrice) });
+        const results = targets.map(target => {
+          const requested = Array.isArray(target.stores) ? target.stores : target.stores?.split(",") ?? stores;
+          requestedStores.push(requested);
+          if (retailerFailure) return { offers: [], unavailableStores: requested };
+          const fixture = retailerFixture(target.number, target.variant, fixtureCheckedAt, skyfoxPrice);
+          return {
+            offers: fixture.offers.filter(offer => requested.includes(offer.store)),
+            unavailableStores: fixture.unavailableStores.filter(store => requested.includes(store)),
+            checkedStores: Object.fromEntries(Object.entries(fixture.checkedStores).filter(([store]) => requested.includes(store))),
+            expiresAt: fixture.expiresAt,
+          };
+        });
+        return route.fulfill({ json: batch ? { results } : results[0] });
       }
       return route.continue();
     });
@@ -264,6 +274,7 @@ try {
     await inlineDetails.locator("#card-retail-refresh").click();
     await expect.poll(() => lookups.length).toBe(beforeCompare + 1);
     await expect(inlineDetails.locator("#card-retail-refresh")).toBeEnabled();
+    assert.deepEqual(requestedStores.at(-1), ["401 Games"], "Refresh should retry only the retailer without a fresh check.");
     await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
     retailerFailure = false;
     await expect(page.locator("dialog[open]")).toHaveCount(0);

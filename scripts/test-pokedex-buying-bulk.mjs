@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
 
 const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
-const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 4]].map(async ([set, count]) => {
+const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 12]].map(async ([set, count]) => {
   const file = new URL("../public/utilities/pokedex-binder/catalog/master-sets/" + set + ".json", import.meta.url);
   const cards = JSON.parse(await readFile(file, "utf8")).slice(0, count);
   return [set, cards.map(card => ({ ...card, variants: card.variants.filter(item => !item.specialty) }))];
@@ -19,7 +19,7 @@ export async function testFullBuyCards(browser, origin) {
   page.on("pageerror", error => errors.push(error.message));
   const start = Date.now();
   await page.clock.install({ time: new Date(start) });
-  const lookups = [];
+  const lookups = [], requests = [];
   let observed = start, cents = initialPrice, throttle = "none", limitedStore = false;
   try {
     await context.route("**/*", async route => {
@@ -32,22 +32,29 @@ export async function testFullBuyCards(browser, origin) {
       if (smallCatalog.has(setFile)) return route.fulfill({ json: smallCatalog.get(setFile) });
       if (url.pathname.endsWith("/market.php")) return route.fulfill({ json: { asOf: null, prices: [], points: [] } });
       if (url.pathname.endsWith("/offers.php")) {
-        const lookup = Object.fromEntries(url.searchParams);
+        const isBatch = route.request().method() === "POST";
+        const targets = isBatch ? route.request().postDataJSON().targets : [Object.fromEntries(url.searchParams)];
+        assert.ok(targets.length > 0 && targets.length <= 10);
+        assert.equal(new Set(targets.map(key)).size, targets.length, "A single batch must not repeat a printing.");
         const throttled = throttle !== "none";
         if (throttle === "once") throttle = "none";
-        lookups.push({ ...lookup, throttled });
-        if (throttled) return route.fulfill({ json: rateLimited });
-        const requested = lookup.stores ? lookup.stores.split(",") : stores;
-        const deferred = limitedStore && requested.includes(stores[0]);
-        const checked = deferred ? requested.filter(store => store !== stores[0]) : requested;
-        const checkedAt = new Date(observed).toISOString();
-        return route.fulfill({ json: {
-          offers: checked.includes(stores[0]) ? [{ store: stores[0], priceCents: cents, currency: "CAD", condition: "Near Mint", conditionRank: 0,
-            checkedAt, url: "https://store.401games.ca/products/example-printing?variant=1" }] : [],
-          checkedStores: Object.fromEntries(checked.map(store => [store, checkedAt])),
-          unavailableStores: [],
-          ...(deferred ? { storeRetryAfter: { [stores[0]]: 75 } } : {}),
-        } });
+        requests.push({ isBatch, size: targets.length, throttled });
+        const results = targets.map(lookup => {
+          const requested = Array.isArray(lookup.stores) ? lookup.stores : lookup.stores?.split(",") ?? stores;
+          lookups.push({ ...lookup, stores: requested.join(","), throttled });
+          if (throttled) return rateLimited;
+          const deferred = limitedStore && requested.includes(stores[0]);
+          const checked = deferred ? requested.filter(store => store !== stores[0]) : requested;
+          const checkedAt = new Date(observed).toISOString();
+          return {
+            offers: checked.includes(stores[0]) ? [{ store: stores[0], priceCents: cents, currency: "CAD", condition: "Near Mint", conditionRank: 0,
+              checkedAt, url: "https://store.401games.ca/products/example-printing?variant=1" }] : [],
+            checkedStores: Object.fromEntries(checked.map(store => [store, checkedAt])),
+            unavailableStores: [],
+            ...(deferred ? { storeRetryAfter: { [stores[0]]: 75 } } : {}),
+          };
+        });
+        return route.fulfill({ json: isBatch ? { results } : results[0] });
       }
       if (url.pathname.endsWith("/watches.php") || url.pathname.endsWith("/retail-feed.php")) {
         errors.push("Expected only the store offer endpoint for pricing.");
@@ -122,6 +129,7 @@ export async function testFullBuyCards(browser, origin) {
       .flatMap(card => card.variants.map(printing => key({ set: "sv03.5", number: card.number, variant: printing.id }))).sort();
     throttle = "once";
     const scopedStart = lookups.length;
+    const requestStart = requests.length;
     await checkAll.dispatchEvent("click");
     await expect(countdownStatus).toHaveText("Store checks will resume in 4 seconds.");
     const throttledPrinting = lookups.slice(scopedStart).find(lookup => lookup.throttled);
@@ -145,9 +153,12 @@ export async function testFullBuyCards(browser, origin) {
     await expect(checkAll).toBeEnabled();
     const scoped = lookups.slice(scopedStart);
     const deferred = scoped.filter(lookup => lookup.throttled);
-    assert.equal(deferred.length, 1, "The test should exercise resuming one throttled printing.");
+    assert.ok(requests.slice(requestStart).some(request => request.isBatch && request.size === 10),
+      "A full binder should send up to ten printings in one request.");
+    assert.equal(requests.slice(requestStart).filter(request => request.throttled).length, 1,
+      "The test should exercise resuming one throttled batch.");
     const completed = scoped.filter(lookup => !lookup.throttled).map(key);
-    assert.ok(completed.includes(key(deferred[0])), "The paused exact printing should be retried.");
+    assert.ok(deferred.every(lookup => completed.includes(key(lookup))), "Every printing in the paused batch should be retried.");
     assert.deepEqual(completed.sort(), expected,
       "The selected binder should check all supported missing printings, regardless of filters and page.");
 
@@ -166,6 +177,12 @@ export async function testFullBuyCards(browser, origin) {
     await expect(availability).toHaveValue("stock");
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText("$2.50");
+    const beforeCachedChecks = requests.length;
+    await rows.first().locator("[data-buy-check]").click();
+    await expect(progress).toContainText("Checked 1 of 1 printings");
+    await buying.locator("#buy-cards-check").click();
+    await expect(progress).toContainText("Checked 1 of 1 printings");
+    assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy row and page checks.");
     const beforeExpiry = lookups.length;
     observed += 606_000;
     cents = 325;

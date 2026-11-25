@@ -1,5 +1,6 @@
 import { buyingStores, printingKey, type BuyingStore } from "./buying-offers";
-import { freshOfferCheck, freshOffers, offerLifetime, pricingRequest, type PricingTarget, type RetailOffer, type RetailOffers } from "./pricing";
+import { batchRetailOffers, freshOfferCheck, freshOffers, offerLifetime, pricingRequest, type PricingTarget, type RetailOffer,
+  type RetailOffers } from "./pricing";
 
 interface StoreCheck {
   store: BuyingStore;
@@ -15,11 +16,20 @@ interface Snapshot {
   failures: Map<BuyingStore, number>;
 }
 interface LookupOptions { force?: boolean; signal?: AbortSignal; stores?: readonly BuyingStore[] }
+interface OfferLookup { target: PricingTarget; stores?: readonly BuyingStore[] }
+interface LookupPlan {
+  target: PricingTarget;
+  key: string;
+  missing: BuyingStore[];
+  ready: BuyingStore[];
+  requestKey: string;
+}
 
 const emptyOffers = (): RetailOffers => ({ offers: [], unavailableStores: [] });
 const storeName = "checks";
 const interestStore = "checkedPrintings";
 const interestLifetime = 60 * 60_000;
+export const offerBatchSize = 10;
 
 function storeChecks(results: RetailOffers, now: number): StoreCheck[] {
   const offers = freshOffers(results.offers, now, results.expiresAt);
@@ -226,52 +236,108 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     return Object.keys(delays).length ? delays : undefined;
   }
 
-  async function check(target: PricingTarget, { force = false, signal, stores = buyingStores }: LookupOptions = {}): Promise<RetailOffers> {
-    const ticket = generation, key = printingKey(target);
-    const previous = await read(target);
+  function validateLookup(ticket: number, signal?: AbortSignal) {
     signal?.throwIfAborted();
     if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
-    if (!force && previous && stores.some(store => previous.checkedStores?.[store])) return previous;
+  }
 
-    const now = Date.now(), wait = retryAt - now;
-    if (wait > 0) return { ...(previous ?? emptyOffers()), retryAfter: Math.ceil(wait / 1000) };
-    const deferred = retailerWait(stores, now);
-    const ready = buyingStores.filter(store => stores.includes(store) && !deferred?.[store]);
-    if (!ready.length) return { ...(previous ?? emptyOffers()), storeRetryAfter: deferred };
+  async function fetchOffers(plans: LookupPlan[], signal: AbortSignal): Promise<RetailOffers[]> {
+    const query = ({ target }: LookupPlan) => ({ set: target.setId, number: target.number, variant: target.variant });
+    try {
+      if (plans.length === 1) {
+        const plan = plans[0];
+        const params: Record<string, string> = query(plan);
+        if (plan.ready.length !== buyingStores.length) params.stores = plan.ready.join(",");
+        return [await pricingRequest<RetailOffers>("offers", params, AbortSignal.any([signal, AbortSignal.timeout(20_000)]))];
+      }
+      return await batchRetailOffers(plans.map(plan => ({
+        ...query(plan), ...(plan.ready.length !== buyingStores.length ? { stores: plan.ready } : {}),
+      })), AbortSignal.any([signal, AbortSignal.timeout(65_000)]));
+    } catch {
+      signal.throwIfAborted();
+      return plans.map(plan => ({ offers: [], unavailableStores: plan.ready }));
+    }
+  }
 
-    const requestKey = JSON.stringify([key, stores, ready]);
-    const existing = pending.get(requestKey);
-    if (existing && !existing.signal.aborted) return existing.result;
-    const controller = new AbortController();
-    const network = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
-    const query: Record<string, string> = { set: target.setId, number: target.number, variant: target.variant };
-    if (ready.length !== buyingStores.length) query.stores = ready.join(",");
-    const result = pricingRequest<RetailOffers>("offers", query, AbortSignal.any([network, AbortSignal.timeout(20_000)]))
-      .catch(() => ({ ...emptyOffers(), unavailableStores: ready }))
-      .then(async data => {
-        network.throwIfAborted();
-        if (ticket !== generation) throw new DOMException("The binder account changed.", "AbortError");
+  function saveRetryTime(data: RetailOffers, stores: readonly BuyingStore[], received: number) {
+    const delay = data.retryAfter;
+    const retryAfter = typeof delay === "number" && Number.isSafeInteger(delay) && delay > 0 ? Math.min(delay, 60) : undefined;
+    if (retryAfter) retryAt = Math.max(retryAt, received + retryAfter * 1_000);
+    for (const store of stores) {
+      const seconds = data.storeRetryAfter?.[store];
+      if (typeof seconds !== "number" || seconds <= 0 || !Number.isSafeInteger(seconds)) continue;
+      const resume = received + seconds * 1_000;
+      if (Number.isSafeInteger(resume)) storeRetryAt.set(store, Math.max(storeRetryAt.get(store) ?? 0, resume));
+    }
+    return retryAfter;
+  }
+
+  async function checkMany(lookups: readonly OfferLookup[], signal?: AbortSignal): Promise<RetailOffers[]> {
+    const ticket = generation;
+    await hydrate();
+    validateLookup(ticket, signal);
+
+    const now = Date.now(), paused = retryAt > now;
+    const plans: LookupPlan[] = lookups.map(({ target, stores = buyingStores }) => {
+      const key = printingKey(target);
+      const cached = peek(key, now);
+      const missing = buyingStores.filter(store => stores.includes(store) && !cached?.checkedStores?.[store]);
+      const waiting = retailerWait(missing, now);
+      const ready = paused ? [] : missing.filter(store => !waiting?.[store]);
+      return { target, key, missing, ready, requestKey: JSON.stringify([key, ready]) };
+    });
+    const requests = new Map<string, Promise<RetailOffers>>();
+    const outgoing = new Map<string, LookupPlan>();
+    for (const plan of plans) {
+      if (!plan.ready.length) continue;
+      const existing = pending.get(plan.requestKey);
+      if (existing && !existing.signal.aborted) requests.set(plan.requestKey, existing.result);
+      else outgoing.set(plan.requestKey, plan);
+    }
+    if (outgoing.size) {
+      const controller = new AbortController();
+      const network = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
+      const sent = [...outgoing.values()];
+      const task = fetchOffers(sent, network).then(async response => {
+        validateLookup(ticket, network);
         const received = Date.now();
-        const delay = data.retryAfter;
-        const retryAfter = typeof delay === "number" && Number.isSafeInteger(delay) && delay > 0 ? Math.min(delay, 60) : undefined;
-        if (retryAfter) retryAt = Math.max(retryAt, received + retryAfter * 1000);
-        for (const store of ready) {
-          const seconds = data.storeRetryAfter?.[store];
-          if (typeof seconds !== "number" || seconds <= 0 || !Number.isSafeInteger(seconds)) continue;
-          const resume = received + seconds * 1000;
-          if (Number.isSafeInteger(resume)) storeRetryAt.set(store, Math.max(storeRetryAt.get(store) ?? 0, resume));
-        }
-
-        const waiting = stores.filter(store => !ready.includes(store) || data.storeRetryAfter?.[store]);
-        const storeRetryAfter = retailerWait(waiting, received);
-        await record(target, { ...data, retryAfter, storeRetryAfter });
-        network.throwIfAborted();
-        return { ...(peek(key, Date.now()) ?? emptyOffers()), retryAfter, storeRetryAfter };
+        const delays = sent.map((plan, index) => saveRetryTime(response[index], plan.ready, received));
+        return await Promise.all(sent.map(async (plan, index) => {
+          const data = { ...response[index], retryAfter: delays[index], storeRetryAfter: retailerWait(plan.missing, received) };
+          await record(plan.target, data);
+          return data;
+        }));
       }).finally(() => {
-        if (pending.get(requestKey)?.controller === controller) pending.delete(requestKey);
+        for (const plan of sent) {
+          if (pending.get(plan.requestKey)?.controller === controller) pending.delete(plan.requestKey);
+        }
         changed();
       });
-    pending.set(requestKey, { controller, signal: network, result });
+      sent.forEach((plan, index) => {
+        const result = task.then(results => results[index]);
+        pending.set(plan.requestKey, { controller, signal: network, result });
+        requests.set(plan.requestKey, result);
+      });
+    }
+    return await Promise.all(plans.map(async plan => {
+      const received = await requests.get(plan.requestKey);
+      validateLookup(ticket, signal);
+      const finished = Date.now();
+      const snapshot = peek(plan.key, finished) ?? emptyOffers();
+      const missing = plan.missing.filter(store => !snapshot.checkedStores?.[store]);
+      const retryAfter = missing.length && (paused || received?.retryAfter) && retryAt > finished
+        ? Math.ceil((retryAt - finished) / 1_000) : undefined;
+      return { ...snapshot, retryAfter, storeRetryAfter: retailerWait(missing, finished) };
+    }));
+  }
+
+  async function check(target: PricingTarget, { force = false, signal, stores = buyingStores }: LookupOptions = {}): Promise<RetailOffers> {
+    // Opening a comparison can render the current partial result. An explicit check fills its missing retailers.
+    const ticket = generation;
+    const previous = await read(target);
+    validateLookup(ticket, signal);
+    if (!force && previous && stores.some(store => previous.checkedStores?.[store])) return previous;
+    const [result] = await checkMany([{ target, stores }], signal);
     return result;
   }
 
@@ -308,5 +374,5 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     refreshes.clear();
   }
 
-  return { hydrate, peek, read, check, expire, refreshAt, reset };
+  return { hydrate, peek, read, check, checkMany, expire, refreshAt, reset };
 }

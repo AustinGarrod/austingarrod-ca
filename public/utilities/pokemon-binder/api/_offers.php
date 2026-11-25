@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_shopify-auth.php';
+require_once __DIR__ . '/_offer-cache.php';
+require_once __DIR__ . '/_offer-batch.php';
 
 const BINDER_OFFER_STORES = [
     ['name' => '401 Games', 'host' => 'store.401games.ca', 'hosts' => ['store.401games.ca']],
@@ -243,48 +245,73 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
     return count($finishes) === 1 && reset($finishes) === $expectedFinish;
 }
 
-function binder_offer_rows(array $target, array $store, array $products, int $checkedAt): array
+function binder_offer_listing_url(array $product, array $store): ?array
 {
-    $offers = [];
+    if (!is_string($product['url'] ?? null) || ($product['gift_card'] ?? false) === true) {
+        return null;
+    }
+    $url = parse_url($product['url']);
+    if (($url['scheme'] ?? '') !== 'https' || !in_array($url['host'] ?? '', $store['hosts'], true)
+        || isset($url['user']) || isset($url['pass']) || isset($url['port'])
+        || !preg_match('/^\/products\/[a-zA-Z0-9_-]+\/?$/D', $url['path'] ?? '')) {
+        return null;
+    }
+    return $url;
+}
+
+function binder_offer_matching_variants(array $target, array $store, array $products): iterable
+{
     foreach ($products as $product) {
-        if (!is_array($product) || !is_string($product['url'] ?? null) || ($product['gift_card'] ?? false) === true) {
+        if (!is_array($product) || ($url = binder_offer_listing_url($product, $store)) === null) {
             continue;
         }
-        $url = parse_url($product['url']);
-        if (($url['scheme'] ?? '') !== 'https' || !in_array($url['host'] ?? '', $store['hosts'], true)
-            || isset($url['user']) || isset($url['pass']) || isset($url['port'])
-            || !preg_match('/^\/products\/[a-zA-Z0-9_-]+\/?$/D', $url['path'] ?? '')) {
-            continue;
-        }
-        parse_str($url['query'] ?? '', $query);
-        $attribution = array_filter(array_intersect_key($query, ['shcgid' => true, 'shclid' => true]), 'is_string');
         foreach (is_array($product['variants'] ?? null) ? $product['variants'] : [] as $variant) {
-            if (!is_array($variant) || ($variant['availability']['available'] ?? false) !== true
-                || ($variant['price']['currency'] ?? '') !== 'CAD' || !is_int($variant['price']['amount'] ?? null)
-                || $variant['price']['amount'] < 1 || !binder_offer_matches($target, $product, $variant)) {
+            if (!is_array($variant) || !binder_offer_matches($target, $product, $variant)) {
                 continue;
             }
             $condition = binder_offer_condition($variant);
             if ($condition !== null) {
-                $productUrl = 'https://' . $url['host'] . $url['path'];
-                $parameters = $attribution;
-                $variantId = $variant['id'] ?? '';
-                if (is_string($variantId) && preg_match('/^gid:\/\/shopify\/ProductVariant\/([0-9]{1,20})$/D', $variantId, $id)) {
-                    $parameters['variant'] = $id[1];
-                }
-                if ($parameters) {
-                    $productUrl .= '?' . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);
-                }
-                $offers[] = [
-                    'store' => $store['name'],
-                    'priceCents' => $variant['price']['amount'],
-                    'currency' => 'CAD',
-                    'checkedAt' => gmdate(DATE_ATOM, $checkedAt),
-                    'url' => $productUrl,
-                    ...$condition,
-                ];
+                yield [$variant, $url, $condition];
             }
         }
+    }
+}
+
+function binder_offer_variant_number(mixed $id): ?string
+{
+    return is_string($id) && preg_match('/^gid:\/\/shopify\/ProductVariant\/([0-9]{1,20})$/D', $id, $match)
+        ? $match[1] : null;
+}
+
+function binder_offer_product_link(array $url, ?string $variant = null): string
+{
+    parse_str($url['query'] ?? '', $query);
+    $parameters = array_filter(array_intersect_key($query, ['shcgid' => true, 'shclid' => true]), 'is_string');
+    if ($variant !== null) {
+        $parameters['variant'] = $variant;
+    }
+    $link = 'https://' . $url['host'] . $url['path'];
+    return $parameters ? $link . '?' . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986) : $link;
+}
+
+function binder_offer_rows(array $target, array $store, array $products, int $checkedAt): array
+{
+    $offers = [];
+    foreach (binder_offer_matching_variants($target, $store, $products) as [$variant, $url, $condition]) {
+        if (($variant['availability']['available'] ?? false) !== true
+            || ($variant['price']['currency'] ?? '') !== 'CAD' || !is_int($variant['price']['amount'] ?? null)
+            || $variant['price']['amount'] < 1) {
+            continue;
+        }
+        $variantNumber = binder_offer_variant_number($variant['id'] ?? null);
+        $offers[] = [
+            'store' => $store['name'],
+            'priceCents' => $variant['price']['amount'],
+            'currency' => 'CAD',
+            'checkedAt' => gmdate(DATE_ATOM, $checkedAt),
+            'url' => binder_offer_product_link($url, $variantNumber),
+            ...$condition,
+        ];
     }
     return $offers;
 }
@@ -301,27 +328,27 @@ function binder_offer_query(array $target): string
     return $target['card']['name'] . ' ' . $number . ' ' . $name . ' ' . $label;
 }
 
-function binder_offer_payload(string $query, string $profile): string
+function binder_offer_payload(string|array $query, string $profile): string
 {
+    $criteria = is_string($query) ? ['query' => $query, 'pagination' => ['limit' => 15]] : ['ids' => $query];
     return json_encode([
         'jsonrpc' => '2.0',
         'id' => 1,
         'method' => 'tools/call',
         'params' => [
-            'name' => 'search_catalog',
+            'name' => is_string($query) ? 'search_catalog' : 'lookup_catalog',
             'arguments' => [
                 'meta' => ['ucp-agent' => ['profile' => $profile]],
                 'catalog' => [
-                    'query' => $query,
+                    ...$criteria,
                     'context' => ['address_country' => 'CA', 'currency' => 'CAD', 'language' => 'en'],
-                    'pagination' => ['limit' => 15],
                 ],
             ],
         ],
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 }
 
-function binder_offer_products(string $body): ?array
+function binder_offer_products(string $body, string $tool = 'search_catalog'): ?array
 {
     if (!str_starts_with(ltrim($body), '{')) {
         preg_match('/^data:\s*({[^\r\n]+})\s*$/m', $body, $event);
@@ -335,18 +362,21 @@ function binder_offer_products(string $body): ?array
     if ($data === null && is_string($envelope['result']['content'][0]['text'] ?? null)) {
         $data = json_decode($envelope['result']['content'][0]['text'], true, 64);
     }
-    return ($data['ucp']['status'] ?? null) === 'success' && is_array($data['products'] ?? null) ? $data['products'] : null;
+    $status = $data['ucp']['status'] ?? null;
+    $hasProducts = $status === 'success'
+        || ($tool === 'lookup_catalog' && is_array($data['ucp'] ?? null) && in_array($status, [null, 'partial'], true));
+    return $hasProducts && is_array($data['products'] ?? null) ? $data['products'] : null;
 }
 
-function binder_offer_headers(?array $auth): array
+function binder_offer_headers(?array $auth, string $tool = 'search_catalog'): array
 {
     $headers = [
         'Content-Type: application/json',
         'Accept: application/json, text/event-stream',
         'MCP-Protocol-Version: 2025-11-25',
         'Mcp-Method: tools/call',
-        'Mcp-Name: search_catalog',
-        'User-Agent: PokemonBinderTracker/1.0 (+https://austingarrod.ca/utilities/pokemon-binder/)',
+        'Mcp-Name: ' . $tool,
+        'User-Agent: ' . BINDER_SHOPIFY_USER_AGENT,
     ];
     if ($auth !== null) {
         $headers[] = 'Authorization: Bearer ' . $auth['token'];
@@ -355,21 +385,19 @@ function binder_offer_headers(?array $auth): array
     return $headers;
 }
 
-function binder_offer_fetch(array $stores, string $query, string $profile, ?array $auth): array
+function binder_offer_fetch(array $queries, string $tool, string $profile, ?array $auth): array
 {
     if (!function_exists('curl_multi_init')) {
         return [];
     }
     $multi = curl_multi_init();
-    $body = binder_offer_payload($query, $profile);
     $handles = [];
     $bodies = [];
     $retryHeaders = [];
-    $headers = binder_offer_headers($auth);
+    $headers = binder_offer_headers($auth, $tool);
     $maxBytes = 2_000_000;
     try {
-        foreach ($stores as $store) {
-            $host = $store['host'];
+        foreach ($queries as $host => $query) {
             $handle = curl_init('https://' . $host . '/api/ucp/mcp');
             if ($handle === false) {
                 continue;
@@ -377,7 +405,7 @@ function binder_offer_fetch(array $stores, string $query, string $profile, ?arra
             $handles[$host] = $handle;
             $bodies[$host] = '';
             curl_setopt_array($handle, [
-                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_POSTFIELDS => binder_offer_payload($query, $profile),
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
                 CURLOPT_CONNECTTIMEOUT_MS => 2500,
                 CURLOPT_TIMEOUT_MS => 5000,
@@ -419,7 +447,7 @@ function binder_offer_fetch(array $stores, string $query, string $profile, ?arra
             $status = curl_getinfo($message['handle'], CURLINFO_RESPONSE_CODE);
             $results[$host] = [
                 'status' => $status,
-                'products' => $status === 200 && $message['result'] === CURLE_OK ? binder_offer_products($bodies[$host]) : null,
+                'products' => $status === 200 && $message['result'] === CURLE_OK ? binder_offer_products($bodies[$host], $tool) : null,
             ];
             if ($status === 429) {
                 $now = time();
@@ -437,14 +465,14 @@ function binder_offer_fetch(array $stores, string $query, string $profile, ?arra
     }
 }
 
-function binder_offer_state_file(string $name)
+function binder_offer_state_file(string $name, string $mode = 'c+')
 {
     $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'austingarrod-binder-offers';
     if (is_link($directory) || (!is_dir($directory) && !@mkdir($directory, 0700) && !is_dir($directory))) {
         return false;
     }
     $file = $directory . DIRECTORY_SEPARATOR . $name;
-    return is_link($file) ? false : @fopen($file, 'c+');
+    return is_link($file) || ($mode === 'r' && !is_file($file)) ? false : @fopen($file, $mode);
 }
 
 // Zero reserves a lookup. A positive delay means the window is full, while null means the limiter is unavailable.
@@ -575,67 +603,5 @@ function binder_offer_result(array $checks, int $retryAfter = 0, array $stores =
 
 function binder_offer_lookup(array $target, string $profile = BINDER_OFFER_PROFILE, array $stores = BINDER_OFFER_STORES): array
 {
-    if (!preg_match('/^(?:normal|holo|reverse)(?:\+|$)/', $target['variant']['id'])) {
-        return ['offers' => [], 'unavailableStores' => [], 'checkedStores' => (object) []];
-    }
-    $useCache = $profile === BINDER_OFFER_PROFILE && function_exists('apcu_enabled') && apcu_enabled();
-    $key = hash('sha256', implode('|', [$target['set']['digest'], $target['card']['number'], $target['variant']['id']]));
-    $fresh = time();
-    $checks = [];
-    $lookup = [];
-    $waiting = [];
-    foreach ($stores as $store) {
-        $host = $store['host'];
-        $cacheKey = 'pokemon-binder-offers:v1:' . $host . ':' . $key;
-        $cached = $useCache ? apcu_fetch($cacheKey) : false;
-        if (is_array($cached) && $cached['expiresAt'] > $fresh) {
-            $checks[$host] = $cached;
-            continue;
-        }
-        $delay = binder_offer_store_wait($host, $fresh);
-        if ($delay === 0) {
-            $lookup[$cacheKey] = $store;
-        } elseif ($delay !== null) {
-            $waiting[$host] = $fresh + $delay;
-        }
-    }
-    if (!$lookup) {
-        return binder_offer_result($checks, 0, $stores, $waiting);
-    }
-    $auth = $profile === BINDER_OFFER_PROFILE ? binder_shopify_auth() : null;
-    if ($auth === null) {
-        $delay = binder_offer_reserve(time());
-        if ($delay !== 0) {
-            return binder_offer_result($checks, $delay ?? 0, $stores, $waiting);
-        }
-    }
-    $query = binder_offer_query($target);
-    $results = binder_offer_fetch($lookup, $query, $profile, $auth);
-    if ($auth !== null) {
-        $rejected = array_filter($lookup, static fn(array $store): bool => ($results[$store['host']]['status'] ?? 0) === 401);
-        if ($rejected && ($renewed = binder_shopify_auth($auth['token'])) !== null) {
-            $retry = array_filter($rejected, static fn(array $store): bool => binder_offer_store_wait($store['host'], time()) === 0);
-            if ($retry) {
-                $results = array_replace($results, binder_offer_fetch($retry, $query, $profile, $renewed));
-            }
-        }
-    }
-    foreach ($lookup as $cacheKey => $store) {
-        $host = $store['host'];
-        $response = $results[$host] ?? [];
-        if (isset($response['retryAt'])) {
-            $waiting[$host] = $response['retryAt'];
-            continue;
-        }
-        $rows = $response['products'] ?? null;
-        if ($rows === null) {
-            continue;
-        }
-        $check = ['offers' => binder_offer_rows($target, $store, $rows, $fresh), 'expiresAt' => $fresh + BINDER_OFFER_TTL];
-        $checks[$host] = $check;
-        if ($useCache) {
-            apcu_store($cacheKey, $check, BINDER_OFFER_TTL);
-        }
-    }
-    return binder_offer_result($checks, 0, $stores, $waiting);
+    return binder_offer_lookups([['target' => $target, 'stores' => $stores]], $profile)[0];
 }

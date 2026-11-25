@@ -6,6 +6,7 @@ const BINDER_SHOPIFY_TOKEN_LIFETIME = 3600;
 const BINDER_SHOPIFY_REFRESH_MARGIN = 60;
 const BINDER_SHOPIFY_TOKEN_RETRY = 10;
 const BINDER_SHOPIFY_TOKEN_BUFFER = 32768;
+const BINDER_SHOPIFY_USER_AGENT = 'PokemonBinderTracker/1.0 (+https://austingarrod.ca/utilities/pokemon-binder/)';
 
 function binder_shopify_config(string $webroot): ?array
 {
@@ -115,6 +116,7 @@ function binder_shopify_exchange(string $clientId, string $secret): ?array
             CURLOPT_CONNECTTIMEOUT_MS => 2500,
             CURLOPT_TIMEOUT_MS => 5000,
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_USERAGENT => BINDER_SHOPIFY_USER_AGENT,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json'],
             CURLOPT_WRITEFUNCTION => static function ($handle, string $chunk) use (&$body): int {
                 if (strlen($body) + strlen($chunk) > BINDER_SHOPIFY_TOKEN_BUFFER) {

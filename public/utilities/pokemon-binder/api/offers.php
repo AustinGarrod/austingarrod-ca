@@ -13,8 +13,9 @@ function binder_offer_response(array $payload, int $status = 200): void
     echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
-    header('Allow: GET');
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method !== 'GET' && $method !== 'POST') {
+    header('Allow: GET, POST');
     binder_offer_response(['error' => 'Method not allowed.'], 405);
     return;
 }
@@ -26,7 +27,28 @@ if ($fetchSite !== '' && $fetchSite !== 'same-origin') {
 }
 
 try {
-    $target = binder_offer_target(dirname(__DIR__, 3), $_GET);
+    $root = dirname(__DIR__, 3);
+    if ($method === 'POST') {
+        $type = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '', 2)[0]));
+        if ($type !== 'application/json') {
+            binder_offer_response(['error' => 'Send the batch as JSON.'], 415);
+            return;
+        }
+        $body = file_get_contents('php://input', false, null, 0, 8193);
+        if ($body === false || strlen($body) > 8192) {
+            binder_offer_response(['error' => 'Store offer batch is too large.'], 413);
+            return;
+        }
+        $targets = binder_offer_batch_targets($root, json_decode($body, true, 8));
+        if ($targets === null) {
+            binder_offer_response(['error' => 'Choose up to ten distinct card printings and known retailers.'], 400);
+            return;
+        }
+        binder_offer_response(['results' => binder_offer_lookups($targets)]);
+        return;
+    }
+
+    $target = binder_offer_target($root, $_GET);
     if ($target === null) {
         binder_offer_response(['error' => 'Choose a known card printing.'], 400);
         return;
