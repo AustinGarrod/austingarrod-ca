@@ -101,14 +101,15 @@ async function initialize() {
   const dashboard = createBuyCards({
     collection: master.collection,
     binders: master.backup,
+    offerScope: controller.restoreScope,
     selected: () => el<HTMLSelectElement>("master-switch").value,
     inspect: target => pricing.openBuyingPrinting(target),
     closeDetail: () => pricing.closeBuyingPrinting(),
   });
   const pricing = createPricingUI({
     collection: master.collection,
-    recentOffers: dashboard.recentOffers,
-    recordOffers: dashboard.recordOffers,
+    readOffers: dashboard.readOffers,
+    checkOffers: dashboard.checkOffers,
     onBuyingClose: dashboard.detailClosed,
   });
   navigation.subscribe((selected, fromBinders) => {

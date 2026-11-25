@@ -15,14 +15,16 @@ import "../styles/pokedex-buying.css";
     <label>Availability
       <select id="buy-cards-availability">
         <option value="">Any status</option><option value="stock">In stock</option>
-        <option value="unchecked">Unchecked</option><option value="none">No offers</option>
-        <option value="unavailable">Unavailable</option>
+        <option value="unchecked">Needs a check</option><option value="none">No matching offer</option>
+        <option value="unavailable">Couldn’t check</option>
       </select>
     </label>
     <label>Sort by
       <select id="buy-cards-sort">
         <option value="binder">Binder order</option><option value="name">Card name</option>
-        <option value="market">Market price ↑</option><option value="retail">Store price ↑</option>
+        <option value="stock">In stock first</option>
+        <option value="market">Market price low to high</option>
+        <option value="retail">Store price low to high</option><option value="retail-desc">Store price high to low</option>
       </select>
     </label>
   </div>

@@ -24,10 +24,10 @@ async function notifySessionChange(page) {
   });
 }
 
-function retailerFixture(number, variant, now) {
+function retailerFixture(number, variant, now, skyfoxPrice) {
   const quote = (store, priceCents, condition, conditionRank, age = 0) => ({
     store, priceCents, currency: "CAD", condition, conditionRank,
-    checkedAt: new Date(now - age).toISOString(), url: "https://skyfoxgames.com/products/test-printing",
+    checkedAt: new Date(now - age).toISOString(), url: "https://skyfoxgames.com/products/test-printing?variant=" + conditionRank,
   });
   const samplePrinting = number === "001" || number === "002" && variant === "normal";
   const unavailableStores = samplePrinting ? ["401 Games"] : [];
@@ -35,12 +35,14 @@ function retailerFixture(number, variant, now) {
     .map(store => [store, new Date(now).toISOString()]));
   const offers = samplePrinting ? [
     quote("Deck Out Gaming", 180, "Lightly Played", 1),
-    quote("Skyfox Games", 250, "Near Mint", 0),
+    quote("Skyfox Games", skyfoxPrice, "Near Mint", 0),
+    quote("Skyfox Games", 195, "Heavily Played", 3),
     quote("Skyfox Games", 15, "Near Mint", 0, 601_000),
   ] : number === "002" ? [] : [
     quote("401 Games", 2500 - Number(number), "Near Mint", 0),
   ];
-  return { offers, unavailableStores, checkedStores };
+  const expiresAt = samplePrinting ? { "Deck Out Gaming": new Date(now + 300_000).toISOString() } : {};
+  return { offers, unavailableStores, checkedStores, expiresAt };
 }
 
 try {
@@ -84,6 +86,7 @@ try {
     const now = Date.now();
     await page.clock.install({ time: new Date(now) });
     let fixtureCheckedAt = now;
+    let skyfoxPrice = 250, retailerFailure = false;
     let marketGate, offerGate, user = null;
     const documents = new Map(), staged = new Map();
     const errors = [];
@@ -133,7 +136,8 @@ try {
           await offerGate;
           return route.abort().catch(() => {});
         }
-        return route.fulfill({ json: retailerFixture(number, variant, fixtureCheckedAt) });
+        return route.fulfill({ json: retailerFailure ? { offers: [], unavailableStores: stores }
+          : retailerFixture(number, variant, fixtureCheckedAt, skyfoxPrice) });
       }
       return route.continue();
     });
@@ -247,11 +251,19 @@ try {
     await expect(rows).toHaveCount(1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
 
+    const beforeCompare = lookups.length;
     await rows.first().locator("[data-buy-card]").click();
     await expect(inlineDetails).toBeVisible();
     await expect(inlineDetails.getByRole("heading", { name: "Ivysaur" })).toBeFocused();
     await expect(inlineDetails.locator("#card-market-chart-region")).toBeVisible();
-    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+    assert.equal(lookups.length, beforeCompare, "Opening a partially successful check should reuse fresh quotes.");
+    retailerFailure = true;
+    await inlineDetails.locator("#card-retail-refresh").click();
+    await expect.poll(() => lookups.length).toBe(beforeCompare + 1);
+    await expect(inlineDetails.locator("#card-retail-refresh")).toBeEnabled();
+    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+    retailerFailure = false;
     await expect(page.locator("dialog[open]")).toHaveCount(0);
     await expect(search).toBeVisible();
     await expect(rows.first()).toBeVisible();
@@ -312,11 +324,20 @@ try {
     await sort.selectOption("retail");
     await expect(rows.first()).toContainText("Ivysaur");
     await expect(rows.first()).toContainText("$1.80");
+    const cheapestSkyfox = rows.first().getByRole("link", { name: /Skyfox Games listing for \$1\.95/ });
+    await expect(cheapestSkyfox).toHaveAttribute("href", /variant=3$/);
+    await sort.selectOption("retail-desc");
+    await expect(rows.first()).not.toContainText("Ivysaur");
+    await sort.selectOption("stock");
+    await expect(rows.first()).toContainText("In stock");
 
     await search.fill("Ivysaur 002");
     await availability.selectOption("stock");
     await expect(rows).toHaveCount(1);
-    await page.clock.fastForward(601_000);
+    await page.clock.fastForward(301_000);
+    await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Deck Out Gaming" })).toContainText("Needs a check");
+    await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Skyfox Games" })).toContainText("$2.50");
+    await page.clock.fastForward(300_000);
     await expect(rows).toHaveCount(0);
     await availability.selectOption("unchecked");
     await expect(rows).toHaveCount(2);
@@ -353,7 +374,7 @@ try {
       await expect(rows.first().locator(".dex-buying-market")).toContainText("Loading");
       await rows.first().locator("[data-buy-card]").click();
       await expect(inlineDetails).toBeVisible();
-      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
       await inlineDetails.locator("#card-pricing-back").click();
       releaseMarket();
       await expect(rows.first().locator(".dex-buying-market")).toContainText("$3.49");
@@ -371,6 +392,9 @@ try {
       await expect(search).toHaveValue("");
       await expect(rows).toHaveCount(6);
       assert.equal(lookups.length, beforeReload, "A dashboard reload must not fetch retailer offers.");
+      await search.fill("Ivysaur 002");
+      await expect(rows.first()).toContainText("$2.50");
+      await expect(rows.first()).toContainText("Checked");
 
       await bindersTab.click();
       user = account;
@@ -390,11 +414,13 @@ try {
       await scope.selectOption({ label: "Account only 151" });
       await search.fill("Ivysaur 002");
       await expect(rows).toHaveCount(2);
+      await expect(rows.first()).not.toContainText("$2.50");
       fixtureCheckedAt = await page.evaluate(() => Date.now());
+      skyfoxPrice = 280;
       await rows.first().locator("[data-buy-check]").click();
-      await expect(rows.first()).toContainText("$2.50");
+      await expect(rows.first()).toContainText("$2.80");
       await rows.first().locator("[data-buy-card]").click();
-      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(2);
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
 
       user = null;
       await notifySessionChange(page);
@@ -405,6 +431,9 @@ try {
       await expect(scope).toHaveValue("");
       await expect(search).toHaveValue("");
       await search.fill("Ivysaur 002");
+      await expect(rows.first()).toContainText("$2.50");
+      await expect(rows.first()).not.toContainText("$2.80");
+      await page.clock.fastForward(601_000);
       await expect(rows.first()).toContainText("Needs a check");
       await expect(rows.first()).not.toContainText("$2.50");
 

@@ -28,6 +28,7 @@ export interface RetailOffers {
   offers: RetailOffer[];
   unavailableStores: string[];
   checkedStores?: Record<string, string>;
+  expiresAt?: Record<string, string>;
 }
 export interface BinderValue { cents: number; priced: number; collected: number; asOf: string | null }
 
@@ -96,8 +97,9 @@ export function freshOfferCheck(checkedAt: string, now: number) {
   return age >= -60_000 && age < offerLifetime;
 }
 
-export function freshOffers(offers: readonly RetailOffer[], now: number) {
-  return offers.filter(offer => freshOfferCheck(offer.checkedAt, now))
+export function freshOffers(offers: readonly RetailOffer[], now: number, expiresAt?: Record<string, string>) {
+  return offers.filter(offer => freshOfferCheck(offer.checkedAt, now)
+    && (!expiresAt?.[offer.store] || Date.parse(expiresAt[offer.store]) > now))
     .sort((a, b) => a.conditionRank - b.conditionRank || a.priceCents - b.priceCents || a.store.localeCompare(b.store));
 }
 

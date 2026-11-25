@@ -8,8 +8,8 @@ import { createPriceChart } from "./price-chart";
 
 interface Options {
   collection(): { sets: readonly SetSummary[]; cards(setId: string): Promise<SetCard[]> };
-  recentOffers(target: PricingTarget): RetailOffers | undefined;
-  recordOffers(target: PricingTarget, offers: RetailOffers): void;
+  readOffers(target: PricingTarget): Promise<RetailOffers | undefined>;
+  checkOffers(target: PricingTarget, options?: { force?: boolean }): Promise<RetailOffers>;
   onBuyingClose(): void;
 }
 
@@ -34,7 +34,7 @@ export function createPricingUI(options: Options) {
   let target: PricingTarget | undefined, candidates: SetCard["variants"] = [];
   let cardVersion = 0, historyVersion = 0, retailVersion = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let offerRequest: AbortController | undefined, historyRequest: AbortController | undefined;
+  let historyRequest: AbortController | undefined;
   let presentation: Presentation | undefined;
   const exact = () => target && !["", "*"].includes(target.variant);
   const active = (version: number) => version === cardVersion &&
@@ -43,7 +43,6 @@ export function createPricingUI(options: Options) {
 
   function cancelOffers() {
     retailVersion++;
-    offerRequest?.abort();
     clearTimeout(timer);
   }
 
@@ -109,20 +108,17 @@ export function createPricingUI(options: Options) {
 
   async function loadOffers(refresh = false) {
     cancelOffers();
-    const version = cardVersion, ticket = retailVersion, controller = new AbortController();
-    offerRequest = controller;
+    const version = cardVersion, ticket = retailVersion;
     const current = () => active(version) && ticket === retailVersion;
-    retailerList.replaceChildren();
+    if (!refresh) retailerList.replaceChildren();
     retailerStatus.textContent = "Checking Canadian stores…";
     refreshOffers.disabled = true;
     try {
       const printing = target!;
-      const previous = refresh ? undefined : options.recentOffers(printing);
-      const data = previous ?? await pricingRequest<RetailOffers>("offers", query(), AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]));
-      if (current() && !previous) options.recordOffers(printing, data);
-      function show() {
+      function show(data: RetailOffers, checking: boolean) {
         if (!current()) return;
-        const now = Date.now(), offers = freshOffers(data.offers, now).filter(offer => {
+        clearTimeout(timer);
+        const now = Date.now(), offers = freshOffers(data.offers, now, data.expiresAt).filter(offer => {
           try { return new URL(offer.url).protocol === "https:"; } catch { return false; }
         });
         retailerList.innerHTML = offers.map(offer =>
@@ -131,17 +127,23 @@ export function createPricingUI(options: Options) {
           <div><strong>${cad(offer.priceCents)} CAD</strong><a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer"
             aria-label="Open ${escape(offer.store)} listing (opens in new tab)">View listing</a></div></li>`).join("");
         const messages = [];
-        if (!offers.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
+        if (checking) messages.push("Checking Canadian stores…");
+        if (!checking && !offers.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
           : data.unavailableStores.length >= 3 ? "Canadian stores are temporarily unavailable."
           : "No exact in-stock offers found.");
         if (data.unavailableStores.length && data.unavailableStores.length < 3) {
           messages.push(`Couldn’t check ${data.unavailableStores.join(", ")}.`);
         }
         retailerStatus.textContent = messages.join(" ");
-        const next = Math.min(...offers.map(offer => Date.parse(offer.checkedAt) + offerLifetime));
-        if (Number.isFinite(next)) timer = setTimeout(show, Math.max(20, next - now));
+        const expirations = [...offers.map(offer => Date.parse(offer.checkedAt) + offerLifetime),
+          ...Object.values(data.expiresAt ?? {}).map(Date.parse)].filter(at => at > now);
+        const next = Math.min(...expirations);
+        if (Number.isFinite(next)) timer = setTimeout(() => show(data, checking), Math.max(20, next - now));
       }
-      show();
+      const previous = await options.readOffers(printing);
+      if (!current()) return;
+      if (previous) show(previous, refresh);
+      if (!previous || refresh) show(await options.checkOffers(printing, { force: refresh }), false);
     } catch {
       if (current()) retailerStatus.textContent = "Canadian offers are temporarily unavailable. Try refreshing.";
     } finally {

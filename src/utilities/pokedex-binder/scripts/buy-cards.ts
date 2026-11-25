@@ -1,15 +1,17 @@
 import { buyingStores, canCheckPrinting, combinedAvailability, matchesByStore, printingKey,
-  type Availability, type BuyingStore, type OfferSnapshot, type StoreMatch } from "../lib/buying-offers";
+  type Availability, type BuyingStore, type StoreMatch } from "../lib/buying-offers";
+import { createBuyOfferCache } from "../lib/buying-offer-cache";
 import { catalogArtwork } from "../lib/catalog-search";
 import type { MasterState, SetCard, SetSummary } from "../lib/master";
-import { cad, calendarDate, freshOfferCheck, groupBuyingEntries, marketPrices, matchesBuyingEntry, missingPrintings,
-  offerLifetime, pricingRequest, type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffers } from "../lib/pricing";
+import { cad, calendarDate, groupBuyingEntries, marketPrices, matchesBuyingEntry, missingPrintings,
+  type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffers } from "../lib/pricing";
 import { escape } from "./binder-pages";
 
 interface Options {
   collection(): { sets: readonly SetSummary[]; cards(setId: string): Promise<SetCard[]> };
   binders(): Promise<MasterState>;
   selected(): string;
+  offerScope(): string;
   inspect(target: PricingTarget): void;
   closeDetail(): void;
 }
@@ -33,16 +35,17 @@ const button = (id: string) => node<HTMLButtonElement>(id);
 const byName = new Intl.Collator("en-CA", { numeric: true });
 const time = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-function storeCell({ store, availability, offer }: StoreMatch, checking: boolean) {
-  const state = { unchecked: "Needs a check", none: "No match", unavailable: "Couldn’t check", stock: "In stock" };
-  const description = checking ? "Checking…" : state[availability];
-  const price = offer && !checking
+function storeCell({ store, availability, offer, checkedAt }: StoreMatch, checking: boolean) {
+  const state = { unchecked: "Needs a check", none: "No matching offer", unavailable: "Couldn’t check", stock: "In stock" };
+  const description = checking && !checkedAt ? "Checking…" : state[availability];
+  const at = offer?.checkedAt ?? checkedAt;
+  const price = offer
     ? `<a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer"
        aria-label="View ${escape(store)} listing for ${cad(offer.priceCents)} CAD (opens in new tab)">${cad(offer.priceCents)}</a>
-       <small>${escape(offer.condition)} · In stock</small>
-       <small>Checked ${escape(time.format(new Date(offer.checkedAt)))}</small>`
+       <small>${escape(offer.condition)} · In stock</small>`
     : escape(description);
-  return `<div data-availability="${checking ? "checking" : availability}"><dt>${escape(store)}</dt><dd>${price}</dd></div>`;
+  const checked = at ? `<small>Checked ${escape(time.format(new Date(at)))}</small>` : "";
+  return `<div data-availability="${checking && !at ? "checking" : availability}"><dt>${escape(store)}</dt><dd>${price}${checked}</dd></div>`;
 }
 
 function priceOrder(a: number, b: number) {
@@ -57,7 +60,8 @@ export function createBuyCards(options: Options) {
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
   const checkPage = button("check"), clear = button("clear");
   const filters = [search, finish, availability, store, maxPrice, condition, sort];
-  const picks = new Map<string, string>(), quotes = new Map<string, OfferSnapshot>();
+  const picks = new Map<string, string>();
+  const quotes = createBuyOfferCache(options.offerScope, draw);
   let entries: BuyingEntry[] = [], visible: Row[] = [], setErrors = 0, page = 0, version = 0;
   let sets = new Map<string, SetSummary>(), cards = new Map<string, Map<string, Finishes>>();
   let values = new Map<string, MarketPrice>(), marketPending = new Set<string>();
@@ -86,11 +90,38 @@ export function createBuyCards(options: Options) {
     const matchingChoices = availableChoices.filter(item => item.label === finish.value);
     const choices = matchingChoices.length ? matchingChoices : availableChoices;
     const selected = choices.find(item => item.id === picks.get(id)) ?? (choices.length === 1 ? choices[0] : undefined);
-    const target = selected ? { ...entry.target, variant: selected.id, finish: selected.label } : entry.target;
-    const key = printingKey(target);
-    const stores = matchesByStore(quotes.get(key), shops, now, budget, grade);
-    const cheapest = Math.min(...stores.map(item => item.offer?.priceCents ?? Infinity));
-    return { id, entry, target, choices, price: values.get(key), stores, availability: combinedAvailability(stores), cheapest };
+    const priceSort = sort.value === "retail" || sort.value === "retail-desc";
+    const targetFor = (choice: Finishes[number]) => ({ ...entry.target, variant: choice.id, finish: choice.label });
+    function match(target: PricingTarget, results: RetailOffers | undefined) {
+      const stores = matchesByStore(results, shops, now, budget, grade, priceSort);
+      return { target, stores, cheapest: Math.min(...stores.map(item => item.offer?.priceCents ?? Infinity)) };
+    }
+    const target = selected ? targetFor(selected) : entry.target;
+    let matched = match(target, quotes.peek(printingKey(target), now));
+    if (!selected) {
+      const alternatives: StoreMatch[][] = [];
+      for (const choice of choices) {
+        const exact = targetFor(choice), results = quotes.peek(printingKey(exact), now);
+        if (!results) continue;
+        const candidate = match(exact, results);
+        alternatives.push(candidate.stores);
+        if (candidate.cheapest >= matched.cheapest) continue;
+        matched = candidate;
+        if (!priceSort) break;
+      }
+      if (matched.target.variant === "*" && alternatives.length) {
+        matched.stores = shops.map((store, index) => {
+          const checks = alternatives.map(matches => matches[index]);
+          const observed = combinedAvailability(checks);
+          const availability = observed === "none" && alternatives.length < choices.length ? "unchecked" : observed;
+          const checkedAt = availability === "none"
+            ? checks.flatMap(check => check.checkedAt ?? []).sort((a, b) => Date.parse(a) - Date.parse(b))[0]
+            : undefined;
+          return { store, availability, checkedAt };
+        });
+      }
+    }
+    return { id, entry, choices, ...matched, price: values.get(printingKey(matched.target)), availability: combinedAvailability(matched.stores) };
   }
 
   function rowMarkup(row: Row) {
@@ -107,7 +138,8 @@ export function createBuyCards(options: Options) {
       : "";
     const market = price ? `<strong>${cad(price.cents)} CAD</strong> <small>${escape(calendarDate(price.observedAt))}</small>`
       : marketPending.has(target.setId) ? "Loading…" : "No estimate";
-    const storeResults = canCheck ? `<dl class="dex-buying-offers">${stores.map(item => storeCell(item, checking)).join("")}</dl>`
+    const storeResults = canCheck || stores.some(item => item.availability !== "unchecked")
+      ? `<dl class="dex-buying-offers">${stores.map(item => storeCell(item, checking)).join("")}</dl>`
       : `<p class="dex-help">${target.variant === "*" ? "Choose a finish to check stores." : "Store lookup is unavailable for this finish."}</p>`;
     return `<li class="dex-buying-row">
       <div class="dex-buying-identity">${image ? `<img src="${escape(image)}" width="42" height="59" alt="" loading="lazy">` : ""}
@@ -126,31 +158,28 @@ export function createBuyCards(options: Options) {
 
   function scheduleExpiration(now: number) {
     clearTimeout(expiration);
-    let earliest = Infinity;
-    for (const [key, snapshot] of quotes) {
-      const times = [...Object.values(snapshot.results.checkedStores ?? {}).map(Date.parse),
-        ...snapshot.results.offers.map(item => Date.parse(item.checkedAt))];
-      if (snapshot.results.unavailableStores.length) times.push(snapshot.receivedAt);
-      const future = times.map(item => item + offerLifetime).filter(item => item > now);
-      if (!future.length) quotes.delete(key);
-      else earliest = Math.min(earliest, ...future);
-    }
+    const earliest = quotes.expire(now);
     if (Number.isFinite(earliest)) expiration = setTimeout(draw, Math.max(1, earliest - now));
   }
 
   function draw() {
-    if (!isActive() || loading || catalogState !== "ready") return;
     const now = Date.now();
+    scheduleExpiration(now);
+    if (!isActive() || loading || catalogState !== "ready") return;
     const shops = store.value ? buyingStores.filter(item => item === store.value) : buyingStores;
-    const budget = maxPrice.value !== "" ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
+    const budget = Number.isFinite(maxPrice.valueAsNumber) ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
     const grade = condition.value !== "" ? Number(condition.value) : Infinity;
+    const requiresOffer = Number.isFinite(budget) || Number.isFinite(grade);
     const matching = entries.filter(entry => matchesBuyingEntry(entry, search.value)
       && (!finish.value || entry.target.finish === finish.value || choicesFor(entry).some(item => item.label === finish.value)))
       .map(entry => getRow(entry, now, shops, budget, grade))
-      .filter(row => !availability.value || row.availability === availability.value);
+      .filter(row => availability.value ? row.availability === availability.value : !requiresOffer || row.availability === "stock");
     if (sort.value === "name") matching.sort((a, b) => byName.compare(a.target.name, b.target.name));
     if (sort.value === "market") matching.sort((a, b) => priceOrder(a.price?.cents ?? Infinity, b.price?.cents ?? Infinity));
+    if (sort.value === "stock") matching.sort((a, b) => Number(b.availability === "stock") - Number(a.availability === "stock"));
     if (sort.value === "retail") matching.sort((a, b) => priceOrder(a.cheapest, b.cheapest));
+    if (sort.value === "retail-desc") matching.sort((a, b) =>
+      Number(!Number.isFinite(a.cheapest)) - Number(!Number.isFinite(b.cheapest)) || priceOrder(b.cheapest, a.cheapest));
 
     const pages = Math.max(1, Math.ceil(matching.length / pageSize));
     page = Math.min(page, pages - 1);
@@ -159,7 +188,7 @@ export function createBuyCards(options: Options) {
     const summary = failedToLoad ? "The binders couldn’t load. Switch to Binders and return to try again."
       : !hasBinders ? "You don’t have any set binders yet."
       : count ? `${count.toLocaleString()} ${count === 1 ? "card" : "cards"} still to find`
-      : entries.length ? (availability.value === "stock" ? "No in-stock offers match these filters yet. Choose Any status to check more cards."
+      : entries.length ? (availability.value === "stock" || requiresOffer ? "No in-stock offers match. Clear offer filters to check more cards."
         : "No missing cards match this search.") : "No catalog cards still to find.";
     status.textContent = summary + (setErrors ? " Some set checklists couldn’t load." : "");
     empty.hidden = hasBinders || failedToLoad;
@@ -179,7 +208,6 @@ export function createBuyCards(options: Options) {
       const alternative = list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(focused)}"]`);
       (replacement ?? alternative ?? checkPage).focus({ preventScroll: true });
     }
-    scheduleExpiration(now);
   }
 
   function cancelChecks() {
@@ -201,16 +229,8 @@ export function createBuyCards(options: Options) {
     async function pull() {
       while (cursor < work.length && job === lookup) {
         const [key, target] = work[cursor++];
-        let results: RetailOffers;
-        try {
-          results = await pricingRequest<RetailOffers>("offers",
-            { set: target.setId, number: target.number, variant: target.variant },
-            AbortSignal.any([lookup.controller.signal, AbortSignal.timeout(12_000)]));
-        } catch {
-          results = { offers: [], unavailableStores: [...buyingStores] };
-        }
+        await quotes.check(target, { force: true, signal: lookup.controller.signal }).catch(() => {});
         if (job !== lookup) return;
-        quotes.set(key, { results, receivedAt: Date.now() });
         lookup.keys.delete(key);
         completed++;
         draw();
@@ -241,7 +261,7 @@ export function createBuyCards(options: Options) {
     node("pages").hidden = true;
     status.textContent = "Checking which cards are missing…";
     try {
-      const state = await options.binders();
+      const [state] = await Promise.all([options.binders(), quotes.hydrate()]);
       if (!current()) return;
       hasBinders = state.binders.length > 0;
       scope.replaceChildren(new Option("All binders", ""), ...state.binders.map(binder => new Option(binder.name, binder.id)));
@@ -310,7 +330,6 @@ export function createBuyCards(options: Options) {
     needsReload ||= loading;
     loading = false;
     version++;
-    clearTimeout(expiration);
     cancelChecks();
     inspectedRow = undefined;
     options.closeDetail();
@@ -353,16 +372,8 @@ export function createBuyCards(options: Options) {
   });
 
   return {
-    recentOffers(target: PricingTarget) {
-      const snapshot = quotes.get(printingKey(target));
-      if (!snapshot || Date.now() - snapshot.receivedAt >= offerLifetime || snapshot.results.unavailableStores.length) return;
-      const times = [...Object.values(snapshot.results.checkedStores ?? {}), ...snapshot.results.offers.map(offer => offer.checkedAt)];
-      if (times.length && times.every(at => freshOfferCheck(at, Date.now()))) return snapshot.results;
-    },
-    recordOffers(target: PricingTarget, results: RetailOffers) {
-      quotes.set(printingKey(target), { results, receivedAt: Date.now() });
-      draw();
-    },
+    readOffers: quotes.read,
+    checkOffers: quotes.check,
     enter(fromBinders: boolean) {
       if (!visited) entryFromBinder = fromBinders;
       activate();
@@ -395,7 +406,7 @@ export function createBuyCards(options: Options) {
       sets.clear();
       cards.clear();
       picks.clear();
-      quotes.clear();
+      quotes.reset();
       values.clear();
       marketPending.clear();
       scope.replaceChildren(new Option("All binders", ""));

@@ -1,10 +1,9 @@
-import { freshOfferCheck, freshOffers, offerLifetime, type PricingTarget, type RetailOffer, type RetailOffers } from "./pricing";
+import { freshOfferCheck, freshOffers, type PricingTarget, type RetailOffer, type RetailOffers } from "./pricing";
 
 export const buyingStores = ["401 Games", "Deck Out Gaming", "Skyfox Games"] as const;
 export type BuyingStore = typeof buyingStores[number];
 export type Availability = "stock" | "none" | "unchecked" | "unavailable";
-export interface OfferSnapshot { results: RetailOffers; receivedAt: number }
-export interface StoreMatch { store: BuyingStore; availability: Availability; offer?: RetailOffer }
+export interface StoreMatch { store: BuyingStore; availability: Availability; offer?: RetailOffer; checkedAt?: string }
 
 export function printingKey(target: PricingTarget) {
   return JSON.stringify([target.setId, target.number, target.variant]);
@@ -15,18 +14,22 @@ export function canCheckPrinting(target: PricingTarget) {
 }
 
 export function matchesByStore(
-  snapshot: OfferSnapshot | undefined, stores: readonly BuyingStore[], now: number, maxPrice: number, maxCondition: number,
+  results: RetailOffers | undefined, stores: readonly BuyingStore[], now: number, maxPrice: number, maxCondition: number,
+  byPrice = false,
 ): StoreMatch[] {
-  const offers = freshOffers(snapshot?.results.offers ?? [], now);
+  const offers = freshOffers(results?.offers ?? [], now, results?.expiresAt);
   return stores.map(store => {
     const storeOffers = offers.filter(offer => offer.store === store);
-    const offer = storeOffers.find(item => item.priceCents <= maxPrice && item.conditionRank <= maxCondition
+    const eligible = storeOffers.filter(item => item.priceCents <= maxPrice && item.conditionRank <= maxCondition
       && item.url.startsWith("https://"));
-    const checkedAt = snapshot?.results.checkedStores?.[store];
-    const unavailable = snapshot && now - snapshot.receivedAt < offerLifetime
-      && snapshot.results.unavailableStores.includes(store);
-    const checked = storeOffers.length || (checkedAt && freshOfferCheck(checkedAt, now));
-    return { store, offer, availability: offer ? "stock" : unavailable ? "unavailable" : checked ? "none" : "unchecked" };
+    const offer = byPrice ? eligible.sort((a, b) => a.priceCents - b.priceCents)[0] : eligible[0];
+    const at = results?.checkedStores?.[store];
+    const expiresAt = results?.expiresAt?.[store];
+    const checkedAt = at && freshOfferCheck(at, now) && (!expiresAt || Date.parse(expiresAt) > now) ? at : undefined;
+    const checked = Boolean(checkedAt || storeOffers.length);
+    const unavailable = results?.unavailableStores.includes(store);
+    const availability: Availability = offer ? "stock" : checked ? "none" : unavailable ? "unavailable" : "unchecked";
+    return { store, offer, checkedAt, availability };
   });
 }
 
