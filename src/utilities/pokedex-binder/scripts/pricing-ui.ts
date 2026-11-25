@@ -202,7 +202,7 @@ export function createPricingUI(options: Options) {
     } else if (!prices.open) prices.showModal();
     showPrinting();
     const version = cardVersion;
-    if (!set) {
+    if (!set && !exact()) {
       node("card-pricing-status").textContent = "This card has no exact printing in the price catalog.";
       return;
     }

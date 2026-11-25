@@ -1,15 +1,26 @@
-import { catalogArtwork, catalogNumberLabel, createCardIndex, searchCards, type CatalogPrinting, type CatalogResult, type CatalogSearchIndex } from "../lib/catalog-search";
+import { catalogArtwork, catalogNumberLabel, createCardIndex, searchCards,
+  type CatalogPrinting, type CatalogResult, type CatalogSearchIndex, type CatalogSearchSet } from "../lib/catalog-search";
 import type { SetCard } from "../lib/master";
 
-const pageSize = 20;
 const catalogRoot = "/utilities/pokemon-binder/catalog/";
-const setsRoot = "/utilities/pokedex-binder/catalog/master-sets/";
-const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(`catalog-search-${id}`) as T;
+let catalog: Promise<{ index: ReturnType<typeof createCardIndex>; sets: CatalogSearchSet[] }> | undefined;
 
 async function fetchCatalog<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: "no-cache" });
   if (!response.ok) throw new Error("Card catalog request failed.");
   return response.json();
+}
+
+function cardIndex() {
+  catalog ??= fetchCatalog<CatalogSearchIndex>(catalogRoot + "cards.json").then(data => {
+    if (data.schemaVersion !== 1 || !Array.isArray(data.sets) || !data.sets.length) throw new Error("Card catalog unavailable.");
+    const sets = [...data.sets].sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
+    return { index: createCardIndex(data.sets), sets };
+  }).catch(error => {
+    catalog = undefined;
+    throw error;
+  });
+  return catalog;
 }
 
 function resultButton(text: string, label: string, onClick: () => void) {
@@ -25,8 +36,16 @@ function resultContext({ set, number }: CatalogResult) {
   return `#${catalogNumberLabel(number)} · ${set.name}${set.code ? ` (${set.code})` : ""}`;
 }
 
-export function createCatalogSearch({ openPrinting }: { openPrinting(printing: CatalogPrinting): void }) {
-  const dialog = el<HTMLDialogElement>("dialog"), form = el<HTMLFormElement>("form");
+export function createCatalogSearch({ cards: loadCards, openPrinting, inline = false }: {
+  cards(setId: string): Promise<SetCard[]>;
+  openPrinting(printing: CatalogPrinting): void;
+  inline?: boolean;
+}) {
+  const pageSize = inline ? 8 : 20;
+  const prefix = inline ? "buy-catalog-search" : "catalog-search";
+  const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(`${prefix}-${id}`) as T;
+  const dialog = inline ? undefined : el<HTMLDialogElement>("dialog");
+  const form = el<HTMLFormElement>("form");
   const query = el<HTMLInputElement>("query"), setFilter = el<HTMLSelectElement>("set");
   const results = el<HTMLOListElement>("results"), status = el("status"), pages = el("pages");
   const previous = el<HTMLButtonElement>("prev"), next = el<HTMLButtonElement>("next");
@@ -36,9 +55,8 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
   const cardName = el("card-name"), cardSet = el("card-set");
 
   let index: ReturnType<typeof createCardIndex> | undefined, pendingIndex: Promise<void> | undefined;
-  const pendingSets = new Map<string, Promise<SetCard[]>>();
   let matching: CatalogResult[] = [], offset = 0;
-  let selected: CatalogResult | undefined, opener: HTMLButtonElement | undefined;
+  let selected: CatalogResult | undefined, opener: HTMLButtonElement | undefined, printingOpener: HTMLButtonElement | undefined;
   let renderingToken = 0, timer: ReturnType<typeof setTimeout> | undefined;
 
   async function loadIndex() {
@@ -48,13 +66,11 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
     retry.hidden = true;
     pendingIndex = (async () => {
       try {
-        const data = await fetchCatalog<CatalogSearchIndex>(catalogRoot + "cards.json");
-        if (data.schemaVersion !== 1 || !Array.isArray(data.sets) || !data.sets.length) throw new Error("Card catalog unavailable.");
-        index = createCardIndex(data.sets);
-        const sorted = [...data.sets].sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
-        setFilter.append(...sorted.map(set => new Option(set.code ? `${set.name} (${set.code})` : set.name, set.id)));
+        const data = await cardIndex();
+        index = data.index;
+        setFilter.append(...data.sets.map(set => new Option(set.code ? `${set.name} (${set.code})` : set.name, set.id)));
         setFilter.disabled = false;
-        if (dialog.open) updateMatches();
+        if (!dialog || dialog.open) updateMatches();
       } catch {
         status.textContent = "The card catalog could not load.";
         retry.hidden = false;
@@ -95,22 +111,11 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
     el("page").textContent = `${offset + 1}–${offset + visible.length} of ${count.toLocaleString("en-CA")}`;
   }
 
-  function setCards(setId: string) {
-    let pending = pendingSets.get(setId);
-    if (!pending) {
-      pending = fetchCatalog<SetCard[]>(setsRoot + encodeURIComponent(setId) + ".json").catch(error => {
-        pendingSets.delete(setId);
-        throw error;
-      });
-      pendingSets.set(setId, pending);
-    }
-    return pending;
-  }
-
   async function choosePrinting(result: CatalogResult) {
     selected = result;
+    printingOpener = undefined;
     const token = ++renderingToken;
-    const loadingActive = () => dialog.open && token === renderingToken;
+    const loadingActive = () => (!dialog || dialog.open) && token === renderingToken;
     resultsPanel.hidden = true;
     printingsPanel.hidden = false;
     printingsRetry.hidden = true;
@@ -120,7 +125,7 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
     printingsStatus.textContent = "Loading printings…";
     cardName.focus();
     try {
-      const cards = await setCards(result.set.id);
+      const cards = await loadCards(result.set.id);
       if (!loadingActive()) return;
       const card = cards.find(card => card.number === result.number && card.name === result.name);
       if (!card || !card.variants.length) throw new Error("Printing unavailable.");
@@ -129,8 +134,9 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
         const row = document.createElement("li");
         const name = document.createElement("strong");
         name.textContent = variant.label;
-        const button = resultButton("View card", `View ${result.name}, ${variant.label}`, () => {
-          dialog.close();
+        const button = resultButton(inline ? "View prices" : "View card", `View ${result.name}, ${variant.label}`, () => {
+          printingOpener = button;
+          dialog?.close();
           openPrinting({
             setId: result.set.id,
             setName: result.set.name,
@@ -167,11 +173,11 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
   form.addEventListener("submit", event => {
     event.preventDefault();
     clearTimeout(timer);
-    updateMatches();
+    void loadIndex();
   });
   query.addEventListener("input", () => {
     clearTimeout(timer);
-    timer = setTimeout(updateMatches, 130);
+    timer = setTimeout(() => void loadIndex(), 130);
   });
   setFilter.addEventListener("change", () => {
     clearTimeout(timer);
@@ -185,17 +191,27 @@ export function createCatalogSearch({ openPrinting }: { openPrinting(printing: C
     (opener?.isConnected ? opener : query).focus();
   });
   printingsRetry.addEventListener("click", () => { if (selected) void choosePrinting(selected); });
-  dialog.addEventListener("close", () => {
+  dialog?.addEventListener("close", () => {
     clearTimeout(timer);
     renderingToken++;
   });
+  if (inline) {
+    for (const control of [query, setFilter]) {
+      control.addEventListener("focus", () => { if (!index) void loadIndex(); });
+    }
+    if (query.value || form.contains(document.activeElement)) void loadIndex();
+  }
 
   return {
     open() {
       showResults();
-      if (!dialog.open) dialog.showModal();
+      if (dialog && !dialog.open) dialog.showModal();
       query.focus();
       void loadIndex();
+    },
+    focus() {
+      if (!printingsPanel.hidden) (printingOpener?.isConnected ? printingOpener : cardName).focus();
+      else query.focus();
     },
   };
 }

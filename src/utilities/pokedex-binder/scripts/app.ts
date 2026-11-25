@@ -112,6 +112,11 @@ async function initialize() {
     checkOffers: dashboard.checkOffers,
     onBuyingClose: dashboard.detailClosed,
   });
+  const buyCatalogSearch = createCatalogSearch({
+    inline: true,
+    cards: master.collection().cards,
+    openPrinting: target => dashboard.inspectCatalog(target, () => buyCatalogSearch.focus()),
+  });
   navigation.subscribe((selected, fromBinders) => {
     if (selected === "buy-cards") {
       closeScanner();
@@ -121,7 +126,7 @@ async function initialize() {
       dashboard.leave();
     }
   });
-  const catalogSearch = createCatalogSearch({ openPrinting: pricing.openPrinting });
+  const catalogSearch = createCatalogSearch({ cards: master.collection().cards, openPrinting: pricing.openPrinting });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
   searchCards.disabled = false;

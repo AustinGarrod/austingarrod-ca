@@ -80,6 +80,8 @@ function formatWait(seconds: number) {
 export function createBuyCards(options: Options) {
   const workspace = node("workspace"), list = node("list"), status = node("status");
   const empty = node("empty"), progress = node("check-status"), countdown = node("countdown");
+  const missing = node("missing"), detail = document.getElementById("buy-card-pricing")!;
+  const binderFilters = node("binder-filters"), binderActions = node("binder-actions");
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
   const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
@@ -98,6 +100,7 @@ export function createBuyCards(options: Options) {
   let rateLimitedUntil = 0, refreshPaused = false;
   let expiration: ReturnType<typeof setTimeout> | undefined;
   let inspectedRow: string | undefined;
+  let restoreCatalogFocus: (() => void) | undefined;
   const isActive = () => !workspace.hidden;
 
   function choicesFor(entry: BuyingEntry): Finishes {
@@ -259,6 +262,7 @@ export function createBuyCards(options: Options) {
         : "No missing cards match this search.") : "No catalog cards still to find.";
     status.textContent = summary + (setErrors ? " Some set checklists couldn’t load." : "");
     empty.hidden = hasBinders || failedToLoad;
+    binderFilters.hidden = binderActions.hidden = !hasBinders || failedToLoad;
     node("pages").hidden = pages <= 1;
     node("page").textContent = `Page ${page + 1} of ${pages}`;
     prev.disabled = page === 0;
@@ -483,8 +487,13 @@ export function createBuyCards(options: Options) {
     loading = false;
     version++;
     cancelChecks();
-    inspectedRow = undefined;
+    clearInspection();
     options.closeDetail();
+  }
+  function clearInspection() {
+    inspectedRow = undefined;
+    restoreCatalogFocus = undefined;
+    list.querySelector('[data-buy-card][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
   }
   function changeVisibleRows() {
     if (job?.kind === "refresh") cancelChecks();
@@ -496,8 +505,10 @@ export function createBuyCards(options: Options) {
   }
   scope.addEventListener("change", () => {
     if (catalogState !== "ready") return;
-    inspectedRow = undefined;
-    options.closeDetail();
+    if (!restoreCatalogFocus) {
+      clearInspection();
+      options.closeDetail();
+    }
     page = 0;
     void load(scope.value);
   });
@@ -536,15 +547,22 @@ export function createBuyCards(options: Options) {
     const row = control && visible.find(item => item.id === (control.dataset.buyCheck ?? control.dataset.buyCard));
     if (!row || !control) return;
     if (control.hasAttribute("data-buy-check")) { void check(checkableTargets([row.target])); return; }
+    clearInspection();
     inspectedRow = row.id;
-    list.querySelector('[data-buy-card][aria-expanded="true"]')?.setAttribute("aria-expanded", "false");
     control.setAttribute("aria-expanded", "true");
+    if (detail.nextElementSibling !== list) list.before(detail);
     options.inspect(row.target);
   });
 
   return {
     readOffers: quotes.read,
     checkOffers: quotes.check,
+    inspectCatalog(target: PricingTarget, restoreFocus: () => void) {
+      clearInspection();
+      restoreCatalogFocus = restoreFocus;
+      if (detail.nextElementSibling !== missing) missing.before(detail);
+      options.inspect(target);
+    },
     enter(fromBinders: boolean) {
       if (!visited) entryFromBinder = fromBinders;
       refreshPaused = false;
@@ -561,10 +579,11 @@ export function createBuyCards(options: Options) {
     },
     detailClosed() {
       const id = inspectedRow;
-      inspectedRow = undefined;
+      const restoreFocus = restoreCatalogFocus;
+      clearInspection();
       if (!isActive()) return;
+      if (restoreFocus) { restoreFocus(); return; }
       const row = id ? list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(id)}"]`) : null;
-      row?.setAttribute("aria-expanded", "false");
       (row ?? document.getElementById("binder-view-title"))?.focus();
     },
     bindersChanged() {
@@ -585,6 +604,7 @@ export function createBuyCards(options: Options) {
       scope.replaceChildren(new Option("All binders", ""));
       list.replaceChildren();
       empty.hidden = true;
+      binderFilters.hidden = binderActions.hidden = true;
       node("pages").hidden = true;
       checkPage.disabled = checkAll.disabled = true;
       clear.hidden = true;

@@ -1,32 +1,47 @@
-<dialog id="catalog-search-dialog" class="dex-dialog dex-collection-dialog catalog-search-dialog rr-block" data-analytics-private aria-labelledby="catalog-search-title">
-  <header class="dex-dialog-header">
-    <h2 id="catalog-search-title">Search cards</h2>
-    <button type="button" data-close-dialog aria-label="Close card search">×</button>
+---
+interface Props {
+  inline?: boolean;
+}
+
+const { inline = false } = Astro.props;
+const Container = inline ? "section" : "dialog";
+const prefix = inline ? "buy-catalog-search" : "catalog-search";
+const id = (part: string) => `${prefix}-${part}`;
+const title = inline ? "Find any card" : "Search cards";
+---
+
+<Container id={inline ? prefix : id("dialog")} class:list={[
+  "rr-block",
+  inline ? "buy-catalog-search" : "dex-dialog dex-collection-dialog catalog-search-dialog",
+]} data-analytics-private aria-labelledby={id("title")}>
+  <header class:list={{ "dex-dialog-header": !inline }}>
+    <h2 id={id("title")}>{title}</h2>
+    {!inline && <button type="button" data-close-dialog aria-label="Close card search">×</button>}
   </header>
-  <section id="catalog-search-results-panel" aria-label="Find a card">
-    <form id="catalog-search-form" class="catalog-search-filters" role="search">
+  <section id={id("results-panel")} aria-label="Find a card">
+    <form id={id("form")} class="catalog-search-filters" role="search" aria-label={title}>
       <label>Card, Pokémon, set, or number
-        <input id="catalog-search-query" type="search" maxlength="120" autocomplete="off" placeholder="e.g. Bulbasaur, MEW, or 001/165" />
+        <input id={id("query")} type="search" maxlength="120" autocomplete="off" placeholder="e.g. Bulbasaur, MEW, or 001/165" />
       </label>
       <label>Set
-        <select id="catalog-search-set" disabled><option value="">All sets</option></select>
+        <select id={id("set")} disabled={!inline}><option value="">All sets</option></select>
       </label>
     </form>
-    <p id="catalog-search-status" class="dex-help" role="status"></p>
-    <button type="button" id="catalog-search-retry" hidden>Retry loading cards</button>
-    <ol id="catalog-search-results" class="dex-transfer-rows catalog-search-rows" aria-label="Matching cards"></ol>
-    <nav id="catalog-search-pages" class="dex-actions" aria-label="Card search result pages" hidden>
-      <button type="button" id="catalog-search-prev">Previous</button>
-      <span id="catalog-search-page"></span>
-      <button type="button" id="catalog-search-next">Next</button>
+    <p id={id("status")} class="dex-help" role="status"></p>
+    <button type="button" id={id("retry")} hidden>Retry loading cards</button>
+    <ol id={id("results")} class="dex-transfer-rows catalog-search-rows" aria-label="Matching cards"></ol>
+    <nav id={id("pages")} class="dex-actions" aria-label="Card search result pages" hidden>
+      <button type="button" id={id("prev")}>Previous</button>
+      <span id={id("page")}></span>
+      <button type="button" id={id("next")}>Next</button>
     </nav>
   </section>
-  <section id="catalog-search-printings-panel" aria-labelledby="catalog-search-card-name" hidden>
-    <button type="button" id="catalog-search-back">Back to results</button>
-    <h3 id="catalog-search-card-name" tabindex="-1"></h3>
-    <p id="catalog-search-card-set" class="dex-help"></p>
-    <p id="catalog-search-printings-status" class="dex-help" role="status"></p>
-    <button type="button" id="catalog-search-printings-retry" hidden>Retry loading printings</button>
-    <ul id="catalog-search-printings" class="dex-transfer-rows catalog-search-rows" aria-label="Choose a printing"></ul>
+  <section id={id("printings-panel")} aria-labelledby={id("card-name")} hidden>
+    <button type="button" id={id("back")}>{inline ? "Back to search results" : "Back to results"}</button>
+    <h3 id={id("card-name")} tabindex="-1"></h3>
+    <p id={id("card-set")} class="dex-help"></p>
+    <p id={id("printings-status")} class="dex-help" role="status"></p>
+    <button type="button" id={id("printings-retry")} hidden>Retry loading printings</button>
+    <ul id={id("printings")} class="dex-transfer-rows catalog-search-rows" aria-label="Choose a printing"></ul>
   </section>
-</dialog>
+</Container>

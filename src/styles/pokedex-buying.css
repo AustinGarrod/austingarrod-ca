@@ -43,7 +43,55 @@
   font-size: 14px;
 }
 
-.dex-buying-dashboard > .dex-buying-filters {
+.buy-catalog-search {
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.dex-buying-missing {
+  margin-top: 24px;
+}
+
+.buy-catalog-search h2,
+.dex-buying-missing h2 {
+  margin: 0 0 12px;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.buy-catalog-search .catalog-search-filters {
+  max-width: 720px;
+  align-items: end;
+}
+
+.buy-catalog-search .catalog-search-rows {
+  margin-block: 12px 0;
+}
+
+.buy-catalog-search .catalog-search-rows:empty {
+  margin: 0;
+}
+
+.buy-catalog-search .catalog-search-rows li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+#buy-catalog-search-card-name {
+  margin: 12px 0 0;
+  font-size: 18px;
+}
+
+#buy-catalog-search-pages {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dex-buying-binder-filters > .dex-buying-filters {
   padding: 16px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -328,8 +376,12 @@
   .dex-buying-heading {
     margin-bottom: 16px;
   }
-  .dex-buying-dashboard > .dex-buying-filters {
+  .buy-catalog-search,
+  .dex-buying-binder-filters > .dex-buying-filters {
     padding: 12px;
+  }
+  .buy-catalog-search .catalog-search-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
   .pokedex-page .dex-buying-dashboard :is(input:not([type="range"]), select) {
     font-size: 16px;
@@ -356,7 +408,11 @@
 
 @media (max-width: 360px) {
   .dex-buying-filters,
-  .dex-buying-refine .dex-buying-filters {
+  .dex-buying-refine .dex-buying-filters,
+  .buy-catalog-search .catalog-search-rows li {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .buy-catalog-search .catalog-search-rows li button {
+    justify-self: start;
   }
 }

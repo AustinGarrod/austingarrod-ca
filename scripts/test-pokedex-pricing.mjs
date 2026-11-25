@@ -50,14 +50,23 @@ try {
   const emptyContext = await browser.newContext({ viewport: { width: 390, height: 890 } });
   try {
     const page = await emptyContext.newPage();
-    let offers = 0;
+    const offers = [];
+    let catalogReads = 0, marketReads = 0;
     await emptyContext.route("**/*", route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
       if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, migrationEnabled: false, user: null, csrfToken: "fixture" } });
+      if (url.pathname.endsWith("/catalog/cards.json")) catalogReads++;
+      if (url.pathname.endsWith("/market.php")) {
+        marketReads++;
+        return route.fulfill({ json: url.searchParams.has("days") ? { asOf: date, points } : {
+          ...market, prices: [{ number: "003", variant: "holo", cents: 999, observedAt: date }],
+        } });
+      }
       if (url.pathname.endsWith("/offers.php")) {
-        offers++;
-        return route.abort();
+        const target = Object.fromEntries(url.searchParams);
+        offers.push({ method: route.request().method(), ...target });
+        return route.fulfill({ json: retailerFixture(target.number, target.variant, Date.now(), 250) });
       }
       return route.continue();
     });
@@ -73,11 +82,44 @@ try {
     await expect(buying.locator("dialog[open]")).toHaveCount(0);
     await page.reload();
     await expect(setup).toBeVisible();
+    assert.equal(offers.length, 0, "A fresh dashboard opening and reload must not fetch retailer offers.");
+    assert.equal(catalogReads, 0, "The search index should load when the visitor starts to search.");
+
+    const catalogQuery = buying.locator("#buy-catalog-search-query");
+    const catalogSet = buying.locator("#buy-catalog-search-set");
+    const inlineDetails = buying.locator("#buy-card-pricing");
+    await expect(buying.getByRole("heading", { name: "Find any card" })).toBeVisible();
+    await catalogSet.focus();
+    await catalogSet.selectOption("sv03.5");
+    await catalogQuery.fill("Venusaur ex");
+    await buying.getByRole("button", { name: /^Choose printing for Venusaur ex,/ }).click();
+    const printing = buying.getByRole("button", { name: "View Venusaur ex, Holo", exact: true });
+    await expect(printing).toBeVisible();
+    assert.equal(catalogReads, 1);
+    assert.equal(marketReads + offers.length, 0, "Choosing a card must wait for an exact printing before requesting prices.");
+    await printing.click();
+    await expect(inlineDetails.getByRole("heading", { name: "Venusaur ex" })).toBeFocused();
+    await expect(inlineDetails.locator("#card-market-current")).toHaveText("$9.99 CAD");
+    await expect(inlineDetails.locator("#card-retail-offers")).toContainText("$24.97 CAD");
+    assert.deepEqual(offers, [{ method: "GET", set: "sv03.5", number: "003", variant: "holo" }]);
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
+    await inlineDetails.locator("#card-pricing-back").click();
+    await expect(inlineDetails).toBeHidden();
+    await expect(printing).toBeFocused();
+    await printing.click();
+    await expect(inlineDetails.locator("#card-retail-offers")).toContainText("$24.97 CAD");
+    const refresh = inlineDetails.locator("#card-retail-refresh");
+    await refresh.click();
+    await expect(refresh).toBeEnabled();
+    assert.equal(offers.length, 1, "A repeat catalog lookup should reuse fresh retailer checks.");
+    await inlineDetails.locator("#card-pricing-back").click();
+
     await setup.press("Enter");
     await expect(page).toHaveURL(binderUrl);
     await expect(page.getByRole("heading", { name: "Pokémon Binder Tracker", level: 1 })).toBeVisible();
     await expect(page.locator("#binder-onboarding")).toBeVisible();
-    assert.equal(offers, 0, "A fresh dashboard opening and reload must not fetch retailer offers.");
+    console.log("Passed signed-out Buy Cards catalog lookup without a binder, caching, and focus restoration.");
   } finally {
     await emptyContext.close();
   }
@@ -89,7 +131,7 @@ try {
     await page.clock.install({ time: new Date(now) });
     let fixtureCheckedAt = now;
     let skyfoxPrice = 250, retailerFailure = false;
-    let marketGate, offerGate, user = null;
+    let marketGate, offerGate, user = null, catalogReads = 0;
     const documents = new Map(), staged = new Map();
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
@@ -97,6 +139,7 @@ try {
     await context.route("**/*", async route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
+      if (url.pathname.endsWith("/catalog/cards.json")) catalogReads++;
       if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, migrationEnabled: true, user, csrfToken: "fixture" } });
       if (url.pathname === "/api/v1/sync.php") {
         if (!user) return route.fulfill({ status: 401, json: { error: { code: "auth_required" } } });
@@ -215,7 +258,6 @@ try {
     await expect(page.locator("#set-overview-totals [data-value-amount]")).toHaveText("$2.46 CAD");
     await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 2 collected");
     await expect(page.locator("#set-overview-list [data-value-amount]")).toHaveText(["$1.23 CAD", "$1.23 CAD"]);
-    const lookupCount = lookups.length;
     await buyTab.click();
     const search = buying.locator("#buy-cards-filter");
     const finish = buying.locator("#buy-cards-finish");
@@ -228,6 +270,28 @@ try {
     const rows = buying.locator("#buy-cards-list > li");
     await expect(buying).toBeVisible();
     await expect(page.locator("#set-overview")).toBeHidden();
+    if (width === 1440) {
+      await expect(scope).toBeEnabled();
+      const beforeLookup = lookups.length;
+      const binderScope = await scope.inputValue();
+      const catalogQuery = buying.locator("#buy-catalog-search-query");
+      const catalogSet = buying.locator("#buy-catalog-search-set");
+      await catalogQuery.fill("Alakazam");
+      await catalogSet.selectOption("base1");
+      await buying.getByRole("button", { name: /^Choose printing for Alakazam, #1 · Base Set/ }).click();
+      const printing = buying.getByRole("button", { name: "View Alakazam, Holo · Unlimited", exact: true });
+      await printing.click();
+      await expect(inlineDetails.getByRole("heading", { name: "Alakazam" })).toBeFocused();
+      await expect(inlineDetails.locator("#card-pricing-identity")).toContainText("Base Set");
+      await expect(inlineDetails.locator("#card-retail-offers")).toContainText("$24.99 CAD");
+      assert.deepEqual(lookups.slice(beforeLookup), [{ set: "base1", number: "1", variant: "holo+subtype=unlimited" }]);
+      assert.equal(catalogReads, 1, "Binder and Buy Cards search should share the loaded catalog.");
+      await expect(page.locator("dialog[open]")).toHaveCount(0);
+      await inlineDetails.locator("#card-pricing-back").press("Enter");
+      await expect(printing).toBeFocused();
+      await expect(scope).toHaveValue(binderScope);
+    }
+    const lookupCount = lookups.length;
     await scope.selectOption("");
     await search.fill("Bulbasaur 001");
     await expect(rows).toHaveCount(0);
