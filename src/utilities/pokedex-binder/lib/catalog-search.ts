@@ -1,4 +1,5 @@
 import type { SetSummary } from "./master";
+import anniversaryProducts from "./anniversary-artwork.json";
 import { findTransferSets, identityText, numberKey } from "./transfer-identity";
 
 export type CatalogSearchCard = [number: string, name: string, speciesNames?: string[]];
@@ -85,7 +86,14 @@ export function searchCards(index: ReturnType<typeof createCardIndex>, input: st
 }
 
 export function catalogArtwork(set: Pick<SetSummary, "id" | "artwork">, number: string): string | null {
-  return set.artwork && !set.artwork.missing.includes(number)
-    ? "https://assets.tcgdex.net/en/" + [set.artwork.series, set.id, number].map(encodeURIComponent).join("/") + "/low.webp"
-    : null;
+  // TCGdex links these printings to their TCGplayer products, whose scans cover gaps in the asset index.
+  const products: Record<string, Record<string, number>> = anniversaryProducts;
+  const product = Object.hasOwn(products, set.id) ? products[set.id][number] : undefined;
+  if (typeof product === "number") return `https://tcgplayer-cdn.tcgplayer.com/product/${product}_200w.jpg`;
+
+  // The main anniversary set's numbered scans are hosted even when omitted from the asset index.
+  const series = set.id === "30th" && /^\d{3}$/.test(number) && Number(number) >= 1 && Number(number) <= 158
+    ? "me"
+    : set.artwork && !set.artwork.missing.includes(number) ? set.artwork.series : null;
+  return series && "https://assets.tcgdex.net/en/" + [series, set.id, number].map(encodeURIComponent).join("/") + "/low.webp";
 }

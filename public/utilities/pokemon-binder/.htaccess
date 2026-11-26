@@ -6,5 +6,5 @@
     Header set Cache-Control "public, max-age=3600"
   </Files>
   Header set Permissions-Policy "camera=(self), geolocation=(), microphone=(), payment=(), usb=()"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://analytics.garrod.house; worker-src 'self'; connect-src 'self' https://analytics.garrod.house https://reports.garrod.house; img-src 'self' data: https://assets.tcgdex.net; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://analytics.garrod.house; worker-src 'self'; connect-src 'self' https://analytics.garrod.house https://reports.garrod.house; img-src 'self' data: https://assets.tcgdex.net https://tcgplayer-cdn.tcgplayer.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
 </IfModule>

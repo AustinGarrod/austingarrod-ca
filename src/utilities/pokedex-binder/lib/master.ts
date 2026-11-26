@@ -28,13 +28,28 @@ export interface Extra {
   number: string;
   required: boolean;
 }
+export interface SectionPlacement {
+  id: string;
+  newPage?: true;
+}
+export const extraSectionId = "@extras";
+
+function sectionIds(setId: string) {
+  return [setId, extraSectionId, ...relatedSets(setId).map(set => set.setId)];
+}
+
+export function binderSectionLayout(setId: string, saved: readonly SectionPlacement[] = []): SectionPlacement[] {
+  const configured = new Set(saved.map(section => section.id));
+  return [...saved, ...sectionIds(setId).filter(id => !configured.has(id)).map(id => ({ id }))];
+}
+
 export interface SetBinder {
   id: string;
   setId: string;
   name: string;
   goal: "numbers" | "variants";
   order: "together" | "sections";
-  settings: BinderSettings & { fillerThrough?: number; includeRelated?: true };
+  settings: BinderSettings & { fillerThrough?: number; includeRelated?: true; sectionLayout?: SectionPlacement[] };
   specialties: string[];
   owned: string[];
   ordered?: string[];
@@ -130,6 +145,17 @@ export function validateMaster(value: unknown): MasterState {
       keys.push("includeRelated");
       if (b.settings.includeRelated !== true || !relatedSets(b.setId).length) throw bad();
     }
+    if (Object.hasOwn(b.settings, "sectionLayout")) {
+      keys.push("sectionLayout");
+      const layout = b.settings.sectionLayout;
+      if (!relatedSets(b.setId).length || !Array.isArray(layout) || !layout.length) throw bad();
+      const remaining = new Set(sectionIds(b.setId));
+      for (const section of layout) {
+        if (!record(section) || typeof section.id !== "string" || !remaining.delete(section.id) ||
+          !fields(section, Object.hasOwn(section, "newPage") ? ["id", "newPage"] : ["id"]) ||
+          (Object.hasOwn(section, "newPage") && section.newPage !== true)) throw bad();
+      }
+    }
     if (!fields(b.settings, keys)) throw bad();
     validateSettings(b.settings);
     const extras = new Set<string>();
@@ -171,14 +197,15 @@ interface Filler {
   filler: true;
   number: string;
 }
-type SetPocket = (Slot | Filler) & PocketLocation;
+type PocketContents = Slot | Filler | { sectionBreak: true };
+type SetPocket = PocketContents & PocketLocation;
 export function isCardPocket(pocket: SetPocket): pocket is Slot & PocketLocation {
   return "key" in pocket;
 }
 export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
   const marks = new Set(b.owned), orders = new Set(b.ordered),
     main: (Slot | Filler)[] = [],
-    parallel: Slot[] = [], related: Slot[] = [];
+    parallel: Slot[] = [], related = new Map<string, Slot[]>();
   for (const card of cards) {
     const prefix = setCardKey(card) + ":";
     const singleRelatedPrinting = card.sourceSetId && card.variants.length === 1;
@@ -191,8 +218,7 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
       const key = prefix + v.id;
       const has = (keys: Set<string>) => keys.has(key) || (any && card.variants.some(item => keys.has(prefix + item.id)));
       const owned = has(marks), ordered = !owned && has(orders);
-      const section = card.sourceSetId ? related : i && b.order === "sections" ? parallel : main;
-      section.push({
+      const slot: Slot = {
         key,
         ...(card.sourceSetId && { sourceSetId: card.sourceSetId }),
         number: card.number,
@@ -203,7 +229,13 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
         ordered,
         status: cardStatus(owned, ordered),
         required: true,
-      });
+      };
+      if (card.sourceSetId) {
+        const section = related.get(card.sourceSetId) ?? [];
+        section.push(slot);
+        related.set(card.sourceSetId, section);
+      } else if (i && b.order === "sections") parallel.push(slot);
+      else main.push(slot);
     });
     if (
       !card.sourceSetId && b.settings.fillerThrough && variants.length <= 1 &&
@@ -216,7 +248,20 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
     return { key, name: e.name, number: e.number, finish: "Custom extra", category: "Extra",
       owned, ordered, status: cardStatus(owned, ordered), required: e.required };
   });
-  return [...main, ...parallel, ...extras, ...related].map((slot, i) => ({ ...slot, ...locationFor(i + 1, b.settings) }));
+  const sections = new Map<string, PocketContents[]>([[b.setId, [...main, ...parallel]], [extraSectionId, extras], ...related]);
+  const layout = binderSectionLayout(b.setId, b.settings.includeRelated ? b.settings.sectionLayout : undefined);
+  const pockets: PocketContents[] = [];
+  const capacity = b.settings.rows * b.settings.columns;
+  for (const { id, newPage } of layout) {
+    const section = sections.get(id);
+    if (!section?.length) continue;
+    if (newPage) {
+      const offset = (pockets.length + b.settings.leadingBlankPockets) % capacity;
+      if (offset) pockets.push(...Array<PocketContents>(capacity - offset).fill({ sectionBreak: true }));
+    }
+    pockets.push(...section);
+  }
+  return pockets.map((slot, i) => ({ ...slot, ...locationFor(i + 1, b.settings) }));
 }
 
 export function setSlots(b: SetBinder, cards: SetCard[]) {

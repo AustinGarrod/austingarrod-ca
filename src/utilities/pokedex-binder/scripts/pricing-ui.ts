@@ -1,4 +1,5 @@
 import type { SetCard, SetSummary } from "../lib/master";
+import { catalogArtwork } from "../lib/catalog-search";
 import {
   cad, calendarDate, freshOffers, marketPrices, offerLifetime, pricingRequest, type PriceHistory,
   type PricingTarget, type RetailOffers,
@@ -187,10 +188,9 @@ export function createPricingUI(options: Options) {
     const image = node<HTMLImageElement>("card-pricing-image");
     const catalog = options.collection();
     const set = catalog.sets.find(item => item.id === printing.setId);
-    const art = set?.artwork;
-    const fallback = art && !art.missing.includes(printing.number)
-      ? "https://assets.tcgdex.net/en/" + [art.series, printing.setId, printing.number].map(encodeURIComponent).join("/") + "/low.webp" : "";
-    const artwork = printing.image?.startsWith("https://assets.tcgdex.net/") ? printing.image : fallback;
+    const artwork = catalogArtwork({ id: printing.setId }, printing.number)
+      ?? (printing.image?.startsWith("https://assets.tcgdex.net/") ? printing.image
+        : set ? catalogArtwork(set, printing.number) : null);
     image.hidden = !artwork;
     if (artwork) { image.alt = printing.name + " card artwork"; image.src = artwork; }
     else image.removeAttribute("src");

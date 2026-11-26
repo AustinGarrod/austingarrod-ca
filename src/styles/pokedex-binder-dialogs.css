@@ -99,6 +99,53 @@
   border: 1px solid var(--line);
 }
 
+.dex-section-layout {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.dex-section-layout legend {
+  padding-inline: 4px;
+  font-weight: 600;
+}
+
+.dex-section-layout ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dex-section-layout li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 8px;
+  padding-block: 6px;
+}
+
+.dex-section-layout li + li {
+  border-top: 1px solid var(--line);
+}
+
+.dex-section-layout strong {
+  overflow-wrap: anywhere;
+}
+
+.dex-section-layout .dex-dialog-checkbox {
+  grid-column: 1 / -1;
+}
+
+.dex-section-move {
+  display: flex;
+  gap: 4px;
+}
+
+.dex-section-move button {
+  width: var(--dex-control-height);
+  padding-inline: 0;
+}
+
 .dex-dialog-form details > summary {
   cursor: pointer;
   min-height: 44px;

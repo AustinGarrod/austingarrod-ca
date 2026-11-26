@@ -16,6 +16,7 @@ import {
 } from "../../src/utilities/pokedex-binder/lib/master";
 import { masterCatalog } from "../../scripts/pokedex-master-catalog.mjs";
 import { binderCards, relatedSets } from "../../src/utilities/pokedex-binder/lib/binder-catalog";
+import { catalogArtwork } from "../../src/utilities/pokedex-binder/lib/catalog-search";
 import { missingPrintings, valueBinder } from "../../src/utilities/pokedex-binder/lib/pricing";
 import { exportCards, addSetImports, groupSetImport } from "../../src/utilities/pokedex-binder/lib/card-transfer";
 
@@ -140,9 +141,9 @@ describe("set catalog and independent pocket goals", () => {
     b.settings.fillerThrough = limit;
     const pockets = setPockets(b, cards);
     expect(pockets.filter((s) => "filler" in s)).toHaveLength(10);
-    const indexOfEx = pockets.findIndex((s) => s.number === ex);
+    const indexOfEx = pockets.findIndex((s) => "number" in s && s.number === ex);
     expect(pockets[indexOfEx + 1]).toMatchObject({ filler: true, number: ex });
-    expect(pockets[indexOfEx + 2].number).toBe(next);
+    expect(pockets[indexOfEx + 2]).toMatchObject({ number: next });
     expect(pockets.some((s) => "filler" in s && Number(s.number) > limit)).toBe(false);
     const collectible = setSlots(b, cards);
     expect(collectible.map((s) => [s.key, s.owned])).toEqual(original.map((s) => [s.key, s.owned]));
@@ -276,12 +277,53 @@ describe("set catalog and independent pocket goals", () => {
     expect(setSlots(binder, binderCards(binder, read)).find(slot => slot.key === energy[0].key)?.status).toBe("owned");
   });
 
+  it("reorders the full checklist and pads only to the next page boundary", () => {
+    const binder = newBinder("30th", "Anniversary");
+    binder.owned = ["30th-c/001:holo+stamp=30th-anniversary"];
+    binder.ordered = ["001:*"];
+    binder.settings = {
+      ...binder.settings, includeRelated: true, leadingBlankPockets: 8,
+      sectionLayout: [{ id: "mee" }, { id: "30th-c", newPage: true }, { id: "30th", newPage: true }],
+    };
+    const cards = binderCards(binder, loadCards);
+    let slots = setSlots(binder, cards);
+    expect(slots).toHaveLength(199);
+    expect(slots[0]).toMatchObject({ sourceSetId: "mee", page: 1, pocket: 9 });
+    expect(slots[8]).toMatchObject({ sourceSetId: "30th-c", page: 2, pocket: 1, status: "owned" });
+    expect(slots[38]).toMatchObject({ key: "001:*", page: 4, pocket: 1, status: "ordered" });
+    expect(setPockets(binder, cards).filter(pocket => "sectionBreak" in pocket)).toHaveLength(2);
+    binder.settings.sectionLayout![0].newPage = true;
+    slots = setSlots(binder, cards);
+    expect(slots[0]).toMatchObject({ sourceSetId: "mee", page: 2, pocket: 1 });
+    expect(slots[8]).toMatchObject({ sourceSetId: "30th-c", page: 3, pocket: 1 });
+    const state = { schemaVersion: 1, binders: [binder] };
+    delete binder.settings.includeRelated;
+    expect(validateMaster(state)).toEqual(state);
+    expect(setSlots(binder, binderCards(binder, loadCards))[0]).toMatchObject({ key: "001:*", page: 1, pocket: 9 });
+    expect(() => validateMaster({
+      ...state, binders: [{ ...binder, settings: { ...binder.settings, sectionLayout: [{ id: "mee" }, { id: "mee" }] } }],
+    })).toThrow();
+  });
+
+  it("resolves distinct card artwork for all 199 anniversary checklist entries", () => {
+    const binder = newBinder("30th", "Anniversary");
+    binder.settings.includeRelated = true;
+    const images = binderCards(binder, loadCards).map(card =>
+      catalogArtwork(summaries.get(card.sourceSetId ?? binder.setId)!, card.number));
+    expect(images).toHaveLength(199);
+    expect(images).not.toContain(null);
+    expect(new Set(images).size).toBe(199);
+    expect(catalogArtwork(summaries.get("mee")!, "009")).toBe("https://tcgplayer-cdn.tcgplayer.com/product/713248_200w.jpg");
+  });
+
   const phpValidation = spawnSync(process.env.PHP_BINARY || "php", [
     "-r", "echo (int) (PHP_VERSION_ID >= 80400 && extension_loaded('mbstring'));",
   ], { encoding: "utf8" });
   it.skipIf(phpValidation.stdout !== "1")("validates expansion marks and exposes identical slots through PHP", () => {
     const binder = newBinder("30th", "Anniversary");
     binder.settings.includeRelated = true;
+    binder.settings.leadingBlankPockets = 4;
+    binder.settings.sectionLayout = [{ id: "30th-c", newPage: true }, { id: "mee" }, { id: "30th", newPage: true }];
     binder.ordered = ["001:*", "mee/009:holo+stamp=30th-anniversary"];
     binder.owned = ["30th-c/001:holo+stamp=30th-anniversary"];
     const php = `

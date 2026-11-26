@@ -69,11 +69,21 @@ function master_validate(mixed $state, string $root): void
             || (property_exists($b,'ordered') && (!master_strings($b->ordered,256) || array_intersect($b->owned,$b->ordered)))) accounts_invalid();
         $ids[$b->id] = true;
         $s = $b->settings;
-        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough','includeRelated'])
+        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough','includeRelated','sectionLayout'])
             || (property_exists($s,'fillerThrough') && (!is_int($s->fillerThrough) || $s->fillerThrough < 1 || $s->fillerThrough > 9007199254740991))
             || (property_exists($s,'includeRelated') && ($s->includeRelated !== true || !master_related_sets($root,$b->setId)))
             || !is_int($s->columns) || $s->columns < 1 || $s->columns > 6 || !is_int($s->rows) || $s->rows < 1 || $s->rows > 6
             || !is_bool($s->useBackSides) || !is_int($s->leadingBlankPockets) || $s->leadingBlankPockets < 0 || $s->leadingBlankPockets > 1000) accounts_invalid();
+        if (property_exists($s,'sectionLayout')) {
+            $related = master_related_sets($root,$b->setId);
+            if (!$related || !is_array($s->sectionLayout) || !$s->sectionLayout) accounts_invalid();
+            $remaining = array_fill_keys([$b->setId,'@extras',...array_column($related,'setId')],true);
+            foreach ($s->sectionLayout as $section) {
+                if (!accounts_fields($section,['id'],['newPage']) || !is_string($section->id) || !isset($remaining[$section->id])
+                    || (property_exists($section,'newPage') && $section->newPage !== true)) accounts_invalid();
+                unset($remaining[$section->id]);
+            }
+        }
         if (!isset($known[$b->setId])) {
             $keys = []; $specialties = [];
             // A disabled checklist can still contain saved marks from its related sets.
@@ -127,22 +137,34 @@ function master_slots(stdClass $b, array $cards): array
                 'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>true];
             if (isset($card->sourceSetId)) {
                 $slot['sourceSetId'] = $card->sourceSetId;
-                $related[] = $slot;
+                $related[$card->sourceSetId][] = $slot;
             } elseif ($i && $b->order === 'sections') $parallel[] = $slot;
             else $main[] = $slot;
         }
         if (!isset($card->sourceSetId) && isset($b->settings->fillerThrough) && $singleFinish && preg_match('/^[0-9]+$/D', $card->number)
             && (int)$card->number >= 1 && (int)$card->number <= $b->settings->fillerThrough) $main[] = null;
     }
-    $slots = array_merge($main,$parallel);
+    $extras = [];
     foreach ($b->extras as $e) {
         $key = 'extra:'.$e->id;
         $present = isset($owned[$key]); $pending = isset($ordered[$key]);
-        $slots[] = ['key'=>$key,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra',
+        $extras[] = ['key'=>$key,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra',
             'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>$e->required];
     }
-    $slots = array_merge($slots,$related);
     $layout = $b->settings; $capacity = $layout->rows*$layout->columns;
+    $sections = [$b->setId=>array_merge($main,$parallel),'@extras'=>$extras] + $related;
+    $placements = [];
+    if ($layout->includeRelated ?? false) {
+        foreach ($layout->sectionLayout ?? [] as $section) $placements[$section->id] = $section->newPage ?? false;
+    }
+    $placements += array_fill_keys(array_keys($sections),false);
+    $slots = [];
+    foreach ($placements as $id=>$newPage) {
+        if (empty($sections[$id])) continue;
+        $offset = (count($slots)+$layout->leadingBlankPockets) % $capacity;
+        if ($newPage && $offset) array_push($slots,...array_fill(0,$capacity-$offset,null));
+        foreach ($sections[$id] as $slot) $slots[] = $slot;
+    }
     foreach ($slots as $i=>&$slot) {
         if ($slot === null) continue;
         $index = $i+$layout->leadingBlankPockets; $page = intdiv($index,$capacity)+1; $pocket = $index % $capacity;

@@ -202,23 +202,42 @@ async function checkAnniversaryExpansion(page, documents) {
   await expect(progress).toHaveText('0 / 161');
   const workspace = page.locator('#master-workspace');
   await workspace.getByRole('button', { name: 'Binder', exact: true }).click();
+  await expect(workspace.locator(`[data-set-open="${mainKey}"] img`)).toHaveAttribute(
+    'src', 'https://assets.tcgdex.net/en/me/30th/001/low.webp');
   await workspace.locator(`[data-key="${mainKey}"]`).check();
   await workspace.locator(`[data-set-open="${orderedKey}"]`).click();
   await workspace.getByRole('button', { name: 'Mark ordered', exact: true }).click();
   await expect(ordered).toHaveText('1');
   await page.locator('#master-settings').click();
   await full.check();
+  const layout = page.getByRole('group', { name: 'Full checklist layout' });
+  await layout.getByRole('button', { name: 'Move 30th Classic Collection up' }).click();
+  await layout.getByRole('checkbox', { name: 'Start 30th Celebration on a fresh page' }).check();
+  await expect(layout.locator('li strong')).toHaveText(['30th Classic Collection', '30th Celebration', 'Mega Evolution Energy']);
   await save.click();
   await expect(progress).toHaveText('1 / 199');
   await expect(ordered).toHaveText('1');
   await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
   await workspace.locator('#master-search').fill('30th Classic Collection');
   const classic = workspace.locator('[data-key="30th-c/001:holo+stamp=30th-anniversary"]');
+  const classicRow = workspace.locator('[data-checklist-row="30th-c/001:holo+stamp=30th-anniversary"]');
+  await expect(classicRow.locator('img')).toHaveAttribute(
+    'src', 'https://tcgplayer-cdn.tcgplayer.com/product/714372_200w.jpg');
+  await classicRow.getByRole('button', { name: /Go to .* binder page/ }).click();
+  await expect(workspace.locator('#master-page-heading')).toHaveText('Page 1');
+  await workspace.locator('#master-page-select').selectOption('2');
+  await expect(workspace.getByText('Blank before next section')).toHaveCount(2);
+  await workspace.locator('#master-page-select').selectOption('3');
+  await expect(workspace.locator(`[data-set-open="${mainKey}"]`)).toHaveAttribute('aria-label', /row 1, column 1/);
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
   await expect(classic).not.toBeChecked();
   await classic.check();
   await expect(progress).toHaveText('2 / 199');
   await expect.poll(() => documents.get('master-sets')?.state.binders.find(b => b.name === 'Anniversary test')).toMatchObject({
-    settings: { includeRelated: true },
+    settings: {
+      includeRelated: true,
+      sectionLayout: [{ id: '30th-c' }, { id: '@extras' }, { id: '30th', newPage: true }, { id: 'mee' }],
+    },
     owned: [mainKey, '30th-c/001:holo+stamp=30th-anniversary'],
     ordered: [orderedKey],
   });
@@ -229,6 +248,7 @@ async function checkAnniversaryExpansion(page, documents) {
   await expect(ordered).toHaveText('1');
   await page.locator('#master-settings').click();
   await full.check();
+  await expect(layout.getByRole('checkbox', { name: 'Start 30th Celebration on a fresh page' })).toBeChecked();
   await save.click();
   await expect(progress).toHaveText('2 / 199');
   await expect(classic).toBeChecked();

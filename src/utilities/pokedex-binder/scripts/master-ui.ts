@@ -5,7 +5,9 @@ import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
 import { createAccountClient } from "../../../../packages/accounts/client";
 import {
+  binderSectionLayout,
   emptyMaster,
+  extraSectionId,
   isCardPocket,
   sameSave,
   markSlot,
@@ -15,6 +17,7 @@ import {
   setSlotStatus,
   validateMaster,
   type MasterState,
+  type SectionPlacement,
   type SetBinder,
   type SetCard,
   type SetSummary,
@@ -24,6 +27,7 @@ import type { MasterStore } from "../lib/master-store";
 import { validateSettings, type CardStatus } from "../lib/model";
 import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
 import { binderCards, binderSetIds, loadBinderCards, relatedSets, setCardKey } from "../lib/binder-catalog";
+import { catalogArtwork } from "../lib/catalog-search";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => node<HTMLInputElement>(id);
@@ -57,6 +61,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("pokedex-set-binders") : null;
   let selectedKey = "", displayedId = "";
   let overviewOpen = false;
+  let sectionSetId = "", sectionLayout: SectionPlacement[] = [];
   const searchInput = input("master-search"), statusSelect = select("master-status");
   const finishSelect = select("master-checklist-finish");
   const checklist = binderChecklist("master-", statusSelect, () => void render().catch(report));
@@ -318,9 +323,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const set = sets.find(s => s.id === b.setId);
     const sourceSet = (slot: typeof all[number]) => slot.sourceSetId ? sets.find(s => s.id === slot.sourceSetId) : set;
     const artwork = (slot: typeof all[number]) => {
-      const source = sourceSet(slot), art = source?.artwork;
-      return art && slot.category !== "Extra" && !art.missing.includes(slot.number)
-        ? "https://assets.tcgdex.net/en/" + [art.series,source.id,slot.number].map(encodeURIComponent).join("/") + "/low.webp" : null;
+      const source = sourceSet(slot);
+      return source && slot.category !== "Extra" ? catalogArtwork(source, slot.number) : null;
     };
     const search = searchInput.value.trim().toLowerCase().replace(/^#/, "");
     const status = statusSelect.value;
@@ -367,7 +371,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       const cells = Array.from({length:capacity},(_,i) => {
         const p = positions.get(i+1);
         if (!p) return blankPocket(i+1, (page-1)*capacity+i < b.settings.leadingBlankPockets ? "Reserved" : "Empty pocket");
-        if (!isCardPocket(p)) return blankPocket(i+1,"Filler after #" + p.number,true);
+        if (!isCardPocket(p)) return "filler" in p ? blankPocket(i+1,"Filler after #" + p.number,true)
+          : blankPocket(i+1,"Blank before next section");
         return cardPocket({set:true,id:p.key,number:p.number && "#" + p.number,name:p.name,finish:finishLabel(p),
           owned:p.owned,ordered:p.ordered,selected:p.key === selectedKey,dimmed:!matches(p),row:p.row,column:p.column,image:artwork(p)});
       });
@@ -448,6 +453,62 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const count = (set?.count ?? 0) + related.reduce((total, entry) =>
       total + (entry.numbers?.length ?? sets.find(s => s.id === entry.setId)?.count ?? 0), 0);
     node("master-related-label").textContent = `Include the full checklist (${count} distinct cards)`;
+    if (set && sectionSetId !== set.id) {
+      sectionSetId = set.id;
+      sectionLayout = binderSectionLayout(set.id);
+      input("master-related").checked = false;
+    }
+    renderSectionLayout();
+  }
+  function renderSectionLayout(focusId?: string, direction?: number) {
+    const set = chosenSet();
+    const fieldset = node("master-section-layout");
+    fieldset.hidden = !set || !relatedSets(set.id).length || !input("master-related").checked;
+    const list = node("master-section-order");
+    list.replaceChildren();
+    if (fieldset.hidden) return;
+    const extras = state.binders.find(b => b.id === editing)?.extras.length;
+    const visible = sectionLayout.filter(section => section.id !== extraSectionId || extras);
+    visible.forEach((section, index) => {
+      const name = section.id === extraSectionId ? "Custom extras" : sets.find(item => item.id === section.id)?.name ?? section.id;
+      const row = document.createElement("li"), heading = document.createElement("strong");
+      heading.textContent = name;
+      const actions = document.createElement("div");
+      actions.className = "dex-section-move";
+      for (const step of [-1, 1]) {
+        const target = visible[index + step];
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = step === -1 ? "↑" : "↓";
+        button.title = `Move ${name} ${step === -1 ? "up" : "down"}`;
+        button.setAttribute("aria-label", button.title);
+        button.disabled = !target;
+        button.onclick = () => {
+          if (!target) return;
+          const from = sectionLayout.indexOf(section), to = sectionLayout.indexOf(target);
+          [sectionLayout[from], sectionLayout[to]] = [sectionLayout[to], sectionLayout[from]];
+          renderSectionLayout(section.id, step);
+        };
+        actions.append(button);
+      }
+      const label = document.createElement("label"), box = document.createElement("input");
+      label.className = "dex-dialog-checkbox";
+      box.type = "checkbox";
+      box.checked = section.newPage === true;
+      box.setAttribute("aria-label", `Start ${name} on a fresh page`);
+      box.onchange = () => {
+        if (box.checked) section.newPage = true;
+        else delete section.newPage;
+      };
+      label.append(box, "Start on a fresh page");
+      row.append(heading, actions, label);
+      list.append(row);
+      if (section.id === focusId) {
+        const preferred = actions.children[direction === -1 ? 0 : 1] as HTMLButtonElement;
+        (preferred.disabled ? actions.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box : preferred)
+          .focus({ preventScroll: true });
+      }
+    });
   }
   async function openEditor(b?: SetBinder) {
     if (!sets.length) sets = await json("index");
@@ -460,6 +521,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     input("master-set").value = set ? label(set) : "";
     input("master-set").disabled = !!b;
     input("master-related").checked = model.settings.includeRelated === true;
+    sectionSetId = model.setId;
+    sectionLayout = binderSectionLayout(model.setId, model.settings.sectionLayout).map(section => ({ ...section }));
     showRelatedOption();
     input("master-name").value = model.name;
     select("master-goal").value = model.goal;
@@ -502,6 +565,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     });
     if (input("master-fillers").checked) settings.fillerThrough = input("master-filler-through").valueAsNumber;
     if (input("master-related").checked && relatedSets(set.id).length) settings.includeRelated = true;
+    if (relatedSets(set.id).length && !sameSave(sectionLayout, binderSectionLayout(set.id))) {
+      settings.sectionLayout = sectionLayout.map(section => ({ ...section }));
+    }
     const spec = Array.from(node("master-specialties").querySelectorAll("details")).flatMap((group) => {
       const [bulk, ...individual] = group.querySelectorAll<HTMLInputElement>("input");
       return bulk.checked ? [bulk.value] : individual.filter((box) => box.checked).map((box) => box.value);
@@ -535,6 +601,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("first-set", "click", () => openEditor());
   listen("master-settings", "click", () => openEditor(active()));
   listen("master-fillers", "change", showFillerCutoff);
+  listen("master-related", "change", () => renderSectionLayout());
   listen("master-set", "input", () => {
     showRelatedOption();
     input("master-filler-through").value = String(chosenSet()?.printedTotal ?? "");

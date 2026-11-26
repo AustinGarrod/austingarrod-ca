@@ -16,6 +16,7 @@ import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
 import { binderViews } from "./binder-views";
 import { createCatalogSearch } from "./catalog-search";
+import { catalogArtwork } from "../lib/catalog-search";
 import type { TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
 
@@ -343,7 +344,8 @@ async function initialize() {
     list.innerHTML = cards.map(card => {
       const set = catalog.sets[card.setId];
       const heading = previous !== card.setId ? `<div class="dex-set-heading"><span>${escape(set?.name ?? "Unknown set")}</span><code>${escape(set?.code ?? "Code not provided")}</code></div>` : ""; previous = card.setId;
-      const image = card.image && /^https:\/\/assets\.tcgdex\.net\//.test(card.image) ? card.image : null;
+      const image = catalogArtwork({ id: card.setId }, card.number)
+        ?? (card.image?.startsWith("https://assets.tcgdex.net/") ? card.image : null);
       const highImage = image?.replace(/\/low\.webp$/, "/high.webp");
       return `${heading}<article class="dex-card-printing">${image ? `<a href="${escape(highImage)}" target="_blank" rel="noopener noreferrer" aria-label="View ${escape(card.name)} ${escape(card.number)} card artwork"><img src="${escape(image)}" alt="${escape(card.name)} card" width="58" height="81" loading="lazy" /></a>` : ""}<div><p class="dex-card-title">${escape(card.name)}</p><p>Collector #${escape(card.number)}</p><small>${escape(card.rarity ?? "Rarity not provided")}</small><small>${escape(set?.releaseDate ?? "Release date not provided")}</small>
         <button type="button" data-printing-prices="${escape(card.id)}" aria-haspopup="dialog">Prices and offers</button></div></article>`;
