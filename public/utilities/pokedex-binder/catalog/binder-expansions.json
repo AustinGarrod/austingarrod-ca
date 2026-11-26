@@ -1,0 +1,19 @@
+{
+  "30th": [
+    { "setId": "30th-c" },
+    {
+      "setId": "mee",
+      "numbers": ["009", "010", "011", "012", "013", "014", "015", "016"],
+      "variantId": "holo+stamp=30th-anniversary"
+    }
+  ],
+  "cel25": [{ "setId": "cel25cc" }],
+  "ex10": [{ "setId": "exu" }],
+  "sm115": [{ "setId": "sma" }],
+  "swsh4.5": [{ "setId": "swsh4.5sv" }],
+  "swsh9": [{ "setId": "swsh9tg" }],
+  "swsh10": [{ "setId": "swsh10tg" }],
+  "swsh11": [{ "setId": "swsh11tg" }],
+  "swsh12": [{ "setId": "swsh12tg" }],
+  "swsh12.5": [{ "setId": "swsh12.5gg" }]
+}

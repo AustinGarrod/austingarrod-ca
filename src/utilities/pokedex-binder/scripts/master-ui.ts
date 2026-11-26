@@ -23,6 +23,7 @@ import type { BinderAccountState } from "../lib/accounts";
 import type { MasterStore } from "../lib/master-store";
 import { validateSettings, type CardStatus } from "../lib/model";
 import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
+import { binderCards, binderSetIds, loadBinderCards, relatedSets, setCardKey } from "../lib/binder-catalog";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => node<HTMLInputElement>(id);
@@ -91,6 +92,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       );
     return pending.get(setId)!;
   }
+  const cachedBinderCards = (binder: SetBinder) => binderCards(binder, setId => cache.get(setId) ?? []);
+  const binderCardsReady = (binder: SetBinder) => binderSetIds(binder).every(setId => cache.has(setId));
+  const loadChecklist = (binder: SetBinder) => loadBinderCards(binder, cards);
   let timer: ReturnType<typeof setTimeout>;
   function schedule(delay = 350) {
     clearTimeout(timer);
@@ -156,7 +160,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     await render();
   }
   function progress(b: SetBinder) {
-    const pockets = setPockets(b, cache.get(b.setId) ?? []),
+    const pockets = setPockets(b, cachedBinderCards(b)),
       all = pockets.filter(isCardPocket),
       required = all.filter((s) => s.required);
     return { pockets, all, required, owned: required.filter(s => s.owned).length, ordered: required.filter(s => s.ordered).length };
@@ -196,24 +200,24 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       if (row) overviewRows.push(row);
       if (row) {
         if (!b.owned.length) row.value = valueBinder(b);
-        else void marketPrices(b.setId).then(prices => {
-          if (ticket !== renderVersion) return;
-          row.value = valueBinder(b, prices);
-          scheduleOverviewUpdate();
-        }).catch(() => {
-          if (ticket !== renderVersion) return;
-          row.value = valueBinder(b);
-          scheduleOverviewUpdate();
-        });
+        else {
+          const ids = binderSetIds(b).filter(id => id === b.setId || b.owned.some(key => key.startsWith(id + "/")));
+          void Promise.all(ids.map(async id => [id, await marketPrices(id).catch(() => undefined)] as const)).then(values => {
+            if (ticket !== renderVersion) return;
+            const markets = new Map(values);
+            row.value = valueBinder(b, markets.get(b.setId), markets);
+            scheduleOverviewUpdate();
+          });
+        }
       }
       const updateProgress = () => {
         const { owned, ordered, required } = progress(b);
         option.text = b.name + " · " + owned + "/" + required.length;
         if (row) row.progress = { status: "ready", owned, ordered, required: required.length };
       };
-      if (cache.has(b.setId)) updateProgress();
+      if (binderCardsReady(b)) updateProgress();
       else {
-        void cards(b.setId).then(() => {
+        void loadChecklist(b).then(() => {
           if (ticket !== renderVersion) return;
           updateProgress();
           if (row) scheduleOverviewUpdate();
@@ -268,17 +272,17 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("scan-open").hidden = !showDex;
     node("master-settings").hidden = !b;
     node("master-scan").hidden = !b;
-    node<HTMLButtonElement>("master-scan").disabled = !!b && !cache.has(b.setId);
+    node<HTMLButtonElement>("master-scan").disabled = !!b && !binderCardsReady(b);
     if (!b) {
       if (openingNational) renderNationalView();
       return;
     }
-    if (!cache.has(b.setId)) {
+    if (!binderCardsReady(b)) {
       node("master-title").textContent = b.name;
       node("master-binder-grid").replaceChildren();
       node("master-workspace").hidden = true;
       try {
-        await cards(b.setId);
+        await loadChecklist(b);
       } catch {
         if (ticket === renderVersion) {
           node("master-message").textContent = "Checklist could not load. Choose the binder again to retry.";
@@ -301,7 +305,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     bar.max = required.length || 1;
     bar.value = owned;
     const missingFinishes =
-      b.goal === "variants" ? b.owned.filter((k) => k.endsWith(":*") && !all.some((s) => s.key === k)) : [];
+      b.goal === "variants" ? b.owned.filter(k => k.endsWith(":*") && (b.settings.includeRelated || !k.includes("/"))
+        && !all.some(s => s.key === k)) : [];
     if (missingFinishes.length)
       node("master-message").textContent =
         "Choose the finish for " +
@@ -311,21 +316,23 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-ordered").textContent = String(ordered);
     node("master-missing").textContent = String(required.length - owned - ordered);
     const set = sets.find(s => s.id === b.setId);
+    const sourceSet = (slot: typeof all[number]) => slot.sourceSetId ? sets.find(s => s.id === slot.sourceSetId) : set;
     const artwork = (slot: typeof all[number]) => {
-      const art = set?.artwork;
+      const source = sourceSet(slot), art = source?.artwork;
       return art && slot.category !== "Extra" && !art.missing.includes(slot.number)
-        ? "https://assets.tcgdex.net/en/" + [art.series,b.setId,slot.number].map(encodeURIComponent).join("/") + "/low.webp" : null;
+        ? "https://assets.tcgdex.net/en/" + [art.series,source.id,slot.number].map(encodeURIComponent).join("/") + "/low.webp" : null;
     };
     const search = searchInput.value.trim().toLowerCase().replace(/^#/, "");
     const status = statusSelect.value;
     const matches = (s: typeof all[number]) => (status === "all" || status === s.status) &&
-      [s.name,s.number,s.finish].some(value => value.toLowerCase().includes(search));
+      [s.name,s.number,s.finish,sourceSet(s)?.name ?? ""].some(value => value.toLowerCase().includes(search));
     const filtered = all.filter(matches);
     const count = Math.max(1,pockets.at(-1)?.page ?? 1);
     page = Math.min(count, Math.max(1,page));
     const selected = all.find(s => s.key === selectedKey);
     const place = (s: typeof all[number]) => `Page ${s.page} · Row ${s.row} · Column ${s.column}`;
-    const identity = (s: typeof all[number]) => [s.number && "#" + s.number,s.name,s.finish].filter(Boolean).join(" · ");
+    const finishLabel = (s: typeof all[number]) => [s.finish, s.sourceSetId && sourceSet(s)?.name, !s.required && "Optional"].filter(Boolean).join(" · ");
+    const identity = (s: typeof all[number]) => [s.number && "#" + s.number,s.name,finishLabel(s)].filter(Boolean).join(" · ");
     const jump = (s: typeof all[number]) => `<button data-set-jump="${escape(s.key)}" aria-label="View page for ${escape(identity(s))}">View page</button>`;
     const image = (s: typeof all[number]) => artwork(s) ? `<img loading="lazy" alt="" src="${escape(artwork(s))}">` : "";
     const results = node("master-results");
@@ -346,7 +353,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       node("master-checklist-clear-filters").hidden = !searchInput.value && status === "all" && !finish;
       checklist.render(sortSetChecklist(rows, checklist.sort.value as SetChecklistSort), slot => ({
         ...slot, number: slot.number && "#" + slot.number, image: artwork(slot), actionLabel: identity(slot),
-        detail: slot.finish + (slot.required ? "" : " · Optional"),
+        detail: finishLabel(slot),
       }));
     } else {
       node("master-list").replaceChildren();
@@ -361,7 +368,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         const p = positions.get(i+1);
         if (!p) return blankPocket(i+1, (page-1)*capacity+i < b.settings.leadingBlankPockets ? "Reserved" : "Empty pocket");
         if (!isCardPocket(p)) return blankPocket(i+1,"Filler after #" + p.number,true);
-        return cardPocket({set:true,id:p.key,number:p.number && "#" + p.number,name:p.name,finish:p.finish + (p.required ? "" : " · Optional"),
+        return cardPocket({set:true,id:p.key,number:p.number && "#" + p.number,name:p.name,finish:finishLabel(p),
           owned:p.owned,ordered:p.ordered,selected:p.key === selectedKey,dimmed:!matches(p),row:p.row,column:p.column,image:artwork(p)});
       });
       drawPages(page,count,b.settings,counts,cells);
@@ -371,7 +378,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const detail = node("master-pokemon-details");
     detail.hidden = !selected || listView;
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
-    detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(set?.code || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(selected.finish)}</p></div></div>
+    detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(sourceSet(selected)?.code || selected.sourceSetId || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(finishLabel(selected))}</p></div></div>
       <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
       <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label><div class="dex-actions">${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}
       ${selected.category === "Extra" ? "" : '<button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button>'}</div></div>`;
@@ -434,6 +441,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-filler-options").hidden = !enabled;
     input("master-filler-through").disabled = !enabled;
   }
+  function showRelatedOption() {
+    const set = chosenSet();
+    const related = set ? relatedSets(set.id) : [];
+    node("master-related-option").hidden = !related.length;
+    const count = (set?.count ?? 0) + related.reduce((total, entry) =>
+      total + (entry.numbers?.length ?? sets.find(s => s.id === entry.setId)?.count ?? 0), 0);
+    node("master-related-label").textContent = `Include the full checklist (${count} distinct cards)`;
+  }
   async function openEditor(b?: SetBinder) {
     if (!sets.length) sets = await json("index");
     const options = sets.map((s) => new Option(label(s)));
@@ -444,6 +459,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const set = sets.find((s) => s.id === b?.setId);
     input("master-set").value = set ? label(set) : "";
     input("master-set").disabled = !!b;
+    input("master-related").checked = model.settings.includeRelated === true;
+    showRelatedOption();
     input("master-name").value = model.name;
     select("master-goal").value = model.goal;
     select("master-order").value = model.order;
@@ -484,6 +501,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       useBackSides: input("master-backs").checked,
     });
     if (input("master-fillers").checked) settings.fillerThrough = input("master-filler-through").valueAsNumber;
+    if (input("master-related").checked && relatedSets(set.id).length) settings.includeRelated = true;
     const spec = Array.from(node("master-specialties").querySelectorAll("details")).flatMap((group) => {
       const [bulk, ...individual] = group.querySelectorAll<HTMLInputElement>("input");
       return bulk.checked ? [bulk.value] : individual.filter((box) => box.checked).map((box) => box.value);
@@ -518,6 +536,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-settings", "click", () => openEditor(active()));
   listen("master-fillers", "change", showFillerCutoff);
   listen("master-set", "input", () => {
+    showRelatedOption();
     input("master-filler-through").value = String(chosenSet()?.printedTotal ?? "");
     return specialties();
   });
@@ -564,8 +583,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   node("master-workspace").addEventListener("click", async event => {
     const element = event.target as Element;
     if (element.closest("#set-card-prices")) {
-      const binder = active(), set = sets.find(item => item.id === binder?.setId);
+      const binder = active();
       const printing = binder && progress(binder).all.find(slot => slot.key === selectedKey);
+      const set = sets.find(item => item.id === (printing?.sourceSetId ?? binder?.setId));
       if (set && printing && printing.category !== "Extra") pricing.openPrinting({
         setId: set.id, setName: set.name, number: printing.number, name: printing.name, finish: printing.finish,
         variant: printing.key.slice(printing.key.indexOf(":") + 1),
@@ -636,7 +656,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       mark(key) {
         if (!current()) throw new Error("Reopen the scanner for this binder.");
         return edit(b => {
-          if (!setSlots(b, cache.get(b.setId) ?? []).some(s => s.key === key)) throw new Error("Printing changed.");
+          if (!setSlots(b, cachedBinderCards(b)).some(s => s.key === key)) throw new Error("Printing changed.");
           markSlot(b,key,true);
         });
       },
@@ -704,10 +724,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       const binders = binderId === null ? saved.binders : saved.binders.filter(b => b.id === binderId);
       if (binderId && !binders.length) throw new Error("The selected binder has changed. Choose it again.");
       const lists = await Promise.all(binders.map(async b => {
-        const catalog = await cards(b.setId);
+        const catalog = await loadChecklist(b);
         const set = sets.find(s => s.id === b.setId);
-        return { name: b.name, setName: set?.name ?? b.setId, settings: b.settings,
-          rows: setSlots(b, catalog).filter(slot => slot.status === status) };
+        const setName = set?.name ?? b.setId;
+        const rows = setSlots(b, catalog).filter(slot => slot.status === status).map(slot => {
+          if (!b.settings.includeRelated) return slot;
+          return { ...slot, setName: slot.sourceSetId ? sets.find(s => s.id === slot.sourceSetId)?.name ?? slot.sourceSetId : setName };
+        });
+        return { name: b.name, setName, settings: b.settings, rows };
       }));
       if (version !== accountVersion) throw new Error("The account changed. Request the list again.");
       return lists;
@@ -721,16 +745,17 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       for (const b of next.binders) {
         if (!index.some((s) => s.id === b.setId))
           throw new Error("This backup references a set outside the installed catalog.");
-        const entries = await cards(b.setId),
+        const entries = await loadBinderCards(b, cards, true),
           keys = new Set(b.extras.map((e) => "extra:" + e.id)),
           special = new Set<string>();
         for (const c of entries) {
-          keys.add(c.number + ":*");
+          const prefix = setCardKey(c) + ":";
+          keys.add(prefix + "*");
           for (const v of c.variants) {
-            keys.add(c.number + ":" + v.id);
+            keys.add(prefix + v.id);
             if (v.specialty) {
               special.add(v.id);
-              special.add(c.number + ":" + v.id);
+              special.add(prefix + v.id);
             }
           }
         }

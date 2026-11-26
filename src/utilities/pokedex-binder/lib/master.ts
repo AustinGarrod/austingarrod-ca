@@ -1,4 +1,5 @@
 import { setListCsv } from "./list-export";
+import { relatedSets, setCardKey } from "./binder-catalog";
 import { DEFAULT_SETTINGS, cardStatus, locationFor, record, validateSettings, type BinderSettings, type CardStatus, type PocketLocation } from "./model";
 
 export interface Variant {
@@ -7,6 +8,7 @@ export interface Variant {
   specialty: boolean;
 }
 export interface SetCard {
+  sourceSetId?: string;
   number: string;
   name: string;
   category: string;
@@ -32,7 +34,7 @@ export interface SetBinder {
   name: string;
   goal: "numbers" | "variants";
   order: "together" | "sections";
-  settings: BinderSettings & { fillerThrough?: number };
+  settings: BinderSettings & { fillerThrough?: number; includeRelated?: true };
   specialties: string[];
   owned: string[];
   ordered?: string[];
@@ -124,6 +126,10 @@ export function validateMaster(value: unknown): MasterState {
       keys.push("fillerThrough");
       if (!Number.isSafeInteger(b.settings.fillerThrough) || Number(b.settings.fillerThrough) < 1) throw bad();
     }
+    if (Object.hasOwn(b.settings, "includeRelated")) {
+      keys.push("includeRelated");
+      if (b.settings.includeRelated !== true || !relatedSets(b.setId).length) throw bad();
+    }
     if (!fields(b.settings, keys)) throw bad();
     validateSettings(b.settings);
     const extras = new Set<string>();
@@ -150,6 +156,7 @@ export function validateMaster(value: unknown): MasterState {
 }
 
 export interface Slot {
+  sourceSetId?: string;
   key: string;
   name: string;
   number: string;
@@ -171,11 +178,12 @@ export function isCardPocket(pocket: SetPocket): pocket is Slot & PocketLocation
 export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
   const marks = new Set(b.owned), orders = new Set(b.ordered),
     main: (Slot | Filler)[] = [],
-    parallel: Slot[] = [];
+    parallel: Slot[] = [], related: Slot[] = [];
   for (const card of cards) {
-    const prefix = card.number + ":";
+    const prefix = setCardKey(card) + ":";
+    const singleRelatedPrinting = card.sourceSetId && card.variants.length === 1;
     const variants = card.variants.filter(
-      (v) => !v.specialty || b.specialties.includes(v.id) || b.specialties.includes(card.number + ":" + v.id),
+      (v) => singleRelatedPrinting || !v.specialty || b.specialties.includes(v.id) || b.specialties.includes(prefix + v.id),
     );
     const any = b.goal === "numbers" || !variants.length;
     const items = any ? [{ id: "*", label: "Any finish" }] : variants;
@@ -183,8 +191,10 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
       const key = prefix + v.id;
       const has = (keys: Set<string>) => keys.has(key) || (any && card.variants.some(item => keys.has(prefix + item.id)));
       const owned = has(marks), ordered = !owned && has(orders);
-      (i && b.order === "sections" ? parallel : main).push({
+      const section = card.sourceSetId ? related : i && b.order === "sections" ? parallel : main;
+      section.push({
         key,
+        ...(card.sourceSetId && { sourceSetId: card.sourceSetId }),
         number: card.number,
         name: card.name,
         category: card.category,
@@ -196,7 +206,7 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
       });
     });
     if (
-      b.settings.fillerThrough && variants.length <= 1 &&
+      !card.sourceSetId && b.settings.fillerThrough && variants.length <= 1 &&
       /^\d+$/.test(card.number) && Number(card.number) >= 1 && Number(card.number) <= b.settings.fillerThrough
     ) main.push({ filler: true, number: card.number });
   }
@@ -206,7 +216,7 @@ export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
     return { key, name: e.name, number: e.number, finish: "Custom extra", category: "Extra",
       owned, ordered, status: cardStatus(owned, ordered), required: e.required };
   });
-  return [...main, ...parallel, ...extras].map((slot, i) => ({ ...slot, ...locationFor(i + 1, b.settings) }));
+  return [...main, ...parallel, ...extras, ...related].map((slot, i) => ({ ...slot, ...locationFor(i + 1, b.settings) }));
 }
 
 export function setSlots(b: SetBinder, cards: SetCard[]) {

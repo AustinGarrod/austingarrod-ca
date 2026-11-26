@@ -186,6 +186,54 @@ async function checkSetOverview(page, width) {
   await overview.screenshot({ path: `output/pokedex-checklist/overview-${width}.png` });
 }
 
+async function checkAnniversaryExpansion(page, documents) {
+  const save = page.getByRole('button', { name: 'Save binder' });
+  const progress = page.locator('#master-progress');
+  const ordered = page.locator('#master-ordered');
+  const mainKey = '001:*';
+  const orderedKey = '002:*';
+  await page.locator('#master-new').click();
+  await page.locator('#master-set').fill('30th');
+  await page.locator('#master-name').fill('Anniversary test');
+  const full = page.getByRole('checkbox', { name: 'Include the full checklist (199 distinct cards)' });
+  await expect(full).toBeVisible();
+  await expect(full).not.toBeChecked();
+  await save.click();
+  await expect(progress).toHaveText('0 / 161');
+  const workspace = page.locator('#master-workspace');
+  await workspace.getByRole('button', { name: 'Binder', exact: true }).click();
+  await workspace.locator(`[data-key="${mainKey}"]`).check();
+  await workspace.locator(`[data-set-open="${orderedKey}"]`).click();
+  await workspace.getByRole('button', { name: 'Mark ordered', exact: true }).click();
+  await expect(ordered).toHaveText('1');
+  await page.locator('#master-settings').click();
+  await full.check();
+  await save.click();
+  await expect(progress).toHaveText('1 / 199');
+  await expect(ordered).toHaveText('1');
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
+  await workspace.locator('#master-search').fill('30th Classic Collection');
+  const classic = workspace.locator('[data-key="30th-c/001:holo+stamp=30th-anniversary"]');
+  await expect(classic).not.toBeChecked();
+  await classic.check();
+  await expect(progress).toHaveText('2 / 199');
+  await expect.poll(() => documents.get('master-sets')?.state.binders.find(b => b.name === 'Anniversary test')).toMatchObject({
+    settings: { includeRelated: true },
+    owned: [mainKey, '30th-c/001:holo+stamp=30th-anniversary'],
+    ordered: [orderedKey],
+  });
+  await page.locator('#master-settings').click();
+  await full.uncheck();
+  await save.click();
+  await expect(progress).toHaveText('1 / 161');
+  await expect(ordered).toHaveText('1');
+  await page.locator('#master-settings').click();
+  await full.check();
+  await save.click();
+  await expect(progress).toHaveText('2 / 199');
+  await expect(classic).toBeChecked();
+}
+
 try {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
@@ -360,6 +408,7 @@ try {
     await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
     await checkSetChecklist(page, width);
     await checkSetOverview(page, width);
+    await checkAnniversaryExpansion(page, documents);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Passed National and set binder checklists, navigation, and set overview totals at ${width}px`);

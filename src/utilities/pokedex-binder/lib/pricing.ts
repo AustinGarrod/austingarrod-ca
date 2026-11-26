@@ -1,6 +1,7 @@
 import { setSlots, type SetBinder, type SetCard, type SetSummary } from "./master";
 import { normalizeSearch } from "./model";
 import { numberKey } from "./transfer-identity";
+import { binderSetIds } from "./binder-catalog";
 
 export interface PricingTarget {
   setId: string;
@@ -41,17 +42,26 @@ export const calendarDate = (date: string) => new Intl.DateTimeFormat("en-CA", {
 }).format(new Date(date));
 export const offerLifetime = 10 * 60_000;
 
-export function valueBinder(binder: SetBinder, market?: MarketSet): BinderValue {
-  const exact = new Set(binder.owned.filter(key => !key.startsWith("extra:") && !key.endsWith(":*")));
+export function valueBinder(binder: SetBinder, market?: MarketSet, markets?: ReadonlyMap<string, MarketSet | undefined>): BinderValue {
+  const ids = binderSetIds(binder);
+  const related = ids.slice(1);
+  const marks = binder.owned.filter(key => !key.slice(0, key.indexOf(":")).includes("/") || related.some(id => key.startsWith(id + "/")));
+  const exact = new Set(marks.filter(key => !key.startsWith("extra:") && !key.endsWith(":*")));
   const identifiedNumbers = new Set([...exact].map(key => key.slice(0, key.indexOf(":"))));
-  const collected = binder.owned.filter(key => !key.endsWith(":*") || !identifiedNumbers.has(key.slice(0, -2))).length;
+  const collected = marks.filter(key => !key.endsWith(":*") || !identifiedNumbers.has(key.slice(0, -2))).length;
   let cents = 0, priced = 0;
-  for (const row of market?.prices ?? []) {
-    if (!exact.delete(row.number + ":" + row.variant)) continue;
-    cents += row.cents;
-    priced++;
+  let asOf = market?.asOf ?? null;
+  for (const id of ids) {
+    const source = id === binder.setId ? market : markets?.get(id);
+    const prefix = id === binder.setId ? "" : id + "/";
+    for (const row of source?.prices ?? []) {
+      if (!exact.delete(prefix + row.number + ":" + row.variant)) continue;
+      cents += row.cents;
+      priced++;
+    }
+    if (source?.asOf && (!asOf || source.asOf < asOf)) asOf = source.asOf;
   }
-  return { cents, priced, collected, asOf: market?.asOf ?? null };
+  return { cents, priced, collected, asOf };
 }
 
 export function sumBinderValues(values: readonly BinderValue[]): BinderValue {
@@ -64,10 +74,12 @@ export function sumBinderValues(values: readonly BinderValue[]): BinderValue {
 }
 
 export interface BuyingEntry { target: PricingTarget; copies: number }
-export function missingPrintings(binder: SetBinder, set: SetSummary, cards: SetCard[]): PricingTarget[] {
+export function missingPrintings(binder: SetBinder, set: SetSummary, cards: SetCard[], sets?: ReadonlyMap<string, SetSummary>): PricingTarget[] {
   return setSlots(binder, cards).flatMap(slot => {
     if (!slot.required || slot.status !== "missing" || slot.key.startsWith("extra:")) return [];
-    return [{ setId: set.id, setName: set.name, number: slot.number, name: slot.name,
+    const source = slot.sourceSetId ? sets?.get(slot.sourceSetId) : set;
+    if (!source) return [];
+    return [{ setId: source.id, setName: source.name, number: slot.number, name: slot.name,
       variant: slot.key.slice(slot.key.indexOf(":") + 1), finish: slot.finish }];
   });
 }

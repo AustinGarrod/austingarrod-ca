@@ -1,9 +1,10 @@
 import type { Slot } from "./master";
+import { setCardKey } from "./binder-catalog";
 import { normalizeSearch } from "./model";
 import type { ScanLine } from "./scan-model";
 
 export function scanCardId(slot: Slot) {
-  return slot.key.startsWith("extra:") ? slot.key : slot.number;
+  return slot.key.startsWith("extra:") ? slot.key : setCardKey(slot);
 }
 const collectorNumber = (value: string) => value.toLowerCase().replace(/^([a-z]*)0+(?=\d)/, "$1");
 

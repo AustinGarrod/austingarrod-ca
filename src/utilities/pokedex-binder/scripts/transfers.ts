@@ -146,7 +146,7 @@ export function createTransfers(options: Options) {
   function drawRows() {
     const data = review!;
     const ownedDex = new Set(data.beforeDex.ownedDexIds);
-    const ownedByBinder = new Map(data.beforeSets.binders.map(binder => [binder.id, new Set(binder.owned)]));
+    const binders = new Map(data.beforeSets.binders.map(binder => [binder.id, binder]));
     const rows = data.rows.filter(row => {
       if (filter.value === "review") return !!row.choices;
       if (filter.value === "skipped") {
@@ -164,8 +164,8 @@ export function createTransfers(options: Options) {
         if (!current) { detail.textContent = row.reason ?? "Skipped"; return; }
         const ids = data.forDex ? data.ids(current) : [];
         if (data.forDex && !ids.length) { detail.textContent = "No mapped Pokémon species"; return; }
-        const target = destinations.get(current.set.id) ?? "";
-        const alreadyOwned = data.forDex ? ids.every(id => ownedDex.has(id)) : ownedByBinder.get(target)?.has(markKey(current));
+        const target = binders.get(destinations.get(current.set.id) ?? "");
+        const alreadyOwned = data.forDex ? ids.every(id => ownedDex.has(id)) : target?.owned.includes(markKey(current, target));
         detail.textContent = `${alreadyOwned ? "Already owned" : "Matched"} · ${current.set.name} #${current.card.number} · ${current.card.name}${current.variant ? ` · ${current.variant.label}` : ""}`;
       }
       updateDetail(match);
@@ -209,7 +209,7 @@ export function createTransfers(options: Options) {
         if (selected) destinations.set(group.set.id, selected);
         const destination = group.options.find(binder => binder.id === selected);
         const countOwned = new Set(destination?.owned);
-        const owned = group.marks.filter(mark => countOwned.has(markKey(mark))).length;
+        const owned = group.marks.filter(mark => countOwned.has(markKey(mark, destination))).length;
         already += owned;
         added += group.marks.length - owned;
         const field = document.createElement("p");

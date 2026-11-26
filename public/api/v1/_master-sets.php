@@ -12,6 +12,39 @@ function master_cards(string $root, string $id, array $index): array
     return json_decode(file_get_contents($root.'/utilities/pokedex-binder/catalog/master-sets/'.$id.'.json'), false, 32, JSON_THROW_ON_ERROR);
 }
 
+function master_related_sets(string $root, string $id): array
+{
+    static $catalogs = [];
+    if (!isset($catalogs[$root])) {
+        $path = $root.'/utilities/pokedex-binder/catalog/binder-expansions.json';
+        $catalogs[$root] = is_file($path) ? json_decode(file_get_contents($path), true, 16, JSON_THROW_ON_ERROR) : [];
+    }
+    return $catalogs[$root][$id] ?? [];
+}
+
+function master_binder_cards(string $root, string $id, array $index, bool $includeRelated): array
+{
+    $cards = master_cards($root, $id, $index);
+    if (!$includeRelated) return $cards;
+    foreach (master_related_sets($root, $id) as $group) {
+        foreach (master_cards($root, $group['setId'], $index) as $card) {
+            if (isset($group['numbers']) && !in_array($card->number, $group['numbers'], true)) continue;
+            if (isset($group['variantId'])) {
+                $card->variants = array_values(array_filter($card->variants, fn($v) => $v->id === $group['variantId']));
+            }
+            if (!$card->variants) continue;
+            $card->sourceSetId = $group['setId'];
+            $cards[] = $card;
+        }
+    }
+    return $cards;
+}
+
+function master_card_prefix(stdClass $card): string
+{
+    return (isset($card->sourceSetId) ? $card->sourceSetId.'/' : '').$card->number.':';
+}
+
 function master_strings(mixed $list, int $max): bool
 {
     if (!is_array($list)) return false;
@@ -36,19 +69,22 @@ function master_validate(mixed $state, string $root): void
             || (property_exists($b,'ordered') && (!master_strings($b->ordered,256) || array_intersect($b->owned,$b->ordered)))) accounts_invalid();
         $ids[$b->id] = true;
         $s = $b->settings;
-        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough'])
+        if (!accounts_fields($s,['columns','rows','useBackSides','leadingBlankPockets'], ['fillerThrough','includeRelated'])
             || (property_exists($s,'fillerThrough') && (!is_int($s->fillerThrough) || $s->fillerThrough < 1 || $s->fillerThrough > 9007199254740991))
+            || (property_exists($s,'includeRelated') && ($s->includeRelated !== true || !master_related_sets($root,$b->setId)))
             || !is_int($s->columns) || $s->columns < 1 || $s->columns > 6 || !is_int($s->rows) || $s->rows < 1 || $s->rows > 6
             || !is_bool($s->useBackSides) || !is_int($s->leadingBlankPockets) || $s->leadingBlankPockets < 0 || $s->leadingBlankPockets > 1000) accounts_invalid();
         if (!isset($known[$b->setId])) {
             $keys = []; $specialties = [];
-            foreach (master_cards($root,$b->setId,$index) as $card) {
-                $keys[$card->number.':*'] = true;
+            // A disabled checklist can still contain saved marks from its related sets.
+            foreach (master_binder_cards($root,$b->setId,$index,true) as $card) {
+                $prefix = master_card_prefix($card);
+                $keys[$prefix.'*'] = true;
                 foreach ($card->variants as $v) {
-                    $keys[$card->number.':'.$v->id] = true;
+                    $keys[$prefix.$v->id] = true;
                     if ($v->specialty) {
                         $specialties[$v->id] = true;
-                        $specialties[$card->number.':'.$v->id] = true;
+                        $specialties[$prefix.$v->id] = true;
                     }
                 }
             }
@@ -73,11 +109,12 @@ function binder_card_status(bool $owned, bool $ordered): string
 
 function master_slots(stdClass $b, array $cards): array
 {
-    $main = []; $parallel = []; $owned = array_fill_keys($b->owned,true);
+    $main = []; $parallel = []; $related = []; $owned = array_fill_keys($b->owned,true);
     $ordered = array_fill_keys($b->ordered ?? [],true);
     foreach ($cards as $card) {
-        $prefix = $card->number.':';
-        $variants = array_values(array_filter($card->variants,fn($v)=>!$v->specialty || in_array($v->id,$b->specialties,true) || in_array($prefix.$v->id,$b->specialties,true)));
+        $prefix = master_card_prefix($card);
+        $singleRelatedPrinting = isset($card->sourceSetId) && count($card->variants) === 1;
+        $variants = array_values(array_filter($card->variants,fn($v)=>$singleRelatedPrinting || !$v->specialty || in_array($v->id,$b->specialties,true) || in_array($prefix.$v->id,$b->specialties,true)));
         $singleFinish = count($variants) <= 1;
         $any = $b->goal === 'numbers' || !$variants;
         if ($any) $variants = [(object)['id'=>'*','label'=>'Any finish']];
@@ -88,10 +125,13 @@ function master_slots(stdClass $b, array $cards): array
             $pending = !$present && $has($ordered);
             $slot = ['key'=>$key,'number'=>$card->number,'name'=>$card->name,'category'=>$card->category,'finish'=>$v->label,
                 'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>true];
-            if ($i && $b->order === 'sections') $parallel[] = $slot;
+            if (isset($card->sourceSetId)) {
+                $slot['sourceSetId'] = $card->sourceSetId;
+                $related[] = $slot;
+            } elseif ($i && $b->order === 'sections') $parallel[] = $slot;
             else $main[] = $slot;
         }
-        if (isset($b->settings->fillerThrough) && $singleFinish && preg_match('/^[0-9]+$/D', $card->number)
+        if (!isset($card->sourceSetId) && isset($b->settings->fillerThrough) && $singleFinish && preg_match('/^[0-9]+$/D', $card->number)
             && (int)$card->number >= 1 && (int)$card->number <= $b->settings->fillerThrough) $main[] = null;
     }
     $slots = array_merge($main,$parallel);
@@ -101,6 +141,7 @@ function master_slots(stdClass $b, array $cards): array
         $slots[] = ['key'=>$key,'number'=>$e->number,'name'=>$e->name,'category'=>'Extra','finish'=>'Custom extra',
             'owned'=>$present,'ordered'=>$pending,'status'=>binder_card_status($present,$pending),'required'=>$e->required];
     }
+    $slots = array_merge($slots,$related);
     $layout = $b->settings; $capacity = $layout->rows*$layout->columns;
     foreach ($slots as $i=>&$slot) {
         if ($slot === null) continue;
@@ -117,7 +158,7 @@ function master_read(string $tool, string $root, ?array $row, array $args): arra
     foreach ($state->binders ?? [] as $binder) {
         if ($tool === 'get_set_binder' && $binder->id !== ($args['binderId'] ?? null)) continue;
         if ($tool === 'list_set_binders' && !mcp_text_match($args['query'] ?? '',$binder->name,$binder->setId,$index[$binder->setId]->name)) continue;
-        $slots = master_slots($binder,master_cards($root,$binder->setId,$index));
+        $slots = master_slots($binder,master_binder_cards($root,$binder->setId,$index,$binder->settings->includeRelated ?? false));
         $goal = array_filter($slots,fn($s)=>$s['required']); $extras = array_filter($slots,fn($s)=>!$s['required']);
         $summary = ['binderId'=>$binder->id,'name'=>$binder->name,'setId'=>$binder->setId,'goal'=>$binder->goal,
             'required'=>count($goal),'collected'=>count(array_filter($goal,fn($s)=>$s['owned'])),'ordered'=>count(array_filter($goal,fn($s)=>$s['ordered'])),
@@ -143,7 +184,8 @@ function master_change(string $root, stdClass $state, stdClass $input, bool $use
     if (!in_array($status,['owned','ordered','missing'],true)) accounts_invalid();
     foreach ($state->binders as $b) {
         if ($b->id !== $input->binderId) continue;
-        $slots = array_column(master_slots($b,master_cards($root,$b->setId,master_set_index($root))),null,'key');
+        $cards = master_binder_cards($root,$b->setId,master_set_index($root),$b->settings->includeRelated ?? false);
+        $slots = array_column(master_slots($b,$cards),null,'key');
         $key = $input->key;
         if (!isset($slots[$key])) accounts_fail(422,'unknown_slot','Choose a printing from this binder.');
         $slot = $slots[$key];

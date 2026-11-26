@@ -1,4 +1,5 @@
 import { csv } from "./list-export";
+import { loadBinderCards, relatedSets, setCardKey } from "./binder-catalog";
 import { newBinder, setSlots, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
 import type { CardStatus } from "./model";
 import { cardNameKey, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
@@ -137,35 +138,42 @@ export async function reviewCards(rows: TransferRow[], catalog: TransferCatalog,
 }
 
 export interface SetImportGroup { set: SetSummary; marks: TransferMatch[]; options: SetBinder[] }
+function canImportTo(binder: SetBinder, set: SetSummary, marks: readonly TransferMatch[]) {
+  return binder.setId === set.id || (binder.settings.includeRelated && relatedSets(binder.setId).some(group =>
+    group.setId === set.id && marks.every(mark => (!group.numbers || group.numbers.includes(mark.card.number))
+      && (!group.variantId || !mark.variant || mark.variant.id === group.variantId))));
+}
 export function groupSetImport(matches: TransferMatch[], state: MasterState): SetImportGroup[] {
   return [...Map.groupBy(matches, match => match.set.id).values()].map(marks => ({ set: marks[0].set,
     marks: [...new Map(marks.map(match => [markKey(match), match])).values()],
-    options: state.binders.filter(b => b.setId === marks[0].set.id),
+    options: state.binders.filter(b => canImportTo(b, marks[0].set, marks)),
   })).sort((a, b) => a.set.name.localeCompare(b.set.name));
 }
-export const markKey = (match: TransferMatch) => `${match.card.number}:${match.variant?.id ?? "*"}`;
+export const markKey = (match: TransferMatch, binder?: SetBinder) =>
+  `${binder && binder.setId !== match.set.id ? match.set.id + "/" : ""}${match.card.number}:${match.variant?.id ?? "*"}`;
 
 export function addSetImports(state: MasterState, groups: SetImportGroup[], destinations: ReadonlyMap<string, string>) {
   for (const { set, marks, options } of groups) {
     const destination = destinations.get(set.id);
-    const binder = destination ? state.binders.find(b => b.id === destination && b.setId === set.id) : undefined;
-    const current = state.binders.filter(b => b.setId === set.id);
+    const current = state.binders.filter(b => canImportTo(b, set, marks));
+    const binder = current.find(b => b.id === destination);
     if (current.length !== options.length || current.some(b => !options.some(option => option.id === b.id)) || (current.length && !binder)) {
       throw new Error("The destination binders changed. Review the import again.");
     }
     const target = binder ?? newBinder(set.id, set.name.slice(0, 100));
     if (!binder) state.binders.push(target);
-    const added = new Set(marks.map(markKey));
+    const added = new Set(marks.map(mark => markKey(mark, target)));
     target.owned = [...new Set([...target.owned, ...added])].sort();
     if (target.ordered) {
-      const numbers = new Set(marks.map(match => match.card.number));
+      const numbers = new Set([...added].map(key => key.slice(0, key.indexOf(":"))));
       target.ordered = target.ordered.filter(key => {
         const number = key.slice(0, key.indexOf(":"));
         return !added.has(key) && !added.has(number + ":*") && !(key.endsWith(":*") && numbers.has(number));
       });
       if (!target.ordered.length) delete target.ordered;
     }
-    const specialties = marks.filter(match => match.variant?.specialty && !target.specialties.includes(match.variant.id)).map(markKey);
+    const specialties = marks.filter(match => match.variant?.specialty && !target.specialties.includes(match.variant.id))
+      .map(mark => markKey(mark, target));
     target.specialties = [...new Set([...target.specialties, ...specialties])].sort();
   }
 }
@@ -227,19 +235,20 @@ export async function exportCards(
   for (const binder of binders) {
     const marks = list === "ordered" ? binder.ordered ?? [] : binder.owned;
     if (!missing && !marks.length) continue;
-    const set = sets.get(binder.setId);
-    const setCards = set ? await catalog.cards(set.id) : [];
-    const cards = new Map(setCards.map(card => [card.number, card]));
+    const includeRelated = !!binder.settings.includeRelated || (!missing && marks.some(key => key.slice(0, key.indexOf(":")).includes("/")));
+    const setCards = sets.has(binder.setId) ? await loadBinderCards(binder, catalog.cards, includeRelated) : [];
+    const cards = new Map(setCards.map(card => [setCardKey(card), card]));
     const keys = missing ? setSlots(binder, setCards).filter(slot => slot.required && slot.status === "missing").map(slot => slot.key) : marks;
     for (const key of keys) {
       const colon = key.indexOf(":"), number = key.slice(0, colon);
       const card = cards.get(number);
+      const set = sets.get(card?.sourceSetId ?? binder.setId);
       const finishId = key.slice(colon + 1);
       const anyFinish = list !== "owned" && finishId === "*";
       const targetId = anyFinish && card?.variants.length === 1 ? card.variants[0].id : finishId;
       const allowUnspecified = list !== "owned" && !anyFinish && format === "portable";
       const variant = card?.variants.find(v => v.id === targetId && (allowUnspecified || !v.id.startsWith("unspecified")));
-      const unique = `${binder.setId}:${variant ? `${number}:${variant.id}` : key}`;
+      const unique = card && set ? `${set.id}:${card.number}:${variant?.id ?? finishId}` : `${binder.setId}:${key}`;
       if (exported.has(unique) || omitted.has(unique)) continue;
       if (!set || !card || (!variant && !(anyFinish && format === "portable"))) { omitted.add(unique); continue; }
       const externalFinish = format === "binderloot" && variant ? binderLootFinish(variant) : null;

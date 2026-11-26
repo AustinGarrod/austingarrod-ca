@@ -6,6 +6,7 @@ export interface ListRow extends PocketLocation {
   owned: boolean;
   ordered?: boolean;
   finish?: string;
+  setName?: string;
   required?: boolean;
 }
 
@@ -39,11 +40,14 @@ export function nationalCsv(rows: ListRow[]) {
 
 export function setListCsv(rows: ListRow[]) {
   // Keep the existing set columns in order, then append the national list's pocket and status.
-  return csv(["Number", "Card", "Finish", "Goal", "Page", "Sheet", "Side", "Row", "Column", "Pocket", "Status"],
-    rows.map(r => [r.number, r.name, r.finish ?? "", goal(r), r.page, r.sheet, r.side, r.row, r.column, r.pocket, status(r)]), true);
+  const includeSet = rows.some(row => row.setName);
+  const columns = ["Number", "Card", "Finish", "Goal", "Page", "Sheet", "Side", "Row", "Column", "Pocket", "Status"];
+  if (includeSet) columns.push("Set");
+  return csv(columns, rows.map(r => [r.number, r.name, r.finish ?? "", goal(r), r.page, r.sheet, r.side, r.row, r.column,
+    r.pocket, status(r), ...(includeSet ? [r.setName ?? ""] : [])]), true);
 }
 
 export function combinedCsv(lists: BinderList[]) {
   return csv(["Binder", "Set", "Number", "Card", "Finish", "Goal", "Status", ...locationHeaders, "Binder #"],
-    lists.flatMap((list, index) => list.rows.map(r => [list.name, list.setName, r.number, r.name, r.finish ?? "", goal(r), status(r), ...location(r), index + 1])), true);
+    lists.flatMap((list, index) => list.rows.map(r => [list.name, r.setName ?? list.setName, r.number, r.name, r.finish ?? "", goal(r), status(r), ...location(r), index + 1])), true);
 }

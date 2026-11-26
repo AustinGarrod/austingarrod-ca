@@ -48,6 +48,7 @@ import { LayoutGrid } from "@lucide/astro";
     <datalist id="master-catalog"></datalist>
     <label>Binder name<input id="master-name" required maxlength="100" /></label>
     <label>Completion goal<select id="master-goal"><option value="variants">Every selected variant</option><option value="numbers">One of each number</option></select></label>
+    <label id="master-related-option" class="dex-dialog-checkbox" hidden><input id="master-related" type="checkbox" /> <span id="master-related-label"></span></label>
     <label>Pocket order<select id="master-order"><option value="together">Finishes together by number</option><option value="sections">Parallel finishes after the numbered set</option></select></label>
     <details id="master-specialty-section"><summary>Specialty printings to include</summary><div id="master-specialties"></div></details>
     <div class="dex-form-grid">

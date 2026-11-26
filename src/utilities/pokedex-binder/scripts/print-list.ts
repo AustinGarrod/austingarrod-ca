@@ -10,7 +10,8 @@ export function printLists(lists: BinderList[], all: boolean, status: "ordered" 
     const rows = list.rows.map(r => {
       const national = !list.setName;
       const number = national ? "#" + String(r.number).padStart(4, "0") : r.number;
-      const printing = national ? "" : "<br><small>" + escape(r.finish) + (r.required === false ? " · Optional" : "") + "</small>";
+      const printing = national ? "" : "<br><small>" + escape(r.finish) + (r.setName && r.setName !== list.setName ? " · " + escape(r.setName) : "")
+        + (r.required === false ? " · Optional" : "") + "</small>";
       return "<tr><td>☐ " + escape(number) + "</td><td>" + escape(r.name) + printing + "</td><td>" + r.page +
         "</td><td>" + r.sheet + " / " + r.side + "</td><td>" + r.pocket + "</td><td>" + r.row + " / " + r.column + "</td></tr>";
     }).join("");

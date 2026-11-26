@@ -12,8 +12,17 @@ import {
   setCsv,
   validateMaster,
   type SetCard,
+  type SetSummary,
 } from "../../src/utilities/pokedex-binder/lib/master";
 import { masterCatalog } from "../../scripts/pokedex-master-catalog.mjs";
+import { binderCards, relatedSets } from "../../src/utilities/pokedex-binder/lib/binder-catalog";
+import { missingPrintings, valueBinder } from "../../src/utilities/pokedex-binder/lib/pricing";
+import { exportCards, addSetImports, groupSetImport } from "../../src/utilities/pokedex-binder/lib/card-transfer";
+
+const installed = "public/utilities/pokedex-binder/catalog/master-sets/";
+const loadCards = (id: string) => JSON.parse(readFileSync(installed + id + ".json", "utf8")) as SetCard[];
+const index = JSON.parse(readFileSync(installed + "index.json", "utf8")) as SetSummary[];
+const summaries = new Map(index.map(set => [set.id, set]));
 const fixture = (number: string, variants: unknown, category = "Pokemon") => ({
   number,
   card: {
@@ -202,4 +211,90 @@ describe("set catalog and independent pocket goals", () => {
       expect(JSON.parse(actual)).toEqual(setSlots(b, cards));
     },
   );
+
+  it("audits installed set identities and the distinct-card totals of split expansions", () => {
+    const all = new Map(index.map(set => [set.id, loadCards(set.id)]));
+    expect(all.size).toBe(index.length);
+    const installedTotals: Record<string, number> = {
+      "30th": 199, cel25: 50, ex10: 145, sm115: 163, "swsh4.5": 195,
+      swsh9: 216, swsh10: 246, swsh11: 247, swsh12: 245, "swsh12.5": 230,
+    };
+    for (const set of index) {
+      const rows = all.get(set.id)!;
+      expect(rows.length, set.id).toBe(set.count);
+      expect(new Set(rows.map(row => row.number)).size, set.id).toBe(rows.length);
+      expect(rows.every(row => row.variants.length && new Set(row.variants.map(v => v.id)).size === row.variants.length), set.id).toBe(true);
+      if (!relatedSets(set.id).length) continue;
+      const binder = newBinder(set.id, set.name);
+      binder.settings.includeRelated = true;
+      binder.goal = "numbers";
+      const slots = setSlots(binder, binderCards(binder, id => all.get(id)!));
+      expect(new Set(slots.map(slot => slot.key)).size, set.id).toBe(slots.length);
+      expect(slots.length, set.id).toBe(installedTotals[set.id]);
+    }
+  });
+
+  it("adds the 38 companion cards without moving existing slots or altering marks", async () => {
+    const read = (id: string) => loadCards(id);
+    const binder = newBinder("30th", "Anniversary");
+    const [owned, ordered] = setSlots(binder, read("30th"));
+    setSlotStatus(binder, owned.key, "owned");
+    setSlotStatus(binder, ordered.key, "ordered");
+    const original = setSlots(binder, read("30th"));
+    expect(original).toHaveLength(161);
+    binder.settings.includeRelated = true;
+    const expandedCards = binderCards(binder, read);
+    const expanded = setSlots(binder, expandedCards);
+    expect(expanded).toHaveLength(199);
+    expect(expanded.slice(0, 161)).toEqual(original);
+    expect(expanded.filter(slot => slot.sourceSetId === "30th-c")).toHaveLength(30);
+    const energy = expanded.filter(slot => slot.sourceSetId === "mee");
+    expect(energy.map(slot => slot.number)).toEqual(["009", "010", "011", "012", "013", "014", "015", "016"]);
+    expect(energy.every(slot => slot.key.endsWith(":holo+stamp=30th-anniversary"))).toBe(true);
+    setSlotStatus(binder, energy[0].key, "ordered");
+    const targets = missingPrintings(binder, summaries.get("30th")!, expandedCards, summaries);
+    expect(targets).toHaveLength(196);
+    expect(targets).toContainEqual(expect.objectContaining({ setId: "mee", number: "010", variant: "holo+stamp=30th-anniversary" }));
+    const markets = { asOf: "2026-11-26", prices: [{ number: "009", variant: "holo+stamp=30th-anniversary", cents: 100, observedAt: "2026-11-26" }] };
+    expect(valueBinder(binder, undefined, new Map([["mee", markets]]))).toMatchObject({ cents: 0, collected: 1 });
+    const imported = { set: summaries.get("mee")!, card: read("mee").find(card => card.number === "009")! };
+    const state = { schemaVersion: 1 as const, binders: [binder] };
+    const groups = groupSetImport([{ ...imported, variant: imported.card.variants[0] }], state);
+    addSetImports(state, groups, new Map([["mee", binder.id]]));
+    expect(binder.owned).toContain(energy[0].key);
+    expect(binder.ordered).toEqual([ordered.key]);
+    expect(valueBinder(binder, undefined, new Map([["mee", markets]]))).toMatchObject({ cents: 100, collected: 2 });
+    const portable = await exportCards([binder], { sets: index, cards: async id => read(id), products: async () => ({}) },
+      { format: "portable", list: "missing" });
+    expect(portable.exported).toBe(196);
+    expect(portable.text).toContain("mee,MEE,Mega Evolution Energy,010");
+    delete binder.settings.includeRelated;
+    expect(setSlots(binder, binderCards(binder, read))).toEqual(original);
+    binder.settings.includeRelated = true;
+    expect(setSlots(binder, binderCards(binder, read)).find(slot => slot.key === energy[0].key)?.status).toBe("owned");
+  });
+
+  const phpValidation = spawnSync(process.env.PHP_BINARY || "php", [
+    "-r", "echo (int) (PHP_VERSION_ID >= 80400 && extension_loaded('mbstring'));",
+  ], { encoding: "utf8" });
+  it.skipIf(phpValidation.stdout !== "1")("validates expansion marks and exposes identical slots through PHP", () => {
+    const binder = newBinder("30th", "Anniversary");
+    binder.settings.includeRelated = true;
+    binder.ordered = ["001:*", "mee/009:holo+stamp=30th-anniversary"];
+    binder.owned = ["30th-c/001:holo+stamp=30th-anniversary"];
+    const php = `
+      require 'public/api/v1/_validators.php';
+      $root = 'public';
+      $b = json_decode(stream_get_contents(STDIN));
+      $s = (object)['schemaVersion'=>1,'binders'=>[$b]];
+      master_validate($s,$root);
+      $index = master_set_index($root);
+      $slots = master_slots($b,master_binder_cards($root,$b->setId,$index,true));
+      unset($b->settings->includeRelated);
+      master_validate($s,$root);
+      echo json_encode($slots);
+    `;
+    const actual = execFileSync(process.env.PHP_BINARY || "php", ["-r", php], { input: JSON.stringify(binder), encoding: "utf8" });
+    expect(JSON.parse(actual)).toEqual(setSlots(binder, binderCards(binder, loadCards)));
+  });
 });

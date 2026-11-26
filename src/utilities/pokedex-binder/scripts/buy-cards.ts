@@ -2,6 +2,7 @@ import { buyingStores, canCheckPrinting, combinedAvailability, matchesByStore, p
   type Availability, type BuyingStore, type StoreMatch } from "../lib/buying-offers";
 import { createBuyOfferCache, offerBatchSize } from "../lib/buying-offer-cache";
 import { catalogArtwork } from "../lib/catalog-search";
+import { binderCards, binderSetIds } from "../lib/binder-catalog";
 import type { MasterState, SetCard, SetSummary } from "../lib/master";
 import { cad, calendarDate, groupBuyingEntries, marketPrices, matchesBuyingEntry, missingPrintings,
   type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffers } from "../lib/pricing";
@@ -424,7 +425,7 @@ export function createBuyCards(options: Options) {
       const selected = state.binders.filter(binder => !scope.value || binder.id === scope.value);
       const catalog = options.collection();
       sets = new Map(catalog.sets.map(set => [set.id, set]));
-      const setIds = [...new Set(selected.map(binder => binder.setId))];
+      const setIds = [...new Set(selected.flatMap(binder => binderSetIds(binder)))];
       const results = await Promise.allSettled(setIds.map(async id => [id, await catalog.cards(id)] as const));
       if (!current()) return;
       const loaded = new Map(results.flatMap(result => result.status === "fulfilled" ? [result.value] : []));
@@ -432,7 +433,7 @@ export function createBuyCards(options: Options) {
       cards = new Map([...loaded].map(([id, data]) => [id, new Map(data.map(card => [card.number, card.variants]))]));
       entries = groupBuyingEntries(selected.flatMap(binder => {
         const set = sets.get(binder.setId), data = loaded.get(binder.setId);
-        return set && data ? missingPrintings(binder, set, data) : [];
+        return set && data ? missingPrintings(binder, set, binderCards(binder, id => loaded.get(id) ?? []), sets) : [];
       }));
       binderTargets = checkableTargets(entries.flatMap(entry => targetsFor(entry.target, choicesFor(entry))));
       fillFinishes();
