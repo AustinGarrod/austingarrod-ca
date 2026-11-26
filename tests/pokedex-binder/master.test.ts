@@ -224,7 +224,9 @@ describe("set catalog and independent pocket goals", () => {
       expect(rows.length, set.id).toBe(set.count);
       expect(new Set(rows.map(row => row.number)).size, set.id).toBe(rows.length);
       expect(rows.every(row => row.variants.length && new Set(row.variants.map(v => v.id)).size === row.variants.length), set.id).toBe(true);
-      if (!relatedSets(set.id).length) continue;
+      const hasRelated = relatedSets(set.id).length > 0;
+      expect(hasRelated, set.id).toBe(Object.hasOwn(installedTotals, set.id));
+      if (!hasRelated) continue;
       const binder = newBinder(set.id, set.name);
       binder.settings.includeRelated = true;
       binder.goal = "numbers";

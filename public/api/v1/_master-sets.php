@@ -16,7 +16,7 @@ function master_related_sets(string $root, string $id): array
 {
     static $catalogs = [];
     if (!isset($catalogs[$root])) {
-        $path = $root.'/utilities/pokedex-binder/catalog/binder-expansions.json';
+        $path = $root.'/utilities/pokedex-binder/binder-expansions.json';
         $catalogs[$root] = is_file($path) ? json_decode(file_get_contents($path), true, 16, JSON_THROW_ON_ERROR) : [];
     }
     return $catalogs[$root][$id] ?? [];

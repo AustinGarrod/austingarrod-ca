@@ -1,4 +1,4 @@
-import expansions from "../../../../public/utilities/pokedex-binder/catalog/binder-expansions.json";
+import expansions from "../../../../public/utilities/pokedex-binder/binder-expansions.json";
 import type { SetBinder, SetCard } from "./master";
 
 interface RelatedSet {
