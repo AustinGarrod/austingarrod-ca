@@ -71,6 +71,7 @@ body.screen-cut-page [hidden] {
   display: grid;
   gap: 20px;
   padding: clamp(20px, 3vw, 28px);
+  container-type: inline-size;
 }
 
 .panel-heading,
@@ -159,6 +160,13 @@ body.screen-cut-page [hidden] {
   padding: 4px 12px;
   background: var(--surface-low);
   border-left: 3px solid var(--secondary);
+}
+
+/* Keep "2 mm total clearance" readable when the form column is narrow. */
+@container (max-width: 459.98px) {
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .custom-clearance {
