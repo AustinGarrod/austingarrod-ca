@@ -16,6 +16,9 @@
 .companion-global-search input, .companion-module-search input { width: 100%; min-width: 0; border: 0; background: transparent; font-size: .875rem; }
 .companion-global-search input { min-height: 58px; padding-left: 0; }
 .companion-global-search > small { margin-top: 8px; color: var(--muted); font-size: .75rem; }
+.companion-search-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 8px; }
+.companion-search-note > small { color: var(--muted); font-size: .75rem; }
+.companion-spoiler-control { font-size: .75rem; }
 .companion-global-search > label:focus-within, .companion-module-search:focus-within { outline: 2px solid var(--frame); outline-offset: 2px; }
 .companion-global-search input:focus-visible, .companion-module-search input:focus-visible { outline: none; }
 .companion-global-results { position: absolute; top: 65px; left: 0; right: 0; z-index: 25; max-height: min(440px, 60dvh); overflow-y: auto; border: 1px solid var(--line); border-radius: 0; background: var(--surface); box-shadow: none; }

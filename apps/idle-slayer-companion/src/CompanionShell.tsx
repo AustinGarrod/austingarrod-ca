@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import './CompanionShell.css'
 import { usePwaStatus } from './pwa'
 import { loadRailCollapsed, saveRailCollapsed } from './domain/rail-preference'
+import { runtimeDeployment } from './runtime-deployment'
 
 export const companionSections = [
   { id: 'overview', title: 'Overview', short: 'Home', symbol: '◈', description: 'Progress summary' },
@@ -21,18 +22,24 @@ export interface CompanionShellProps {
   onNavigate: (section: CompanionSection) => void
   children: ReactNode
   ascension: ReactNode
-  onImport: () => void
-  onBackup: () => void
+  /** Opens Data & backup: import, backup, restore, transfer, account and clearing. */
+  onData: () => void
   onSettings?: () => void
   onHelp?: () => void
   onInstall?: () => void
   status?: ReactNode
+  /** Short save state for the header note; the full sentence is its title and stays in the status row. */
+  saveNote?: { short: string; full: string; tone: 'saved' | 'pending' | 'warning' }
   notice?: ReactNode
-  accountControls?: ReactNode
 }
 
+/** The website build links within the portfolio; the frozen legacy copy on another origin needs absolute links. */
+const siteLinks = runtimeDeployment.target === 'legacy-migration'
+  ? { home: 'https://austingarrod.ca/', utilities: 'https://austingarrod.ca/utilities/' }
+  : { home: '/', utilities: '/utilities/' }
+
 /** Navigation owns no player data. Keeping the map mounted preserves its visit-only state. */
-export function CompanionShell({ section, onNavigate, children, ascension, onImport, onBackup, onSettings, onHelp, onInstall, status, notice, accountControls }: CompanionShellProps) {
+export function CompanionShell({ section, onNavigate, children, ascension, onData, onSettings, onHelp, onInstall, status, saveNote, notice }: CompanionShellProps) {
   const [collapsed, setCollapsedState] = useState(() => loadRailCollapsed(() => window.localStorage))
   function setCollapsed(next: boolean) { setCollapsedState(next); saveRailCollapsed(next, () => window.localStorage) }
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -91,17 +98,21 @@ export function CompanionShell({ section, onNavigate, children, ascension, onImp
 
   return <div className={`companion-shell${collapsed ? ' companion-rail-collapsed' : ''}${largeText ? ' companion-large-text' : ''}${section === 'ascension' ? ' companion-map-section' : ''}`}>
     <a className="companion-skip" href="#companion-content" inert={navigationModal}>Skip to content</a>
+    {/* The site's slim utility header, reproduced for this separate build. No tracker attributes: the portfolio's tracker never loads here. */}
     <header className="companion-topbar" inert={navigationModal} ref={topbar}>
-      <button className="companion-mobile-toggle" type="button" ref={menuButton} onClick={() => setMobileOpen(!mobileOpen)} aria-expanded={mobileOpen} aria-controls="companion-navigation"><span aria-hidden="true">☰</span> Menu</button>
-      <button className="companion-wordmark" type="button" onClick={() => navigate('overview')} aria-label="Idle Slayer Companion overview">
-        <span className="companion-emblem" aria-hidden="true">✦</span>
-        <span><strong>Idle Slayer</strong><span>COMPANION</span></span>
-      </button>
-      <span className="companion-unofficial">Unofficial</span>
-      <div className="companion-global-actions">
-        {accountControls}
-        <button type="button" className="companion-import" onClick={onImport}><span aria-hidden="true">↥</span> Import save</button>
-        <button type="button" onClick={onBackup}><span aria-hidden="true">⇄</span> <span className="companion-backup-label">Data &amp; backup</span><span className="companion-backup-short">Data</span></button>
+      <div className="companion-header-start">
+        <button className="companion-mobile-toggle" type="button" ref={menuButton} onClick={() => setMobileOpen(!mobileOpen)} aria-expanded={mobileOpen} aria-controls="companion-navigation" aria-label="Menu"><span aria-hidden="true">☰</span><span className="companion-mobile-toggle-label" aria-hidden="true">Menu</span></button>
+        <a className="companion-brand" href={siteLinks.home} aria-label="Austin Garrod home">Austin Garrod</a>
+      </div>
+      <nav className="companion-crumbs" aria-label="Utility breadcrumb">
+        <a href={siteLinks.utilities}><span className="companion-crumb-back" aria-hidden="true">‹</span>Utilities</a>
+        <span className="companion-crumb-separator" aria-hidden="true">/</span>
+        <button type="button" className="companion-crumb-current" onClick={() => navigate('overview')} title="Companion overview"><span className="companion-emblem" aria-hidden="true">✦</span>Idle Slayer Companion</button>
+      </nav>
+      <div className="companion-header-note">
+        {saveNote && <span className={`companion-save-note companion-save-${saveNote.tone}`} title={saveNote.full}><span className="companion-save-dot" aria-hidden="true" /><span className="companion-save-text">{saveNote.short}</span></span>}
+        <span className="companion-unofficial">Unofficial</span>
+        <button type="button" className="companion-data-button" onClick={onData}>Data</button>
       </div>
     </header>
     {navigationModal && <div className="companion-nav-scrim" aria-hidden="true" onClick={() => setMobileOpen(false)} />}
@@ -113,10 +124,6 @@ export function CompanionShell({ section, onNavigate, children, ascension, onImp
         </button>)}
       </nav>
       <div className="companion-sidebar-bottom">
-        <nav className="companion-site-links" aria-label="Austin Garrod website">
-          <a href="https://austingarrod.ca/" title="Austin Garrod home">Home</a>
-          <a href="https://austingarrod.ca/utilities/" title="Austin Garrod utilities">Utilities</a>
-        </nav>
         <div className="companion-local-note"><span aria-hidden="true">◉</span><span>Stored in this browser<small>Export a backup.</small></span></div>
         {onSettings && <button type="button" onClick={() => openFromNavigation(onSettings)} title={collapsed ? 'Privacy & tracking' : undefined}><span aria-hidden="true">⚙</span><span className="companion-nav-label">Privacy & tracking</span></button>}
         {onHelp && <button type="button" onClick={() => openFromNavigation(onHelp)} title={collapsed ? 'About & sources' : undefined}><span aria-hidden="true">?</span><span className="companion-nav-label">About & sources</span></button>}

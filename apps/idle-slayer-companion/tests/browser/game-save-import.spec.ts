@@ -1,4 +1,4 @@
-import { openProgress } from './helpers/app'
+import { openImport, openProgress } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -19,7 +19,7 @@ async function chooseSave(page: Page, bytes: Uint8Array, _retry = false) {
   if (!await dialog.isVisible()) {
     const trigger = page.getByRole('button', { name: 'Import save…', exact: true })
     if (await trigger.isVisible()) await trigger.click()
-    else await page.getByRole('button', { name: 'Import save', exact: true }).click()
+    else await openImport(page)
   }
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'savedata.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) })
@@ -124,7 +124,7 @@ test('phone and landscape previews remain usable and Escape cancels with focus r
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Import save', exact: true })).toBeFocused()
+    await expect(page.getByRole('button', { name: 'Data', exact: true })).toBeFocused()
     expect(await stored(page)).toBeNull()
     await expect(page.locator('.toolbar')).toBeVisible()
   }

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './fixtures'
-import { openData } from './helpers/app'
+import { openData, openImport } from './helpers/app'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
 import { COMPANION_WORKSPACE_KEY } from '../../src/domain/companion-workspace'
 import type { CompanionProgress } from '../../src/domain/companion-types'
@@ -29,8 +29,7 @@ async function expectFileFieldSpacing(input: Locator) {
 test('import explains where to find the save and keeps its file field readable at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('./')
-  const trigger = page.getByRole('button', { name: 'Import save', exact: true })
-  await trigger.click()
+  await openImport(page)
   const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   const location = dialog.getByRole('region', { name: 'Find your Windows save', exact: true })
   await expect(location).toContainText('Close Idle Slayer first.')
@@ -44,7 +43,7 @@ test('import explains where to find the save and keeps its file field readable a
   await expect(input).toHaveAccessibleDescription('7.3.4: full companion snapshot. Legacy 7.2.0: Ascension progress only.')
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(dialog).not.toBeVisible()
-  await expect(trigger).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Data', exact: true })).toBeFocused()
 })
 
 test('backup groups keep exports and file labels separate, and intentions restore leaves progress alone', async ({ page }) => {

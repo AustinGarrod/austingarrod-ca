@@ -1,4 +1,4 @@
-import { openAction, openData, openProgress } from './helpers/app'
+import { openAccount, openAction, openData, openImport, openProgress } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { BrowserContext, Page, Request } from '@playwright/test'
 import { createHash } from 'node:crypto'
@@ -130,7 +130,7 @@ test('account controls stay private in real recorder snapshots while functional 
   const capture = await installLocalRoutes(context, origin, { recorderReady })
   await serveIsolatedApplication(context, origin)
   await page.goto(`${origin}${appFixturePath}`)
-  await page.getByRole('button', { name: /^Account & sync/ }).click()
+  await openAccount(page)
   const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
   await expect(dialog).toBeVisible()
   const privateMarker = 'PRIVATE_ACCOUNT_EMAIL_CODE_AND_SAVE_487206'
@@ -337,7 +337,7 @@ async function waitForActive(page: Page) {
 }
 
 async function chooseCompanionSave(page: Page, options: Parameters<typeof nativeSaveFixture>[0] = {}) {
-  await page.getByRole('button', { name: 'Import save', exact: true }).click()
+  await openImport(page)
   const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: secrets.file, mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture(options))) })
   await expect(dialog.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()

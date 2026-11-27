@@ -44,6 +44,24 @@ export async function openData(page: Page, { advanced = true }: { advanced?: boo
   return dialog
 }
 
+/** Import save lives in Data & backup; this opens its dialog. */
+export async function openImport(page: Page) {
+  const data = await openData(page, { advanced: false })
+  await data.getByRole('button', { name: 'Import save…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
+/** Account & sync lives in Data & backup; this opens its dialog. */
+export async function openAccount(page: Page) {
+  const data = await openData(page, { advanced: false })
+  await data.getByRole('button', { name: /^Account & sync/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
 export async function openProgress(page: Page) {
   await openAction(page, 'Progress')
   const dialog = page.getByRole('dialog', { name: 'Your progress', exact: true })

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 
 export const DialogFeedbackContext = createContext<{ title: string | null; announcement: string; sequence: number; content: ReactNode; clear: () => void }>({ title: null, announcement: '', sequence: 0, content: null, clear: () => {} })
@@ -13,6 +13,8 @@ export function Dialog({ title, children, close, dismissDisabled = false, return
   const ref = useRef<HTMLDialogElement>(null)
   const feedbackRef = useRef<HTMLDivElement>(null)
   const pressedOutside = useRef(false)
+  // Unique per dialog: a dialog opened from another (Account & sync inside Data & backup) keeps its own name.
+  const titleId = useId()
   const feedback = useContext(DialogFeedbackContext)
   const activeFeedback = feedback.title === title
   const dismiss = () => { if (!dismissDisabled) { feedback.clear(); close() } }
@@ -37,10 +39,10 @@ export function Dialog({ title, children, close, dismissDisabled = false, return
   useEffect(() => {
     if (activeFeedback && feedback.announcement) feedbackRef.current?.scrollIntoView({ block: 'nearest' })
   }, [activeFeedback, feedback.announcement, feedback.sequence])
-  return <dialog ref={ref} className={className} onCancel={(event) => { event.preventDefault(); dismiss() }} aria-labelledby="dialog-title"
+  return <dialog ref={ref} className={className} onCancel={(event) => { event.preventDefault(); dismiss() }} aria-labelledby={titleId}
     onPointerDown={closeOnBackdrop ? (event) => { pressedOutside.current = outside(event) } : undefined}
     onClick={closeOnBackdrop ? (event) => { if (pressedOutside.current && outside(event)) dismiss(); pressedOutside.current = false } : undefined}>
-    <div className="dialog-heading"><h2 id="dialog-title">{title}</h2><button className="dialog-close" aria-label="Close dialog" disabled={dismissDisabled} onClick={dismiss}><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button></div>
+    <div className="dialog-heading"><h2 id={titleId}>{title}</h2><button className="dialog-close" aria-label="Close dialog" disabled={dismissDisabled} onClick={dismiss}><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button></div>
     {activeFeedback && <div id="dialog-feedback" ref={feedbackRef} className="dialog-feedback telemetry-private rr-block" role="status" aria-label="Map action feedback" aria-live="polite" aria-atomic="true">{feedback.announcement && <div id="dialog-feedback-content">{feedback.content}</div>}</div>}
     {children}
   </dialog>

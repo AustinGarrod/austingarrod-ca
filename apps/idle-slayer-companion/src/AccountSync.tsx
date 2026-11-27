@@ -65,7 +65,7 @@ export function AccountSyncBoundary({ revision, children }: { revision: string; 
         <div className="companion-account-actions"><button type="button" disabled={view.busy || Object.values(view.preview.choices).some((choice) => !choice)} onClick={() => { void controller.adopt() }}>{view.preview.prepared ? 'Retry prepared connection and verification' : 'Connect and verify all saved data'}</button>{view.preview.prepared && <button type="button" disabled={view.busy} onClick={() => { void controller.restartReview() }}>Preserve this attempt and review current copies</button>}<button type="button" disabled={view.busy} onClick={controller.cancelReview}>Cancel</button></div>
       </section>}
       {view.conflicts.map((name) => <section key={name} aria-label={'Review ' + labels[name] + ' conflict'}><h3>{labels[name]} changed elsewhere</h3><p>The device copy and account copy differ. Both are preserved before applying your choice.</p><div className="companion-account-actions"><button disabled={view.busy} onClick={() => { void controller.resolve(name, 'device') }}>Use device copy</button><button disabled={view.busy} onClick={() => { void controller.resolve(name, 'account') }}>Use account copy</button></div></section>)}
-      <p><a href="/account/">Account recovery copies</a> are available after connection. Existing JSON backup, restore, and transfer tools remain in Backup & transfer.</p>
+      <p><a href="/account/">Account recovery copies</a> are available after connection. Backups, restores and transfer stay in Data &amp; backup.</p>
     </div></Dialog>}
   </section>
   if (view.loading) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening saved account data… Browser originals are kept.</p></main>

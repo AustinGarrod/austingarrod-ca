@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
-import { openData } from './helpers/app'
+import { openData, openImport } from './helpers/app'
 import { encodeGameSaveFixture, nativeSaveFixture } from '../fixtures/game-save'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
 import type { CompanionCatalog, CompanionProgress } from '../../src/domain/companion-types'
@@ -119,7 +119,7 @@ test('removing a shared craft previews dependent Ascension corrections and appli
 
 test('full save import previews privately and applies every supported system with one Undo', async ({ page }) => {
   await page.goto('./')
-  await page.getByRole('button', { name: 'Import save', exact: true }).click()
+  await openImport(page)
   const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   const buffer = encodeGameSaveFixture(nativeSaveFixture({ version: '7.3.4', epoch: '3', integers: { [achievement.id]: 1 }, strings: { [material.key]: '12345678901234567890', 'unrelated-private-preference': 'synthetic-secret' } }))
   await dialog.getByLabel('Choose game save').setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(buffer) })
