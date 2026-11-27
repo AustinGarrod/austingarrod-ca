@@ -119,6 +119,8 @@ export function SearchPanel({ upgrades, profile, inputRef, open, onOpenChange, o
     <p id={statusId} role="status" aria-label="Search result state" aria-live="polite" aria-atomic="true" className="sr-only telemetry-private rr-block"><span id={`${statusId}-content`}>{open ? `Search results open. ${results.length} visible results${results.length ? '.' : '; no matching visible upgrades.'}` : 'Search results closed.'}</span></p>
     <p id={hintId} className="sr-only">Arrow Down or Arrow Up moves into results. In results, Arrow keys, Home and End choose a candidate; Enter or Space opens it. Typing also opens results. Escape closes them. The results are one Tab stop; Tab moves on to the map tools.</p>
     <input className="telemetry-private rr-block" id="search" ref={inputRef} type="search" aria-controls={open ? resultsId : undefined} aria-describedby={`${statusId}-content ${hintId}`} autoComplete="off" placeholder="Find an upgrade…" value={query}
+      // An empty field stays closed on focus (Tab passes straight through); a search in progress reopens its results.
+      onFocus={() => { if (query.trim()) onOpenChange(true) }}
       onBlur={cancelCandidateFocus}
       onChange={(event) => { cancelCandidateFocus(); setActiveId(null); setQuery(event.target.value); setQueryRevision((revision) => revision + 1); onOpenChange(true) }}
       onKeyDown={(event) => {
