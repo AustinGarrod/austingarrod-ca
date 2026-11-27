@@ -5,6 +5,8 @@ export type OverviewProgress =
   | { status: "loading" | "error" };
 
 export interface OverviewBinder {
+  /** "national" for the National Pokédex; set binders use their id. */
+  kind: "set" | "national";
   id: string;
   name: string;
   setName: string;
@@ -61,13 +63,16 @@ function overallProgress(rows: readonly OverviewBinder[]): OverviewProgress {
 
 export function renderSetOverview(rows: readonly OverviewBinder[]) {
   const totals = document.getElementById("set-overview-totals")!;
-  totals.hidden = !rows.length;
-  document.getElementById("set-overview-empty")!.hidden = !!rows.length;
   document.getElementById("set-overview-binder-count")!.textContent =
-    `${counts.format(rows.length)} ${rows.length === 1 ? "set binder" : "set binders"}`;
+    `${counts.format(rows.length)} ${rows.length === 1 ? "binder" : "binders"}`;
   const total = overallProgress(rows);
+  // Combined totals only add information once there are two or more binders. A load error
+  // still shows the block, because it holds the retry.
+  totals.hidden = rows.length < 2 && total.status !== "error";
   showProgress(totals, total);
-  showValue(totals, rows.every(row => row.value !== undefined) ? sumBinderValues(rows.map(row => row.value!)) : undefined);
+  const sets = rows.filter(row => row.kind === "set");
+  totals.querySelector<HTMLElement>("[data-market-value]")!.hidden = !sets.length;
+  showValue(totals, sets.every(row => row.value !== undefined) ? sumBinderValues(sets.map(row => row.value!)) : undefined);
 
   const feedback = totals.querySelector<HTMLElement>(".set-overview-feedback")!;
   const status = document.getElementById("set-overview-status")!;
@@ -79,17 +84,19 @@ export function renderSetOverview(rows: readonly OverviewBinder[]) {
 
   const list = document.getElementById("set-overview-list")!;
   const template = document.getElementById("set-overview-card") as HTMLTemplateElement;
+  // Binder cards are articles; the "Add a binder" section after them stays last.
   const existing = new Map(Array.from(list.querySelectorAll<HTMLElement>("article"), card => [card.dataset.binderId!, card]));
   rows.forEach((row, index) => {
     const card = existing.get(row.id) ?? (template.content.firstElementChild!.cloneNode(true) as HTMLElement);
     existing.delete(row.id);
     card.dataset.binderId = row.id;
     card.querySelector("h3")!.textContent = row.name;
-    card.querySelector(".set-overview-goal")!.textContent =
-      row.goal === "numbers" ? "One per card number" : "Every selected finish";
+    card.dataset.kind = row.kind;
+    card.querySelector(".set-overview-goal")!.textContent = row.kind === "national" ? "One card per species · Any printing counts"
+      : row.goal === "numbers" ? "One per card number" : "Every selected finish";
     const set = card.querySelector<HTMLElement>("[data-set-name]")!;
     set.textContent = row.setName;
-    set.hidden = row.setName === row.name;
+    set.hidden = row.kind === "national" || row.setName === row.name;
     const code = card.querySelector<HTMLElement>("[data-set-code]")!;
     code.textContent = row.code ?? "";
     code.hidden = !row.code;
@@ -107,7 +114,8 @@ export function renderSetOverview(rows: readonly OverviewBinder[]) {
     open.setAttribute("aria-label", "Open binder " + row.name);
     card.querySelector("progress")!.setAttribute("aria-label", row.name + " completion");
     showProgress(card, row.progress);
-    showValue(card, row.value);
+    card.querySelector<HTMLElement>("[data-market-value]")!.hidden = row.kind === "national";
+    if (row.kind === "set") showValue(card, row.value);
     const cardStatus = card.querySelector<HTMLElement>(".set-overview-card-status")!;
     cardStatus.hidden = row.progress.status === "ready";
     cardStatus.textContent = row.progress.status === "error" ? "Set checklist could not load."

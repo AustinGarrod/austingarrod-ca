@@ -109,7 +109,7 @@ async function initialize() {
     bindersChanged() { dashboard.bindersChanged(); },
     confirm: confirmAction,
     deleted() {
-      const target = ["master-switch", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
+      const target = ["set-overview-title", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
       target?.focus();
     },
   });
@@ -117,7 +117,7 @@ async function initialize() {
     collection: master.collection,
     binders: master.backup,
     offerScope: controller.restoreScope,
-    selected: () => el<HTMLSelectElement>("master-switch").value,
+    selected: () => master.currentId(),
     inspect: target => pricing.openBuyingPrinting(target),
     closeDetail: () => pricing.closeBuyingPrinting(),
   });
@@ -139,8 +139,12 @@ async function initialize() {
       dashboard.enter(fromBinders);
     } else {
       dashboard.leave();
+      // The Binders tab shows the binder kept in history.state, or the home list.
+      void master.fromHistory();
     }
   });
+  // Choosing the Binders tab while already on it returns to the list of binders.
+  navigation.onHome(() => void master.goHome().then(() => el("set-overview-title").focus()));
   const catalogSearch = createCatalogSearch({ cards: master.collection().cards, openPrinting: pricing.openPrinting });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
@@ -182,7 +186,7 @@ async function initialize() {
       await controller.importSpecies(ids, expected, current);
       if (current()) await master.showNational();
     },
-    selected: () => el<HTMLSelectElement>("master-switch").value,
+    selected: () => master.currentId(),
     download,
   });
   async function backup() {
@@ -231,7 +235,7 @@ async function initialize() {
     const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
       .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
     const owned = new Set(snapshot.state.ownedDexIds), count = owned.size, ordered = new Set(snapshot.state.orderedDexIds);
-    master.dex(nationalEnabled(snapshot.state), count, species.length);
+    master.dex(nationalEnabled(snapshot.state), count, species.length, ordered.size);
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
     renderFeedback();
@@ -530,7 +534,8 @@ async function initialize() {
   el("national-hide").addEventListener("click", event => void action(async () => {
     await controller.setEnabled(false);
     el<HTMLDialogElement>("layout-dialog").close();
-    el(nationalEnabled(snapshot.state) ? "layout-open" : el("binder-onboarding").hidden ? "master-switch" : "first-dex").focus();
+    if (!nationalEnabled(snapshot.state)) await master.goHome();
+    el(nationalEnabled(snapshot.state) ? "layout-open" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("first-device").addEventListener("click", () => {
     onboardingTicket++;
@@ -611,7 +616,7 @@ async function initialize() {
   const exportButton = el<HTMLButtonElement>("export-csv");
   const printButton = el<HTMLButtonElement>("print-missing");
   const scopeSelect = el<HTMLSelectElement>("export-scope");
-  const binderSelect = el<HTMLSelectElement>("master-switch");
+
   const positionList = el<HTMLSelectElement>("position-list");
   positionList.addEventListener("change", () => {
     const ordered = positionList.value === "ordered";
@@ -621,7 +626,7 @@ async function initialize() {
   });
   async function outputList(print: boolean) {
     const all = scopeSelect.value === "all";
-    const selectedId = binderSelect.value;
+    const selectedId = master.currentId();
     const scope = controller.restoreScope();
     const status = positionList.value === "ordered" ? "ordered" : "missing";
     const lists: BinderList[] = [];
@@ -635,7 +640,7 @@ async function initialize() {
       }
       if (all || selectedId) lists.push(...await master.positionLists(all ? null : selectedId, status));
       if (!lists.length) throw new Error("Choose an active binder first.");
-      if (controller.restoreScope() !== scope || status !== positionList.value || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
+      if (controller.restoreScope() !== scope || status !== positionList.value || all !== (scopeSelect.value === "all") || (!all && selectedId !== master.currentId())) {
         throw new Error("The collection selection changed. Request the list again.");
       }
       if (print) printLists(lists, all, status);

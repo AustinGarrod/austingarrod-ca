@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
+import { newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
 const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 12]].map(async ([set, count]) => {
@@ -74,7 +75,7 @@ export async function testFullBuyCards(browser, origin) {
 
     await page.goto(origin + "/utilities/pokemon-binder/");
     for (const [index, [set, name]] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]].entries()) {
-      await page.locator(index === 0 ? "#first-set" : "#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill(set);
       await page.locator("#master-name").fill(name);
       await page.locator("#master-goal").selectOption("numbers");
@@ -239,7 +240,7 @@ export async function testFullBuyCards(browser, origin) {
     assert.ok(lookups.slice(beforeReload).some(lookup => key(lookup) === visiblePrinting),
       "A previously checked printing can refresh after reopening an expired dashboard in a new document.");
     await bindersTab.click();
-    await page.locator("#master-new").click();
+    await newSetBinder(page);
     await page.locator("#master-set").fill("base1");
     await page.locator("#master-name").fill("Base Set cooldown test");
     await page.locator("#master-goal").selectOption("numbers");

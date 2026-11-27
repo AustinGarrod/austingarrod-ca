@@ -1,5 +1,5 @@
 ---
-import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
+import { ArrowLeft, BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
@@ -28,6 +28,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
     </nav>
     <div id="binders-workspace">
+    <button id="binder-back" type="button" class="dex-back" hidden><ArrowLeft size={16} aria-hidden="true" /> All binders</button>
     <section class="dex-intro">
       <h1 id="binder-view-title" tabindex="-1"><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
       <div class="dex-actions">
@@ -47,6 +48,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <MasterSetBinders />
     <p id="transfer-message" role="status" class="dex-help"></p>
     <div id="national-workspace" hidden>
+    <div class="dex-section-heading"><h2 id="national-title" tabindex="-1">National Pokédex</h2></div>
     <section class="dex-progress" aria-label="Collection progress">
       <div><span class="dex-label">Collected</span><strong id="owned-count">—</strong></div>
       <div><span class="dex-label">Ordered</span><strong id="ordered-count">—</strong></div>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { chromium, expect } from "@playwright/test";
 import { testFullBuyCards } from "./test-pokedex-buying-bulk.mjs";
+import { binderAction, newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binderUrl = origin + "/utilities/pokemon-binder/";
@@ -198,7 +199,7 @@ try {
     });
     await page.goto(binderUrl);
     await expect(page.locator("#binder-onboarding")).toBeVisible();
-    await page.locator("#catalog-search-open").click();
+    await binderAction(page, "#catalog-search-open");
     await page.locator("#catalog-search-query").fill("Bulbasaur 001/165");
     await page.locator("#catalog-search-set").selectOption("sv03.5");
     await page.locator("#catalog-search-results li").filter({ hasText: "Bulbasaur" }).getByRole("button").first().click();
@@ -218,7 +219,7 @@ try {
     await priceDialog.getByRole("button", { name: "Close card prices" }).click();
 
     for (const name of ["First 151", "Second 151"]) {
-      await page.locator(name === "First 151" ? "#first-set" : "#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill(name);
       await page.getByRole("button", { name: "Save binder", exact: true }).click();
@@ -233,7 +234,8 @@ try {
     const bindersTab = page.locator("#binders-open");
     const scope = buying.locator("#buy-cards-scope");
     const inlineDetails = buying.locator("#buy-card-pricing");
-    const activeBinder = await page.locator("#master-switch").inputValue();
+    // The open binder is kept in history.state, not in the URL.
+    const activeBinder = await page.evaluate(() => history.state?.binder);
     assert.ok(activeBinder);
     await buyTab.press("Enter");
     await expect(page).toHaveURL(buyingUrl);
@@ -259,10 +261,10 @@ try {
     await expect(page).toHaveURL(buyingUrl);
     await expect(scope).toBeVisible();
     await expect(scope).toHaveValue(activeBinder);
+    // The Binders tab lands on the list of binders.
     await bindersTab.click();
     await expect(page).toHaveURL(binderUrl);
-    await expect(page.locator("#master-title")).toBeVisible();
-    await page.locator("#set-overview-open").click();
+    await expect(page.locator("#set-overview")).toBeVisible();
     await expect(page.locator("#set-overview-totals [data-value-amount]")).toHaveText("$2.46 CAD");
     await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 2 collected");
     await expect(page.locator("#set-overview-list [data-value-amount]")).toHaveText(["$1.23 CAD", "$1.23 CAD"]);
@@ -435,7 +437,7 @@ try {
       let releaseMarket;
       marketGate = new Promise(resolve => { releaseMarket = resolve; });
       await bindersTab.click();
-      await page.locator("#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Any finish 151");
       await page.locator("#master-goal").selectOption("numbers");
@@ -486,13 +488,13 @@ try {
       await bindersTab.click();
       user = account;
       await notifySessionChange(page);
-      await page.locator("#sync-open").click();
+      await binderAction(page, "#sync-open");
       await page.locator("#binder-account-review").click();
       await page.locator("#binder-migration-layout").selectOption("device");
       await page.locator("#binder-migration-form button[type=submit]").click();
       await expect(page.locator("#dex-status")).toHaveText("Synced · Saved on this device");
       await expect(page.locator("#binder-migration-dialog")).toBeHidden();
-      await page.locator("#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Account only 151");
       await page.getByRole("button", { name: "Save binder", exact: true }).click();

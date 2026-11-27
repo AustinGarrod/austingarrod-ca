@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+import { binderAction, goHome, homeCard, homeCards, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
 
 const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
@@ -13,7 +14,7 @@ async function checkControlSizing(page) {
   for (const width of [320, 390, 820, 1440]) {
     await page.setViewportSize({ width, height: viewport.height });
     const controls = await page.locator([
-      '#master-switch', '#set-overview-open', '#master-workspace .dex-search',
+      '#binder-back', '#master-workspace .dex-search',
       '#master-status', '#master-add-extra', '#master-view-binder', '#master-view-checklist',
       '#master-page-prev', '#master-page-select', '#master-page-next',
       '#position-list', '#export-scope', '#export-csv', '#print-missing',
@@ -34,11 +35,11 @@ async function checkControlSizing(page) {
 
 async function checkSetChecklist(page, width) {
   await page.locator('#view-binder').click();
-  await page.locator('#set-overview-open').click();
-  await expect(page.locator('#set-overview-empty')).toBeVisible();
+  await goHome(page);
+  // One binder: no combined totals.
+  await expect(homeCards(page)).toHaveCount(1);
   await expect(page.locator('#set-overview-totals')).toBeHidden();
-  await page.locator('#set-overview-open').click();
-  await page.locator('#master-new').click();
+  await newSetBinder(page);
   await page.locator('#master-set').fill('sv03.5');
   await page.locator('#master-name').fill('151 checklist');
   await page.getByRole('button', { name: 'Save binder' }).click();
@@ -101,23 +102,21 @@ async function checkSetChecklist(page, width) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Set checklist fits the viewport');
   await page.screenshot({ path: `output/pokedex-checklist/set-${width}.png` });
 
-  const switchBinder = page.locator('#master-switch');
-  const setId = await switchBinder.inputValue();
-  await switchBinder.selectOption('');
+  await openBinder(page, 'National Pokédex');
   await expect(page.locator('#view-checklist')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#checklist-view')).toBeVisible();
-  await switchBinder.selectOption(setId);
+  await openBinder(page, '151 checklist');
   await expect(workspace.getByRole('button', { name: 'Checklist', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(hideCollected).toBeVisible();
 }
 
 async function checkSetOverview(page, width) {
-  await page.locator('#master-switch').selectOption('');
+  await openBinder(page, 'National Pokédex');
   await page.locator('#dex-search').fill('#0025');
   await page.locator('#owned-list-25').check();
   await expect(page.locator('#owned-count')).toHaveText('1');
 
-  await page.locator('#master-new').click();
+  await newSetBinder(page);
   await page.locator('#master-set').fill('fut2020');
   await page.locator('#master-name').fill('Futsal numbers');
   await page.locator('#master-goal').selectOption('numbers');
@@ -141,9 +140,8 @@ async function checkSetOverview(page, width) {
   await page.reload();
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
 
-  const openOverview = page.locator('#set-overview-open');
   const overview = page.locator('#set-overview');
-  const binder = name => overview.locator('#set-overview-list article').filter({ hasText: name });
+  const binder = name => homeCard(page, name);
   async function expectBinder(name, owned, required) {
     const row = binder(name);
     await expect(row.locator('[data-owned-count]')).toHaveText(String(owned));
@@ -152,17 +150,19 @@ async function checkSetOverview(page, width) {
     await expect(row.getByRole('progressbar')).toHaveAttribute('aria-valuetext', `${owned} of ${required} required cards owned`);
   }
   async function expectOverall(owned, percentage) {
-    const required = 360 + 6;
+    // The home totals include the National Pokédex (1,025 species) with the set binders.
+    const required = 360 + 6 + 1025;
     await expect(page.locator('#set-overview-owned')).toHaveText(String(owned));
-    await expect(page.locator('#set-overview-needed')).toHaveText(String(required - owned));
+    await expect(page.locator('#set-overview-needed')).toHaveText((required - owned).toLocaleString('en-CA'));
     await expect(page.locator('#set-overview-percent')).toHaveText(percentage);
     const progress = page.locator('#set-overview-progress');
     await expect.poll(() => progress.evaluate(bar => bar.position)).toBeCloseTo(owned / required, 4);
   }
 
-  await openOverview.click();
+  await goHome(page);
   await expect(overview).toBeVisible();
-  await expect(overview.locator('[data-overview-binder]')).toHaveCount(2);
+  await expect(overview.locator('[data-overview-binder]')).toHaveCount(3);
+  await expect(binder('National Pokédex').locator('[data-owned-count]')).toHaveText('1');
   await expectBinder('151 checklist', 2, 360);
   if (width === 390) {
     await expect(binder('Futsal numbers')).toContainText('Set checklist could not load');
@@ -171,17 +171,17 @@ async function checkSetOverview(page, width) {
     await overview.getByRole('button', { name: 'Retry loading sets' }).click();
   }
   await expectBinder('Futsal numbers', 1, 6);
-  await expectOverall(3, '0.8%');
+  await expectOverall(4, '0.3%');
   await binder('Futsal numbers').locator('[data-overview-binder]').click();
   await expect(overview).toBeHidden();
   await expect(page.locator('#master-title')).toContainText('Futsal numbers');
   await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
   await workspace.getByRole('radiogroup', { name: /Prize card/ }).getByRole('radio', { name: 'Have it' }).check();
   await expect(page.locator('#master-progress')).toHaveText('2 / 6');
-  await openOverview.click();
+  await goHome(page);
   await expectBinder('151 checklist', 2, 360);
   await expectBinder('Futsal numbers', 2, 6);
-  await expectOverall(4, '1.1%');
+  await expectOverall(5, '0.4%');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Set overview fits the viewport');
   await overview.screenshot({ path: `output/pokedex-checklist/overview-${width}.png` });
 }
@@ -192,7 +192,7 @@ async function checkAnniversaryExpansion(page, documents) {
   const ordered = page.locator('#master-ordered');
   const mainKey = '001:*';
   const orderedKey = '002:*';
-  await page.locator('#master-new').click();
+  await newSetBinder(page);
   await page.locator('#master-set').fill('30th');
   await page.locator('#master-name').fill('Anniversary test');
   const full = page.getByRole('checkbox', { name: 'Include the full checklist (199 distinct cards)' });
@@ -208,7 +208,7 @@ async function checkAnniversaryExpansion(page, documents) {
   await workspace.locator(`[data-set-open="${orderedKey}"]`).click();
   await page.locator('#master-pokemon-details').getByRole('radio', { name: 'Ordered' }).check();
   await expect(ordered).toHaveText('1');
-  await page.locator('#master-settings').click();
+  await binderAction(page, '#master-settings');
   await full.check();
   const layout = page.getByRole('group', { name: 'Full checklist layout' });
   await layout.getByRole('button', { name: 'Move 30th Classic Collection up' }).click();
@@ -241,12 +241,12 @@ async function checkAnniversaryExpansion(page, documents) {
     owned: [mainKey, '30th-c/001:holo+stamp=30th-anniversary'],
     ordered: [orderedKey],
   });
-  await page.locator('#master-settings').click();
+  await binderAction(page, '#master-settings');
   await full.uncheck();
   await save.click();
   await expect(progress).toHaveText('1 / 161');
   await expect(ordered).toHaveText('1');
-  await page.locator('#master-settings').click();
+  await binderAction(page, '#master-settings');
   await full.check();
   await expect(layout.getByRole('checkbox', { name: 'Start 30th Celebration on a fresh page' })).toBeChecked();
   await save.click();
@@ -295,7 +295,7 @@ try {
     await expect(page.locator('#binder-view')).not.toHaveClass(/has-details/);
     await expect(page.locator('.dex-intro')).not.toContainText('Fill the gaps');
     assert.equal(await page.locator('#dex-filter').evaluate(node => getComputedStyle(node).appearance), 'none');
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     await page.locator('#binder-account-review').click();
     await page.locator('#binder-migration-layout').selectOption('device');
     await page.locator('#binder-migration-form button[type=submit]').click();
@@ -368,6 +368,8 @@ try {
     const otherTab = await context.newPage();
     await otherTab.goto(`${origin}/utilities/pokemon-binder/`);
     await expect(otherTab.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
+    // A new tab opens on the list of binders.
+    await openBinder(otherTab, 'National Pokédex');
     await abra.locator('.dex-checklist-name').evaluate(node => {
       const range = document.createRange(); range.selectNodeContents(node);
       window.getSelection().removeAllRanges(); window.getSelection().addRange(range);

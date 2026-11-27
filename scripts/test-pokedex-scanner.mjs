@@ -1,5 +1,6 @@
 // LOCAL ONLY: real OCR worker + deterministic canvas video, no photo uploads or cloud service.
 import { chromium, expect } from '@playwright/test';
+import { binderAction, newSetBinder } from './test-pokedex-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 const origin = process.env.POKEDEX_SCANNER_ORIGIN || 'http://127.0.0.1:4331';
@@ -276,9 +277,9 @@ try {
   await scenario('set cards open directly and mark exactly one finish, including after a failed save', async () => {
     const ctx = await context(), page = await open(ctx);
     const dialog = page.locator('#scan-dialog');
-    await page.locator('#master-new').click();
+    await newSetBinder(page);
     await page.locator('#master-set').fill('sv03.5'); await page.locator('#master-name').fill('151 Camera');
-    await page.locator('#master-form button.dex-primary').click(); await page.locator('#master-scan').click();
+    await page.locator('#master-form button.dex-primary').click(); await binderAction(page, '#master-scan');
     await expect(dialog).toHaveAttribute('data-phase', 'scanning');
     await guide(page);
     await page.evaluate(() => window.__setCard('Bulbasaur', '001/165'));

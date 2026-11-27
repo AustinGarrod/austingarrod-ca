@@ -455,23 +455,14 @@
   .dex-scan-result-actions button { min-width: 0; flex-basis: 0; }
 }
 
-.master-switch { display: flex; align-items: end; flex-wrap: wrap; gap: 6px 8px; padding-block: 10px; border-block: 1px solid var(--line); }
-.master-switch label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.master-switch select { max-width: min(78vw, 34rem); }
-@media (max-width:600px) {
-  .master-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; }
-  .master-switch > label { grid-column: span 4; min-width: 0; }
-  .master-switch > button { grid-column: span 2; }
-  .master-switch select { width: 100%; max-width: none; }
-  .pokedex-page .master-switch button { padding: 4px 6px; font-size: 12px; line-height: 16px; }
-  .pokedex-page .master-switch button > svg { width: 14px; height: 14px; }
-  #set-overview-open { align-self: end; }
-}
 #master-message:empty { display: none; }
 #master-workspace { padding: 4px 0 12px; }
 #master-workspace h2 { overflow-wrap: anywhere; }
 #master-workspace > .dex-section-heading { margin-bottom: 8px; }
-#master-title { font-size: clamp(19px, 2vw, 25px); }
+#master-title, #national-title { font-size: clamp(19px, 2vw, 25px); }
+#national-workspace > .dex-section-heading { margin: 4px 0 8px; }
+.pokedex-page button.dex-back { min-height: 44px; margin: 0 0 8px -4px; padding: 0 8px 0 4px; border-color: transparent; background: transparent; color: var(--ink); font-size: 14px; }
+.pokedex-page button.dex-back:hover:not(:disabled) { border-color: transparent; background: transparent; color: var(--secondary); text-decoration: underline; text-underline-offset: 3px; }
 #master-specialties input, #master-form input[type=checkbox], #master-extra-form input[type=checkbox] { width: auto; }
 .master-filler { justify-content: center; color: var(--muted); border-style: dashed; }
 #master-specialties { display: grid; max-height: 14rem; overflow-y: auto; }
@@ -479,9 +470,14 @@
 
 #master-extra-options-list label { display: flex; gap: 6px; align-items: center; }
 
-#set-overview-open[aria-pressed=true] { color: white; background: var(--ink); border-color: var(--ink); }
-.set-overview-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 0 12px; }
+.set-overview-heading { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin: 18px 0 12px; }
 .set-overview-heading h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); line-height: 1.15; }
+.set-overview-heading > div:first-child { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+/* The last card in the home list adds a binder. */
+.set-overview-add { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 18px 20px; border: 1px dashed var(--control-line); background: transparent; }
+.set-overview-add h3 { margin: 0; font-size: 18px; line-height: 1.25; }
+.set-overview-add p { margin: 0; color: var(--muted); font-size: 14px; }
+.set-overview-add-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
 .set-overview-totals, .set-overview-card, #set-overview-empty { border: 1px solid var(--line); background: var(--surface); }
 .set-overview-totals { display: grid; grid-template-columns: minmax(270px, 2fr) minmax(0, 3fr); }
 .set-overview-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
@@ -504,7 +500,6 @@
 #set-overview-empty { padding: 20px; }
 .set-overview-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 14px 0; }
 .set-overview-card { display: flex; flex-direction: column; min-width: 0; }
-.set-overview-card:only-child { width: 100%; max-width: 660px; }
 .set-overview-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
 .set-overview-card header > div { min-width: 0; }
 .set-overview-set { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 0 0 6px; overflow-wrap: anywhere; }

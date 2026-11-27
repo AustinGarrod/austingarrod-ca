@@ -59,16 +59,18 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     renderVersion = 0,
     started = false,
     ready = false;
-  let readVersion = 0, dexProgress = "",
+  let readVersion = 0,
     hasDex = false,
+    dexCounts = { owned: 0, ordered: 0, total: 0 },
     onboarding: "pending" | "device" | "account" = "pending",
     accountVersion = 0;
   let sets: SetSummary[] = [];
   const cache = new Map<string, SetCard[]>(),
     pending = new Map<string, Promise<SetCard[]>>();
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("pokedex-set-binders") : null;
-  let selectedKey = "", displayedId = "";
-  let overviewOpen = false;
+  let selectedKey = "";
+  // The Binders tab is either the home list of binders or one open binder ("" is the National Pokédex).
+  let showing: "home" | "binder" = "home", displayedId: string | null = null;
   let sectionSetId = "", sectionLayout: SectionPlacement[] = [];
   const searchInput = input("master-search"), statusSelect = select("master-status");
   const finishSelect = select("master-checklist-finish");
@@ -205,9 +207,11 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     finishSelect.replaceChildren(new Option("All finishes", ""), ...finishes.map(finish => new Option(finish)));
     finishSelect.value = finishes.includes(current) ? current : "";
   }
-  function renderBinderOptions(ticket: number, showOverview: boolean) {
-    const chooser = select("master-switch");
-    const overviewRows: OverviewBinder[] = [];
+  function renderHome(ticket: number) {
+    const overviewRows: OverviewBinder[] = hasDex ? [{
+      kind: "national", id: "national", name: "National Pokédex", setName: "", goal: "numbers",
+      progress: { status: "ready", owned: dexCounts.owned, ordered: dexCounts.ordered, required: dexCounts.total },
+    }] : [];
     let framePending = false;
     function scheduleOverviewUpdate() {
       if (framePending) return;
@@ -217,15 +221,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         if (ticket === renderVersion) renderSetOverview(overviewRows);
       });
     }
-    const options = state.binders.map((b) => {
-      const option = new Option(b.name, b.id);
+    for (const b of state.binders) {
       const set = sets.find(s => s.id === b.setId);
-      const row: OverviewBinder | undefined = showOverview ? {
-        id: b.id, name: b.name, setName: set?.name ?? b.setId, code: set?.code,
+      const row: OverviewBinder = {
+        kind: "set", id: b.id, name: b.name, setName: set?.name ?? b.setId, code: set?.code,
         symbol: setInfo[b.setId]?.symbol, goal: b.goal, progress: { status: "loading" },
-      } : undefined;
-      if (row) overviewRows.push(row);
-      if (row) {
+      };
+      overviewRows.push(row);
+      {
         if (!b.owned.length) row.value = valueBinder(b);
         else {
           const ids = binderSetIds(b).filter(id => id === b.setId || b.owned.some(key => key.startsWith(id + "/")));
@@ -239,38 +242,31 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       }
       const updateProgress = () => {
         const { owned, ordered, required } = progress(b);
-        option.text = b.name + " · " + owned + "/" + required.length;
-        if (row) row.progress = { status: "ready", owned, ordered, required: required.length };
+        row.progress = { status: "ready", owned, ordered, required: required.length };
       };
       if (binderCardsReady(b)) updateProgress();
       else {
         void loadChecklist(b).then(() => {
           if (ticket !== renderVersion) return;
           updateProgress();
-          if (row) scheduleOverviewUpdate();
+          scheduleOverviewUpdate();
         }).catch(() => {
-          if (ticket !== renderVersion || !row) return;
+          if (ticket !== renderVersion) return;
           row.progress = { status: "error" };
           scheduleOverviewUpdate();
         });
       }
-      return option;
-    });
-    const national = hasDex ? [new Option("National Pokédex" + dexProgress, "")] : [];
-    chooser.replaceChildren(...national, ...options);
-    if (showOverview) {
-      const prompt = new Option("Choose a binder", "overview");
-      prompt.disabled = prompt.hidden = true;
-      chooser.add(prompt);
-      chooser.value = prompt.value;
-      renderSetOverview(overviewRows);
-    } else chooser.value = id;
+    }
+    renderSetOverview(overviewRows);
   }
   async function render() {
     const ticket = ++renderVersion;
-    if (!active()) id = hasDex ? "" : state.binders[0]?.id ?? "";
-    if (id !== displayedId) {
-      displayedId = id;
+    // An open binder that no longer exists shows the home list instead.
+    const b = showing === "binder" && id ? active() : undefined;
+    const showDex = showing === "binder" && !id && hasDex;
+    const shownId = b ? b.id : showDex ? "" : null;
+    if (shownId !== displayedId) {
+      displayedId = shownId;
       page = 1;
       selectedKey = "";
       checklist.resetSelection();
@@ -278,17 +274,13 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       scannerClose();
     }
     const hasBinders = hasDex || state.binders.length > 0;
-    if (!hasBinders) overviewOpen = false;
-    const showOverview = ready && overviewOpen;
-    renderBinderOptions(ticket, showOverview);
-    const b = showOverview ? undefined : active();
-    const showDex = hasDex && !b && !showOverview;
-    node("set-overview").hidden = !showOverview;
-    node("set-overview-open").setAttribute("aria-pressed", String(showOverview));
+    const atHome = ready && hasBinders && shownId === null;
+    if (atHome) renderHome(ticket);
+    node("set-overview").hidden = !atHome;
+    node("binder-back").hidden = shownId === null;
     node("binder-onboarding").hidden = !ready || hasBinders || onboarding !== "device";
     node("binder-account-onboarding").hidden = !ready || hasBinders || onboarding !== "account";
-    node("binder-toolbar").hidden = !ready || !hasBinders;
-    node("missing-list-controls").hidden = !ready || !hasBinders || showOverview;
+    node("missing-list-controls").hidden = !ready || shownId === null;
     node("national-add").hidden = hasDex;
     node("export-cards").hidden = !state.binders.length;
     const national = node("national-workspace");
@@ -312,8 +304,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         await loadChecklist(b);
       } catch {
         if (ticket === renderVersion) {
-          node("master-message").textContent = "Checklist could not load. Choose the binder again to retry.";
-          select("master-switch").selectedIndex = -1;
+          showing = "home";
+          await render();
+          node("master-message").textContent = "Checklist could not load. Open the binder again to retry.";
         }
         return;
       }
@@ -658,9 +651,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         if (e) e.required = box.checked;
       }
     });
-    overviewOpen = false;
-    id = binderId;
-    await render();
+    if (existing && showing === "binder" && id === binderId) await render();
+    else await openBinder(binderId);
     dialog("master-editor").close();
   }
   node("master-form").addEventListener("submit", (event) => {
@@ -691,8 +683,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
     }
     editing = null;
-    if (id === binderId) id = "";
     dialog("master-editor").close();
+    if (showing === "binder" && id === binderId) goHome();
     if (target === scope) {
       await refresh();
       schedule();
@@ -719,29 +711,43 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-goal", "change", () => {
     node("master-specialty-section").hidden = select("master-goal").value === "numbers";
   });
-  function openBinder(binderId: string) {
-    overviewOpen = false;
+  // Which binder is open lives in history.state, never in the URL, so Back and reload return to it.
+  function remember(binderId: string | null) {
+    try { history.pushState(binderId === null ? null : { binder: binderId }, "", location.href); } catch { /* History is optional. */ }
+  }
+  function openBinder(binderId: string, push = true) {
+    if (push && !(showing === "binder" && id === binderId)) remember(binderId);
+    showing = "binder";
     id = binderId;
     node("master-message").textContent = "";
     return render();
   }
-  listen("master-switch", "change", () => openBinder(select("master-switch").value));
-  listen("set-overview-open", "click", async () => {
-    overviewOpen = !overviewOpen;
+  function goHome(push = true) {
+    if (push && showing !== "home") remember(null);
+    showing = "home";
     scannerClose();
-    node("master-message").textContent = "";
-    await render();
-    if (overviewOpen) node("set-overview-title").focus();
+    return render();
+  }
+  function fromHistory() {
+    const binder = (history.state as { binder?: unknown } | null)?.binder;
+    if (typeof binder === "string") { showing = "binder"; id = binder; }
+    else showing = "home";
+    return render();
+  }
+  window.addEventListener("popstate", () => {
+    if (new URLSearchParams(location.search).get("view") !== "buy-cards") void fromHistory().catch(report);
+  });
+  node("binder-back").addEventListener("click", () => {
+    void goHome().then(() => node("set-overview-title").focus()).catch(report);
   });
   listen("set-overview-retry", "click", render);
   node("set-overview").addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLButtonElement>("[data-overview-binder]");
-    const binderId = button?.dataset.overviewBinder;
-    if (!binderId || !state.binders.some(b => b.id === binderId)) return;
+    const target = button?.dataset.overviewBinder;
+    const binderId = target === "national" ? "" : target;
+    if (binderId === undefined || (binderId && !state.binders.some(b => b.id === binderId))) return;
     void openBinder(binderId).then(() => {
-      if (id === binderId && !overviewOpen) {
-        node(node("master-workspace").hidden ? "master-switch" : "master-title").focus();
-      }
+      if (showing === "binder" && id === binderId) node(binderId ? "master-title" : "national-title").focus();
     }).catch(report);
   });
   for (const [name, event] of [
@@ -861,9 +867,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       accountVersion++;
       if (scope !== next) {
         scope = next;
-        overviewOpen = false;
         renderSetOverview([]);
-        id = "";
+        // The open binder stays open when the new scope has it (as after connecting an account);
+        // otherwise render shows the home list.
         state = emptyMaster();
         ready = false;
         scannerClose();
@@ -876,19 +882,22 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
           .then(() => schedule(0))
           .catch(report);
     },
-    dex(enabled: boolean, owned: number, total: number) {
-      const progress = " · " + owned + "/" + total;
-      if (enabled === hasDex && progress === dexProgress) return;
+    dex(enabled: boolean, owned: number, total: number, ordered: number) {
+      const counts = { owned, ordered, total };
+      if (enabled === hasDex && sameSave(counts, dexCounts)) return;
       const changed = enabled !== hasDex;
       hasDex = enabled;
-      dexProgress = progress;
-      if (changed) void render().catch(report);
-      else {
-        const option = select("master-switch").options[0];
-        if (enabled && option?.value === "") option.text = "National Pokédex" + dexProgress;
-      }
+      dexCounts = counts;
+      // The home list shows the National Pokédex's progress, so it redraws when that changes.
+      if (changed || !node("set-overview").hidden) void render().catch(report);
     },
     showNational() { return openBinder(""); },
+    goHome,
+    fromHistory,
+    /** The open set binder's id; "" for the National Pokédex or the home list. */
+    currentId() { return showing === "binder" && active() ? id : ""; },
+    /** Whether a binder (set or National) is open rather than the home list. */
+    inBinder() { return showing === "binder" && (id ? !!active() : hasDex); },
     closeDetails,
     onboarding(value: typeof onboarding) {
       if (value === onboarding) return;

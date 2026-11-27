@@ -3,7 +3,7 @@ import BinderPages from "./BinderPages.astro";
 import BinderChecklist from "./BinderChecklist.astro";
 import BinderToolbar from "./BinderToolbar.astro";
 import SetOverview from "./SetOverview.astro";
-import { ArrowRight, BookOpen, Layers, LayoutGrid } from "@lucide/astro";
+import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
 ---
 <section id="binder-onboarding" class="dex-onboarding" aria-labelledby="binder-onboarding-title" hidden>
   <h2 id="binder-onboarding-title">Start your first binder</h2>
@@ -26,14 +26,6 @@ import { ArrowRight, BookOpen, Layers, LayoutGrid } from "@lucide/astro";
   <h2 id="binder-account-onboarding-title">Open your account binders</h2>
   <p id="binder-account-onboarding-message" role="status"></p>
   <div class="dex-actions"><button id="first-connect" class="dex-primary">Review &amp; connect</button><button id="first-device">Keep using this device</button></div>
-</section>
-<section id="binder-toolbar" class="master-switch dex-toolbar" aria-label="Your binders" hidden>
-  <label for="master-switch">Open binder <select id="master-switch"></select></label>
-  <button type="button" id="set-overview-open" aria-controls="set-overview" aria-pressed="false"><LayoutGrid size={16} aria-hidden="true" /> Set overview</button>
-  <button id="master-new" class="dex-quiet">New set binder</button>
-  <button id="national-add" class="dex-quiet" hidden>Add National Pokédex</button>
-  <button id="import-cards" class="dex-quiet">Import cards</button>
-  <button id="export-cards" class="dex-quiet" hidden>Export cards</button>
 </section>
 <p id="master-message" role="status" class="dex-help"></p>
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>

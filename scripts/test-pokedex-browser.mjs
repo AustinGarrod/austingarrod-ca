@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
+import { binderAction, cardLists, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
@@ -65,8 +66,9 @@ async function open(ctx) {
   await page.goto(app);
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
   await expect(page.locator('#dex-status')).not.toHaveText('Binder could not start');
-  await expect(page.locator('#binder-onboarding:visible, #national-workspace:visible')).toHaveCount(1);
+  await expect(page.locator('#binder-onboarding:visible, #set-overview:visible, #national-workspace:visible')).toHaveCount(1);
   if (await page.locator('#first-dex').isVisible()) await page.locator('#first-dex').click();
+  else if (await page.locator('#set-overview').isVisible()) await openBinder(page, 'National Pokédex');
   return page;
 }
 async function closeDialogs(page) {
@@ -84,7 +86,7 @@ async function go(page, id) {
 }
 async function layout(page, values) {
   await closeDialogs(page);
-  await page.locator('#layout-open').click();
+  await binderAction(page, '#layout-open');
   for (const field of ['columns', 'rows', 'leadingBlankPockets']) if (values[field] !== undefined) await page.locator(`#layout-form [name=${field}]`).fill(String(values[field]));
   if (values.useBackSides !== undefined) await page.locator('#layout-form [name=useBackSides]').selectOption(String(values.useBackSides));
   await page.locator('#layout-form button[type=submit]').click();
@@ -190,7 +192,7 @@ try {
     await page.locator('#dex-search').fill('');
   });
   await scenario('backup restore exports and print contain collection without secrets', async () => {
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     const exported = page.waitForEvent('download');
     await page.locator('#export-json').click();
     backup = JSON.parse(readFileSync(await (await exported).path(), 'utf8'));
@@ -199,13 +201,14 @@ try {
     await closeDialogs(page);
     await go(page, 1); await page.locator('#owned-grid-1').check();
     await expect(page.locator('#owned-count')).toHaveText('2');
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     await page.locator('#import-json').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
     await expect(page.locator('#confirm-dialog')).toBeVisible();
     await expect(page.locator('#confirm-cancel')).toBeFocused();
     await page.locator('#confirm-accept').click();
     await expect(page.locator('#owned-count')).toHaveText('1');
     await closeDialogs(page);
+    await cardLists(page);
     const csvDownload = page.waitForEvent('download'); await page.locator('#export-csv').click();
     const csv = readFileSync(await (await csvDownload).path(), 'utf8');
     assert.match(csv, /1,Bulbasaur,Missing,1,1,front,2,1,2/);
@@ -215,7 +218,8 @@ try {
     await expect(page.locator('#print-content tbody tr')).toHaveCount(1024);
   });
   await scenario('dialog keyboard focus stays inside and Escape returns focus', async () => {
-    await page.locator('#layout-open').click();
+    await closeDialogs(page);
+    await binderAction(page, '#layout-open');
     for (let index = 0; index < 12; index++) {
       await page.keyboard.press('Tab');
       // Native dialog focus may enter browser chrome (document.activeElement=body),
@@ -241,7 +245,7 @@ try {
     };
     const slot = key => page.locator(`[data-key="${key}"]`);
     for (const name of ['151 Master', '151 Trade']) {
-      await page.locator('#master-new').click();
+      await newSetBinder(page);
       await page.locator('#master-set').fill('sv03.5');
       await page.locator('#master-name').fill(name);
       await save();
@@ -249,16 +253,15 @@ try {
       if (name === '151 Master') await slot('001:reverse').check();
     }
     await expect(slot('001:reverse')).not.toBeChecked();
-    const master = await page.locator('#master-switch option').filter({ hasText: '151 Master' }).getAttribute('value');
-    await page.locator('#master-switch').selectOption(master);
+    await openBinder(page, '151 Master');
     await expect(slot('001:reverse')).toBeChecked();
 
-    await page.locator('#master-settings').click();
+    await binderAction(page, '#master-settings');
     await page.locator('#master-goal').selectOption('numbers');
     await save();
     await expect(slot('001:*')).toBeChecked();
     await slot('002:*').check();
-    await page.locator('#master-settings').click();
+    await binderAction(page, '#master-settings');
     await page.locator('#master-goal').selectOption('variants');
     await page.locator('#master-order').selectOption('sections');
     await page.locator('#master-fillers').check();
@@ -281,16 +284,17 @@ try {
     await expect(slot('004:normal+stamp=set-logo')).toHaveCount(0);
     await expect(slot('002:normal')).not.toBeChecked();
 
-    await page.locator('#master-add-extra').click();
+    await binderAction(page, '#master-add-extra');
     await page.locator('#master-extra-name').fill('Shop promo');
     await page.locator('#master-extra-form button').last().click();
     await expect(page.locator('#master-optional')).toHaveText('0 / 1');
-    await page.locator('#master-scan').click();
+    await binderAction(page, '#master-scan');
     await page.locator('#scan-recovery-search').click();
     await page.locator('#master-scan-search').fill('001');
     await page.locator('[data-finish="001:normal"]').click();
     await expect(slot('001:normal')).toBeChecked();
     await page.locator('#scan-close').click();
+    await cardLists(page);
     await page.locator('#print-missing').click();
     await expect(page.locator('#print-content')).toContainText('Shop promo');
     const exported = page.waitForEvent('download');
@@ -312,38 +316,40 @@ try {
     await page.locator('#print-missing').click();
     const printed = page.locator('#print-content');
     await expect(printed.locator('h1')).toContainText('All binders');
-    await expect(printed.locator('section')).toHaveCount(await page.locator('#master-switch option').count());
+    // One printed section per binder: the National Pokédex and both set binders.
+    await expect(printed.locator('section')).toHaveCount(3);
     await expect(printed.locator('tbody tr')).toHaveCount(allCsv.trimEnd().split('\r\n').length - 1);
     await expect(printed.locator('section').filter({hasText:'151 Master'})).toContainText('Shop promo');
     await page.emulateMedia({ media: 'print' });
     await expect(printed.locator('table').first()).toBeVisible();
-    await expect(page.locator('#master-switch')).not.toBeVisible();
+    await expect(page.locator('#set-overview')).not.toBeVisible();
     await page.emulateMedia({ media: 'screen' });
+    await cardLists(page);
     await page.locator('#export-scope').selectOption('current');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     const download = page.waitForEvent('download');
     await page.locator('#export-json').click();
     const saved = readFileSync(await (await download).path());
     await closeDialogs(page);
     await slot('001:reverse').uncheck();
     await expect(slot('001:reverse')).not.toBeChecked();
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     await page.locator('#import-json').setInputFiles({ name: 'binders.json', mimeType: 'application/json', buffer: saved });
     await page.locator('#confirm-accept').click();
     await closeDialogs(page);
-    await page.locator('#master-switch').selectOption(master);
+    await openBinder(page, '151 Master');
     await page.locator('#master-view-checklist').click();
     await page.locator('#master-search').fill('#001');
     await expect(slot('001:reverse')).toBeChecked();
     await expect(page.locator('#master-optional')).toHaveText('0 / 1');
-    await page.locator('#master-switch').selectOption('');
+    await openBinder(page, 'National Pokédex');
     await page.locator('#view-binder').click();
   }
   async function checkPhysicalPages(page, code, ex, expectedGoal) {
     const ctrl = name => page.locator('#master-' + name);
     const grid = ctrl('binder-grid');
-    await ctrl('new').click(); await ctrl('set').fill(code); await ctrl('name').fill(code);
+    await newSetBinder(page); await ctrl('set').fill(code); await ctrl('name').fill(code);
     await ctrl('fillers').check();
     await ctrl('form').locator('button.dex-primary').click();
     await expect(ctrl('editor')).not.toBeVisible();
@@ -365,23 +371,24 @@ try {
     await expect(grid.locator('[data-set-open="'+reviewedNumber+':reverse"]')).toBeVisible();
     await firstPage.click();
     await ctrl('search').fill(ex);
-    await expect(grid.locator('.dex-pocket.dimmed').first()).toBeVisible();
+    // Search results replace the page grid while a search is active.
+    await expect(ctrl('binder-view')).toBeHidden();
     await ctrl('results').locator('[data-set-jump="'+ex+':holo"]').click();
     await expect(ctrl('pokemon-details')).toContainText('Holo');
     await ctrl('search').fill('');
     await ctrl('page-next').click(); await expect(ctrl('page-heading')).toHaveText('Page 2');
     await firstPage.click(); await expect(ctrl('page-heading')).toHaveText('Page 1');
-    await ctrl('settings').click(); await ctrl('columns').fill('1'); await ctrl('rows').fill('1'); await ctrl('blanks').fill('1');
+    await binderAction(page, '#master-settings'); await ctrl('columns').fill('1'); await ctrl('rows').fill('1'); await ctrl('blanks').fill('1');
     await ctrl('form').locator('button.dex-primary').click();
     await expect(grid).toContainText('Reserved');
     await expect(ctrl('page-progress')).toHaveText('0 of 0 collected on this page');
-    await ctrl('add-extra').click(); await ctrl('extra-name').fill('Optional promo'); await ctrl('extra-form').locator('button').last().click();
+    await binderAction(page, '#master-add-extra'); await ctrl('extra-name').fill('Optional promo'); await ctrl('extra-form').locator('button').last().click();
     const last = ctrl('page-overview').locator('button').last();
     await last.click(); await expect(grid).toContainText('Optional promo');
     await expect(ctrl('page-progress')).toContainText('0 of 0 collected on this page · Optional extras 0/1');
     await grid.locator('input').check(); await expect(ctrl('page-progress')).toContainText('Optional extras 1/1');
     await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
-    await ctrl('switch').selectOption('');
+    await openBinder(page, 'National Pokédex');
   }
   await scenario('Pitch Black page progress and physical pockets',()=>checkPhysicalPages(page,'PBL','004',194));
   await scenario('independent named master sets, placement, scanner confirmation and exports',()=>exerciseSets(page));
@@ -402,7 +409,7 @@ try {
     await phone.setViewportSize({ width: 320, height: 750 });
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     await expect(phone.locator('#binder-grid .dex-pocket')).toHaveCount(36);
-    await phone.locator('#sync-open').click();
+    await binderAction(phone, '#sync-open');
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     await phone.keyboard.press('Escape');
   });

@@ -26,6 +26,7 @@ export function binderViews() {
   let selected: BinderView | undefined;
   let fromBinders = false;
   let listener: ViewListener | undefined;
+  let home: (() => void) | undefined;
 
   function show(view: BinderView) {
     if (view === selected) return;
@@ -65,14 +66,21 @@ export function binderViews() {
     const view = link?.dataset.binderView;
     if (!link || (view !== "binders" && view !== "buy-cards")) return;
     event.preventDefault();
-    if (view === selected) return;
+    if (view === selected) {
+      if (view === "binders") home?.();
+      return;
+    }
     history.pushState(null, "", link.href);
     show(view);
   });
+
   return {
     subscribe(callback: ViewListener) {
       listener = callback;
       callback(selected!, fromBinders);
+    },
+    onHome(callback: () => void) {
+      home = callback;
     },
   };
 }
