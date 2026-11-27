@@ -6,18 +6,16 @@ function currentView(): BinderView {
 }
 
 export function binderViews() {
-  const heading = document.getElementById("binder-view-title")!;
-  const binderHeading = [...heading.childNodes];
-  const buyingHeading = document.createTextNode("Buy cards");
+  // Each view has its own h1. In Binders it is the home title or the open binder's name.
+  const visibleHeading = (workspace: HTMLElement) =>
+    [...workspace.querySelectorAll<HTMLElement>("h1")].find(heading => heading.getClientRects().length);
   const views = {
     binders: {
       workspace: document.getElementById("binders-workspace")!,
-      header: heading.parentElement!,
       link: document.getElementById("binders-open")!,
     },
     "buy-cards": {
       workspace: document.getElementById("buy-cards-workspace")!,
-      header: document.getElementById("buy-cards-heading")!,
       link: document.getElementById("buy-cards-open")!,
     },
   };
@@ -39,10 +37,6 @@ export function binderViews() {
     selected = view;
     fromBinders = prior === "binders";
     document.title = view === "buy-cards" ? "Buy cards | " + binderTitle : binderTitle;
-    if (heading.parentElement !== views[view].header) {
-      heading.replaceChildren(...(view === "binders" ? binderHeading : [buyingHeading]));
-      views[view].header.prepend(heading);
-    }
     for (const [id, { workspace, link }] of Object.entries(views)) {
       workspace.hidden = id !== view;
       if (id === view) link.setAttribute("aria-current", "page");
@@ -52,7 +46,7 @@ export function binderViews() {
     if (prior) {
       const position = positions.get(view);
       const focus = position?.focus;
-      (focus?.isConnected && focus.getClientRects().length ? focus : heading).focus({ preventScroll: true });
+      (focus?.isConnected && focus.getClientRects().length ? focus : visibleHeading(views[view].workspace))?.focus({ preventScroll: true });
       window.scrollTo({ top: position?.scroll ?? 0, behavior: "instant" });
     }
   }

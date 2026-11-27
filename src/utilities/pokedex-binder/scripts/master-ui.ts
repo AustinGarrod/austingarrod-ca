@@ -1,5 +1,5 @@
 import type { SetScan } from "./scanner";
-import { binderPages, blankPocket, cardPocket, escape, showDetailsSheet, statusControl } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, escape, filterControl, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
@@ -76,6 +76,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   const finishSelect = select("master-checklist-finish");
   const checklist = binderChecklist("master-", statusSelect, () => void render().catch(report));
   const drawPages = binderPages("master-", n => { page = n; selectedKey = ""; void render().catch(report); });
+  const showFilterCount = filterControl("master-", [statusSelect]);
   const active = () => state.binders.find((b) => b.id === id);
   const label = (s: SetSummary) => s.name + " (" + (s.code || s.id) + ")";
   function chosenSet() {
@@ -287,11 +288,19 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const openingNational = showDex && national.hidden;
     national.hidden = !showDex;
     node("master-workspace").hidden = !b;
+    // The bar's heading is the open binder's name, or the utility's name on the home list.
+    node("binder-view-title").hidden = shownId !== null;
+    node("national-title").hidden = !showDex;
+    node("master-title").hidden = !b;
+    if (!b) node("master-set-label").hidden = true;
+    // Menu actions for the open binder. Home scans into the National Pokédex when there is one.
     node("layout-open").hidden = !showDex;
-    node("scan-open").hidden = !showDex;
+    node("scan-open").hidden = !(hasDex && (showDex || shownId === null));
     node("master-settings").hidden = !b;
+    node("master-add-extra").hidden = !b;
     node("master-scan").hidden = !b;
     node<HTMLButtonElement>("master-scan").disabled = !!b && !binderCardsReady(b);
+    showFilterCount();
     if (!b) {
       if (openingNational) renderNationalView();
       return;
@@ -326,6 +335,9 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-optional").textContent = extras.filter((s) => s.owned).length + " / " + extras.length;
     node("master-percent").textContent =
       (required.length ? ((100 * owned) / required.length).toFixed(1) : "0") + "% complete";
+    // Phones show progress as one line beside a thin bar.
+    node("master-progress-line").textContent =
+      `${owned} of ${required.length} · ${ordered} ordered · ${(required.length ? (100 * owned) / required.length : 0).toFixed(1)}%`;
     const bar = node<HTMLProgressElement>("master-bar");
     bar.max = required.length || 1;
     bar.value = owned;

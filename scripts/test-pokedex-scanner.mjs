@@ -1,6 +1,6 @@
 // LOCAL ONLY: real OCR worker + deterministic canvas video, no photo uploads or cloud service.
 import { chromium, expect } from '@playwright/test';
-import { binderAction, newSetBinder } from './test-pokedex-helpers.mjs';
+import { binderAction, newSetBinder, openMenu } from './test-pokedex-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 const origin = process.env.POKEDEX_SCANNER_ORIGIN || 'http://127.0.0.1:4331';
@@ -63,7 +63,7 @@ async function open(ctx, addDex = true) {
   return page;
 }
 async function scanner(page) {
-  await page.locator('#scan-open').click();
+  await binderAction(page, '#scan-open');
   await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning', { timeout: 45000 });
   await guide(page);
 }
@@ -93,7 +93,7 @@ try {
     const recovery = page.getByRole('dialog', { name: 'Scanner updated' });
     await expect(recovery.getByRole('button', { name: 'Reload binder' })).toBeVisible();
     await recovery.getByRole('button', { name: 'Close' }).click();
-    await expect(recovery).toBeHidden(); await expect(page.locator('#scan-open')).toBeVisible();
+    await expect(recovery).toBeHidden(); await expect(page.locator('#scan-open')).toHaveJSProperty('hidden', false);
     assert.equal(await page.evaluate(() => window.__cameraCalls.length), 0); await ctx.close();
   });
   for (const cancel of [false, true]) await scenario(cancel ? 'closing an early scan cancels the camera request' : 'first tap opens before the catalog is ready and starts once', async () => {
@@ -106,7 +106,9 @@ try {
     await ctx.route('**/catalog/index.json', async route => { await pending; await route.continue(); });
     try {
       await page.goto(origin + '/utilities/pokemon-binder/', { waitUntil: 'domcontentloaded' });
-      await page.locator('#scan-open').click();
+      // Scan cards is in the app bar menu, which opens before the app has loaded.
+      await openMenu(page);
+      await binderAction(page, '#scan-open');
       await expect(page.locator('#scan-dialog')).toBeVisible();
       await expect(page.locator('#scan-status')).toHaveText('Loading your binder…');
       await expect(page.locator('#scan-capture')).toBeHidden();
@@ -127,7 +129,7 @@ try {
     const ctx = await context();
     await ctx.route('**/catalog/index.json', route => route.abort());
     const page = await open(ctx, false);
-    await page.locator('#scan-open').click();
+    await binderAction(page, '#scan-open');
     await expect(page.locator('#scan-status')).toContainText('binder could not load');
     await expect(page.locator('#scan-reload')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -198,7 +200,7 @@ try {
   });
   await scenario('denied camera and manual search do not claim an unsaved collection', async () => {
     const ctx = await context(), page = await open(ctx); await page.evaluate(() => { window.__denyCamera = true; });
-    await page.locator('#scan-open').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'error');
+    await binderAction(page, '#scan-open'); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'error');
     await expect(page.getByText('Camera permission was denied.', { exact: false })).toHaveCount(1);
     await expect(page.locator('#scan-reload')).toBeHidden();
     await page.locator('#scan-recovery-search').click(); await page.locator('#scan-search').fill('25'); await page.locator('#scan-search-results [data-scan-species="25"]').click();
@@ -207,7 +209,7 @@ try {
   });
   await scenario('closing during camera initialization stops a late stream', async () => {
     const ctx = await context(), page = await open(ctx); await page.evaluate(() => { window.__cameraHeld = true; });
-    await page.locator('#scan-open').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'starting');
+    await binderAction(page, '#scan-open'); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'starting');
     await page.waitForFunction(() => window.__cameraPending.length > 0); await page.locator('#scan-close').click();
     await page.evaluate(() => window.__cameraPending.splice(0).forEach(resolve => resolve()));
     await expect.poll(() => page.evaluate(() => window.__cameraCount)).toBe(0); await expect(page.locator('#scan-dialog')).not.toBeVisible(); await ctx.close();
@@ -215,7 +217,7 @@ try {
   await scenario('manual lookup takes over during startup and in-flight OCR', async () => {
     const ctx = await context(), page = await open(ctx);
     await page.evaluate(() => { window.__cameraHeld = true; });
-    await page.locator('#scan-open').click(); await page.waitForFunction(() => window.__cameraPending.length);
+    await binderAction(page, '#scan-open'); await page.waitForFunction(() => window.__cameraPending.length);
     await page.locator('#scan-manual').click(); await expect(page.locator('#scan-search')).toBeFocused();
     await page.evaluate(() => { window.__cameraHeld = false; window.__cameraPending.splice(0).forEach(resolve => resolve()); });
     await expect.poll(() => page.evaluate(() => window.__cameraCount)).toBe(0);
@@ -256,7 +258,7 @@ try {
   });
   await scenario('failed worker download is recoverable and releases the camera', async () => {
     const ctx = await context(); await ctx.route('**/scanner-assets/v1/worker.min.js', route => route.abort());
-    const page = await open(ctx); await page.locator('#scan-open').click();
+    const page = await open(ctx); await binderAction(page, '#scan-open');
     await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'error', { timeout: 15000 });
     await expect(page.locator('#scan-reload')).toBeVisible();
     assert.equal(await page.evaluate(() => window.__cameraCount), 0);

@@ -27,15 +27,11 @@ import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
   <p id="binder-account-onboarding-message" role="status"></p>
   <div class="dex-actions"><button id="first-connect" class="dex-primary">Review &amp; connect</button><button id="first-device">Keep using this device</button></div>
 </section>
-<p id="master-message" role="status" class="dex-help"></p>
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>
 <SetOverview />
 <section id="master-workspace" hidden aria-labelledby="master-title">
-  <div class="dex-section-heading"><div><p id="master-set-label" class="dex-eyebrow" hidden></p><h2 id="master-title" tabindex="-1"></h2></div></div>
-  <section class="dex-progress" aria-label="Collection progress"><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
-  <BinderToolbar prefix="master-">
-    <button id="master-add-extra" class="dex-quiet">Add extra</button>
-  </BinderToolbar>
+  <section class="dex-progress" aria-label="Collection progress"><p id="master-progress-line" class="dex-progress-line"></p><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
+  <BinderToolbar prefix="master-" />
   <section id="master-results" class="dex-search-results" aria-label="Search results" hidden></section>
   <BinderPages prefix="master-" />
   <BinderChecklist prefix="master-">

@@ -65,6 +65,29 @@ export function binderPages(prefix: string, turn: (page: number) => void) {
   };
 }
 
+/**
+ * The Show (and Generation) filters of a binder's tool row. On phones they sit behind one Filter
+ * button that says how many are applied; wider screens show them inline. Returns a function that
+ * updates the count after the filters change.
+ */
+export function filterControl(prefix: string, fields: HTMLSelectElement[]) {
+  const toggle = element<HTMLButtonElement>(prefix + "filter-toggle");
+  const toolbar = toggle.closest<HTMLElement>(".dex-toolbar")!;
+  const count = toggle.querySelector<HTMLElement>(".dex-filter-count")!;
+  toggle.addEventListener("click", () => {
+    const open = !toolbar.classList.contains("is-filtering");
+    toolbar.classList.toggle("is-filtering", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    if (open) fields[0].focus();
+  });
+  return function update() {
+    const applied = fields.filter(field => field.value && field.value !== "all").length;
+    if (count.textContent !== String(applied)) count.textContent = String(applied);
+    count.hidden = !applied;
+    toggle.setAttribute("aria-label", applied ? `Filter, ${applied} applied` : "Filter");
+  };
+}
+
 /** Opens card details as a sheet on narrow screens: focus moves into it and the chosen pocket stays visible above it. */
 export function showDetailsSheet(sheet: HTMLElement, pocketId: string) {
   if (!matchMedia("(max-width: 900px)").matches || sheet.hidden) return;

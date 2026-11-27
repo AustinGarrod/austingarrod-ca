@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
-import { binderAction, cardLists, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
+import { binderAction, cardLists, chooseFilter, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
@@ -77,8 +77,8 @@ async function closeDialogs(page) {
 async function go(page, id) {
   await closeDialogs(page);
   await page.locator('#dex-search').fill(`#${String(id).padStart(4, '0')}`);
-  await page.locator('#dex-filter').selectOption('all');
-  await page.locator('#dex-generation').selectOption('all');
+  await chooseFilter(page, '#dex-filter', 'all');
+  await chooseFilter(page, '#dex-generation', 'all');
   await expect(page.locator('#results-list .dex-result')).toHaveCount(1);
   await page.locator('#results-list [data-goto]').click();
   await expect(page.locator(`#open-grid-${id}`)).toBeVisible();
@@ -123,14 +123,14 @@ try {
     await page.screenshot({ path: join(output, 'selected-pokemon.png') });
   });
   await scenario('filters keep physical pockets and name searches find locations', async () => {
-    await page.locator('#dex-filter').selectOption('missing');
+    await chooseFilter(page, '#dex-filter', 'missing');
     await expect(page.locator('#page-heading')).toHaveText('Page 2');
     await expect(page.locator('#binder-grid .dex-pocket')).toHaveCount(16);
     await expect(page.locator('#open-grid-17').locator('..')).toHaveClass(/dimmed/);
-    await page.locator('#dex-filter').selectOption('owned');
+    await chooseFilter(page, '#dex-filter', 'owned');
     await expect(page.locator('#open-grid-17')).toBeVisible();
     await expect(page.locator('#open-grid-18').locator('..')).toHaveClass(/dimmed/);
-    await page.locator('#dex-filter').selectOption('all');
+    await chooseFilter(page, '#dex-filter', 'all');
     await page.locator('#dex-search').fill('#0017');
     await expect(page.locator('#results-list')).toContainText('Page 2 · Row 1, column 1');
     await page.locator('#dex-search').fill('mr mime');
@@ -228,7 +228,8 @@ try {
     }
     await page.keyboard.press('Escape');
     await expect(page.locator('#layout-dialog')).not.toBeVisible();
-    await expect(page.locator('#layout-open')).toBeFocused();
+    // Binder settings opens from the app bar menu, so focus returns to the menu button.
+    await expect(page.locator('#binder-menu > summary')).toBeFocused();
   });
   const sibling = await open(desktop);
   await scenario('same device tabs serialize independent checkbox edits', async () => {

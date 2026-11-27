@@ -1,6 +1,6 @@
 import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
 import { printLists } from "./print-list";
-import { binderPages, blankPocket, cardPocket, showDetailsSheet, statusControl } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, filterControl, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
@@ -61,6 +61,7 @@ async function initialize() {
   const generation = el<HTMLSelectElement>("dex-generation");
   const checklistSet = el<HTMLInputElement>("checklist-set");
   const checklist = binderChecklist("", filter, render);
+  const showFilterCount = filterControl("", [filter, generation]);
   el("checklist-sets").innerHTML = Object.values(catalog.sets).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))
     .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
@@ -245,6 +246,9 @@ async function initialize() {
     el<HTMLProgressElement>("completion-bar").value = count / species.length * 100;
     el("completion-label").textContent = `${(count / species.length * 100).toFixed(1)}% complete`;
     el("completion-detail").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} Pokémon · Any card counts`;
+    // Phones show progress as one line beside a thin bar.
+    el("progress-line").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} · ${ordered.size.toLocaleString()} ordered · ${(count / species.length * 100).toFixed(1)}%`;
+    showFilterCount();
     el("binder-view").classList.toggle("has-details", selected !== null);
     details.hidden = selected === null;
     const pageCounts = new Map<number, { total: number; owned: number }>();
@@ -468,6 +472,37 @@ async function initialize() {
   });
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", () => openScanner());
+  // The binder menu: a <details> that closes after a choice, on Escape and on a click elsewhere.
+  const menu = el<HTMLDetailsElement>("binder-menu"), menuButton = menu.querySelector("summary")!;
+  menu.addEventListener("click", event => { if ((event.target as Element).closest(".dex-menu-list button")) menu.open = false; });
+  document.addEventListener("click", event => { if (menu.open && !menu.contains(event.target as Node)) menu.open = false; });
+  menu.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || !menu.open) return;
+    event.preventDefault();
+    menu.open = false;
+    menuButton.focus();
+  });
+  // A dialog opened from the menu cannot return focus to its hidden button, so focus goes back to the menu.
+  for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog")) dialog.addEventListener("close", () => {
+    queueMicrotask(() => {
+      if (document.querySelector("dialog[open]")) return;
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused !== document.body && focused.getClientRects().length) return;
+      const heading = [...document.querySelectorAll<HTMLElement>("#binders-workspace h1, #buy-cards-workspace h1")].find(node => node.getClientRects().length);
+      (menuButton.getClientRects().length ? menuButton : heading)?.focus({ preventScroll: true });
+    });
+  });
+  // Import and export: one dialog that leads to import, export, card lists and the JSON backup.
+  const transferDialog = el<HTMLDialogElement>("transfer-dialog");
+  for (const id of ["transfer-open", "home-transfer-open"]) el(id).addEventListener("click", () => {
+    el("export-message").textContent = "";
+    transferDialog.showModal();
+  });
+  transferDialog.addEventListener("click", event => {
+    // Import, export and backup open their own dialogs; this one steps aside.
+    if ((event.target as Element).closest("#import-cards, #export-cards, #transfer-backup")) transferDialog.close();
+  });
+  el("transfer-backup").addEventListener("click", () => el("sync-open").click());
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
   else { scanDialog.close(); scanDialog.dataset.phase = "closed"; }
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
@@ -529,13 +564,13 @@ async function initialize() {
   for (const id of ["first-dex", "national-add"]) el(id).addEventListener("click", event => void action(async () => {
     await controller.setEnabled(true);
     await master.showNational();
-    el("layout-open").focus();
+    el("national-title").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("national-hide").addEventListener("click", event => void action(async () => {
     await controller.setEnabled(false);
     el<HTMLDialogElement>("layout-dialog").close();
     if (!nationalEnabled(snapshot.state)) await master.goHome();
-    el(nationalEnabled(snapshot.state) ? "layout-open" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
+    el(nationalEnabled(snapshot.state) ? "national-title" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("first-device").addEventListener("click", () => {
     onboardingTicket++;

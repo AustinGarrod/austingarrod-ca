@@ -74,7 +74,7 @@ try {
     await page.goto(buyingUrl);
     const buying = page.locator("#buy-cards-workspace");
     await expect(buying.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
-    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page.locator("h1:visible")).toHaveCount(1);
     await expect(page.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
     const setup = buying.getByRole("link", { name: "Go to Binders" });
     await expect(setup).toBeVisible();

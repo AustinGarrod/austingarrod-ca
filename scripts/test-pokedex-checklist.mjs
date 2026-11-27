@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
-import { binderAction, goHome, homeCard, homeCards, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
+import { binderAction, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
 
 const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
@@ -13,12 +13,12 @@ async function checkControlSizing(page) {
   const viewport = page.viewportSize();
   for (const width of [320, 390, 820, 1440]) {
     await page.setViewportSize({ width, height: viewport.height });
+    // Controls hidden at this width (the Show filter sits behind Filter on phones) are skipped.
     const controls = await page.locator([
-      '#binder-back', '#master-workspace .dex-search',
-      '#master-status', '#master-add-extra', '#master-view-binder', '#master-view-checklist',
+      '#binder-back', '#catalog-search-open', '#binder-menu > summary', '#master-workspace .dex-search',
+      '#master-filter-toggle', '#master-status', '#master-view-binder', '#master-view-checklist',
       '#master-page-prev', '#master-page-select', '#master-page-next',
-      '#position-list', '#export-scope', '#export-csv', '#print-missing',
-    ].join(', ')).evaluateAll(nodes => nodes.map(node => {
+    ].join(', ')).evaluateAll(nodes => nodes.filter(node => node.getClientRects().length).map(node => {
       const { width, height } = node.getBoundingClientRect();
       return { id: node.id || 'binder search', width, height };
     }));
@@ -74,13 +74,13 @@ async function checkSetChecklist(page, width) {
   const location = reverse.locator('.dex-checklist-location');
   await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
   await regular.getByRole('radio', { name: 'Have it' }).check();
-  await status.selectOption('owned');
+  await chooseFilter(page, '#master-status', 'owned');
   await expect(rows).toHaveCount(1);
   await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
-  await status.selectOption('missing');
+  await chooseFilter(page, '#master-status', 'missing');
   await expect(rows).toHaveCount(1);
   await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
-  await status.selectOption('all');
+  await chooseFilter(page, '#master-status', 'all');
   await search.fill('Bulbasaur');
   await expect(rows).toHaveCount(3);
   await finish.selectOption({ label: 'Reverse holo' });
@@ -125,7 +125,7 @@ async function checkSetOverview(page, width) {
   const workspace = page.locator('#master-workspace');
   await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
   for (const [name, required] of [['Prize card', true], ['Signed copy', false]]) {
-    await page.locator('#master-add-extra').click();
+    await binderAction(page, '#master-add-extra');
     await page.locator('#master-extra-name').fill(name);
     await page.locator('#master-extra-required').setChecked(required);
     await page.locator('#master-extra-form').getByRole('button', { name: 'Add extra' }).click();
@@ -293,7 +293,7 @@ try {
     await page.locator('#first-dex').click();
     await expect(page.locator('#pokemon-details')).toBeHidden();
     await expect(page.locator('#binder-view')).not.toHaveClass(/has-details/);
-    await expect(page.locator('.dex-intro')).not.toContainText('Fill the gaps');
+    await expect(page.locator('#binder-bar')).not.toContainText('Fill the gaps');
     assert.equal(await page.locator('#dex-filter').evaluate(node => getComputedStyle(node).appearance), 'none');
     await binderAction(page, '#sync-open');
     await page.locator('#binder-account-review').click();
@@ -385,16 +385,16 @@ try {
     await expect(abra).toHaveCount(0);
     await page.locator('#checklist-hide-collected').uncheck();
     await expect(abra).toHaveCount(1);
-    await page.locator('#dex-filter').selectOption('owned');
+    await chooseFilter(page, '#dex-filter', 'owned');
     await expect(rows).toHaveCount(1);
     await expect(rows.first().locator('.dex-checklist-location')).toHaveAttribute('aria-label', 'Page 4 · Row 4, column 3');
-    await page.locator('#dex-filter').selectOption('missing');
+    await chooseFilter(page, '#dex-filter', 'missing');
     await expect(page.locator('#checklist-count')).toContainText('150 Pokémon');
-    await page.locator('#dex-generation').selectOption('2');
+    await chooseFilter(page, '#dex-generation', '2');
     await expect(rows).toHaveCount(0);
     await expect(page.locator('#checklist-list')).toContainText('No Pokémon match');
-    await page.locator('#dex-generation').selectOption('all');
-    await page.locator('#dex-filter').selectOption('all');
+    await chooseFilter(page, '#dex-generation', 'all');
+    await chooseFilter(page, '#dex-filter', 'all');
     await page.locator('#dex-search').fill('mr mime');
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText('Mr. Mime');
@@ -417,8 +417,8 @@ try {
     await expect(page.locator('#checklist-count')).toContainText('1025 Pokémon');
     await expect(abra.locator(cardNumbers)).toBeHidden();
     await page.locator('#dex-search').fill('Abra');
-    await page.locator('#dex-filter').selectOption('missing');
-    await page.locator('#dex-generation').selectOption('1');
+    await chooseFilter(page, '#dex-filter', 'missing');
+    await chooseFilter(page, '#dex-generation', '1');
     await page.locator('#checklist-set').fill('151 (MEW)');
     await page.locator('#checklist-hide-collected').check();
     await page.getByRole('button', { name: 'Clear filters', exact: true }).click();

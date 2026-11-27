@@ -1,5 +1,5 @@
 ---
-import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
+import { ArrowDownUp, ArrowRight, BookOpen, Layers } from "@lucide/astro";
 ---
 <section id="set-overview" class="binders-home" aria-labelledby="set-overview-title" hidden>
   <header class="set-overview-heading">
@@ -8,8 +8,7 @@ import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
       <span id="set-overview-binder-count" class="dex-label"></span>
     </div>
     <div class="dex-actions">
-      <button id="import-cards" type="button">Import cards</button>
-      <button id="export-cards" type="button" hidden>Export cards</button>
+      <button id="home-transfer-open" type="button" aria-haspopup="dialog"><ArrowDownUp size={16} aria-hidden="true" /> Import and export</button>
     </div>
   </header>
   <div id="set-overview-totals" class="set-overview-totals" hidden>

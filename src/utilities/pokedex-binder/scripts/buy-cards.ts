@@ -612,7 +612,7 @@ export function createBuyCards(options: Options) {
       if (!isActive()) return;
       if (restoreFocus) { restoreFocus(); return; }
       const row = id ? list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(id)}"]`) : null;
-      (row ?? document.getElementById("binder-view-title"))?.focus();
+      (row ?? document.getElementById("buy-cards-title"))?.focus();
     },
     bindersChanged() {
       needsReload = true;

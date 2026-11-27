@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
-import { binderAction, cardLists, goHome, homeCard, homeCards, newSetBinder, openBinder, transferAction } from './test-pokedex-helpers.mjs';
+import { binderAction, cardLists, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder, transferAction } from './test-pokedex-helpers.mjs';
 
 const origin = process.env.POKEDEX_TRANSFER_ORIGIN || 'http://127.0.0.1:4321';
 const app = origin + '/utilities/pokemon-binder/';
@@ -120,9 +120,9 @@ try {
     const regular = page.locator('[data-checklist-row="001:normal"]');
     await page.getByRole('radiogroup', { name: 'Status of #001 · Bulbasaur · Regular' }).getByRole('radio', { name: 'Ordered' }).check();
     await expect(page.locator('#master-ordered')).toHaveText('1');
-    await page.locator('#master-status').selectOption('missing');
+    await chooseFilter(page, '#master-status', 'missing');
     await expect(regular).toHaveCount(0);
-    await page.locator('#master-status').selectOption('ordered');
+    await chooseFilter(page, '#master-status', 'ordered');
     await expect(regular.getByRole('radio', { name: 'Ordered' })).toBeChecked();
     assert.equal(await page.locator('#master-checklist').evaluate(section => section.scrollWidth > section.clientWidth + 1), false, 'Checklist overflow');
     await transferAction(page, '#export-cards');
@@ -138,7 +138,7 @@ try {
     await openBinder(page, '151');
     await regular.getByRole('radio', { name: 'Have it' }).click(); // The ordered filter hides the row once it is collected.
     await expect(page.locator('#master-ordered')).toHaveText('0');
-    await page.locator('#master-status').selectOption('owned');
+    await chooseFilter(page, '#master-status', 'owned');
     await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
 
     await preview(page, '#import-cards', incoming, 'dex');
@@ -150,7 +150,7 @@ try {
     await page.locator('#view-checklist').click();
     const squirtle = page.locator('#checklist-list [data-checklist-row="7"]');
     await squirtle.getByRole('radiogroup', { name: 'Status of Squirtle' }).getByRole('radio', { name: 'Ordered' }).check();
-    await page.locator('#dex-filter').selectOption('ordered');
+    await chooseFilter(page, '#dex-filter', 'ordered');
     await expect(page.locator('#ordered-count')).toHaveText('1');
     await expect(squirtle.getByRole('radio', { name: 'Ordered' })).toBeChecked();
     await cardLists(page);
