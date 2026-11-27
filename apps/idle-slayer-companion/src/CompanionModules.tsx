@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CompanionEntity, CompanionEntityRef, CompanionProgress, CompanionRecord, CompanionSystem } from './domain/companion-types'
 import { getCompanionRecord } from './domain/companion-progress'
-import { companionDisplayText, companionExactSum, companionPlannedCosts, companionPlural, companionRecordedStatus, companionRefKey, companionSearchMatches, companionShoppingList, companionStatusText, companionSystemLabels, counterPercent } from './companion-view-model'
+import { companionCategoryLabel, companionDisplayText, companionExactSum, companionGroupCount, companionGroups, companionPlannedCosts, companionPlural, companionRecordedStatus, companionRefKey, companionRowSummary, companionSearchMatches, companionShoppingList, companionStatusText, companionSystemLabels, counterPercent } from './companion-view-model'
 import { CompactCount, SPCost } from './SPCost'
 import { companionSections } from './CompanionShell'
 import type { CompanionSection } from './CompanionShell'
@@ -105,21 +105,66 @@ function RelatedLinks({ title, refs, lookup, onNavigate }: { title: string; refs
   return <div className="companion-related"><span>{title}</span><div>{visible.map((entity) => <button type="button" key={companionRefKey(entity.ref)} onClick={() => onNavigate(sectionForSystem[entity.ref.system], entity.ref)}>{entity.title}<span aria-hidden="true"> ↗</span></button>)}</div></div>
 }
 
-export function EntityCard({ entity, record, pinned, onPin, onRecord, planned, onPlan, state, lookup, onNavigate, busy }: {
+interface EntityProps {
   entity: CompanionEntity; record: CompanionRecord; pinned: boolean; onPin: () => void; onRecord: (patch: CompanionRecord) => void
   planned?: string; onPlan: (quantity: string) => void; state?: CompanionEntityPresentationState
   lookup: ReadonlyMap<string, CompanionReferenceEntry>; onNavigate: CompanionModulesProps['onNavigate']
   busy?: boolean
-}) {
+}
+
+/** The fact a row records in place: the entry's recorded state, plus its count where the count is the point. */
+function RowControls({ entity, record, onRecord, busy }: Pick<EntityProps, 'entity' | 'record' | 'onRecord' | 'busy'>) {
+  const controls = (() => {
+    switch (entity.system) {
+      case 'achievement': return <ObservationToggle compact label="Achievement" value={record.completed} onChange={(completed) => onRecord({ completed })} yes="Earned" no="Not earned" />
+      case 'craft': return entity.permanent === false ? null : <ObservationToggle compact label="Item ownership" value={record.completed} disabled={busy} onChange={(completed) => onRecord({ completed })} yes="Owned" no="Not owned" />
+      case 'material': return <><ObservationToggle compact label="Material discovery" value={record.discovered} onChange={(discovered) => onRecord({ discovered })} yes="Discovered" no="Not discovered" /><CounterEditor compact label="Amount held" value={record.count} onChange={(count) => onRecord({ count })} /></>
+      case 'quest': return entity.category === 'Quest packs'
+        ? <ObservationToggle compact label="Quest pack ownership" value={record.completed} onChange={(completed) => onRecord({ completed })} yes="Owned" no="Not owned" />
+        : <ObservationToggle compact label="Reward" value={record.claimed} onChange={(claimed) => onRecord({ claimed, ...(claimed ? { completed: true } : {}) })} yes="Claimed" no="Unclaimed" />
+      case 'village': return <ObservationToggle compact label={entity.category === 'Village buildings' ? 'Building progress' : 'Village progress'} value={record.built ?? record.completed} onChange={(value) => onRecord(entity.category === 'Village buildings' ? { built: value } : { completed: value })} yes="Complete" no="In progress" />
+      case 'enemy': return <><ObservationToggle compact label="Discovery" value={record.discovered} onChange={(discovered) => onRecord({ discovered })} yes="Discovered" no="Not discovered" /><CounterEditor compact label="Kills" value={record.count} onChange={(count) => onRecord({ count })} /></>
+      case 'divinity': return <ObservationToggle compact label="Selected" value={record.selected} onChange={(selected) => onRecord({ selected })} yes="Selected" no="Not selected" />
+    }
+  })()
+  if (!controls) return <div className="companion-row-controls"><StatusPill status={companionRecordedStatus(entity, record)}>{companionStatusText(entity, companionRecordedStatus(entity, record))}</StatusPill></div>
+  return <fieldset className="companion-row-controls" disabled={busy && entity.system !== 'craft'}><legend className="sr-only">{entity.title}: record</legend>{controls}</fieldset>
+}
+
+/**
+ * One dense row per entry: name, the fact it records and its goal star. The row expands in place into the
+ * full entry (description, every control, recipe, tiers, sources). The entry keeps its
+ * `companion-entity-<system>-<id>` id so links and searches can focus and open it.
+ */
+function EntityRow(props: EntityProps & { expanded: boolean; onToggle: () => void }) {
+  const { entity, record, pinned, onPin, expanded, onToggle, state } = props
+  const status = companionRecordedStatus(entity, record)
+  const itemId = `companion-entity-${entity.system}-${entity.id}`
+  // The expanded entry shows the whole description, so the row's one-line excerpt steps aside.
+  const summary = expanded ? '' : companionRowSummary(entity)
+  return <li className={`companion-entity companion-entity-${status}${expanded ? ' companion-entity-expanded' : ''}`} id={itemId} tabIndex={-1}>
+    <div className="companion-entity-row">
+      <button type="button" className="companion-entity-open" aria-expanded={expanded} aria-controls={`${itemId}-details`} aria-labelledby={`${itemId}-title`} aria-describedby={summary || state?.available === false ? `${itemId}-summary` : undefined} onClick={onToggle}>
+        <EntityIcon entity={entity} />
+        <span className="companion-entity-name"><strong id={`${itemId}-title`}>{entity.title}</strong>{(summary || state?.available === false) && <small id={`${itemId}-summary`}>{state?.available === false && <span className="companion-row-flag">◇ Requirements not met{summary ? ' · ' : ''}</span>}{summary}</small>}</span>
+        <span className="companion-entity-chevron" aria-hidden="true">›</span>
+      </button>
+      {!expanded && <RowControls entity={entity} record={record} onRecord={props.onRecord} busy={props.busy} />}
+      <button type="button" className="companion-pin" aria-label={`${pinned ? 'Remove' : 'Pin'} ${entity.title} ${pinned ? 'from' : 'as'} a goal`} aria-pressed={pinned} onClick={onPin} title={pinned ? 'Remove goal' : 'Pin as a goal'}>{pinned ? '★' : '☆'}</button>
+    </div>
+    {expanded && <EntityDetails {...props} id={`${itemId}-details`} />}
+  </li>
+}
+
+/** The full entry, shown when its row is expanded. */
+function EntityDetails({ entity, record, onRecord, planned, onPlan, state, lookup, onNavigate, busy, id }: EntityProps & { id: string }) {
   const status = companionRecordedStatus(entity, record)
   const [planDraft, setPlanDraft] = useState(planned ?? '0')
-  const card = useRef<HTMLElement>(null)
   useEffect(() => setPlanDraft(planned ?? '0'), [planned])
-  const itemId = `companion-entity-${entity.system}-${entity.id}`
   const recipeCosts = companionPlannedCosts([entity], { [entity.id]: '1' })
-  return <article className={`companion-entity-card companion-entity-${status}`} id={itemId} tabIndex={-1} ref={card}>
-    <div className="companion-card-heading"><EntityIcon entity={entity} /><div><span className="companion-eyebrow">{companionDisplayText(entity.category) || companionSystemLabels[entity.system]}</span><h3>{entity.title}</h3></div><button type="button" className="companion-pin" aria-label={`${pinned ? 'Remove' : 'Pin'} ${entity.title} ${pinned ? 'from' : 'as'} a goal`} aria-pressed={pinned} onClick={onPin} title={pinned ? 'Remove goal' : 'Pin as a goal'}>{pinned ? '★' : '☆'}</button></div>
-    <div className="companion-card-badges"><StatusPill status={status}>{companionStatusText(entity, status)}</StatusPill>{entity.permanent === true && <span className="companion-tag">Permanent</span>}{entity.system === 'craft' && entity.permanent === false && <span className="companion-tag">Temporary</span>}{entity.platforms?.length ? <span className="companion-tag">{entity.platforms.join(' · ')}</span> : entity.steam ? <span className="companion-tag">Steam</span> : null}</div>
+  return <div className={`companion-entity-card companion-entity-${status}`} id={id} role="region" aria-label={`${entity.title} details`}>
+    {/* The controls below show the recorded state; only entries without one keep a status label. */}
+    <div className="companion-card-badges">{entity.system === 'craft' && entity.permanent === false && <StatusPill status={status}>{companionStatusText(entity, status)}</StatusPill>}{entity.permanent === true && <span className="companion-tag">Permanent</span>}{entity.system === 'craft' && entity.permanent === false && <span className="companion-tag">Temporary</span>}{entity.platforms?.length ? <span className="companion-tag">{entity.platforms.join(' · ')}</span> : entity.steam ? <span className="companion-tag">Steam</span> : null}</div>
     <p className="companion-card-description">{companionDisplayText(entity.description)}</p>
     {state?.available === false && <div className="companion-blocker"><span aria-hidden="true">◇</span><span>{state.blockers?.join(' · ') || 'Requirements are not met by what you have recorded.'}</span></div>}
     {state?.available === undefined && entity.purchase && <small className="companion-eligibility">What you have recorded does not show whether this is available yet.</small>}
@@ -139,7 +184,7 @@ export function EntityCard({ entity, record, pinned, onPin, onRecord, planned, o
     <RelatedLinks title="Gathering sources" refs={entity.sources} lookup={lookup} onNavigate={onNavigate} />
     <RelatedLinks title="Related" refs={entity.related} lookup={lookup} onNavigate={onNavigate} />
     {!!entity.provenance.length && <details className="companion-evidence"><summary>Source & identity</summary><small>Native ID: {entity.id}</small>{entity.provenance.map((source, index) => <small key={index}>{source.url ? <a href={source.url} target="_blank" rel="noreferrer noopener">{source.label}</a> : source.label}</small>)}</details>}
-  </article>
+  </div>
 }
 
 export function TrackingNotice({ systems, progress, onTrack, busy }: { systems: readonly CompanionSystem[]; progress: CompanionProgress; onTrack: CompanionModulesProps['onTrack']; busy?: boolean }) {
@@ -215,23 +260,28 @@ export function CompanionModules(props: CompanionModulesProps) {
   const [category, setCategory] = useState('all')
   const [platform, setPlatform] = useState('all')
   const [subsystem, setSubsystem] = useState<CompanionSystem | 'all'>('all')
-  const [limit, setLimit] = useState(24)
+  // Visit-only view state: which entries are expanded and which groups the player opened or closed.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  const [openGroups, setOpenGroups] = useState<Readonly<Record<string, boolean>>>({})
   const lookup = useMemo(() => new Map([...entities.map((entity): CompanionReferenceEntry => ({ ref: { system: entity.system, id: entity.id }, title: entity.title, description: entity.description })), ...(props.referenceEntries ?? [])].map((entry) => [companionRefKey(entry.ref), entry])), [entities, props.referenceEntries])
-  useEffect(() => { setQuery(''); setFilter('all'); setCategory('all'); setPlatform('all'); setSubsystem('all'); setLimit(24) }, [section])
-  useEffect(() => { setLimit(24) }, [query, filter, category, subsystem, platform])
+  useEffect(() => { setQuery(''); setFilter('all'); setCategory('all'); setPlatform('all'); setSubsystem('all'); setExpanded(new Set()); setOpenGroups({}) }, [section])
   useEffect(() => {
     if (!props.focusedRef || sectionForSystem[props.focusedRef.system] !== section || props.focusedRef.system === 'ascension') return
     // A reference reveals neither an identity nor its position unless it is in this visible projection.
     const target = entities.find((entity) => entity.system === props.focusedRef!.system && entity.id === props.focusedRef!.id)
     if (!target) return
-    setQuery(target.title); setCategory('all'); setFilter('all'); setPlatform('all'); setSubsystem('all'); setLimit(24)
+    // Open its group and the entry itself, then focus it.
+    setQuery(target.title); setCategory('all'); setFilter('all'); setPlatform('all'); setSubsystem('all')
+    setOpenGroups((groups) => ({ ...groups, [`${target.system}:${target.category}`]: true }))
+    setExpanded((keys) => new Set([...keys, companionRefKey(target)]))
     const frame = requestAnimationFrame(() => { const element = document.getElementById(`companion-entity-${target.system}-${target.id}`); element?.scrollIntoView({ block: 'center', behavior: 'instant' }); element?.focus({ preventScroll: true }) })
     return () => cancelAnimationFrame(frame)
   }, [props.focusedRef, section, entities])
   if (section === 'overview') return <Overview {...props} lookup={lookup} />
   const systems = systemsForSection[section]
   const sectionEntities = entities.filter((entity) => systems.includes(entity.system)).sort((left, right) => systems.indexOf(left.system) - systems.indexOf(right.system))
-  const categories = [...new Set(sectionEntities.map((entity) => entity.category).filter(Boolean))].sort()
+  const categoryLabel = (category: string) => companionCategoryLabel({ system: systems[0], category })
+  const categories = [...new Set(sectionEntities.map((entity) => entity.category).filter(Boolean))].sort((left, right) => categoryLabel(left).localeCompare(categoryLabel(right), 'en'))
   const platforms = [...new Set(sectionEntities.flatMap((entity) => entity.platforms ?? (entity.steam ? ['Steam'] : [])))].sort()
   const filtered = sectionEntities.filter((entity) => {
     if (subsystem !== 'all' && entity.system !== subsystem) return false
@@ -242,6 +292,14 @@ export function CompanionModules(props: CompanionModulesProps) {
     return filter === 'all' || companionRecordedStatus(entity, getCompanionRecord(progress, entity.system, entity.id)) === filter
   })
   const copy = sectionCopy[section]
+  const statusOf = (entity: CompanionEntity) => companionRecordedStatus(entity, getCompanionRecord(progress, entity.system, entity.id))
+  const groups = companionGroups(filtered, statusOf)
+  // Long lists start as a scannable list of groups with counts; a search, a filter or a short list opens them.
+  const narrowed = query.trim() !== '' || filter !== 'all' || category !== 'all' || platform !== 'all' || subsystem !== 'all'
+  const openByDefault = narrowed || filtered.length <= 150 || groups.length === 1
+  const groupOpen = (key: string) => openGroups[key] ?? openByDefault
+  const allGroupsOpen = groups.every((group) => groupOpen(group.key))
+  const toggleEntry = (key: string) => setExpanded((keys) => { const next = new Set(keys); if (!next.delete(key)) next.add(key); return next })
   const complete = sectionEntities.filter((entity) => companionRecordedStatus(entity, getCompanionRecord(progress, entity.system, entity.id)) === 'complete').length
   const observed = sectionEntities.filter((entity) => companionRecordedStatus(entity, getCompanionRecord(progress, entity.system, entity.id)) !== 'unknown').length
   const wishlist = sectionEntities.filter((entity) => props.pinnedRefs.has(companionRefKey(entity)))
@@ -253,13 +311,20 @@ export function CompanionModules(props: CompanionModulesProps) {
     {section === 'crafting' && <ShoppingList entities={entities} progress={progress} plans={props.recipePlans} onNavigate={props.onNavigate} />}
     {section === 'divinities' && <section className="companion-wishlist" aria-label="Divinity goals"><span aria-hidden="true">☆</span><div><h2>Divinity goals</h2><p>{wishlist.length ? <>{companionPlural(wishlist.length, 'visible power')} pinned · {wishlistCost === null ? 'Combined cost unknown' : <><CompactCount value={wishlistCost} unit={wishlistUnits[0] ?? 'points'} /> listed cost</>}</> : 'Pin powers with the star to make them goals.'}</p><small>Listed costs only. Your balance is not tracked.</small></div></section>}
     <section className="companion-browser" aria-label={`Browse ${copy.title}`}>
-      <div className="companion-browser-toolbar"><label className="companion-module-search"><span aria-hidden="true">⌕</span><input type="search" placeholder={`Search visible ${section === 'quests' ? 'quests and Village entries' : copy.title.toLowerCase()}…`} value={query} onChange={(event) => setQuery(event.target.value)} aria-label={`Search visible ${copy.title.toLowerCase()}`} /></label>{systems.length > 1 && <label className="companion-filter-label">Show<select value={subsystem} onChange={(event) => setSubsystem(event.target.value as CompanionSystem | 'all')}><option value="all">All types</option>{systems.map((system) => <option key={system} value={system}>{({ craft: 'Recipes', material: 'Materials', quest: 'Quests', village: 'Village' } as Record<string, string>)[system] ?? system}</option>)}</select></label>}{categories.length > 1 && <label className="companion-filter-label">Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">All categories</option>{categories.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>}{platforms.length > 1 && <label className="companion-filter-label">Platform<select value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="all">All platforms</option>{platforms.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>}</div>
-      <div className="companion-filter-row">{props.spoilers && <SpoilerToggle {...props.spoilers} busy={props.busy} />}<div className="companion-filter-chips" role="group" aria-label="Recorded status filter">{[['all', 'All visible'], ['unknown', 'Not recorded'], ['incomplete', section === 'bestiary' ? 'Not discovered' : section === 'divinities' ? 'Not selected' : 'Incomplete'], ['complete', section === 'bestiary' ? 'Discovered' : section === 'divinities' ? 'Selected' : 'Complete'], ['pinned', '★ Goals']].map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div><span className="companion-result-count" role="status">{companionPlural(filtered.length, 'visible entry', 'visible entries')}</span></div>
+      <div className="companion-browser-toolbar"><label className="companion-module-search"><span aria-hidden="true">⌕</span><input type="search" placeholder={`Search visible ${section === 'quests' ? 'quests and Village entries' : copy.title.toLowerCase()}…`} value={query} onChange={(event) => setQuery(event.target.value)} aria-label={`Search visible ${copy.title.toLowerCase()}`} /></label>{systems.length > 1 && <label className="companion-filter-label">Show<select value={subsystem} onChange={(event) => setSubsystem(event.target.value as CompanionSystem | 'all')}><option value="all">All types</option>{systems.map((system) => <option key={system} value={system}>{({ craft: 'Recipes', material: 'Materials', quest: 'Quests', village: 'Village' } as Record<string, string>)[system] ?? system}</option>)}</select></label>}{categories.length > 1 && <label className="companion-filter-label">Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">All categories</option>{categories.map((value) => <option key={value} value={value}>{categoryLabel(value)}</option>)}</select></label>}{platforms.length > 1 && <label className="companion-filter-label">Platform<select value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="all">All platforms</option>{platforms.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>}</div>
+      <div className="companion-filter-row">{props.spoilers && <SpoilerToggle {...props.spoilers} busy={props.busy} />}<div className="companion-filter-chips" role="group" aria-label="Recorded status filter">{[['all', 'All visible'], ['unknown', 'Not recorded'], ['incomplete', section === 'bestiary' ? 'Not discovered' : section === 'divinities' ? 'Not selected' : 'Incomplete'], ['complete', section === 'bestiary' ? 'Discovered' : section === 'divinities' ? 'Selected' : 'Complete'], ['pinned', '★ Goals']].map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div><div className="companion-result-tools"><span className="companion-result-count" role="status">{companionPlural(filtered.length, 'visible entry', 'visible entries')}</span>{groups.length > 1 && <button type="button" className="companion-groups-toggle" onClick={() => setOpenGroups(Object.fromEntries(groups.map((group) => [group.key, !allGroupsOpen])))}>{allGroupsOpen ? 'Close all groups' : 'Open all groups'}</button>}</div></div>
       {!filtered.length ? sectionEntities.length
         ? <div className="companion-empty-state"><span aria-hidden="true">◇</span><h2>No visible entries match.</h2><p>Try another search or filter.</p><button type="button" onClick={() => { setQuery(''); setFilter('all'); setCategory('all'); setPlatform('all'); setSubsystem('all') }}>Clear filters</button></div>
         // Entries here are revealed as they are recorded. The only way to browse them all is the one shared spoiler setting.
-        : <div className="companion-empty-state"><span aria-hidden="true">◇</span><h2>Nothing revealed here yet</h2><p>Entries here appear once you record them, following the game’s reveal rules.{props.spoilers && !props.spoilers.shown ? ' To track by hand now, show all entries. This turns on spoilers everywhere, including the Ascension map.' : ''}</p><div className="companion-empty-actions">{props.spoilers && !props.spoilers.shown && <button type="button" className="primary" disabled={props.busy} onClick={() => props.spoilers!.onChange(true)}>Show all entries</button>}{props.onImport && <button type="button" onClick={props.onImport}>Import a save</button>}</div></div> : <div className="companion-entity-grid">{filtered.slice(0, limit).map((entity) => <EntityCard key={companionRefKey(entity)} entity={entity} record={getCompanionRecord(progress, entity.system, entity.id)} pinned={props.pinnedRefs.has(companionRefKey(entity))} onPin={() => props.onPinGoal({ system: entity.system, id: entity.id })} onRecord={(patch) => props.onRecord(entity.system, entity.id, patch)} planned={props.recipePlans[entity.id]} onPlan={(quantity) => props.onRecipePlan(entity.id, quantity)} state={props.entityStates?.[companionRefKey(entity)]} lookup={lookup} onNavigate={props.onNavigate} busy={props.busy} />)}</div>}
-      {filtered.length > limit && <button className="companion-load-more" type="button" onClick={() => setLimit(limit + 24)}>Show more entries ({Math.min(24, filtered.length - limit)} more)</button>}
+        : <div className="companion-empty-state"><span aria-hidden="true">◇</span><h2>Nothing revealed here yet</h2><p>Entries here appear once you record them, following the game’s reveal rules.{props.spoilers && !props.spoilers.shown ? ' To track by hand now, show all entries. This turns on spoilers everywhere, including the Ascension map.' : ''}</p><div className="companion-empty-actions">{props.spoilers && !props.spoilers.shown && <button type="button" className="primary" disabled={props.busy} onClick={() => props.spoilers!.onChange(true)}>Show all entries</button>}{props.onImport && <button type="button" onClick={props.onImport}>Import a save</button>}</div></div>
+        : <div className="companion-groups">
+          {groups.map((group) => {
+            const open = groupOpen(group.key), headingId = `companion-group-${group.key.replace(/[^a-z0-9]+/gi, '-')}`
+            return <section className="companion-group" key={group.key} aria-labelledby={headingId}>
+              <h2 className="companion-group-heading" id={headingId}><button type="button" aria-expanded={open} aria-controls={`${headingId}-list`} onClick={() => setOpenGroups((groups) => ({ ...groups, [group.key]: !open }))}><span className="companion-group-chevron" aria-hidden="true">›</span><span className="companion-group-name">{group.label}</span><span className="companion-group-count">{companionGroupCount(group)}</span></button></h2>
+              {open && <ul className="companion-entity-list" id={`${headingId}-list`}>{group.entities.map((entity) => { const key = companionRefKey(entity); return <EntityRow key={key} entity={entity} record={getCompanionRecord(progress, entity.system, entity.id)} pinned={props.pinnedRefs.has(key)} onPin={() => props.onPinGoal({ system: entity.system, id: entity.id })} onRecord={(patch) => props.onRecord(entity.system, entity.id, patch)} planned={props.recipePlans[entity.id]} onPlan={(quantity) => props.onRecipePlan(entity.id, quantity)} state={props.entityStates?.[key]} lookup={lookup} onNavigate={props.onNavigate} busy={props.busy} expanded={expanded.has(key)} onToggle={() => toggleEntry(key)} /> })}</ul>}
+            </section>
+          })}</div>}
     </section>
   </div>
 }

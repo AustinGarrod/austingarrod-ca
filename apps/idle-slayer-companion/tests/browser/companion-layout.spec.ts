@@ -38,7 +38,7 @@ test('a long module scrolls independently while desktop navigation stays reachab
   await page.goto('./achievements/')
   const content = page.getByRole('main', { name: 'Achievements', exact: true })
   await content.getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
-  await expect(content.locator('.companion-entity-card').first()).toBeVisible()
+  await expect(content.locator('.companion-group-heading').first()).toBeVisible()
   await expect.poll(() => content.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(900)
   const sidebar = page.locator('.companion-sidebar')
   const before = await sidebar.boundingBox()

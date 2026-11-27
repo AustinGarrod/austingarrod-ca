@@ -37,6 +37,10 @@ test('an empty section offers to show all entries through the shared spoiler set
   await expect(main.getByRole('button', { name: 'Import a save', exact: true })).toBeVisible()
   await main.getByRole('button', { name: 'Show all entries', exact: true }).click()
   await expect.poll(async () => (await progress(page))?.ascension.showSpoilers).toBe(true)
+  // A long section starts as its list of category groups; opening one shows its entries.
+  const group = main.locator('.companion-group-heading button').first()
+  await expect(group).toHaveAttribute('aria-expanded', 'false')
+  await group.click()
   await expect(main.locator('[id^="companion-entity-achievement-"]').first()).toBeVisible()
   await expect(main.getByRole('checkbox', { name: 'Show spoilers', exact: true })).toBeChecked()
 })
