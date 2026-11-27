@@ -246,7 +246,7 @@
 .dex-backup-actions>button,.dex-backup-actions>.dex-file-label { flex: 1 1 180px; margin: 0; }
 .dex-file-label { display: inline-flex !important; align-items: center; justify-content: center; cursor: pointer; margin: 0 !important; }
 .dex-file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.dex-file-label:focus-within { outline: 2px solid var(--secondary); outline-offset: 3px; }
+.dex-file-label:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
 .dex-print-only { display: none; }
 @media(min-width:1400px) { .dex-pocket-open { min-height: 140px !important; }.dex-pocket img { width: 80px; height: 80px; } }
 @media(max-width:1100px) { .dex-workspace { grid-template-columns: 110px minmax(0,1fr) 280px; gap: 14px; }.dex-app { padding: 26px 20px; }.dex-binder-grid { padding: 12px; gap: 6px; }.dex-page-heading { padding: 14px; }.dex-pocket-name { font-size: 10px; }.dex-page-overview { grid-template-columns: repeat(3,minmax(0,1fr)); } }
@@ -337,7 +337,7 @@
 .pokedex-page .dex-status-option:has(input:checked) { color: var(--ink); background: var(--surface-highest); }
 .pokedex-page .dex-status-option:has(input[value=ordered]:checked) { color: #5a3b10; background: #f6e3bd; }
 .pokedex-page .dex-status-option:has(input[value=owned]:checked) { color: white; background: var(--secondary); }
-.dex-status-option:has(input:focus-visible) { z-index: 1; outline: 2px solid var(--secondary); outline-offset: 2px; }
+.dex-status-option:has(input:focus-visible) { z-index: 1; outline: 2px solid var(--accent); outline-offset: 2px; }
 .dex-checklist-row .dex-status-control { width: 264px; }
 .dex-detail-status { margin: 4px 0 8px; }
 .dex-pocket-tag { align-self: center; margin-top: 4px; padding: 1px 6px; border: 1px solid #b78431; background: var(--surface); color: #684516; font: 600 10px/1.5 'JetBrains Mono', monospace; }
@@ -516,7 +516,7 @@
 #master-pokemon-details .dex-detail-hero img { width: min(36%,110px); height: auto; }
 @media (max-width:900px) { #master-pokemon-details .dex-detail-hero img { width: 44px; height: auto; } }
 
-.pokedex-page :is(button, select, input, a, summary):focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
+.pokedex-page :is(button, select, input, a, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 #binder-account-panel { padding: 12px 0; border-top: 1px solid var(--line); }
 #binder-account-panel h3, .dex-backups h3 { margin: 0 0 8px; }
 #binder-account-panel p { margin: 6px 0; }
@@ -586,7 +586,7 @@
 .dex-filter-count { min-width: 20px; padding: 0 5px; background: var(--ink); color: white; font: 700 11px/20px 'JetBrains Mono', monospace; text-align: center; }
 .dex-filter-panel { display: flex; align-items: center; gap: 8px; order: 2; }
 .dex-view-toggle { flex: none; order: 3; }
-.dex-search:focus-within { outline: 2px solid var(--secondary); outline-offset: 2px; }
+.dex-search:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pokedex-page .dex-search input:focus-visible { outline: none; border: 0; }
 .dex-progress-line { display: none; }
 
