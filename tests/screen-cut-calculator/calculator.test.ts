@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   calculateFrameCuts,
   convertMeasurement,
+  cutListText,
+  formatLength,
   formatMeasurement,
   roundToIncrement,
   type CalculatorInput,
 } from "../../src/utilities/screen-cut-calculator/lib/calculator";
+import { DEFAULT_SETTINGS, parseSettings } from "../../src/utilities/screen-cut-calculator/lib/settings";
 
 const defaultInput: CalculatorInput = {
   openingWidth: 817,
@@ -25,6 +28,7 @@ describe("window screen frame cuts", () => {
       value: {
         openingMm: { width: 817, height: 840 },
         finishedMm: { width: 815, height: 838 },
+        builtFrameMm: { width: 815.1, height: 838.1 },
         clearanceMm: 2,
         cornerExtensionPerEndMm: 19.05,
         totalCornerAllowanceMm: 38.1,
@@ -120,32 +124,122 @@ describe("calculator validation", () => {
     });
   });
 
-  it("rejects clearance equal to or greater than an opening dimension", () => {
-    const result = calculateFrameCuts({
+  it("reports clearance that is not smaller than the opening once, naming the opening", () => {
+    const both = calculateFrameCuts({
       ...defaultInput,
       openingWidth: 2,
       openingHeight: 1,
       clearanceMm: 2,
     });
+    expect(both).toEqual({
+      ok: false,
+      errors: [{
+        field: "clearanceMm",
+        message: "Clearance must be smaller than the opening (2 × 1 mm).",
+        relatedFields: ["openingWidth", "openingHeight"],
+      }],
+    });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors).toEqual([
-      expect.objectContaining({ field: "clearanceMm", message: expect.stringMatching(/width/i) }),
-      expect.objectContaining({ field: "clearanceMm", message: expect.stringMatching(/height/i) }),
-    ]);
+    const heightOnly = calculateFrameCuts({ ...defaultInput, openingHeight: 0.2, unit: "cm" });
+    expect(heightOnly).toMatchObject({
+      ok: false,
+      errors: [{ field: "clearanceMm", message: expect.stringContaining("(8170 × 2 mm)") }],
+    });
   });
 
-  it("rejects corner allowances that leave a zero or negative cut", () => {
+  it("files a cut the corner allowance uses up under the opening dimension", () => {
     const result = calculateFrameCuts({
       ...defaultInput,
       openingWidth: 40.1,
       openingHeight: 35,
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.errors).toHaveLength(2);
-    expect(result.errors.every((error) => error.field === "cornerExtensionPerEndMm")).toBe(true);
+    expect(result).toEqual({
+      ok: false,
+      errors: [
+        {
+          field: "openingWidth",
+          message: "Opening width is too small for the 38.1 mm corner allowance.",
+          relatedFields: ["clearanceMm", "cornerExtensionPerEndMm"],
+        },
+        {
+          field: "openingHeight",
+          message: "Opening height is too small for the 38.1 mm corner allowance.",
+          relatedFields: ["clearanceMm", "cornerExtensionPerEndMm"],
+        },
+      ],
+    });
+
+    const typingHeight = calculateFrameCuts({ ...defaultInput, openingHeight: 8 });
+    expect(typingHeight).toMatchObject({ ok: false, errors: [{ field: "openingHeight" }] });
+    if (!typingHeight.ok) expect(typingHeight.errors).toHaveLength(1);
+  });
+});
+
+describe("rounded cuts and the cut list", () => {
+  it("reports the frame the rounded cuts make", () => {
+    const exact = calculateFrameCuts({ ...defaultInput, roundingIncrementMm: 0 });
+    expect(exact.ok && exact.value.builtFrameMm).toEqual({ width: 815, height: 838 });
+
+    const half = calculateFrameCuts({ ...defaultInput, openingWidth: 817.3, roundingIncrementMm: 0.5 });
+    expect(half.ok && half.value.horizontal).toEqual({ exactMm: 777.2, practicalMm: 777 });
+    expect(half.ok && half.value.builtFrameMm.width).toBe(815.1);
+  });
+
+  it("formats lengths in the chosen unit", () => {
+    expect(formatLength(777, "mm")).toBe("777 mm");
+    expect(formatLength(777, "cm")).toBe("77.7 cm");
+    expect(formatLength(776.5, "cm")).toBe("77.65 cm");
+  });
+
+  it("writes a plain-text cut list in the chosen unit", () => {
+    const result = calculateFrameCuts(defaultInput);
+    if (!result.ok) throw new Error("expected a result");
+
+    expect(cutListText(result.value, "mm")).toBe([
+      "Top and bottom: 2 × 777 mm",
+      "Left and right: 2 × 800 mm",
+      "Opening 817 × 840 mm, clearance 2 mm, corner allowance 38.1 mm",
+    ].join("\n"));
+    expect(cutListText(result.value, "cm")).toBe([
+      "Top and bottom: 2 × 77.7 cm",
+      "Left and right: 2 × 80 cm",
+      "Opening 81.7 × 84 cm, clearance 2 mm, corner allowance 38.1 mm",
+    ].join("\n"));
+  });
+});
+
+describe("remembered settings", () => {
+  it("falls back to the defaults for missing or malformed storage", () => {
+    expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(parseSettings("not an object")).toEqual(DEFAULT_SETTINGS);
+    expect(parseSettings({
+      unit: "in",
+      clearance: "7",
+      customClearanceMm: -1,
+      rounding: "2",
+      cornerExtensionPerEndMm: Number.NaN,
+    })).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("keeps each valid stored value", () => {
+    expect(parseSettings({
+      unit: "cm",
+      clearance: "custom",
+      customClearanceMm: 3.5,
+      rounding: "0.5",
+      cornerExtensionPerEndMm: 20,
+    })).toEqual({
+      unit: "cm",
+      clearance: "custom",
+      customClearanceMm: 3.5,
+      rounding: "0.5",
+      cornerExtensionPerEndMm: 20,
+    });
+    expect(parseSettings({ clearance: "3", cornerExtensionPerEndMm: 0 })).toEqual({
+      ...DEFAULT_SETTINGS,
+      clearance: "3",
+      cornerExtensionPerEndMm: 0,
+    });
   });
 });
