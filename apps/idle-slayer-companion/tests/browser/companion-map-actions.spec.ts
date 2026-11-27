@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures'
-import { openAction, purchaseStart } from './helpers/app'
+import { openAction, openData, purchaseStart } from './helpers/app'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('idle-slayer-ascension-map.analytics.v1', 'disabled'))
@@ -61,8 +61,7 @@ test('reviewing Ascension references opens each real collection without changing
     { button: 'Progression goals…', title: 'Your progress' },
     { button: 'Map data tools…', title: 'Your progress' },
   ]) {
-    await openAction(page, 'Privacy & tracking')
-    await page.getByRole('dialog', { name: 'Privacy & tracking', exact: true }).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
+    await (await openData(page)).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
     const references = page.getByRole('dialog', { name: 'Ascension references', exact: true })
     await expect(references).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(1)

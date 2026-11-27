@@ -53,7 +53,7 @@ test('dirty conflict recovery preserves export and supports reviewed saved/local
   await expect(page.getByRole('button', { name: 'Review progress conflict', exact: true })).toBeVisible()
   await expect(page.locator('.map-summary')).toContainText('1 /')
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  const review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const download = page.waitForEvent('download')
   await review.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8')).ascension.purchases[catalog.startId]).toEqual({ epoch: 0, active: true })

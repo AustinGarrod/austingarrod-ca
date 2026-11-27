@@ -202,7 +202,7 @@ test('conflict review replaces Recent with one correctly named dialog and retain
   expect(await ids(page)).toEqual([start.id, neighbor.id])
   await reopened.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  const review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await expect(review).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Recent upgrades', exact: true })).toHaveCount(0)
   expect(await stored(page)).toBe(saved)

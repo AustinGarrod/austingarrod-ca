@@ -31,7 +31,7 @@ for (const operation of ['purchase', 'removal', 'reset'] as const) {
     if (operation === 'reset') {
       await page.getByRole('button', { name: 'Map options', exact: true }).click()
       await page.getByRole('button', { name: 'Progress', exact: true }).click()
-      await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+      await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
       const reset = planUltraAscension(catalog, profile)!
       affected = [...reset.cleared, ...reset.activated, ...reset.conditionallyRetained].filter((id) => keys.some((node) => node.id === id))
       expect(affected).toHaveLength(11)

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './fixtures'
+import { openData } from './helpers/app'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
 import { COMPANION_WORKSPACE_KEY } from '../../src/domain/companion-workspace'
 import type { CompanionProgress } from '../../src/domain/companion-types'
@@ -49,10 +50,10 @@ test('import explains where to find the save and keeps its file field readable a
 test('backup groups keep exports and file labels separate, and intentions restore leaves progress alone', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('./')
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const actual = dialog.getByRole('region', { name: 'Companion progress', exact: true })
-  const intentions = dialog.getByRole('region', { name: 'Intentions and plans', exact: true })
+  const intentions = dialog.getByRole('region', { name: 'Goals and crafting plans', exact: true })
   for (const [region, label] of [[actual, 'Restore Companion progress'], [intentions, 'Restore intentions']] as const) {
     const input = region.getByLabel(label, { exact: true })
     await expectFileFieldSpacing(input)
@@ -90,9 +91,9 @@ test('backup groups keep exports and file labels separate, and intentions restor
 
 test('Companion backup restore previews changes, supports cancellation and applies with Undo', async ({ page }) => {
   await page.goto('./')
-  const open = () => page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  const open = () => openData(page)
   await open()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const downloaded = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   const candidate = JSON.parse(readFileSync((await (await downloaded).path())!, 'utf8')) as CompanionProgress
@@ -114,8 +115,8 @@ test('Companion backup restore previews changes, supports cancellation and appli
 
 test('a queued shell Install action keeps a Companion restore preview available to cancel or apply', async ({ page }) => {
   await page.goto('./')
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const downloaded = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   const candidate = JSON.parse(readFileSync((await (await downloaded).path())!, 'utf8')) as CompanionProgress
@@ -143,4 +144,51 @@ test('a queued shell Install action keeps a Companion restore preview available 
   }
   await expect(dialog).not.toBeVisible()
   await expect.poll(async () => (await progress(page))?.ascension.epoch).toBe(2)
+})
+
+test('Back up everything writes one file whose parts restore through their own previews, and one control routes any app file', async ({ page }) => {
+  await page.goto('./')
+  const dialog = await openData(page, { advanced: false })
+  const downloaded = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Back up everything', exact: true }).click()
+  const download = await downloaded
+  expect(download.suggestedFilename()).toMatch(/^idle-slayer-companion-backup-.*\.json$/)
+  const bundle = JSON.parse(readFileSync((await download.path())!, 'utf8'))
+  expect(bundle.format).toBe('idle-slayer-companion-backup')
+  expect(Object.keys(bundle.documents).sort()).toEqual(['checkpoints', 'comparison', 'intentions', 'progress'])
+  bundle.documents.progress.ascension.epoch = 3
+  const restore = dialog.getByLabel('Restore from a backup file', { exact: true })
+  await restore.setInputFiles({ name: 'everything.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bundle)) })
+  const review = dialog.getByRole('region', { name: 'Review full backup', exact: true })
+  await expect(review.getByRole('listitem')).toHaveCount(4)
+  expect((await progress(page))?.ascension.epoch ?? 0).toBe(0)
+  await review.getByRole('button', { name: 'Review recorded progress…', exact: true }).click()
+  await expect(dialog.getByRole('heading', { name: 'Apply this snapshot?', exact: true })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Apply snapshot', exact: true }).click()
+  await expect.poll(async () => (await progress(page))?.ascension.epoch).toBe(3)
+  // The rest of the backup is still listed so the next part can be restored.
+  await expect(review.getByRole('listitem').filter({ hasText: 'Reviewed' })).toHaveCount(1)
+  await review.getByRole('button', { name: 'Done with this backup', exact: true }).click()
+  await restore.setInputFiles({ name: 'other.json', mimeType: 'application/json', buffer: Buffer.from('{"hello":"world"}') })
+  await expect(dialog.getByRole('status')).toContainText('This is not a file this app saves')
+  await restore.setInputFiles({ name: 'map.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...bundle.documents.progress.ascension, epoch: 5 })) })
+  await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toBeVisible()
+  await expect(page.locator('#companion-content')).toHaveAttribute('aria-label', 'Ascension')
+  expect((await progress(page))?.ascension.epoch).toBe(3)
+})
+
+test('an unmet Ultra Ascension names what is missing and clearing names its scope with a red confirm', async ({ page }) => {
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
+  const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  const needs = reset.getByRole('region', { name: 'Ultra Ascension requirements', exact: true })
+  await expect(needs).toBeVisible()
+  await expect(needs.locator('.requirement-missing').first()).toBeVisible()
+  await needs.locator('.requirement-leaf button').first().click()
+  await expect(page.locator('#companion-content')).toHaveAttribute('aria-label', 'Ascension')
+  const data = await openData(page, { advanced: false })
+  await data.getByRole('button', { name: 'Clear all recorded progress…', exact: true }).click()
+  const clear = page.getByRole('dialog', { name: 'Clear all recorded progress', exact: true })
+  await expect(clear.getByRole('heading', { name: 'Clear all recorded progress?', exact: true })).toBeVisible()
+  await expect(clear.getByRole('button', { name: 'Clear all recorded progress', exact: true })).toHaveClass(/danger-confirm/)
 })

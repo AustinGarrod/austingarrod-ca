@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './fixtures'
-import { purchaseStart } from './helpers/app'
+import { openData, purchaseStart } from './helpers/app'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
 import { CHECKPOINT_STORAGE_KEY } from '../../src/domain/checkpoints'
 
@@ -141,7 +141,7 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 568 
     })
     expect(centered.x).toBeLessThanOrEqual(1)
     expect(centered.y).toBeLessThanOrEqual(1)
-    await privacy.getByRole('button', { name: 'Review Ascension references', exact: true }).click()
+    await (await openData(page)).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
     const references = page.getByRole('dialog', { name: 'Ascension references', exact: true })
     await expectSingleDialog(page, references)
     for (const [action, destination] of [
@@ -154,13 +154,12 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 568 
       const child = page.getByRole('dialog', { name: destination, exact: true })
       await expectSingleDialog(page, child)
       await page.keyboard.press('Escape')
-      await openUtility(page, 'Privacy & tracking')
-      await privacy.getByRole('button', { name: 'Review Ascension references', exact: true }).click()
+      await (await openData(page)).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
       await expectSingleDialog(page, references)
     }
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
-    const backup = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+    await openData(page)
+    const backup = page.getByRole('dialog', { name: 'Data & backup', exact: true })
     await backup.getByRole('button', { name: 'Open Ascension data tools', exact: true }).click()
     await expectSingleDialog(page, page.getByRole('dialog', { name: 'Your progress', exact: true }))
     await page.keyboard.press('Escape')

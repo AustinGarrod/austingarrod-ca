@@ -1,4 +1,4 @@
-import { openAction, openProgress } from './helpers/app'
+import { openAction, openData, openProgress } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { BrowserContext, Page, Request } from '@playwright/test'
 import { createHash } from 'node:crypto'
@@ -738,7 +738,7 @@ for (const startup of ['loading', 'network-error'] as const) {
       if (startup === 'loading') {
         await expect(page.locator('.startup-disclosure')).toContainText('self-hosted Umami')
         const details = page.locator('.startup-privacy')
-        await details.locator('summary').focus(); await page.keyboard.press('Enter')
+        await details.locator(':scope > summary').focus(); await page.keyboard.press('Enter')
         return details
       }
       const menu = page.getByRole('button', { name: 'Menu', exact: true })
@@ -780,16 +780,16 @@ test('startup privacy disclosure refreshes cross-tab tracking status while the c
   })
   await page.goto(`${origin}${appMapPath}`)
   await waitForActive(page)
-  const privacy = page.locator('details')
-  await privacy.locator('summary').click()
+  const privacy = page.locator('details.startup-privacy')
+  await privacy.locator(':scope > summary').click()
   await expect(privacy.getByRole('status')).toHaveText('Usage analytics and recording are enabled for this visit.')
   const otherTab = await context.newPage()
   await otherTab.goto(`${origin}${fixturePath}`)
   await otherTab.evaluate((key) => localStorage.setItem(key, 'disabled'), preferenceKey)
   await expect(privacy.getByRole('status')).toHaveText('Usage analytics and recording are disabled.')
-  await privacy.locator('summary').click()
+  await privacy.locator(':scope > summary').click()
   await otherTab.evaluate((key) => localStorage.setItem(key, 'enabled'), preferenceKey)
-  await privacy.locator('summary').click()
+  await privacy.locator(':scope > summary').click()
   await expect(privacy.getByRole('status')).toContainText('Tracking remains off in this tab')
   await expect(privacy.getByRole('button', { name: 'Enable tracking and reload', exact: true })).toBeVisible()
   releaseCatalog()
@@ -1284,8 +1284,8 @@ test('unsaved progress and intentions opt-out preserves cancellation and exports
   await expect(page.getByRole('alert')).toContainText('Companion progress could not be saved')
   await expect.poll(() => capture.submissions.some((submission) => submission.payload.name === 'storage_error')).toBe(true)
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), profileKey)).toEqual(initial)
-  await page.locator('.companion-global-actions').getByRole('button', { name: /Backup/ }).click()
-  const backups = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const backups = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await backups.getByLabel('Restore intentions', { exact: true }).setInputFiles({ name: 'intentions.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(intentions)) })
   await backups.getByRole('button', { name: 'Replace intentions', exact: true }).click()
   await expect(backups.getByRole('status').filter({ hasText: 'Intentions could not be saved' })).toBeVisible()

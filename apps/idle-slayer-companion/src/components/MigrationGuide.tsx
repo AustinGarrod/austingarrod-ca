@@ -12,12 +12,13 @@ export function MigrationGuide() {
     <details>
       <summary>{legacy ? 'Move your progress with existing JSON backups' : 'Moving progress from the old GitHub Pages app?'}</summary>
       <div className="migration-instructions">
-        <p>In the old app, export each file you use. In the new utility, restore them in this order and review each preview before applying:</p>
+        <p>Quickest: in the old app open <strong>Data &amp; backup</strong> and choose <strong>Back up everything</strong>. On the new site, open <strong>Data &amp; backup</strong>, choose <strong>Restore from a backup file</strong> and review each part before applying it.</p>
+        <p>If the old copy has no Back up everything, export each file you use and restore them in this order, reviewing each preview before applying:</p>
         <ol>
-          <li><strong>Companion progress.</strong> Open <strong>Backup &amp; transfer</strong>, then <strong>Export Companion progress</strong>. On the new site, choose <strong>Restore Companion progress</strong>.</li>
-          <li><strong>Intentions.</strong> In the same panel, use <strong>Export intentions</strong> and <strong>Restore intentions</strong> for goals and crafting plans.</li>
-          <li><strong>Checkpoints.</strong> In <strong>Ascension → Progress → Progress checkpoints</strong>, export and restore the checkpoint collection separately.</li>
-          <li><strong>Saved comparison.</strong> In <strong>Ascension → Map options → Saved upgrade comparison</strong>, export and restore the comparison separately.</li>
+          <li><strong>Companion progress.</strong> Open <strong>Data &amp; backup → Advanced: single files</strong> (older copies: <strong>Backup &amp; transfer</strong>), then <strong>Export Companion progress</strong>. On the new site, choose <strong>Restore Companion progress</strong>.</li>
+          <li><strong>Intentions.</strong> In the same place, use <strong>Export intentions</strong> and <strong>Restore intentions</strong> for goals and crafting plans.</li>
+          <li><strong>Checkpoints.</strong> In <strong>Data &amp; backup → Advanced: single files → Checkpoints</strong> (older copies: <strong>Ascension → Progress → Progress checkpoints</strong>), use <strong>Export checkpoints</strong> and restore the collection separately.</li>
+          <li><strong>Saved comparison.</strong> In <strong>Data &amp; backup → Advanced: single files → Saved comparison</strong> (older copies: <strong>Ascension → Map options → Saved upgrade comparison</strong>), use <strong>Export comparison</strong> and restore it separately.</li>
         </ol>
         <p>Comparison exports include only currently visible upgrades. Restore progress first and choose your intended spoiler setting before restoring the comparison; nothing enables spoilers for you.</p>
         <p>Select Game/Detailed Layout, spoiler visibility, and Privacy &amp; tracking again on the new site. QR links transfer Ascension map progress and layout only. Undo history, recent navigation, open plans, reference sheets, and installed app files do not transfer.</p>

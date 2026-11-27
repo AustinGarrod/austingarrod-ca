@@ -127,7 +127,7 @@ test('recovery replaces the roadmap with exactly one native modal and preserves 
   const other = await context.newPage(); await other.goto('./ascension/'); await other.evaluate(({ key, profile }) => window.__writeExternalMapProfileText(key, JSON.stringify({ ...profile, showSpoilers: true })), { key: PROFILE_STORAGE_KEY, profile: initial })
   await expect(page.getByRole('button', { name: 'Review progress conflict', exact: true })).toBeVisible()
   const dialog = await open(page); await dialog.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  await expect(page.locator('dialog[open]')).toHaveCount(1); await expect(page.getByRole('dialog', { name: 'Backup & transfer', exact: true })).toBeVisible(); await expect(dialog).toHaveCount(0)
+  await expect(page.locator('dialog[open]')).toHaveCount(1); await expect(page.getByRole('dialog', { name: 'Data & backup', exact: true })).toBeVisible(); await expect(dialog).toHaveCount(0)
   await expect(page.locator('.map-summary')).toContainText('1 /'); await other.close()
 })
 for (const purchaseFirst of [true, false]) test(`queued connected native purchase and roadmap openers leave one dialog (${purchaseFirst})`, async ({ page }) => {

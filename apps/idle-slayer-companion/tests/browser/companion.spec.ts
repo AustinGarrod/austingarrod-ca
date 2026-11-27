@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
+import { openData } from './helpers/app'
 import { encodeGameSaveFixture, nativeSaveFixture } from '../fixtures/game-save'
 import { COMPANION_STORAGE_KEY } from '../../src/domain/companion-storage'
 import type { CompanionCatalog, CompanionProgress } from '../../src/domain/companion-types'
@@ -147,7 +148,7 @@ test('an unrelated catalog failure does not disable achievements or progress exp
   await page.getByRole('searchbox', { name: 'Search visible achievements' }).fill(achievement.title)
   await card(page, 'achievement', achievement.id).getByRole('group', { name: 'Achievement', exact: true }).getByRole('button', { name: 'Earned', exact: true }).click()
   await expect.poll(async () => (await progress(page))?.modules.achievement.records[achievement.id]?.completed).toBe(true)
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  await openData(page)
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   expect((await download).suggestedFilename()).toMatch(/^idle-slayer-companion-/)
@@ -205,13 +206,13 @@ test('closing an intentions read and rejecting a later file cannot revive the ab
       return new Promise<string>((resolve) => { win.releaseIntentionsRead = async () => resolve(await native.call(this)) })
     }
   })
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const workspace = { format: 'idle-slayer-companion-workspace', version: 1, goals: [], recipePlans: { 'synthetic-recipe': '2' } }
   await dialog.getByLabel('Restore intentions', { exact: true }).setInputFiles({ name: 'first.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(workspace)) })
   await expect(dialog.getByText('Reading and validating locally…', { exact: true })).toBeVisible()
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  await openData(page)
   await dialog.getByLabel('Restore intentions', { exact: true }).setInputFiles({ name: 'oversize.json', mimeType: 'application/json', buffer: Buffer.alloc(65537, 32) })
   await expect(dialog.getByText('The intentions file exceeds its size limit.', { exact: true })).toBeVisible()
   await page.evaluate(async () => { await (window as Window & { releaseIntentionsRead?: () => Promise<void> }).releaseIntentionsRead?.() })
@@ -234,7 +235,7 @@ test('changed legacy tab progress can be exported before acknowledging the Compa
   await other.goto('./')
   await other.evaluate(({ key, changed }) => localStorage.setItem(key, JSON.stringify(changed)), { key: PROFILE_STORAGE_KEY, changed })
   await page.getByRole('button', { name: 'Review recovery', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await expect(dialog).toContainText('The older map tab’s changes are not included in this Companion snapshot.')
   const pending = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export changed legacy map copy', exact: true }).click()

@@ -108,8 +108,8 @@ test('profile backup, restore, clearing progress and undo keep layout preference
   await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
   const download = await downloadPromise
   expect(JSON.parse(readFileSync((await download.path())!, 'utf8'))).toEqual(restored)
-  await page.getByRole('button', { name: 'Clear all progress…', exact: true }).click()
-  await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
+  await page.getByRole('button', { name: 'Clear Ascension progress…', exact: true }).click()
+  await page.getByRole('button', { name: 'Clear Ascension progress', exact: true }).click()
   await expectLayout(page, 'Detailed Layout')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), layoutKey)).toBe('web')
   await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), profileKey)).toEqual(emptyProfile(catalog.revision))

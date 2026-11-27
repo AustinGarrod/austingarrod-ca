@@ -35,7 +35,7 @@ for (const retention of catalog.grants) {
       if (!visibility(catalog, profile).ids.has(source.id)) await expect(page.locator('.details')).not.toContainText(source.title)
       expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(before)
       await openProgress(page)
-      await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+      await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
       const retainedGroup = page.getByRole('region', { name: 'Ascension reset effects', exact: true }).locator(':scope > section').filter({ has: page.getByRole('heading', { name: /Conditionally retained purchases/ }) })
       if (retained) await expect(retainedGroup).toContainText(target.title)
       else await expect(retainedGroup).not.toContainText(target.title)

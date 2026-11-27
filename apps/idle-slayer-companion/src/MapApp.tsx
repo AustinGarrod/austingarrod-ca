@@ -49,9 +49,9 @@ import { progressBackupFilename } from './domain/progress-comparison'
 import { MapHelpPanel } from './MapHelpPanel'
 import { SPCost, ExactCostDetails } from './SPCost'
 import { presentCost } from './domain/cost-presentation'
-import { useCheckpointSession } from './useCheckpointSession'
+import type { useCheckpointSession } from './useCheckpointSession'
 import { CheckpointPanel } from './CheckpointPanel'
-import { useComparisonSession } from './useComparisonSession'
+import type { useComparisonSession } from './useComparisonSession'
 import { SavedComparisonPanel } from './SavedComparisonPanel'
 import { UpgradeReference } from './UpgradeReference'
 import { getUpgradeReference, subscribeUpgradeReference } from './upgrade-reference-receiver'
@@ -68,7 +68,7 @@ import type { HypotheticalEvent } from './domain/forward-impact'
 import { InstallPanel } from './InstallPanel'
 import { prepareUpdate, repairOffline, usePwaStatus } from './pwa'
 
-type Preview = { operation: AnalyticsOperation | 'prior_ascensions'; title: string; text: string; profile: Profile; changes?: string[]; groups?: { label: string; ids: string[] }[]; replaceStorage?: boolean; upgradeId?: string; milestoneId?: string; sessionVersion?: number; resolution?: 'saved' | 'local'; comparison?: Omit<ProgressComparisonProps, 'catalog'> }
+type Preview = { operation: AnalyticsOperation | 'prior_ascensions'; title: string; text: string; profile: Profile; confirmLabel?: string; destructive?: boolean; changes?: string[]; groups?: { label: string; ids: string[] }[]; replaceStorage?: boolean; upgradeId?: string; milestoneId?: string; sessionVersion?: number; resolution?: 'saved' | 'local'; comparison?: Omit<ProgressComparisonProps, 'catalog'> }
 type Menu = 'options' | 'progress' | 'milestones' | 'about' | 'recommendations' | 'game-import' | 'privacy' | 'keyboard-help' | 'reference-sheet' | 'transfer' | 'install' | null
 type SelectionSource = 'map' | 'search' | 'neighbor' | 'recommendation' | 'start' | 'keyboard' | 'reference'
 const menuTitles: Record<Exclude<Menu, null>, string> = { options: 'Map options', progress: 'Your progress', milestones: 'Milestones', about: 'About this map', recommendations: 'Suggested next upgrade', 'game-import': 'Import save', privacy: 'Privacy & tracking', 'keyboard-help': 'Map help', 'reference-sheet': 'Upgrade reference sheet', transfer: 'Transfer map progress', install: 'Install & offline' }
@@ -77,14 +77,28 @@ const graphKeyboardHelp = 'Arrow Right or Down: next visible upgrade. Arrow Left
 const wikiPriorities = { schemaVersion, source: wikiSource, rows: wikiRows }
 const cost = (value: string) => presentCost(value).exact
 
+/**
+ * Entry points the shell uses for Ascension-scoped work. Each runs through the map's own guarded
+ * flows, so previews, transfers and save-before-reload protections still apply.
+ */
 export interface MapActions {
   openHelp: () => boolean
   openInstall: () => boolean
   openReferences: () => boolean
   openProgress: () => boolean
+  /** Restore the original Ascension-only map file through the map's own preview. */
+  restoreMapBackup: (text: string, name: string) => boolean
+  /** QR transfer carries Ascension map progress and layout only. */
+  openTransfer: (mode: 'send' | 'receive') => boolean
+  openCheckpoints: (restoreText?: string) => boolean
+  openComparison: (restoreText?: string) => boolean
+  openMilestones: () => boolean
+  exportMapBackup: () => boolean
+  clearAscension: () => boolean
   undo: () => void
   redo: () => void
 }
+export type MapReferenceSessions = { checkpoints: ReturnType<typeof useCheckpointSession>; comparison: ReturnType<typeof useComparisonSession> }
 
 interface MapAppProps {
   catalog: Catalog
@@ -99,8 +113,10 @@ interface MapAppProps {
   onCompanionTrackingChange?: (enabled: boolean) => void
   onReferenceGuard?: (guard: () => boolean) => void
   onCompanionRecovery?: () => void
+  /** Checkpoint and comparison sessions are owned by the shell so Data & backup can include them. */
+  references: MapReferenceSessions
 }
-function Atlas({ catalog, transferInbox, active = true, embedded = false, onActions, requestedUpgrade, onCompanionImport, onCompanionReset, onCompanionExport, onCompanionTrackingChange, onReferenceGuard, onCompanionRecovery }: MapAppProps) {
+function Atlas({ catalog, transferInbox, active = true, embedded = false, onActions, requestedUpgrade, onCompanionImport, onCompanionReset, onCompanionExport, onCompanionTrackingChange, onReferenceGuard, onCompanionRecovery, references }: MapAppProps) {
   const { session: profileSession, state: sessionState, loaded } = useProfileSession(catalog.revision, {
     onState: (state) => { currentProfile.current = state.profile },
     onErrorChange: (state, recovered) => {
@@ -163,10 +179,11 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
   roadmapCatalog.current = catalog
   const currentRoadmap = roadmap?.profile === profile && roadmap.profile === profileSession.getState().profile && roadmap.catalog === catalog ? roadmap : null
   useEffect(() => { if (roadmap && !currentRoadmap) setRoadmap(null) }, [roadmap, currentRoadmap])
-  const checkpoints = useCheckpointSession(catalog.revision)
+  const { checkpoints, comparison } = references
   const [checkpointsOpen, setCheckpointsOpen] = useState(false)
-  const comparison = useComparisonSession()
   const [comparisonOpen, setComparisonOpen] = useState(false)
+  // A file chosen in Data & backup, handed to the collection's own restore preview.
+  const [incomingReference, setIncomingReference] = useState<{ kind: 'checkpoints' | 'comparison'; text: string; sequence: number } | null>(null)
   const [referencesOpen, setReferencesOpen] = useState(false)
   const [comparisonInitialId, setComparisonInitialId] = useState<string | undefined>()
   const [gameImport, setGameImport] = useState<{ result: GameSaveImportPreview; original: Profile } | null>(null)
@@ -334,6 +351,7 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     ?? (recentOpen ? 'Recent upgrades' : null)
     ?? (menu ? menuTitles[menu] : null)
   const recommendations = useMemo(() => recommendUpgrades(catalog, profile, wikiPriorities), [catalog, profile])
+  const uaEligible = useMemo(() => planUltraAscension(catalog, profile) !== null, [catalog, profile])
   const blockedRecommendation = recommendations.status === 'blocked' ? requirementReviewTarget(visible, profile, selected) : undefined
   const progressStatus = {
     loading: 'Checking saved progress on this device…',
@@ -397,7 +415,7 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     if (!interruptAppReload()) return
     setMenu(null); setSearchOpen(false); setComparisonInitialId(id); setComparisonOpen(true)
   }
-  function openCompanionTool(target: 'keyboard-help' | 'install' | 'references' | 'progress') {
+  function openCompanionTool(target: 'keyboard-help' | 'install' | 'references' | 'progress' | null) {
     if (!loaded) { setMessage('The Ascension map is still loading. Try this action again when it is ready.'); return false }
     if (appReloadOperation.current?.committed) return false
     // A queued install click must never discard an in-flight purchase, import,
@@ -413,13 +431,27 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     setGameImport(null); setGameImportLoading(false); setGameImportError('')
     setConflictReview(null); setTrackingReload(null); setSearchOpen(false)
     if (target === 'references') setReferencesOpen(true)
-    else setMenu(target)
+    else if (target) setMenu(target)
     return true
+  }
+  function previewClearAscension() {
+    setMenu(null)
+    setPreview({ operation: 'clear', title: 'Clear Ascension progress?', text: 'Clear Ascension purchases and reviewed map milestones, and return to zero Ultra Ascensions with spoilers hidden. Achievements, crafting, quests, Bestiary and Divinities records, and milestones outside the reviewed map, are kept. You can undo this change in this session.', profile: emptyProfile(catalog.revision), replaceStorage: true, confirmLabel: 'Clear Ascension progress', destructive: true })
   }
   // The shell owns app-wide entry points; register fresh closures without
   // exposing map progress or rendering a second set of global controls.
   useLayoutEffect(() => {
-    onActions?.({ openHelp: () => openCompanionTool('keyboard-help'), openInstall: () => openCompanionTool('install'), openReferences: () => openCompanionTool('references'), openProgress: () => openCompanionTool('progress'), undo, redo })
+    // Each Data & backup hand-off first clears any open map dialog, like the other shell entry points.
+    const ready = () => openCompanionTool(null)
+    onActions?.({ openHelp: () => openCompanionTool('keyboard-help'), openInstall: () => openCompanionTool('install'), openReferences: () => openCompanionTool('references'), openProgress: () => openCompanionTool('progress'),
+      restoreMapBackup: (text, name) => { if (!ready()) return false; void restoreText(text, name); return true },
+      openTransfer: (mode) => { if (!ready() || profileSession.getState().pending) return false; openTransfer(mode); return true },
+      openCheckpoints: (restoreText) => { if (!ready()) return false; if (restoreText !== undefined) setIncomingReference((current) => ({ kind: 'checkpoints', text: restoreText, sequence: (current?.sequence ?? 0) + 1 })); openCheckpoints(); return true },
+      openComparison: (restoreText) => { if (!ready()) return false; if (restoreText !== undefined) setIncomingReference((current) => ({ kind: 'comparison', text: restoreText, sequence: (current?.sequence ?? 0) + 1 })); openComparison(); return true },
+      openMilestones: () => { if (!ready()) return false; setMenu('milestones'); return true },
+      exportMapBackup: () => backup(),
+      clearAscension: () => { if (!ready()) return false; previewClearAscension(); return true },
+      undo, redo })
     return () => onActions?.(null)
   })
   function openRoadmap(id?: string) {
@@ -1054,11 +1086,20 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     let text: string
     try { text = await file.text() } catch (error) { reportFailure(error, 'map.backup.read', { bytes: file.size }); if (request !== restoreRequest.current) return; setMessage('The backup could not be read. Progress was not replaced.'); trackEvent('backup_error', { reason: 'read' }); return }
     if (request !== restoreRequest.current) return
+    previewRestore(text, file.name)
+  }
+  /** The original map file chosen in Data & backup: same validation and preview, already read by the shell. */
+  function restoreText(text: string, name: string) {
+    restoreRequest.current++
+    setMessage('')
+    previewRestore(text, name)
+  }
+  function previewRestore(text: string, name: string) {
     const result = parseProfileBackup(text, catalog.revision)
     if (!result.ok) { reportFailure(new Error(result.error.message), 'map.backup.validation', { kind: result.error.kind }); setMessage(result.error.message); trackEvent('backup_error', { reason: result.error.kind }); return }
     const incoming = visibleProgress(catalog, result.profile, currentProfile.current.showSpoilers)
     setMenu(null)
-    setPreview({ operation: 'restore', title: 'Restore progress?', text: `The backup has ${incoming.owned} visible recorded purchases and ${incoming.milestones} visible milestones, in epoch ${result.profile.epoch}. Counts follow the map's current spoiler setting and the backup's progress. This replaces Ascension purchases, its recorded count and reviewed map milestones. Companion observations and existing milestones outside the reviewed map are kept. Unknown IDs in the backup are retained. The backup's spoiler setting is restored when applied. Undo remains available.`, profile: result.profile, replaceStorage: true, comparison: { current: currentProfile.current, incoming: result.profile, context: `JSON backup: ${file.name.slice(0, 120)}`, incomingLabel: 'After restore' } })
+    setPreview({ operation: 'restore', title: 'Restore progress?', text: `The backup has ${incoming.owned} visible recorded purchases and ${incoming.milestones} visible milestones, in epoch ${result.profile.epoch}. Counts follow the map's current spoiler setting and the backup's progress. This replaces Ascension purchases, its recorded count and reviewed map milestones. Companion observations and existing milestones outside the reviewed map are kept. Unknown IDs in the backup are retained. The backup's spoiler setting is restored when applied. Undo remains available.`, profile: result.profile, replaceStorage: true, comparison: { current: currentProfile.current, incoming: result.profile, context: `JSON backup: ${name.slice(0, 120)}`, incomingLabel: 'After restore' } })
   }
   function chooseGameSave() { if (!interruptAppReload()) return; restoreRequest.current++; trackEvent('game_import_started'); gameFileInput.current?.click() }
   function closeGameImport() {
@@ -1167,8 +1208,8 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     {currentForecast && <Dialog title="Forward impact" close={closeForecast} closeOnBackdrop><ForwardImpactPanel catalog={catalog} profile={profile} event={currentForecast.event} /><div className="dialog-actions"><button className="forward-impact-close" onClick={closeForecast}>{currentForecast.event.kind === 'milestone' ? 'Back to Milestones' : 'Return to details'}</button></div></Dialog>}
     {recentOpen && <Dialog title="Recent upgrades" close={() => setRecentOpen(false)} closeOnBackdrop><RecentUpgrades upgrades={visibleRecent.map((id) => index.get(id)!)} visibleUpgrades={visible.upgrades} selected={detail?.id ?? null} onSelect={returnToRecentUpgrade} onClear={() => setRecent([])} /></Dialog>}
     {referencesOpen && <Dialog title="Ascension references" close={() => setReferencesOpen(false)}><div className="telemetry-private rr-block"><p>Checkpoints, saved comparisons and progression goals have separate storage and exports. They are not included in a progress backup.</p>{referenceRecovery.length > 0 && <p role="status">Some local references need recovery before closing or reloading. Review each collection below.</p>}<div className="dialog-actions"><button onClick={openCheckpoints}>Progress checkpoints…</button><button onClick={() => openComparison()}>Saved upgrade comparison…</button><button onClick={() => { focusGoals.current = true; setGoalTarget(null); setMenu('progress') }}>Progression goals…</button><button onClick={() => setMenu('progress')}>Map data tools…</button></div></div></Dialog>}
-    {checkpointsOpen && <Dialog title="Progress checkpoints" close={() => setCheckpointsOpen(false)}><CheckpointPanel catalog={catalog} profile={profile} history={history} redoHistory={redoHistory} state={checkpoints.state} session={checkpoints.session} currentProfile={() => profileSession.getState().profile} /></Dialog>}
-    {comparisonOpen && <Dialog title="Saved upgrade comparison" close={() => setComparisonOpen(false)}><SavedComparisonPanel catalog={catalog} profile={profile} getProfile={() => profileSession.getState().profile} visible={visible} session={comparison.session} state={comparison.state} initialId={comparisonInitialId}
+    {checkpointsOpen && <Dialog title="Progress checkpoints" close={() => setCheckpointsOpen(false)}><CheckpointPanel incoming={incomingReference?.kind === 'checkpoints' ? incomingReference : undefined} catalog={catalog} profile={profile} history={history} redoHistory={redoHistory} state={checkpoints.state} session={checkpoints.session} currentProfile={() => profileSession.getState().profile} /></Dialog>}
+    {comparisonOpen && <Dialog title="Saved upgrade comparison" close={() => setComparisonOpen(false)}><SavedComparisonPanel incoming={incomingReference?.kind === 'comparison' ? incomingReference : undefined} catalog={catalog} profile={profile} getProfile={() => profileSession.getState().profile} visible={visible} session={comparison.session} state={comparison.state} initialId={comparisonInitialId}
       onInspect={(id) => { setComparisonOpen(false); setRequirementReview(null); center(id, 'neighbor', true, false) }}
       onReview={(route, origin) => { setComparisonOpen(false); reviewRequirement(route, origin, true) }} /></Dialog>}
     {menu === 'game-import' && <Dialog title="Import save" close={closeGameImport}>{gameImport ? <GameSaveImportPanel catalog={catalog} currentProfile={gameImport.original} preview={gameImport.result} onApply={applyGameImport} onCancel={closeGameImport} /> : <div className="game-save-picker">{gameImportLoading ? <p role="status">Reading game save…</p> : <><p className="telemetry-private rr-block" role="alert">{gameImportError}</p><p>Choose <b>savedata.sav</b> or <b>backup.sav</b> from a reviewed Idle Slayer 7.3.4 or legacy 7.2.0 Steam save. The selected file is read locally in your browser.</p><p className="game-save-path">%USERPROFILE%\AppData\LocalLow\Pablo Leban\Idle Slayer\</p></>}<div className="dialog-actions">{!gameImportLoading && <button className="primary" onClick={chooseGameSave}>Choose game save…</button>}<button onClick={closeGameImport}>Cancel</button></div></div>}</Dialog>}
@@ -1187,10 +1228,10 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
         <button disabled={!loaded || saving} onClick={() => openTransfer('send')}>Transfer to another device…</button>
         <button disabled={!loaded || saving} onClick={() => openTransfer('receive')}>Receive transfer…</button>
         <button onClick={() => { restoreRequest.current++; fileInput.current?.click() }}>Restore JSON backup…</button>
-        <button onClick={ultra}>Ultra Ascend…</button>
+        <button onClick={ultra}>Record Ultra Ascension…</button>{!uaEligible && <small className="ultra-unmet">Requirements not met yet; the review shows what is missing.</small>}
         <small>Preview a new reset: clear repeat purchases, activate eligible Astral locks and retain permanent ownership and milestones.</small>
         <PriorAscensionsForm key={profile.epoch} epoch={profile.epoch} disabled={!loaded || saving} onReview={reviewPriorAscensions} onEdit={() => setMessage('')} />
-        <button className="danger" onClick={() => { setMenu(null); setPreview({ operation: 'clear', title: 'Clear all progress?', text: 'Clear Ascension purchases and reviewed map milestones, and return to zero Ultra Ascensions with spoilers hidden. Companion observations and milestones outside the reviewed map are kept. You can undo this change in this session.', profile: emptyProfile(catalog.revision), replaceStorage: true }) }}>Clear all progress…</button>
+        <button className="danger" onClick={previewClearAscension}>Clear Ascension progress…</button>
       </div>
     <GoalsPanel catalog={catalog} profile={profile} targetId={goalTarget} intentions={intentions} onInspect={(id) => { setMenu(null); center(id, 'neighbor') }} /></Dialog>}
     {menu === 'transfer' && <Dialog title="Transfer map progress" close={closeTransfer}><ProgressTransferPanel catalog={catalog} profile={profile} layout={layoutMode} mode={transferMode} busy={transferBusy || saving} generated={transferGenerated} preview={transferPreview} onGenerate={() => { void generateTransfer() }} onReceive={(input) => { void receiveTransfer(input) }} onApply={applyTransfer} onCancel={closeTransfer} onBackup={backup} /></Dialog>}
@@ -1213,7 +1254,7 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     </Dialog>}
     {conflictReview && <Dialog title="Review progress conflict" close={() => setConflictReview(null)}><div className="telemetry-private rr-block"><p>This session was kept when saved progress changed. Export a backup to keep this session before choosing which progress to use.</p><p>{conflictReview.snapshot.kind === 'valid' ? conflictReview.snapshot.text === null ? 'Saved progress was cleared in another tab.' : `${visibility(catalog, { ...conflictReview.snapshot.profile, showSpoilers: profile.showSpoilers }).owned} visible purchases are in the saved profile.` : conflictReview.snapshot.kind === 'invalid' ? 'Saved progress is not a valid profile. It cannot replace this session.' : 'Saved progress cannot be read. Retry recovery before replacing it.'}</p>{conflictReview.snapshot.kind === 'valid' && <ProgressComparison catalog={catalog} current={profile} incoming={conflictReview.snapshot.profile} incomingLabel="Saved profile" context="Saved progress from another browser tab" />}</div><div className="dialog-actions"><button onClick={backup}>Export this session</button><button disabled={conflictReview.snapshot.kind !== 'valid'} onClick={() => { const snapshot = conflictReview.snapshot; if (snapshot.kind !== 'valid') return; setConflictReview(null); setPreview({ operation: 'recovery', title: 'Use saved progress?', text: 'Replace this session with the reviewed saved progress. This change can be undone until another tab changes saved progress. Export a backup first if you want to keep both.', profile: snapshot.profile, resolution: 'saved', sessionVersion: conflictReview.version, comparison: { current: profile, incoming: snapshot.profile, incomingLabel: 'After replacement (saved)', context: 'Saved progress from another browser tab' } }) }}>Use saved progress…</button><button disabled={conflictReview.snapshot.kind === 'unavailable'} onClick={() => { setConflictReview(null); setPreview({ operation: 'recovery', title: 'Replace saved progress with this session?', text: 'Replace the reviewed saved profile with this session. Export a backup first if you want to keep both. This deliberately replaces the other tab’s saved progress.', profile, resolution: 'local', sessionVersion: conflictReview.version, comparison: conflictReview.snapshot.kind === 'valid' ? { current: conflictReview.snapshot.profile, incoming: profile, viewer: profile, currentLabel: 'Saved profile', incomingLabel: 'After replacement (this session)', undoAvailable: false } : undefined }) }}>Keep this session…</button><button onClick={() => { setConflictReview(null); profileSession.refreshExternal(); reviewConflict() }}>Refresh recovery</button><button onClick={() => { setMessage(''); setConflictReview(null) }}>Cancel</button></div></Dialog>}
     {purchasePlan && purchaseTarget && <Dialog title={purchasePlan.kind === 'choice' ? 'Choose a prerequisite path' : purchasePlan.kind === 'blocked' ? 'Explicit progress required' : 'Record purchase?'} close={cancelPurchase}>{purchasePlan.kind === 'choice' ? <><p>This OR requirement has no satisfied path. Choose before any progress changes.</p>{purchasePlan.options.map((option, i) => <button className="full" key={i} onClick={() => { trackEvent('prerequisite_chosen', { position: analyticsPosition(i + 1), upgrade_id: purchaseTarget }); setChoices({ ...choices, [purchasePlan.key]: i }) }}>{label(option)}</button>)}</> : purchasePlan.kind === 'blocked' ? <><RequirementView requirement={purchasePlan.requirement} profile={profile} visible={visible} onReview={(route) => reviewRequirement(route, purchaseTarget)} /><p>{purchasePlan.reason}</p><button onClick={cancelPurchase}>Close</button></> : <><p>Record {purchasePlan.added.length} purchase{purchasePlan.added.length === 1 ? '' : 's'}, including missing prerequisites.</p><ul className="upgrade-changes">{purchasePlan.added.filter((id) => visible.ids.has(id)).map((id) => <li key={id} data-upgrade-id={id}>{previewIdentity(id)}</li>)}</ul><div className="dialog-actions purchase-confirm-actions">{purchaseSource.current === 'recommendation' && <button className="primary" disabled={saving} onClick={() => applyPurchase(true)}>Apply and continue suggestions</button>}<button className={purchaseSource.current === 'recommendation' ? undefined : 'primary'} disabled={saving} onClick={() => applyPurchase()}>Apply purchases</button>{purchaseSource.current === 'recommendation' && <button onClick={() => { cancelPurchase(); setMenu('recommendations') }}>Back to suggestions</button>}<button onClick={cancelPurchase}>Cancel</button></div></>}</Dialog>}
-    {preview && <Dialog title={preview.title} close={() => setPreview(null)}><p className={preview.operation === 'restore' || preview.operation === 'recovery' || preview.operation === 'prior_ascensions' ? 'telemetry-private rr-block' : undefined}>{preview.text}</p>{preview.comparison && <ProgressComparison catalog={catalog} {...preview.comparison} replacementDescription={onCompanionRecovery ? "This replaces Ascension purchases, its recorded count and reviewed map milestones. Companion observations and milestones outside the reviewed map are preserved." : undefined} />}{preview.changes && <ul className="upgrade-changes">{preview.changes.filter((id) => visible.ids.has(id)).map((id) => <li key={id} data-upgrade-id={id}>{previewIdentity(id)}</li>)}</ul>}{preview.groups?.map((group) => <section key={group.label}><h3>{group.label} ({group.ids.length})</h3><ul className="upgrade-changes">{group.ids.filter((id) => visible.ids.has(id)).map((id) => <li key={id} data-upgrade-id={id}>{previewIdentity(id)}</li>)}</ul></section>)}<div className="dialog-actions"><button className="primary" disabled={saving} onClick={() => { void applyPreview() }}>{preview.operation === 'prior_ascensions' ? 'Record history' : 'Apply changes'}</button><button onClick={() => setPreview(null)}>Cancel</button></div></Dialog>}
+    {preview && <Dialog title={preview.title} close={() => setPreview(null)}><p className={preview.operation === 'restore' || preview.operation === 'recovery' || preview.operation === 'prior_ascensions' ? 'telemetry-private rr-block' : undefined}>{preview.text}</p>{preview.comparison && <ProgressComparison catalog={catalog} {...preview.comparison} replacementDescription={onCompanionRecovery ? "This replaces Ascension purchases, its recorded count and reviewed map milestones. Companion observations and milestones outside the reviewed map are preserved." : undefined} />}{preview.changes && <ul className="upgrade-changes">{preview.changes.filter((id) => visible.ids.has(id)).map((id) => <li key={id} data-upgrade-id={id}>{previewIdentity(id)}</li>)}</ul>}{preview.groups?.map((group) => <section key={group.label}><h3>{group.label} ({group.ids.length})</h3><ul className="upgrade-changes">{group.ids.filter((id) => visible.ids.has(id)).map((id) => <li key={id} data-upgrade-id={id}>{previewIdentity(id)}</li>)}</ul></section>)}<div className="dialog-actions"><button className={preview.destructive ? 'danger-confirm' : 'primary'} disabled={saving} onClick={() => { void applyPreview() }}>{preview.confirmLabel ?? (preview.operation === 'prior_ascensions' ? 'Record history' : 'Apply changes')}</button><button onClick={() => setPreview(null)}>Cancel</button></div></Dialog>}
   </section></DialogFeedbackContext.Provider>
 }
 

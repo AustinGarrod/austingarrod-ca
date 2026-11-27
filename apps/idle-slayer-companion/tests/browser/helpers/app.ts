@@ -31,6 +31,19 @@ export async function openAction(page: Page, name: string) {
   await action.click()
 }
 
+/** Open Data & backup; by default also expand its Advanced single-file section. */
+export async function openData(page: Page, { advanced = true }: { advanced?: boolean } = {}) {
+  await expect(page.locator('.companion-shell')).toBeAttached()
+  const current = page.locator('dialog[open]')
+  if (await current.count() && !await page.getByRole('dialog', { name: 'Data & backup', exact: true }).count()) await current.last().getByRole('button', { name: 'Close dialog', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
+  if (!await dialog.count()) await page.getByRole('button', { name: /^(Data & backup|Data)$/ }).click()
+  await expect(dialog).toBeVisible()
+  const more = dialog.locator('details.companion-data-advanced')
+  if (advanced && await more.count() && !await more.evaluate((element) => (element as HTMLDetailsElement).open)) await more.locator('summary').click()
+  return dialog
+}
+
 export async function openProgress(page: Page) {
   await openAction(page, 'Progress')
   const dialog = page.getByRole('dialog', { name: 'Your progress', exact: true })

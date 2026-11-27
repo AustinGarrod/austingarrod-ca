@@ -126,7 +126,7 @@ test('recurring checklist recomputes from a real reset and retains conditionally
   }, { key: PROFILE_STORAGE_KEY, profile, goalsKey: GOALS_STORAGE_KEY, intentions })
   await page.goto('./ascension/'); await progress(page)
   await expect(page.locator('.goals-panel')).toContainText('2 achieved')
-  await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
   await page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
   await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
   await progress(page)

@@ -41,7 +41,7 @@ for (const showSpoilers of [false, true]) {
         const progress = page.getByRole('button', { name: 'Progress', exact: true })
         if (!await progress.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
         await progress.click()
-        await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+        await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
         const groups = [
           ['Repeat purchases cleared', reset.cleared], ['Astral locks activated', reset.activated], ['Conditionally retained purchases', reset.conditionallyRetained],
         ] as const

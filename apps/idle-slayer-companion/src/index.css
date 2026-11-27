@@ -40,6 +40,9 @@ button:disabled { opacity: .5; cursor: default; }
 button.primary { color: #ffffff; border-color: var(--primary); background: var(--primary); font-weight: 700; }
 button.primary:hover:not(:disabled) { color: #ffffff; background: var(--ink); }
 button.danger { color: var(--danger); border-color: var(--line); }
+/* The confirm step of a destructive action names its scope and is the only filled red control. */
+button.danger-confirm { color: #ffffff; border-color: var(--danger); background: var(--danger); font-weight: 700; }
+button.danger-confirm:hover:not(:disabled) { color: #ffffff; border-color: #8f1c13; background: #8f1c13; }
 button.full { display: block; width: 100%; margin-top: 12px; }
 a { color: var(--secondary); text-underline-offset: 3px; }
 a:hover { color: var(--ink); }

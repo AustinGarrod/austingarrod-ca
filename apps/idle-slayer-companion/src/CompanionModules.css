@@ -199,6 +199,23 @@ form.companion-counter { margin: 0; }
 .companion-preview-actions { position: sticky; bottom: -20px; z-index: 2; display: grid; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px 20px; border-top: 1px solid var(--line); background: var(--surface); }
 .companion-preview-actions > p { margin: 0; }
 .companion-preview-actions .companion-dialog-actions { justify-content: flex-end; }
+/* Data & backup: one screen for import, backup, restore, transfer, clearing and single files. */
+.companion-data-advanced { padding-top: 20px; border-top: 1px solid var(--line); }
+.companion-data-advanced > summary { display: list-item; min-height: 44px; padding: 10px 2px; color: var(--ink); font-weight: 600; cursor: pointer; }
+.companion-data-advanced[open] > summary { margin-bottom: 12px; }
+.companion-data-advanced > .companion-dialog-section + .companion-dialog-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.companion-bundle-review { display: grid; gap: 12px; }
+.companion-bundle-review > h3 { margin: 0; }
+.companion-bundle-review > p { margin: 0; }
+.companion-bundle-parts { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.companion-bundle-parts > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 0; border-top: 1px solid var(--line); }
+.companion-bundle-parts > li:last-child { border-bottom: 1px solid var(--line); }
+.companion-bundle-parts > li > span { min-width: 0; font-weight: 600; }
+.companion-bundle-parts small { color: var(--secondary); font-weight: 500; }
+.companion-ultra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: 32px; padding: 16px 20px; border: 1px solid var(--line); background: var(--surface); }
+.companion-ultra h2 { margin: 0 0 4px; font-size: 1rem; }
+.companion-ultra p { margin: 0; color: var(--muted); font-size: .875rem; }
+.companion-ultra button small, .progress-actions button small { margin-top: 2px; font-size: .75rem; }
 .privacy-section { border-top: 1px solid var(--line); }
 .privacy-section:last-child { border-bottom: 1px solid var(--line); }
 .privacy-section > summary { display: list-item; min-height: 44px; padding: 12px 2px; color: var(--ink); font-weight: 600; cursor: pointer; }

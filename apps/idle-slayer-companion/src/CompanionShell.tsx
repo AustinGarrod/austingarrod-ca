@@ -101,7 +101,7 @@ export function CompanionShell({ section, onNavigate, children, ascension, onImp
       <div className="companion-global-actions">
         {accountControls}
         <button type="button" className="companion-import" onClick={onImport}><span aria-hidden="true">↥</span> Import save</button>
-        <button type="button" onClick={onBackup}><span aria-hidden="true">⇄</span> <span className="companion-backup-label">Backup & transfer</span><span className="companion-backup-short">Backup</span></button>
+        <button type="button" onClick={onBackup}><span aria-hidden="true">⇄</span> <span className="companion-backup-label">Data &amp; backup</span><span className="companion-backup-short">Data</span></button>
       </div>
     </header>
     {navigationModal && <div className="companion-nav-scrim" aria-hidden="true" onClick={() => setMobileOpen(false)} />}

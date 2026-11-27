@@ -77,7 +77,7 @@ async function prepareConfirmation(page: Page, state: string) {
     return
   }
   await openAction(page, 'Progress')
-  if (state === 'clear') await page.getByRole('button', { name: 'Clear all progress…', exact: true }).click()
+  if (state === 'clear') await page.getByRole('button', { name: 'Clear Ascension progress…', exact: true }).click()
   else if (state === 'history') {
     await page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true }).fill('5')
     await page.getByRole('button', { name: 'Review history…', exact: true }).click()
@@ -268,7 +268,7 @@ for (const state of ['conflict', 'tracking reload'] as const) {
       await openAction(page, 'Privacy & tracking')
       await page.getByRole('button', { name: 'Disable tracking and reload', exact: true }).click()
     }
-    await expect(page.getByRole('dialog', { name: state === 'conflict' ? 'Backup & transfer' : 'Privacy & tracking', exact: true })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: state === 'conflict' ? 'Data & backup' : 'Privacy & tracking', exact: true })).toBeVisible()
     const transfer = await link(baseURL!)
     await arrive(page, transfer, false)
     const receiver = await arrive(page, transfer, true)

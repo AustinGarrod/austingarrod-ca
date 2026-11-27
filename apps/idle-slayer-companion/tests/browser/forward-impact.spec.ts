@@ -148,7 +148,7 @@ test('external progress invalidates analysis and generic dirty recovery replaces
   const again = await analyze(page, 'Soul Gatherer Bundle')
   await again.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  const recovery = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const recovery = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await expect(recovery).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Forward impact', exact: true })).toHaveCount(0)
   await recovery.getByRole('button', { name: 'Use checked saved progress', exact: true }).click()

@@ -17,7 +17,7 @@ test('maximum accepted epoch refuses Ultra Ascension and remains exportable with
   }, milestones: { 'unknown-milestone': true as const } }
   await seedProfile(page, profile)
   await page.goto('./ascension/'); await openProgress(page)
-  await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
   const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
   await expect(reset.getByRole('button', { name: 'Record companion Ultra Ascension', exact: true })).toHaveCount(0)
   await expect(reset.getByRole('status')).toContainText('supported Ultra Ascension count limit')
@@ -38,7 +38,7 @@ test('last safe Ultra Ascension saves, reloads and exports its reset without los
   }, milestones: { 'unknown-milestone': true as const } }
   await seedProfile(page, profile, true)
   await page.goto('./ascension/'); await openProgress(page)
-  await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
   const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
   await expect(reset).toContainText(`Recorded Ultra Ascensions: ${MAX_PROFILE_EPOCH - 1} → ${MAX_PROFILE_EPOCH}`)
   await reset.getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()

@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { openAction as openSharedAction } from './helpers/app'
+import { openAction as openSharedAction, openData } from './helpers/app'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
@@ -29,7 +29,7 @@ async function assertLocalFeedback(page: Page, text: string) {
 test('blocked Ultra Ascension explains the result in its shared dialog at phone width without stale feedback', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('./ascension/'); await openAction(page, 'Progress')
-  const action = page.getByRole('button', { name: 'Ultra Ascend…', exact: true })
+  const action = page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true })
   await action.click()
   const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
   const feedback = reset.getByRole('status')
@@ -116,8 +116,8 @@ test('Companion size refusal keeps the migrated map exportable and exposes recov
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(profile)
   await page.getByRole('dialog', { name: 'Record purchase?', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.setViewportSize({ width: 320, height: 568 })
-  await page.locator('.companion-global-actions').getByRole('button', { name: /Backup/ }).click()
-  const dialog = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const downloads: unknown[] = []
   page.on('download', (download) => downloads.push(download))
   await dialog.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
@@ -157,7 +157,7 @@ test('shared conflict and reload dialogs keep export feedback and move review in
   await spoilers.check()
   await page.setViewportSize({ width: 320, height: 568 })
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  const backups = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const backups = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   let download = page.waitForEvent('download')
   await backups.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8')).ascension.purchases[catalog.startId]).toBeDefined()
@@ -173,7 +173,7 @@ test('shared conflict and reload dialogs keep export feedback and move review in
   await expect(reload.getByRole('button', { name: 'Export backups and reload', exact: true })).toBeVisible()
   await reload.getByRole('button', { name: 'Cancel reload', exact: true }).click()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await page.locator('.companion-global-actions').getByRole('button', { name: /Backup/ }).click()
+  await openData(page)
   download = page.waitForEvent('download')
   await backups.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8')).ascension.purchases[catalog.startId]).toBeDefined()

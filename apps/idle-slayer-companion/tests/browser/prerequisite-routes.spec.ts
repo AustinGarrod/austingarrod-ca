@@ -134,7 +134,7 @@ test('progress-conflict review replaces the route dialog with one correctly name
   const dialog = await open(page)
   await dialog.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  await expect(page.getByRole('dialog', { name: 'Backup & transfer', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Data & backup', exact: true })).toBeVisible()
   await other.close()
 })
 test('route targets and choices remain usable with real 32px text and native Tab', async ({ baseURL }, info) => {
