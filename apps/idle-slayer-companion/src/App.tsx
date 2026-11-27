@@ -98,6 +98,9 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   const [section, setSection] = useState<CompanionSection>(() => initialMapIntent || transferInbox.getKind?.() === 'transfer' ? 'ascension' : sectionAtPath(location.pathname, import.meta.env.BASE_URL) ?? 'overview')
   useEffect(() => { if (initialMapIntent || transferInbox.getKind?.() === 'transfer') { try { history.replaceState(history.state, '', sectionPath('ascension', import.meta.env.BASE_URL) + (location.hash === '#analytics=off' ? '#analytics=off' : '')) } catch { /* The incoming-link reader preserves its bounded cleanup error and keeps tracking off. */ } } }, [initialMapIntent, transferInbox])
   const [panel, setPanel] = useState<Panel>(null), [feedback, setFeedback] = useState('')
+  // Briefly point at Undo after a large replacement so its reversal is easy to find.
+  const [undoHighlight, setUndoHighlight] = useState(false)
+  useEffect(() => { if (!undoHighlight) return; const timer = window.setTimeout(() => setUndoHighlight(false), 6000); return () => window.clearTimeout(timer) }, [undoHighlight])
   const mapActions = useRef<MapActions | null>(null)
   const [mapAction, setMapAction] = useState<MapToolAction | null>(null)
   const [tracking, setTracking] = useState(getTrackingStatus)
@@ -135,7 +138,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
     reportingAction('navigation', { section: next })
     if (!cancelRepair()) return
     if (panel === 'import') trackEvent('game_import_cancelled')
-    setPanel(null); setMapAction(null); setPreview(null); setWorkspaceReview(null); setWorkspaceRestore(null); setReloadAction(null); request.current++; setBusy(false); setSection(next)
+    setPanel(null); setMapAction(null); setPreview(null); setWorkspaceReview(null); setWorkspaceRestore(null); setReloadAction(null); request.current++; setBusy(false); if (next !== section) setFeedback(''); setSection(next)
     const path = sectionPath(next, import.meta.env.BASE_URL)
     if (location.pathname !== path) { try { history.pushState(null, '', path + (location.hash === '#analytics=off' ? '#analytics=off' : '')) } catch { /* Keep the current visit usable when browser history is unavailable. */ } }
     if (ref) setInspection((previous) => ({ ref, sequence: (previous?.sequence ?? 0) + 1 }))
@@ -249,7 +252,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   async function applyPreview() {
     if (!preview || session.getState().version !== preview.version) { setPreview(null); setFeedback('Progress changed. Create a fresh preview.'); return }
     const applied = preview.kind === 'saved-recovery' ? session.useSaved(preview.version) : preview.kind === 'local-recovery' ? await session.save(true, preview.version) : session.applyCompanion(preview.progress, preview.kind !== 'correction', preview.kind === 'reset' ? 'companion_reset' : preview.kind === 'correction' ? 'companion_record' : preview.kind === 'save' ? 'companion_import' : 'companion_restore')
-    if (applied) { const savedOnly = preview.kind === 'local-recovery'; if (preview.kind === 'save') trackEvent('game_import_applied'); setPreview(null); setPanel(null); setFeedback(savedOnly ? 'Saved progress replaced with this visit. The overwritten saved copy is not retained by Undo.' : 'Progress updated. Undo is available for this visit.') }
+    if (applied) { const savedOnly = preview.kind === 'local-recovery'; if (preview.kind === 'save') trackEvent('game_import_applied'); setPreview(null); setPanel(null); setFeedback(savedOnly ? 'Saved progress replaced with this visit. The overwritten saved copy is not retained by Undo.' : 'Progress updated. Undo is available for this visit.'); if (!savedOnly) setUndoHighlight(true) }
   }
   const mapGoalCache = useRef(new WeakMap<CompanionWorkspace, Goals>())
   function projectMapGoals(value: CompanionWorkspace): Goals {
@@ -290,7 +293,9 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
       ? <div role="status"><span>Intentions could not be saved.</span> <button onClick={reviewIntentions}>Review saved intentions</button></div>
       : <div role="status"><p>{workspace.error}</p><button onClick={() => download(JSON.stringify(workspace.workspace, null, 2), 'companion-intentions.json')}>Export intentions</button><button onClick={reviewIntentions}>Review saved intentions</button><button onClick={() => { void workspace.save() }}>Retry saving intentions</button></div>
       : workspace.pending ? <span>Saving intentions…</span> : workspace.dirty ? <span>Intentions need saving.</span> : null}
-    <SessionHistoryControls undoAction={state.history.at(-1)?.action} redoAction={state.redoHistory.at(-1)?.action} busy={state.pending} onUndo={() => mapActions.current ? mapActions.current.undo() : session.undo()} onRedo={() => mapActions.current ? mapActions.current.redo() : session.redo()} />
+    {/* Shell feedback sits beside Undo so the result of an import, restore or failed record is seen where it can be reversed. */}
+    {feedback && !panel && <div role="status" className="companion-feedback"><span>{feedback}</span><button type="button" aria-label="Dismiss message" onClick={() => setFeedback('')}>×</button></div>}
+    <SessionHistoryControls highlightUndo={undoHighlight && state.history.length > 0} undoAction={state.history.at(-1)?.action} redoAction={state.redoHistory.at(-1)?.action} busy={state.pending} onUndo={() => { setUndoHighlight(false); if (mapActions.current) mapActions.current.undo(); else session.undo() }} onRedo={() => mapActions.current ? mapActions.current.redo() : session.redo()} />
   </>
 
   return <CompanionProfileContext.Provider value={session}><CompanionMapGoalsContext.Provider value={goalController}>
@@ -300,9 +305,8 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
         <div className="companion-page-controls telemetry-private rr-block"><label className="spoiler-control"><input type="checkbox" checked={state.profile.showSpoilers} disabled={state.pending} onChange={(event) => session.applyProfile({ ...state.profile, showSpoilers: event.target.checked }, false, 'spoilers')} />Show spoilers</label><button onClick={startReset}>Record Ultra Ascension…</button></div>
         <CompanionModules busy={state.pending} section={section === 'ascension' ? 'overview' : section} entities={entities} progress={state.progress} onRecord={record} onTrack={(system, tracked) => session.command(state.version, (progress) => ({ ...progress, modules: { ...progress.modules, [system]: { ...progress.modules[system], tracked } } }), 'companion_record')} pinnedRefs={pinnedRefs} onPinGoal={(ref) => { const goals = workspace.workspace.goals; workspace.edit({ ...workspace.workspace, goals: pinnedRefs.has(entityKey(ref)) ? goals.filter((goal) => entityKey(goal.ref) !== entityKey(ref)) : [...goals, { ref, mode: ref.system === 'ascension' ? 'acquire' : ref.system === 'divinity' ? 'select' : ref.system === 'enemy' ? 'mastery' : 'complete' }] }) }} onNavigate={navigate} recipePlans={workspace.workspace.recipePlans} onRecipePlan={(id, quantity) => { const recipePlans = { ...workspace.workspace.recipePlans }; if (!quantity || quantity === '0') delete recipePlans[id]; else recipePlans[id] = quantity; workspace.edit({ ...workspace.workspace, recipePlans }) }} referenceEntries={references} goalEntries={goalEntries} entityStates={entityStates} focusedRef={inspection?.ref} />
       </>}
-      {feedback && !panel && <p role="status" className="telemetry-private rr-block">{feedback}</p>}
     </CompanionShell>
-    {panel && <Dialog key={panel} dismissDisabled={repairLocked} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-import')} title={panel === 'import' ? 'Import game save' : panel === 'backup' ? 'Backup & transfer' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Review companion Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
+    {panel && <Dialog key={panel} dismissDisabled={repairLocked} closeOnBackdrop={panel === 'help' || (panel === 'settings' && reloadAction === null) || (panel === 'install' && !repairing)} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-import')} title={panel === 'import' ? 'Import game save' : panel === 'backup' ? 'Backup & transfer' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Review companion Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
       {feedback && <p role="status">{feedback}</p>}
       {panel === 'import' && <div className="companion-import-form">
         <p>Select a reviewed Windows Steam save. Files are read locally and never uploaded. Import replaces supported tracked progress together; intentions and tracking preferences are kept.</p>

@@ -36,13 +36,15 @@ export function AccountSyncBoundary({ revision, children }: { revision: string; 
   }
   const controls = <section className="companion-account telemetry-private rr-block" aria-label="Account and sync">
     <button type="button" aria-expanded={opened} onClick={() => setOpened(!opened)}>Account & sync{previousAccountCopy ? ' · Previous account copy' : view.conflicts.length ? ' · Review needed' : ''}</button>
-    {opened && <Dialog title="Account & sync" close={() => setOpened(false)} dismissDisabled={view.busy}><div className="companion-account-panel">
+    {opened && <Dialog title="Account & sync" close={() => setOpened(false)} dismissDisabled={view.busy} closeOnBackdrop={!view.preview && !view.conflicts.length}><div className="companion-account-panel">
       <p role="status">{view.status}</p>
       {feedback && <p role="status">{feedback}</p>}
       {previousAccountCopy && <p role="alert">A previous account’s saved device copy remains open for recovery. It cannot sync to the current login. Export this open copy and recover any unsaved changes before changing accounts.</p>}
       <p>{previousAccountCopy ? 'The open device copy is separate from the account shown on the account page.' : view.accountId ? 'Progress, intentions, checkpoints, and saved comparison use your account. Offline changes are kept on this device until they can sync.' : 'Your existing browser saves remain available. Signing in lets you review and connect them to one account.'} Layout and tracking preferences stay on this device.</p>
       <div className="companion-account-actions">
-        <a href={accountHref('/utilities/idle-slayer-companion/')}>{view.session?.user ? 'Manage account' : 'Sign in with email or Google'}</a>
+        {view.unavailable && !view.session
+          ? <button type="button" disabled={view.busy} onClick={() => { void controller.retryConnection() }}>Retry connecting to accounts</button>
+          : <a href={accountHref('/utilities/idle-slayer-companion/')}>{view.session?.user ? 'Manage account' : 'Sign in with email or Google'}</a>}
         {view.accountId && <button type="button" disabled={view.busy} onClick={() => { void controller.sync() }}>Sync now</button>}
         {view.session && view.accountId !== (view.session.user?.id ?? null) && <button type="button" disabled={view.busy} onClick={() => { void controller.recheckSession().catch(() => setFeedback('Account status could not be checked. This visit was kept.')) }}>Retry account connection</button>}
         {!view.accountId && view.session?.user && view.session.migrationEnabled && !view.preview && <button type="button" disabled={view.busy} onClick={() => { void controller.reviewMigration() }}>Review and connect saved data</button>}

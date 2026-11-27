@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './CompanionShell.css'
 import { usePwaStatus } from './pwa'
+import { loadRailCollapsed, saveRailCollapsed } from './domain/rail-preference'
 
 export const companionSections = [
   { id: 'overview', title: 'Overview', short: 'Home', symbol: '◈', description: 'Progress summary' },
@@ -32,7 +33,8 @@ export interface CompanionShellProps {
 
 /** Navigation owns no player data. Keeping the map mounted preserves its visit-only state. */
 export function CompanionShell({ section, onNavigate, children, ascension, onImport, onBackup, onSettings, onHelp, onInstall, status, notice, accountControls }: CompanionShellProps) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsedState] = useState(() => loadRailCollapsed(() => window.localStorage))
+  function setCollapsed(next: boolean) { setCollapsedState(next); saveRailCollapsed(next, () => window.localStorage) }
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobile, setMobile] = useState(() => matchMedia('(max-width: 900px)').matches)
   const [largeText, setLargeText] = useState(() => parseFloat(getComputedStyle(document.documentElement).fontSize) > 20)

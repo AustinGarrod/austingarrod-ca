@@ -7,12 +7,12 @@ const APP = 'idle-slayer-companion'
 type MigrationPreview = { migrationId: string; raw: RawDocuments; device: Record<DocumentName, unknown>; remote: Record<DocumentName, RemoteDocument | null>; choices: Record<DocumentName, 'device' | 'account' | null>; prepared?: boolean }
 type MigrationJournal = MigrationPreview & { version: 1; accountId: string; clientId: string; selected: Record<DocumentName, unknown>; phase: 'prepared' | 'committed' | 'complete' }
 const journalKey = (id: string) => accountKey(id) + '.migration.v1'
-export interface SyncView { session: AccountSession | null; accountId: string | null; mount: number; status: string; busy: boolean; loading: boolean; preview: MigrationPreview | null; conflicts: DocumentName[] }
+export interface SyncView { session: AccountSession | null; accountId: string | null; mount: number; status: string; busy: boolean; loading: boolean; preview: MigrationPreview | null; conflicts: DocumentName[]; /** The account service could not be reached; sign-in is not offered until a retry succeeds. */ unavailable: boolean }
 export function createCompanionAccountSync(options: { revision: string; storage: Storage; accountStorage?: AccountRepository; locks: () => ProfileLocks | undefined; uuid: () => string; enabled: boolean }) {
   let disposed = false, epoch = 0, running = false, timer: ReturnType<typeof setTimeout> | undefined
   let startup = 0, sessionWork = Promise.resolve(), unsubscribeStorage = () => {}
   const accountStorage = options.accountStorage ?? createAccountRepository()
-  let view: SyncView = { session: null, accountId: null, mount: 0, status: 'Opening saved account data…', busy: false, loading: options.enabled, preview: null, conflicts: [] }
+  let view: SyncView = { session: null, accountId: null, mount: 0, status: 'Opening saved account data…', busy: false, loading: options.enabled, preview: null, conflicts: [], unavailable: false }
   const listeners = new Set<() => void>()
   let persistence: CompanionPersistence = guestPersistence()
   function publish(patch: Partial<SyncView>) { if (!disposed) { view = { ...view, ...patch }; listeners.forEach((listener) => listener()) } }
@@ -149,7 +149,7 @@ export function createCompanionAccountSync(options: { revision: string; storage:
   function receiveSession(session: AccountSession) {
     if (disposed) return Promise.resolve()
     const previous = view.session?.user?.id, id = session.enabled ? session.user?.id ?? null : null
-    publish({ session })
+    publish({ session, unavailable: false })
     if (previous !== id) { epoch++; publish({ busy: false, preview: null }) }
     const ticket = epoch
     sessionWork = sessionWork.catch(() => {}).then(async () => {
@@ -184,8 +184,15 @@ export function createCompanionAccountSync(options: { revision: string; storage:
       unsubscribe(); unsubscribe = subscribeSession((session) => { void receiveSession(session) })
       publish({ loading: false })
       try { await receiveSession(await getSession()) }
-      catch { if (!disposed && ticket === startup) publish({ status: view.accountId ? 'Offline account copy. Changes stay on this device until sign-in can be checked.' : 'Accounts are unavailable. Existing browser saves and backups still work.' }) }
+      catch { if (!disposed && ticket === startup) publish({ unavailable: true, status: view.accountId ? 'Offline account copy. Changes stay on this device until sign-in can be checked.' : 'Accounts are unavailable. Existing browser saves and backups still work.' }) }
     } catch (error) { if (!disposed && ticket === startup) publish({ loading: false, status: error instanceof Error ? error.message : 'Account device storage is unavailable. Browser originals and existing backup tools remain available.' }) }
+  }
+  /** Ask the account service again after it was unreachable. Saved data is never changed by a failed retry. */
+  async function retryConnection() {
+    if (disposed || !options.enabled) return
+    publish({ status: 'Checking the account service…' })
+    try { await receiveSession(await refreshSession()) }
+    catch { if (!disposed) publish({ unavailable: true, status: view.accountId ? 'Offline account copy. Changes stay on this device until sign-in can be checked.' : 'Accounts are still unavailable. Existing browser saves and backups still work.' }) }
   }
   async function reviewMigration() {
     const id = view.session?.user?.id, ticket = epoch
@@ -337,7 +344,7 @@ export function createCompanionAccountSync(options: { revision: string; storage:
   }
   return {
     getState: () => view, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }, getPersistence: () => persistence,
-    start, sync, reviewMigration, choose, adopt, resolve, refreshExternal, restartReview, recheckSession: () => refreshSession().then(receiveSession), cancelReview: () => { if (!view.busy) publish({ preview: null }) },
+    start, sync, reviewMigration, choose, adopt, resolve, refreshExternal, restartReview, recheckSession: () => refreshSession().then(receiveSession), retryConnection, cancelReview: () => { if (!view.busy) publish({ preview: null }) },
     exportOriginals: () => {
       const owner = view.session?.user?.id, prefix = owner && (!view.accountId || owner === view.accountId) ? accountKey(owner) : null
       const recovery = prefix ? [...Array(accountStorage.length)].map((_, index) => accountStorage.key(index)).filter((key): key is string => !!key && (key.startsWith(prefix + '.recovery.') || key === prefix + '.migration.v1')).map((key) => ({ key, value: accountStorage.getItem(key) })) : []

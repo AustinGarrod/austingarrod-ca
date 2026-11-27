@@ -294,7 +294,6 @@ dialog > button { margin: 6px 8px 0 0; }
   .map-summary { font-size: .75rem; }
   .camera-controls { bottom: 8px; left: 8px; max-width: calc(100% - 16px); }
   .pan-controls { top: 8px; right: 8px; }
-  .dialog-heading h2 { font-size: .75rem; }
   .dialog-actions > button { flex: 1; }
 }
 
@@ -537,3 +536,13 @@ input[type='checkbox'] { accent-color: var(--secondary); }
 button.danger { border-color: var(--danger); }
 .atlas .react-flow__node.selected:focus-visible .upgrade-node { outline-color: var(--primary); }
 .atlas .react-flow__node.selected:focus-visible { outline-color: var(--secondary); outline-offset: 10px; }
+
+/* One dialog type scale: title 18px, section heading 16px semibold with 24px above, body 15px,
+   notes 13px and one button size, shared by the shell dialogs, map dialogs and upgrade details. */
+.dialog-heading h2 { font-size: 1.125rem; line-height: 1.4; }
+dialog h3 { margin: 24px 0 8px; font-size: 1rem; font-weight: 600; line-height: 1.4; }
+dialog h3:first-child, dialog .dialog-heading + h3 { margin-top: 0; }
+dialog p, dialog li { font-size: .9375rem; }
+dialog small, dialog p small { font-size: .8125rem; }
+dialog button:not(.dialog-close), .details button { font-size: .875rem; }
+.details .detail-tools > button:not(.detail-toggle) { font-size: 1.5rem; }
