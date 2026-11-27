@@ -176,6 +176,33 @@ form.companion-counter { margin: 0; }
 .companion-file-field input[type='file'] { width: 100%; max-width: 100%; min-width: 0; min-height: 48px; margin: 0; padding: 6px; font-size: .8125rem; }
 .companion-file-field input[type='file']::file-selector-button { min-height: 36px; margin-right: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 0; color: var(--ink); background: var(--raised); font: inherit; cursor: pointer; }
 .companion-dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Import, restore and reset previews: the summary table answers "what changes"; details stay collapsed. */
+.companion-preview { display: grid; gap: 16px; min-width: 0; }
+.companion-preview > h3 { margin: 0; }
+.companion-preview > p { margin: 0; }
+.companion-preview-headline { font-weight: 650; }
+.companion-change-table { max-width: 100%; overflow-x: auto; }
+.companion-change-table table { width: 100%; border-collapse: collapse; font-size: .875rem; line-height: 1.45; }
+.companion-change-table caption { margin-bottom: 6px; color: var(--ink); font-family: 'Inter', Arial, sans-serif; font-weight: 650; text-align: left; }
+.companion-change-table th, .companion-change-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.companion-change-table thead th { color: var(--muted); font-size: .75rem; }
+.companion-change-table tbody th { font-family: 'Inter', Arial, sans-serif; font-weight: 600; }
+.companion-change-table td { font-variant-numeric: tabular-nums; }
+.companion-change-table td small { margin-top: 2px; font-size: .75rem; }
+.companion-change-groups { min-width: 0; }
+.companion-change-group { border-top: 1px solid var(--line); }
+.companion-change-group:last-child { border-bottom: 1px solid var(--line); }
+.companion-change-group > summary { display: list-item; min-height: 44px; padding: 12px 2px; color: var(--ink); font-weight: 600; cursor: pointer; }
+.companion-change-group > ul { margin: 0 0 12px; padding-left: 20px; }
+.companion-change-group > ul > li { margin-bottom: 6px; overflow-wrap: anywhere; }
+.companion-change-group > small { margin-bottom: 12px; }
+.companion-preview-actions { position: sticky; bottom: -20px; z-index: 2; display: grid; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px 20px; border-top: 1px solid var(--line); background: var(--surface); }
+.companion-preview-actions > p { margin: 0; }
+.companion-preview-actions .companion-dialog-actions { justify-content: flex-end; }
+.privacy-section { border-top: 1px solid var(--line); }
+.privacy-section:last-child { border-bottom: 1px solid var(--line); }
+.privacy-section > summary { display: list-item; min-height: 44px; padding: 12px 2px; color: var(--ink); font-weight: 600; cursor: pointer; }
+.privacy-choice { color: var(--muted); }
 .companion-dialog-actions > button { max-width: 100%; margin: 0; overflow-wrap: anywhere; }
 @media (min-width: 1600px) {
   .companion-page { padding-top: 52px; }

@@ -6,7 +6,6 @@ import { catalogErrors } from './domain/catalog'
 import { companionCatalogErrors, companionEntityState, companionRequirementState, deriveBestiaryMastery, entityKey, visibleCompanionEntities } from './domain/companion-catalog'
 import { createCompanionSession } from './domain/companion-session'
 import { COMPANION_STORAGE_KEY, exportCompanionBackup, MAX_COMPANION_BYTES, parseCompanionBackup } from './domain/companion-storage'
-import { getCompanionRecord } from './domain/companion-progress'
 import { planCompanionObservation } from './domain/companion-observation'
 import { importCompanionGameSave } from './domain/companion-native'
 import { deriveCompanionDivinityActive, planCompanionUltraAscension } from './domain/companion-reset'
@@ -22,7 +21,7 @@ import { useCompanionWorkspace, parseCompanionWorkspace, type CompanionWorkspace
 import type { GoalsController } from './useGoals'
 import type { Goals } from './domain/goals'
 import { SessionHistoryControls } from './SessionHistoryControls'
-import { PrivacyPanel, trackingDisclosure } from './PrivacyPanel'
+import { PrivacyPanel, startupDisclosure } from './PrivacyPanel'
 import { Dialog } from './MapDialog'
 import { InstallPanel } from './InstallPanel'
 import { ANALYTICS_PREFERENCE_KEY, getTrackingStatus, setTrackingPreference, trackEvent } from './analytics'
@@ -30,7 +29,7 @@ import { repairOffline } from './pwa'
 import type { ProgressTransferInbox } from './progress-transfer-inbox'
 import { getUpgradeReference, subscribeUpgradeReference } from './upgrade-reference-receiver'
 import { sectionAtPath, sectionPath } from './domain/companion-navigation'
-import { ProgressComparison } from './ProgressComparison'
+import { CompanionPreview } from './CompanionPreview'
 import { SPCost } from './SPCost'
 import { reportFailure, reportingState, reportingAction, Sentry } from './reporting'
 import { AccountSyncBoundary } from './AccountSync'
@@ -49,10 +48,6 @@ function download(text: string, filename: string) {
 function reloadWithURL(url: string) {
   try { history.replaceState(history.state, '', url) } catch { location.replace(url); return }
   location.reload()
-}
-function observationText(record: CompanionRecord) {
-  const values = Object.entries(record).map(([key, value]) => `${({ count: 'Count', completed: 'Complete', discovered: 'Discovered', claimed: 'Claimed', selected: 'Selected', built: 'Built', stage: 'Stage', active: 'Active' } as Record<string, string>)[key]}: ${typeof value === 'boolean' ? value ? 'yes' : 'no' : value}`)
-  return values.length ? values.join(' · ') : 'Not recorded'
 }
 export default function App({ transferInbox, initialMapIntent = false }: { transferInbox: ProgressTransferInbox; initialMapIntent?: boolean }) {
   const [catalogs, setCatalogs] = useState<LoadedCatalogs | null>(null)
@@ -78,7 +73,8 @@ export default function App({ transferInbox, initialMapIntent = false }: { trans
       .then(([map, companion]) => { if (!controller.signal.aborted) setCatalogs({ map, companion }) })
     return () => controller.abort()
   }, [])
-  if (!catalogs) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening your companion…</p><p className="startup-disclosure">{trackingDisclosure}</p><details className="startup-privacy" onToggle={(event) => { if (event.currentTarget.open) setStartupTracking(getTrackingStatus()) }}><summary>Privacy & tracking</summary><PrivacyPanel status={startupTracking} onChange={(enabled) => { const result = setTrackingPreference(enabled); reloadWithURL(result.reloadURL) }} /></details></main>
+  // One sentence while loading; the full disclosure and its switch stay one tap away in Privacy & tracking.
+  if (!catalogs) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening your companion…</p><p className="startup-disclosure">{startupDisclosure}</p><details className="startup-privacy" onToggle={(event) => { if (event.currentTarget.open) setStartupTracking(getTrackingStatus()) }}><summary>Privacy & tracking</summary><PrivacyPanel status={startupTracking} onChange={(enabled) => { const result = setTrackingPreference(enabled); reloadWithURL(result.reloadURL) }} /></details></main>
   if (runtimeDeployment.target === 'legacy-migration') return <Companion catalogs={catalogs} transferInbox={transferInbox} initialMapIntent={initialMapIntent} />
   return <AccountSyncBoundary revision={catalogs.map?.revision ?? catalogs.companion?.revision ?? 'unavailable'}>{(accountControls) => <Companion catalogs={catalogs} transferInbox={transferInbox} initialMapIntent={initialMapIntent} accountControls={accountControls} />}</AccountSyncBoundary>
 }
@@ -308,7 +304,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
     </CompanionShell>
     {panel && <Dialog key={panel} dismissDisabled={repairLocked} closeOnBackdrop={panel === 'help' || (panel === 'settings' && reloadAction === null) || (panel === 'install' && !repairing)} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-import')} title={panel === 'import' ? 'Import save' : panel === 'backup' ? 'Backup & transfer' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Review companion Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
       {feedback && <p role="status">{feedback}</p>}
-      {panel === 'import' && <div className="companion-import-form">
+      {panel === 'import' && !preview && <div className="companion-import-form">
         <p>Select a reviewed Windows Steam save. Files are read locally and never uploaded. Import replaces supported tracked progress together; intentions and tracking preferences are kept.</p>
         <section className="companion-dialog-section" aria-labelledby="save-location-heading">
           <h3 id="save-location-heading">Find your Windows save</h3>
@@ -319,7 +315,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
         <label className="companion-file-field"><span>Choose game save</span><input type="file" accept=".sav" aria-describedby="save-compatibility" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void readFile(file, 'save') }} /></label>
         <small id="save-compatibility">7.3.4: full companion snapshot. Legacy 7.2.0: Ascension progress only.</small>
       </div>}
-      {panel === 'backup' && <div className="companion-backup-form">
+      {panel === 'backup' && !preview && <div className="companion-backup-form">
         {workspace.error && <p role="status">{workspace.error}</p>}
         <section className="companion-dialog-section" aria-labelledby="companion-progress-heading">
           <h3 id="companion-progress-heading">Companion progress</h3>
@@ -356,7 +352,12 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
       {busy && <p role="status">Reading and validating locally…</p>}
       {workspaceRestore && <section aria-label="Review intentions restore"><h3>Replace goals and crafting plans?</h3><p>This replaces intentions only. Actual progress, checkpoints, comparison, and Undo remain separate.</p>{workspaceSummary(workspaceRestore.workspace)}<div className="companion-dialog-actions"><button onClick={() => { if (workspace.edit(workspaceRestore.workspace, workspaceRestore.expected, true)) setWorkspaceRestore(null) }}>Replace intentions</button><button onClick={() => setWorkspaceRestore(null)}>Cancel intentions restore</button></div></section>}
       {workspaceReview && <section aria-label="Review intentions recovery"><h3>Recover saved intentions</h3><p>Export this visit first to keep both. Unknown or unrevealed references are preserved without listing their identities.</p>{workspaceReview.snapshot.kind === 'valid' ? <>{workspaceSummary(workspaceReview.snapshot.workspace)}<button onClick={() => { if (workspace.useSaved(workspaceReview)) setWorkspaceReview(null) }}>Use checked saved intentions</button></> : <p>{workspaceReview.snapshot.error}</p>}{workspaceReview.snapshot.kind !== 'unavailable' && <button onClick={() => { void workspace.replaceSaved(workspaceReview).then((saved) => { if (saved) setWorkspaceReview(null) }) }}>Replace checked saved intentions with this visit</button>}<button onClick={() => setWorkspaceReview(null)}>Cancel intentions recovery</button></section>}
-      {preview && <section aria-label="Review progress replacement"><h3>{preview.kind === 'reset' ? 'Apply this Ultra Ascension?' : preview.kind === 'correction' ? 'Apply this correction?' : 'Apply this snapshot?'}</h3><p>{preview.kind === 'local-recovery' ? 'This replaces the checked saved copy with this visit. Undo does not recover overwritten saved bytes; export both copies before applying to keep them.' : 'One operation with Undo for this visit.'} Lists show only your current visible entries; this operation never enables spoilers.</p>{preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}{resetTree && map && <section aria-label="Ascension reset effects">{[{ label: 'Repeat purchases cleared', ids: resetTree.cleared }, { label: 'Astral locks activated', ids: resetTree.activated }, { label: 'Conditionally retained purchases', ids: resetTree.conditionallyRetained }].map((group) => { const nodes = map.upgrades.filter((node) => group.ids.includes(node.id) && visibleMap?.ids.has(node.id)); return <section key={group.label}><h3>{group.label} ({nodes.length})</h3><ul className="upgrade-changes">{nodes.map((node) => <li key={node.id} data-upgrade-id={node.id}>{node.title} · <SPCost value={node.cost} /><small>ID: {node.id}</small></li>)}</ul></section> })}</section>}<ul>{entities.filter((entity) => JSON.stringify(getCompanionRecord(previewBefore, entity.system, entity.id)) !== JSON.stringify(getCompanionRecord(preview.progress, entity.system, entity.id))).map((entity) => <li key={entityKey(entity)}><b>{entity.title}</b><small>{observationText(getCompanionRecord(previewBefore, entity.system, entity.id))} → {observationText(getCompanionRecord(preview.progress, entity.system, entity.id))}</small></li>)}</ul><>{map && <ProgressComparison catalog={map} current={previewBefore.ascension} incoming={preview.progress.ascension} viewer={state.profile} undoAvailable={preview.kind !== 'local-recovery'} currentLabel={preview.kind === 'local-recovery' ? 'Checked saved snapshot' : 'Current session'} context="Ascension changes within this Companion operation." />}</><p>Recorded Ultra Ascensions: {previewBefore.ascension.epoch} → {preview.progress.ascension.epoch}</p><div className="companion-dialog-actions"><button className="primary" disabled={state.pending || preview.version !== state.version} onClick={applyPreview}>{preview.kind === 'reset' ? 'Record companion Ultra Ascension' : preview.kind === 'correction' ? 'Apply correction' : 'Apply snapshot'}</button><button onClick={() => setPreview(null)}>Cancel preview</button></div>{preview.version !== state.version && <p role="status">Progress changed. Choose the file or action again.</p>}</section>}
+      {preview && <CompanionPreview heading={preview.kind === 'reset' ? 'Apply this Ultra Ascension?' : preview.kind === 'correction' ? 'Apply this correction?' : 'Apply this snapshot?'}
+        intro={<><p>{preview.kind === 'local-recovery' ? 'This replaces the checked saved copy with this visit. Undo does not recover overwritten saved bytes; export both copies before applying to keep them.' : 'One change, with Undo for this visit.'} Counts and lists use only entries you can see; this never turns on spoilers.</p>{preview.kind !== 'save' && preview.kind !== 'backup' && preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}</>}
+        notes={(preview.kind === 'save' || preview.kind === 'backup') && preview.warnings.length > 0 && <details className="companion-change-group"><summary>About this {preview.kind === 'save' ? 'save' : 'backup'}</summary>{preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}</details>}
+        before={previewBefore} after={preview.progress} entities={entities} map={map} viewer={state.profile} currentLabel={preview.kind === 'local-recovery' ? 'Checked saved snapshot' : 'Current session'} undoAvailable={preview.kind !== 'local-recovery'} showEpochHeadline={preview.kind === 'reset'}
+        extra={resetTree && map && <section aria-label="Ascension reset effects">{[{ label: 'Repeat purchases cleared', ids: resetTree.cleared }, { label: 'Astral locks activated', ids: resetTree.activated }, { label: 'Conditionally retained purchases', ids: resetTree.conditionallyRetained }].map((group) => { const nodes = map.upgrades.filter((node) => group.ids.includes(node.id) && visibleMap?.ids.has(node.id)); return <section key={group.label}><h3>{group.label} ({nodes.length})</h3><ul className="upgrade-changes">{nodes.map((node) => <li key={node.id} data-upgrade-id={node.id}>{node.title} · <SPCost value={node.cost} /><small>ID: {node.id}</small></li>)}</ul></section> })}</section>}
+        actions={<>{preview.version !== state.version && <p role="status">Progress changed. Choose the file or action again.</p>}<div className="companion-dialog-actions"><button onClick={() => setPreview(null)}>Cancel preview</button><button className="primary" disabled={state.pending || preview.version !== state.version} onClick={applyPreview}>{preview.kind === 'reset' ? 'Record companion Ultra Ascension' : preview.kind === 'correction' ? 'Apply correction' : 'Apply snapshot'}</button></div></>} />}
     </div></Dialog>}
   </CompanionMapGoalsContext.Provider></CompanionProfileContext.Provider>
 }

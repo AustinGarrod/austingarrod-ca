@@ -53,7 +53,7 @@ for (const showSpoilers of [false, true]) {
         }
       }
       const dialog = page.getByRole('dialog')
-      await expect(dialog).toContainText(operation === 'reset' ? 'Lists show only your current visible entries' : 'The change applies to the entire profile. Lists and counts show only currently visible upgrades.')
+      await expect(dialog).toContainText(operation === 'reset' ? 'Counts and lists use only entries you can see' : 'The change applies to the entire profile. Lists and counts show only currently visible upgrades.')
       await page.getByRole('button', { name: operation === 'reset' ? 'Record companion Ultra Ascension' : 'Apply changes', exact: true }).click()
       const expected = operation === 'removal' ? removal.profile : reset.profile
       await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(expected)
