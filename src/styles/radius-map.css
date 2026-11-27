@@ -1674,10 +1674,29 @@ body.radius-map-page :where(
   .action-dialog input,
   .map-hint,
   .centre-chip,
-  .leaflet-control-zoom
+  .leaflet-control-zoom,
+  .install-app-card img,
+  .search-button,
+  .search-results,
+  .text-action,
+  .signed-out-card,
+  .library-search,
+  .saved-item-actions button,
+  .triangulation-mark,
+  .result-stats span,
+  .panel-toggle
 ) {
   border-radius: 0;
   box-shadow: none;
+}
+
+body.radius-map-page .workspace-tab.is-active,
+body.radius-map-page :is(.segment-group, .unit-options) input:checked + label {
+  box-shadow: none;
+}
+
+body.radius-map-page .leaflet-control-attribution {
+  border-radius: 0 !important;
 }
 
 body.radius-map-page :where(.install-app-card, .measurement-summary, .triangulation-result) {
