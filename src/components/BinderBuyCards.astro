@@ -1,6 +1,7 @@
 ---
 import { buyingStores } from "../utilities/pokedex-binder/lib/buying-offers";
 import BinderCatalogSearch from "./BinderCatalogSearch.astro";
+import { SlidersHorizontal } from "@lucide/astro";
 import "../styles/pokedex-buying.css";
 ---
 <section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden>
@@ -11,10 +12,14 @@ import "../styles/pokedex-buying.css";
   <section id="buy-cards-missing" class="dex-buying-missing" aria-labelledby="buy-cards-missing-title">
     <h2 id="buy-cards-missing-title">Missing from your binders</h2>
     <div id="buy-cards-binder-filters" class="dex-buying-binder-filters" hidden>
-      <div class="dex-buying-filters">
+      <div class="dex-buying-filter-bar">
         <label class="dex-buying-search">Filter missing cards
           <input id="buy-cards-filter" type="search" placeholder="Name, set, or collector number" autocomplete="off" />
         </label>
+        <button id="buy-cards-filters-toggle" type="button" class="dex-buying-filters-toggle" aria-expanded="false" aria-controls="buy-cards-filter-panel"><SlidersHorizontal size={16} aria-hidden="true" /> Filters<span id="buy-cards-filter-count" class="dex-buying-filter-count" hidden></span></button>
+      </div>
+      <div id="buy-cards-filter-panel" class="dex-buying-filter-panel">
+      <div class="dex-buying-filters">
         <label>Set binders <select id="buy-cards-scope"><option value="">All binders</option></select></label>
         <label>Finish <select id="buy-cards-finish"><option value="">All finishes</option></select></label>
         <label>Availability
@@ -47,6 +52,7 @@ import "../styles/pokedex-buying.css";
         </div>
       </details>
       <p class="dex-help">Required cards from your set binders, excluding cards already ordered.</p>
+      </div>
     </div>
     <div class="dex-buying-summary">
       <p id="buy-cards-status" role="status">Loading your set binders…</p>

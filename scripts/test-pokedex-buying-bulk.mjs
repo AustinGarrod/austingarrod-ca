@@ -88,10 +88,11 @@ export async function testFullBuyCards(browser, origin) {
     }
 
     await buyTab.click();
+    await buying.locator("#buy-cards-filters-toggle").click();
     await scope.selectOption({ label: "Main 151" });
-    await expect(rows).toHaveCount(6);
-    await buying.locator("#buy-cards-next").click();
-    await expect(rows).toHaveCount(1);
+    // 24 cards per page: the seven missing cards share one page.
+    await expect(rows).toHaveCount(7);
+    await expect(buying.locator("#buy-cards-pages")).toBeHidden();
     await search.fill("Ivysaur 002");
     await availability.selectOption("stock");
     await expect(rows).toHaveCount(0);
@@ -178,11 +179,11 @@ export async function testFullBuyCards(browser, origin) {
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText("$2.50");
     const beforeCachedChecks = requests.length;
-    await rows.first().locator("[data-buy-check]").click();
-    await expect(progress).toContainText("Checked 1 of 1 printings");
+    // A checked row offers Compare offers only; the page check covers it.
+    await expect(rows.first().locator("[data-buy-check]")).toHaveCount(0);
     await buying.locator("#buy-cards-check").click();
     await expect(progress).toContainText("Checked 1 of 1 printings");
-    assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy row and page checks.");
+    assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy a page check.");
     const beforeExpiry = lookups.length;
     observed += 606_000;
     cents = 325;
@@ -230,6 +231,7 @@ export async function testFullBuyCards(browser, origin) {
     await expect(buying).toBeHidden();
     assert.equal(lookups.length, beforeReload, "Reloading in Binders must not start any retailer checks.");
     await buyTab.click();
+    await buying.locator("#buy-cards-filters-toggle").click();
     await scope.selectOption({ label: "Main 151" });
     await search.fill("Ivysaur 002");
     await finish.selectOption({ label: "Regular" });

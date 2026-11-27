@@ -239,6 +239,14 @@ try {
     await expect(page).toHaveURL(buyingUrl);
     await expect(buyTab).toHaveAttribute("aria-current", "page");
     await expect(buying.getByRole("heading", { name: "Buy cards" })).toBeFocused();
+    const filtersToggle = buying.locator("#buy-cards-filters-toggle");
+    await expect(buying.locator("#buy-cards-filter")).toBeVisible();
+    if (await filtersToggle.isVisible()) {
+      // On phones the filters sit behind one button that counts the applied filters.
+      await expect(filtersToggle).toHaveAttribute("aria-label", "Filters, 1 applied");
+      await filtersToggle.click();
+      await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+    }
     await expect(scope).toHaveValue(activeBinder);
     await expect(scope.locator("option:checked")).toHaveText("Second 151");
     await expect(page.locator("#master-title")).toBeHidden();
@@ -382,21 +390,21 @@ try {
     const firstCardText = await rows.first().innerText();
     await nextPage.click();
     await expect(rows.first()).not.toHaveText(firstCardText);
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(24);
     const secondPageLabel = await buying.locator("#buy-cards-page").textContent();
     await page.goBack();
     await expect(page).toHaveURL(binderUrl);
     await expect(page.locator("#set-overview")).toBeVisible();
     await page.goForward();
     await expect(page).toHaveURL(buyingUrl);
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(24);
     await expect(buying.locator("#buy-cards-page")).toHaveText(secondPageLabel);
     const visibleCards = await rows.allTextContents();
     assert.equal(lookups.length, beforePage, "Changing pages must not fetch retailer offers.");
     await checkPage.click();
-    await expect.poll(() => lookups.length - beforePage).toBe(6);
+    await expect.poll(() => lookups.length - beforePage).toBe(24);
     const pageRequests = lookups.slice(beforePage);
-    assert.equal(new Set(pageRequests.map(lookup => JSON.stringify(lookup))).size, 6);
+    assert.equal(new Set(pageRequests.map(lookup => JSON.stringify(lookup))).size, 24);
     assert.ok(pageRequests.every(({ set, number }) => set === "sv03.5" && visibleCards.some(text => text.includes("#" + number))));
     await sort.selectOption("retail");
     await expect(rows.first()).toContainText("Ivysaur");
@@ -439,7 +447,7 @@ try {
       await availability.selectOption("");
       await search.fill("Ivysaur 002");
       await expect(rows).toHaveCount(1);
-      await expect(rows.first().locator("[data-buy-check]")).toBeDisabled();
+      await expect(rows.first().locator("[data-buy-check]")).toHaveCount(0); // A row without an exact finish cannot be checked.
       await expect(checkPage).toBeDisabled();
       await rows.first().locator("[data-buy-finish]").selectOption("normal");
       await finish.selectOption("Reverse holo");
@@ -457,7 +465,7 @@ try {
       releaseMarket();
       await expect(rows.first().locator(".dex-buying-market")).toContainText("$3.49");
       const beforeInlineCheck = lookups.length;
-      await rows.first().locator("[data-buy-check]").click();
+      await checkPage.click(); // Once a row has offers, the page check refreshes it.
       await expect.poll(() => lookups.length).toBe(beforeInlineCheck + 1);
       await expect(rows.first()).toContainText("$2.50");
       assert.deepEqual(lookups.slice(beforeInlineCheck), [{ set: "sv03.5", number: "002", variant: "normal" }]);
@@ -468,7 +476,7 @@ try {
       await expect(scope).toHaveValue("");
       await expect(scope.locator("option")).toHaveCount(4);
       await expect(search).toHaveValue("");
-      await expect(rows).toHaveCount(6);
+      await expect(rows).toHaveCount(24);
       await search.fill("Ivysaur 002");
       await expect(rows.first()).toContainText("$2.50");
       await expect(rows.first()).toContainText("Checked");
