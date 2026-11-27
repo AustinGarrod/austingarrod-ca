@@ -92,4 +92,5 @@
   .account-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); padding-block: var(--space-6) var(--space-16); }
   .account-panel .account-utility-links .button { width: 100%; }
   .account-recovery-list .account-actions .account-danger { flex-basis: 100%; margin-left: 0; }
+  .assistant-endpoint input { font-size: 16px; }
 }
