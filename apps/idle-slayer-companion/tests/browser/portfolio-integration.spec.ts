@@ -45,6 +45,9 @@ test.describe('assembled portfolio integration', () => {
     await page.goto(origin + '/utilities/radius-map/')
     await expect(page.locator('#map')).toBeVisible()
     await expect(page.locator('#location-form')).toBeVisible()
+    // On phones Radius Map opens as a peeking bottom sheet; Save is in its expanded state.
+    const sheetToggle = page.locator('#panel-toggle')
+    if (await sheetToggle.isVisible() && await sheetToggle.getAttribute('aria-expanded') === 'false') await sheetToggle.click()
     await expect(page.locator('#save-measurement-button')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
   })
