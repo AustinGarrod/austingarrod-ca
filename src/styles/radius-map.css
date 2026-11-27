@@ -1734,3 +1734,51 @@ body.radius-map-page :is(.search-field-wrap, .library-search) input:focus-visibl
     font-size: 16px;
   }
 }
+
+.edit-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 22px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-low);
+  font-size: 0.85rem;
+}
+
+.edit-banner[hidden],
+.status-slot [hidden],
+.location-section [hidden] {
+  display: none;
+}
+
+.edit-banner p {
+  margin: 0;
+}
+
+.status-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-slot .app-status {
+  flex: 1;
+}
+
+#summary-detail {
+  white-space: normal;
+}
+
+.centre-chip button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.action-dialog-body {
+  padding: 22px;
+}

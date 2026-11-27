@@ -72,9 +72,11 @@ export function requireDocumentFits(document: MeasurementsDocument): void {
   }
 }
 
+// Oldest first, so a measurement keeps its number and pin while it is shown,
+// hidden, renamed or edited.
 export function toSavedMeasurements(document: MeasurementsDocument): SavedMeasurement[] {
   return document.measurements.map(item => ({ ...item, center: { ...item.center }, radiusMeters: canonicalRadiusMeters(item) }))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 export function sameMeasurement(a: AccountMeasurement | undefined, b: AccountMeasurement | undefined): boolean {

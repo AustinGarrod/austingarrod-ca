@@ -83,6 +83,13 @@ const description = "Draw, save, and compare radius or diameter measurements, th
           >Saved <span id="saved-count" class="tab-count">0</span></button>
         </div>
 
+        <div class="status-slot">
+          <p id="app-status" class="app-status rr-block" data-analytics-private role="status" aria-live="polite">
+            Tap anywhere on the map to get started.
+          </p>
+          <button id="status-undo" class="text-action" type="button" hidden>Undo</button>
+        </div>
+
         <aside id="install-app-card" class="install-app-card" aria-label="Install Radius Map" hidden>
           <img src="/utilities/radius-map/icons/icon-192.png" width="44" height="44" alt="" />
           <div>
@@ -93,6 +100,10 @@ const description = "Draw, save, and compare radius or diameter measurements, th
         </aside>
 
         <div id="create-panel" role="tabpanel" aria-labelledby="create-tab">
+          <div id="edit-banner" class="edit-banner rr-block" data-analytics-private hidden>
+            <p>Editing <strong id="edit-banner-name"></strong></p>
+            <button id="cancel-edit-button" class="text-action" type="button" hidden>Cancel</button>
+          </div>
           <section class="control-section location-section" aria-labelledby="location-heading">
             <div class="section-heading">
               <div>
@@ -115,10 +126,13 @@ const description = "Draw, save, and compare radius or diameter measurements, th
                   placeholder="City, address, or 43.65, -79.38"
                   autocomplete="off"
                   spellcheck="false"
+                  aria-describedby="location-error"
                 />
                 <button id="search-button" class="search-button" type="submit" data-umami-event="radius-map-search">Find</button>
               </div>
             </form>
+            <p id="location-error" class="field-error" hidden></p>
+            <button id="location-clear" class="text-action" type="button" hidden>Clear</button>
 
             <ul id="search-results" class="search-results rr-block" data-analytics-private aria-label="Location search results" hidden></ul>
 
@@ -177,12 +191,12 @@ const description = "Draw, save, and compare radius or diameter measurements, th
             <span class="summary-ring" aria-hidden="true"></span>
             <div>
               <p id="summary-value">10 km radius</p>
+              <span id="summary-detail">6.21 mi · 20 km diameter · 314.16 km² area</span>
               <span id="summary-centre">Choose a centre to draw the circle</span>
             </div>
           </div>
 
           <div class="save-actions">
-            <a id="radius-sign-in-to-save" class="primary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
             <button
               id="save-measurement-button"
               class="primary-action"
@@ -190,12 +204,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
               disabled
               data-umami-event="radius-map-save"
             >Save measurement</button>
-            <button id="cancel-edit-button" class="text-action" type="button" hidden>Cancel editing</button>
           </div>
-
-          <p id="app-status" class="app-status rr-block" data-analytics-private role="status" aria-live="polite">
-            Tap anywhere on the map to get started.
-          </p>
         </div>
 
         <div id="saved-panel" role="tabpanel" aria-labelledby="saved-tab" hidden>
@@ -222,7 +231,6 @@ const description = "Draw, save, and compare radius or diameter measurements, th
             </div>
             <div id="library-no-results" class="library-message" hidden>No measurements match that search.</div>
             <div id="saved-list" class="saved-list rr-block" data-analytics-private aria-live="polite"></div>
-            <p id="library-status" class="app-status library-status rr-block" data-analytics-private role="status" aria-live="polite"></p>
           </section>
 
           <section class="triangulation-section" aria-labelledby="triangulation-heading">
@@ -269,8 +277,20 @@ const description = "Draw, save, and compare radius or diameter measurements, th
     <div id="centre-chip" class="centre-chip rr-block" data-analytics-private hidden>
       <span aria-hidden="true"></span>
       <strong id="centre-chip-label">Selected centre</strong>
+      <button id="centre-chip-clear" type="button" aria-label="Clear circle">×</button>
     </div>
   </div>
+
+  <dialog id="sign-in-dialog" class="action-dialog" aria-labelledby="sign-in-dialog-title">
+    <div class="action-dialog-body">
+      <h2 id="sign-in-dialog-title">Save measurement</h2>
+      <p id="sign-in-dialog-copy" class="dialog-summary">Saving needs a free account. Your circle will be kept while you sign in.</p>
+      <div class="dialog-actions">
+        <button id="sign-in-dialog-cancel" class="secondary-action" type="button">Cancel</button>
+        <a id="radius-sign-in-to-save" class="primary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="radius-review-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="radius-review-title">
     <form id="radius-review-form" method="dialog">
@@ -308,7 +328,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
       <div class="dialog-heading danger-heading">
         <span class="dialog-mark" aria-hidden="true"></span>
         <div>
-          <p class="step-label">Remove measurement</p>
+          <p class="step-label">Delete measurement</p>
           <h2 id="delete-dialog-title">Delete this measurement?</h2>
         </div>
       </div>

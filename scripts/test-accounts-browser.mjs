@@ -232,7 +232,10 @@ try {
     await page.locator('#search-button').click();
     await expect(page.locator('#app-status')).toContainText('entered coordinates');
     await expect(page.locator('#radius-sign-in-to-save')).toHaveAttribute('href', '/account/?returnTo=%2Futilities%2Fradius-map%2F');
-    await expect(page.locator('#save-measurement-button')).toBeHidden();
+    await page.locator('#save-measurement-button').click();
+    await expect(page.locator('#sign-in-dialog')).toContainText('Your circle will be kept');
+    await expect(page.locator('#radius-sign-in-to-save')).toBeVisible();
+    await page.locator('#sign-in-dialog-cancel').click();
     await openBinder(page); await page.locator('#first-dex').click(); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5');

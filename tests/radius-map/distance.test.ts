@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   convertDisplayedMeasurement,
+  coordinateInputError,
+  formatDerived,
+  measurementDetails,
   measurementToRadiusMeters,
   parseCoordinateInput,
   radiusMetersToMeasurement,
@@ -47,5 +50,33 @@ describe("coordinate parsing", () => {
     expect(parseCoordinateInput("Toronto")).toBeNull();
     expect(parseCoordinateInput("91, -79")).toBeNull();
     expect(parseCoordinateInput("43 -79")).toBeNull();
+  });
+
+  it("explains out-of-range coordinate pairs instead of treating them as a place search", () => {
+    expect(coordinateInputError("95, 200")).toMatch(/Latitude must be between -90 and 90/);
+    expect(coordinateInputError("43.65, -181")).toMatch(/longitude between -180 and 180/);
+    expect(coordinateInputError("43.65, -79.38")).toBeNull();
+    expect(coordinateInputError("Toronto")).toBeNull();
+    expect(coordinateInputError("10 Downing Street")).toBeNull();
+  });
+});
+
+describe("derived measurement details", () => {
+  it("formats derived values with at most two decimals", () => {
+    expect(formatDerived(15.534279)).toBe("15.53");
+    expect(formatDerived(1963.495)).toBe("1,963.5");
+    expect(formatDerived(40)).toBe("40");
+    expect(formatDerived(0.004)).toBe("< 0.01");
+    expect(formatDerived(Number.NaN)).toBe("—");
+  });
+
+  it("gives the other unit, the other kind and the area without changing the typed value", () => {
+    const details = measurementDetails(25, "radius", "mi");
+    expect(details.converted.unit).toBe("km");
+    expect(details.converted.value).toBeCloseTo(40.2336, 4);
+    expect(details.counterpart).toEqual({ value: 50, kind: "diameter" });
+    expect(details.area).toBeCloseTo(Math.PI * 625, 6);
+    expect(measurementDetails(20, "diameter", "km").counterpart).toEqual({ value: 10, kind: "radius" });
+    expect(measurementDetails(20, "diameter", "km").area).toBeCloseTo(Math.PI * 100, 6);
   });
 });

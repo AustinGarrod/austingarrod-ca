@@ -279,9 +279,14 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
     if (online()) timer = setTimeout(() => { void sync(); }, 300);
   }
 
+  /**
+   * Create, update or delete one measurement. `restore` brings a deleted
+   * measurement back under its original id and creation time (undo).
+   */
   async function change(
     input: SavedMeasurementInput | null,
     original?: SavedMeasurement,
+    restore?: { id: string; createdAt: string },
   ): Promise<void> {
     const id = identity, ticket = generation;
     if (!id || !active) throw new Error("The active library changed. Open the measurement again.");
@@ -293,8 +298,12 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
       if (original && (!existing || !sameMeasurement(original, existing) || original.updatedAt !== existing.updatedAt)) {
         throw new Error("This measurement changed. Open it again to edit the latest version.");
       }
+      if (!original && restore && measurements.some(item => item.id === restore.id)) {
+        throw new Error("That measurement is already in your library.");
+      }
       const remaining = measurements.filter(item => item.id !== original?.id);
-      if (input) remaining.push(saveMeasurement(input, original?.id ?? crypto.randomUUID(), new Date().toISOString(), original?.createdAt));
+      const measurementId = original?.id ?? restore?.id ?? crypto.randomUUID();
+      if (input) remaining.push(saveMeasurement(input, measurementId, new Date().toISOString(), original?.createdAt ?? restore?.createdAt));
       library.working = toMeasurementsDocument(remaining);
       // Deletions must remain available if a merge combined two libraries over the limit.
       if (input) requireDocumentFits(library.working);

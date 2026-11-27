@@ -70,7 +70,6 @@ function startAfterCacheUpgrade(start: () => void, status: HTMLElement): void {
 export function bindRadiusAccountControls(renderLibrary: (view: RadiusAccountView) => void) {
   const signIn = field<HTMLAnchorElement>("radius-sign-in");
   const signInToSave = field<HTMLAnchorElement>("radius-sign-in-to-save");
-  const save = field<HTMLButtonElement>("save-measurement-button");
   const manage = field<HTMLAnchorElement>("radius-manage-account");
   const reviewButton = field<HTMLButtonElement>("radius-review");
   const syncNow = field<HTMLButtonElement>("radius-sync-now");
@@ -87,8 +86,8 @@ export function bindRadiusAccountControls(renderLibrary: (view: RadiusAccountVie
   const library = createRadiusAccountLibrary(next => {
     if (view && next.signedInId !== view.signedInId) dialog.close();
     view = next;
+    // The save button stays visible signed out: it explains that saving needs an account.
     signIn.hidden = signInToSave.hidden = !view.canSignIn;
-    save.hidden = view.canSignIn;
     manage.hidden = !view.signedInId;
     reviewButton.hidden = !(view.canSync && (view.conflict || view.prepared));
     reviewButton.disabled = view.inProgress;
