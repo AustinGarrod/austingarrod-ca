@@ -274,6 +274,33 @@
   background: var(--surface-mid);
 }
 
+/* A printing row: its finish, then View card and, when a binder can hold it, Mark collected. */
+.dex-collection-dialog .catalog-search-rows li:has(> .catalog-search-actions),
+.buy-catalog-search .catalog-search-rows li:has(> .catalog-search-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.catalog-search-rows li > strong {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.catalog-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dex-collection-dialog .catalog-search-actions select {
+  width: auto;
+  max-width: 12rem;
+  margin: 0;
+}
+
 .catalog-search-rows strong {
   font-size: 15px;
   line-height: 1.3;

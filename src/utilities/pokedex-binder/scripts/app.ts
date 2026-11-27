@@ -15,9 +15,9 @@ import { createTransfers } from "./transfers";
 import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
 import { binderViews } from "./binder-views";
-import { createCatalogSearch } from "./catalog-search";
-import { catalogArtwork } from "../lib/catalog-search";
-import type { TransferMatch } from "../lib/card-transfer";
+import { createCatalogSearch, type MarkTarget } from "./catalog-search";
+import { catalogArtwork, type CatalogPrinting } from "../lib/catalog-search";
+import { addSetImports, groupSetImport, type TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
@@ -146,7 +146,65 @@ async function initialize() {
   });
   // Choosing the Binders tab while already on it returns to the list of binders.
   navigation.onHome(() => void master.goHome().then(() => el("set-overview-title").focus()));
-  const catalogSearch = createCatalogSearch({ cards: master.collection().cards, openPrinting: pricing.openPrinting });
+  /** Which Pokémon a set card counts for in the National Pokédex, from the collector-number catalog. */
+  async function speciesIndex() {
+    if (speciesLookup) return speciesLookup;
+    const data = await getCollectorNumbers();
+    const index = new Map<string, number[]>();
+    for (const [setId, entries] of Object.entries(data)) {
+      for (const [id, numbers] of Object.entries(entries)) {
+        for (const number of numbers) {
+          const key = `${setId}:${number}`;
+          if (!index.has(key)) index.set(key, []);
+          index.get(key)!.push(Number(id));
+        }
+      }
+    }
+    return speciesLookup = (match: TransferMatch) => index.get(`${match.set.id}:${match.card.number}`) ?? [];
+  }
+  /** The catalog card behind a search result printing, as an import match. */
+  async function printingMatch(printing: CatalogPrinting): Promise<TransferMatch | undefined> {
+    const { sets, cards } = master.collection();
+    const set = sets.find(item => item.id === printing.setId);
+    const card = set && (await cards(set.id)).find(item => item.number === printing.number && item.name === printing.name);
+    return set && card ? { set, card, variant: card.variants.find(item => item.id === printing.variant) } : undefined;
+  }
+  function accountReady() {
+    if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before marking cards.");
+  }
+  const catalogSearch = createCatalogSearch({
+    cards: master.collection().cards, openPrinting: pricing.openPrinting,
+    // Search cards can mark a printing collected, but only in a binder that already holds that card.
+    async markTargets(printing) {
+      const match = await printingMatch(printing);
+      if (!match) return [];
+      const targets: MarkTarget[] = (groupSetImport([match], await master.backup())[0]?.options ?? [])
+        .map(binder => ({ id: binder.id, name: binder.name }));
+      if (nationalEnabled(snapshot.state) && (await speciesIndex())(match).length) targets.push({ id: "national", name: "National Pokédex" });
+      return targets;
+    },
+    async markCollected(printing, targetId) {
+      accountReady();
+      const match = await printingMatch(printing);
+      if (!match) throw new Error("This printing is not in the catalog.");
+      const label = `${printing.name} (${printing.finish})`;
+      if (targetId === "national") {
+        const ids = (await speciesIndex())(match);
+        if (!ids.length || !nationalEnabled(snapshot.state)) throw new Error("The National Pokédex can't hold this card.");
+        for (const id of ids) await controller.setStatus(id, "owned");
+        return `Marked ${label} collected in the National Pokédex.`;
+      }
+      let name = "";
+      await master.applyCollection(state => {
+        const group = groupSetImport([match], state)[0];
+        const binder = group?.options.find(item => item.id === targetId);
+        if (!group || !binder) throw new Error("That binder changed. Search for the card again.");
+        name = binder.name;
+        addSetImports(state, [group], new Map([[match.set.id, binder.id]]));
+      });
+      return `Marked ${label} collected in ${name}.`;
+    },
+  });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
   searchCards.disabled = false;
@@ -163,21 +221,7 @@ async function initialize() {
     } }),
     scope: () => `${controller.restoreScope()}:${accountTicket}`,
     sets: master.backup, dex: () => snapshot.state,
-    async species() {
-      if (speciesLookup) return speciesLookup;
-      const data = await getCollectorNumbers();
-      const index = new Map<string, number[]>();
-      for (const [setId, entries] of Object.entries(data)) {
-        for (const [id, numbers] of Object.entries(entries)) {
-          for (const number of numbers) {
-            const key = `${setId}:${number}`;
-            if (!index.has(key)) index.set(key, []);
-            index.get(key)!.push(Number(id));
-          }
-        }
-      }
-      return speciesLookup = match => index.get(`${match.set.id}:${match.card.number}`) ?? [];
-    },
+    species: speciesIndex,
     saveSets(apply) {
       if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
       return master.applyCollection(apply);

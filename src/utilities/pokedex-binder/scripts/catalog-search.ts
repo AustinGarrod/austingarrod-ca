@@ -36,10 +36,17 @@ function resultContext({ set, number }: CatalogResult) {
   return `#${catalogNumberLabel(number)} · ${set.name}${set.code ? ` (${set.code})` : ""}`;
 }
 
-export function createCatalogSearch({ cards: loadCards, openPrinting, inline = false }: {
+/** A binder that can hold a printing: a set binder's id and name, or "national" for the National Pokédex. */
+export interface MarkTarget { id: string; name: string }
+
+export function createCatalogSearch({ cards: loadCards, openPrinting, inline = false, markTargets, markCollected }: {
   cards(setId: string): Promise<SetCard[]>;
   openPrinting(printing: CatalogPrinting): void;
   inline?: boolean;
+  /** The existing binders that can hold a printing. Search offers Mark collected only for those. */
+  markTargets?(printing: CatalogPrinting): Promise<MarkTarget[]>;
+  /** Marks a printing collected in one of its targets and returns a confirmation. */
+  markCollected?(printing: CatalogPrinting, targetId: string): Promise<string>;
 }) {
   const pageSize = inline ? 8 : 20;
   const prefix = inline ? "buy-catalog-search" : "catalog-search";
@@ -130,31 +137,66 @@ export function createCatalogSearch({ cards: loadCards, openPrinting, inline = f
       const card = cards.find(card => card.number === result.number && card.name === result.name);
       if (!card || !card.variants.length) throw new Error("Printing unavailable.");
       printingsStatus.textContent = "Choose a printing to see prices and history.";
-      printings.replaceChildren(...card.variants.map(variant => {
+      const choices = card.variants.map(variant => ({
+        setId: result.set.id,
+        setName: result.set.name,
+        number: card.number,
+        name: card.name,
+        variant: variant.id,
+        finish: variant.label,
+        image: catalogArtwork(result.set, card.number),
+      }));
+      const rows = choices.map(printing => {
         const row = document.createElement("li");
         const name = document.createElement("strong");
-        name.textContent = variant.label;
-        const button = resultButton(inline ? "View prices" : "View card", `View ${result.name}, ${variant.label}`, () => {
+        name.textContent = printing.finish;
+        const actions = document.createElement("div");
+        actions.className = "catalog-search-actions";
+        const button = resultButton(inline ? "View prices" : "View card", `View ${result.name}, ${printing.finish}`, () => {
           printingOpener = button;
           dialog?.close();
-          openPrinting({
-            setId: result.set.id,
-            setName: result.set.name,
-            number: card.number,
-            name: card.name,
-            variant: variant.id,
-            finish: variant.label,
-            image: catalogArtwork(result.set, card.number),
-          });
+          openPrinting(printing);
         });
-        row.append(name, button);
+        actions.append(button);
+        row.append(name, actions);
         return row;
-      }));
+      });
+      printings.replaceChildren(...rows);
+      if (!inline && markTargets && markCollected) void offerMarks(choices, rows, loadingActive);
     } catch {
       if (!loadingActive()) return;
       printingsStatus.textContent = "Printings for this card could not load.";
       printingsRetry.hidden = false;
     }
+  }
+
+  // Adds Mark collected to each printing an existing binder can hold.
+  async function offerMarks(choices: CatalogPrinting[], rows: HTMLLIElement[], current: () => boolean) {
+    const targets = await Promise.all(choices.map(printing => markTargets!(printing).catch(() => [])));
+    if (!current()) return;
+    targets.forEach((options, index) => {
+      if (!options.length) return;
+      const printing = choices[index], label = `${printing.name}, ${printing.finish}`;
+      const actions = rows[index].querySelector(".catalog-search-actions")!;
+      let destination: HTMLSelectElement | undefined;
+      if (options.length > 1) {
+        destination = document.createElement("select");
+        destination.setAttribute("aria-label", `Binder for ${label}`);
+        destination.append(...options.map(option => new Option(option.name, option.id)));
+      }
+      const mark = resultButton("Mark collected",
+        `Mark ${label} collected${destination ? "" : " in " + options[0].name}`, async () => {
+          mark.disabled = true;
+          try {
+            printingsStatus.textContent = await markCollected!(printing, destination?.value ?? options[0].id);
+            mark.textContent = "Collected";
+          } catch (error) {
+            printingsStatus.textContent = error instanceof Error ? error.message : "The card could not be marked. Try again.";
+            mark.disabled = false;
+          }
+        });
+      actions.append(...(destination ? [destination] : []), mark);
+    });
   }
 
   function showResults() {
