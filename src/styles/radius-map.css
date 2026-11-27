@@ -995,6 +995,11 @@ h2.uk-step {
 
 /* Leaflet */
 
+/* Leaflet gives the map its own Helvetica stack; the credit line uses the site's type. */
+body.radius-map-page .leaflet-container {
+  font-family: inherit;
+}
+
 .leaflet-control-zoom {
   overflow: hidden;
   border: 1px solid var(--line) !important;
