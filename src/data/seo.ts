@@ -231,7 +231,9 @@ export function createBaseJsonLdGraph({
 }
 
 export function createProjectCreativeWorkSchema(project: Project): JsonLd {
-  const sameAs = [project.href, project.source].filter((url): url is string => Boolean(url));
+  const sameAs = [project.href, project.source]
+    .filter((url): url is string => Boolean(url))
+    .map((url) => getAbsoluteUrl(url));
   const abstract = project.caseStudySections
     .map((section) => `${section.title}: ${section.points.join(" ")}`)
     .join(" ");

@@ -1,5 +1,6 @@
 ---
-import { ArrowRight, MonitorSmartphone, ShieldCheck, SquareTerminal } from "@lucide/astro";
+import { ArrowRight, Download } from "@lucide/astro";
+import ContactBand from "@components/ContactBand.astro";
 import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { highlights, profile, projects, skills } from "@data/profile";
@@ -31,8 +32,19 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
             data-umami-event-action="view-projects"
             data-umami-event-placement="home-hero"
           >
-            View work
+            View projects
             <ArrowRight size={18} aria-hidden="true" />
+          </a>
+          <a
+            class="button secondary"
+            href={profile.resume}
+            download
+            data-umami-event="file-download"
+            data-umami-event-file="resume"
+            data-umami-event-placement="home-hero"
+          >
+            <Download size={18} aria-hidden="true" />
+            Résumé (PDF)
           </a>
         </div>
         <div class="hero-tech" aria-label="Core technologies">
@@ -42,42 +54,17 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
           </div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="section-band">
-    <div class="container metrics-grid">
-      {highlights.map((item) => (
-        <article class="metric">
-          <strong>{item.value}</strong>
-          <span>{item.label}</span>
-          <p>{item.description}</p>
-        </article>
-      ))}
-    </div>
-  </section>
-
-  <section class="container content-section home-profile-section">
-    <div class="section-heading">
-      <p class="eyebrow">Engineering profile</p>
-      <h2>Technical direction grounded in hands-on development.</h2>
-      <p>At Epilogue, I combine full-stack development with architecture and technical direction for charity-partner systems. I work directly with company leadership on tools for partners and internal teams, spanning interfaces, APIs, access controls, analytics, and scheduled AWS reporting.</p>
-    </div>
-    <div class="skills-grid">
-      {skills.map((skill, index) => {
-        const icons = [MonitorSmartphone, SquareTerminal, ShieldCheck, ArrowRight];
-        const Icon = icons[index] ?? ArrowRight;
-        return (
-          <article class="skill-panel">
-            <Icon size={24} aria-hidden="true" />
-            <h3>{skill.title}</h3>
-            <p>{skill.summary}</p>
-            <div class="tag-list">
-              {skill.items.map((item) => <span>{item}</span>)}
-            </div>
-          </article>
-        );
-      })}
+      <dl class="hero-facts" aria-label="At a glance">
+        {highlights.map((item) => (
+          <div>
+            <dt>{item.label}</dt>
+            <dd>
+              <strong>{item.value}</strong>
+              <span>{item.description}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   </section>
 
@@ -103,23 +90,27 @@ const coreTech = ["TypeScript", "React", "Next.js", "Node.js", "MongoDB", "Docke
     </div>
   </section>
 
-  <section class="cta-band">
-    <div class="container cta-inner">
-      <div>
-        <p class="eyebrow">Get in touch</p>
-        <h2>Let’s talk software.</h2>
-        <p>Get in touch about product engineering, technical leadership, or a project you see here.</p>
-      </div>
-      <a
-        class="button primary"
-        href="/contact/"
-        data-umami-event="cta-click"
-        data-umami-event-action="contact"
-        data-umami-event-placement="home-footer-cta"
-      >
-        Start a conversation
-        <ArrowRight size={18} aria-hidden="true" />
-      </a>
+  <section class="container content-section home-profile-section">
+    <div class="section-heading">
+      <p class="eyebrow">Engineering profile</p>
+      <h2>Technical direction grounded in hands-on development.</h2>
+      <p>At Epilogue I build tools for charity partners and internal teams, from interfaces and APIs to access controls, analytics, and scheduled reporting.</p>
     </div>
+    <ul class="skills-compact">
+      {skills.map((skill) => (
+        <li>
+          <h3>{skill.title}</h3>
+          <div class="tag-list">
+            {skill.items.map((item) => <span>{item}</span>)}
+          </div>
+        </li>
+      ))}
+    </ul>
+    <a class="text-link skills-more" href="/about/#technical-range">
+      Full technical range
+      <ArrowRight size={16} aria-hidden="true" />
+    </a>
   </section>
+
+  <ContactBand placement="home-footer-cta" />
 </BaseLayout>

@@ -11,7 +11,7 @@ const utilitiesStructuredData = createUtilitiesStructuredData(utilities);
 <BaseLayout
   active="utilities"
   title={`Utilities | ${profile.name}`}
-  description="Focused browser utilities by Austin Garrod, built to solve practical problems without accounts or unnecessary setup."
+  description="Focused browser utilities by Austin Garrod for practical tasks and game planning. Most work without an account; Radius Map needs one to save measurements."
   schemaType="CollectionPage"
   breadcrumbLabel="Utilities"
   mainEntityId={UTILITIES_ITEM_LIST_ID}
@@ -22,12 +22,12 @@ const utilitiesStructuredData = createUtilitiesStructuredData(utilities);
       <p class="eyebrow">Practical tools</p>
       <h1>Utilities</h1>
       <p>
-        Browser tools for practical tasks and game planning, designed to work across desktop and mobile without an account.
+        Browser tools for practical tasks and game planning, built for desktop and mobile. Pokémon Binder Tracker and Idle Slayer Companion work without an account; Radius Map needs one to save measurements.
       </p>
-      <div>
+      <div class="button-row">
         <a class="button secondary rr-block" data-analytics-private href="/account/">
           <UserRound size={18} aria-hidden="true" />
-          Utility account
+          Account and sync
         </a>
       </div>
     </div>

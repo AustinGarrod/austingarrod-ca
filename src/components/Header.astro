@@ -1,6 +1,6 @@
 ---
-import { Menu, X } from "@lucide/astro";
-import { siteNav } from "@data/profile";
+import { Download, Menu, X } from "@lucide/astro";
+import { profile, siteNav } from "@data/profile";
 
 interface Props {
   active?: "home" | "about" | "projects" | "utilities" | "contact";
@@ -28,6 +28,18 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
       ))}
     </nav>
 
+    <a
+      class="button secondary header-resume"
+      href={profile.resume}
+      download
+      data-umami-event="file-download"
+      data-umami-event-file="resume"
+      data-umami-event-placement="header"
+    >
+      <Download size={16} aria-hidden="true" />
+      Résumé
+    </a>
+
     <button
       class="icon-button menu-toggle"
       type="button"
@@ -52,12 +64,25 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
         {item.label}
       </a>
     ))}
+    <a
+      class="mobile-link mobile-link-resume"
+      href={profile.resume}
+      download
+      data-umami-event="file-download"
+      data-umami-event-file="resume"
+      data-umami-event-placement="mobile-menu"
+    >
+      <Download size={16} aria-hidden="true" />
+      Résumé (PDF)
+    </a>
   </nav>
+  <div class="mobile-nav-backdrop" hidden></div>
 </header>
 
 <script>
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const mobileNav = document.querySelector<HTMLElement>("#mobile-nav");
+  const backdrop = document.querySelector<HTMLElement>(".mobile-nav-backdrop");
   const pageChrome = [
     document.querySelector<HTMLElement>(".brand"),
     document.querySelector<HTMLElement>(".skip-link"),
@@ -107,6 +132,7 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
 
     toggle.setAttribute("aria-expanded", "false");
     mobileNav.hidden = true;
+    if (backdrop) backdrop.hidden = true;
     document.body.classList.remove("mobile-nav-open");
     setPageInert(false);
 
@@ -122,6 +148,7 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
 
     toggle.setAttribute("aria-expanded", "true");
     mobileNav.hidden = false;
+    if (backdrop) backdrop.hidden = false;
     document.body.classList.add("mobile-nav-open");
     setPageInert(true);
   };
@@ -135,6 +162,8 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
       openMenu();
     }
   });
+
+  backdrop?.addEventListener("click", () => closeMenu());
 
   mobileNav?.addEventListener("click", (event) => {
     if (event.target instanceof Element && event.target.closest("a")) {

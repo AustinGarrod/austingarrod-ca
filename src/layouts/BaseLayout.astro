@@ -142,7 +142,7 @@ const analyticsEnabled = import.meta.env.PROD && !privatePage;
       </>
     )}
   </head>
-  <body class={bodyClass}>
+  <body class:list={[bodyClass, shell === "site" && "site-layout"]}>
     <a class="skip-link" href={`#${skipTarget}`}>Skip to content</a>
     {shell === "site" && <Header active={active} />}
     <main id="main">

@@ -16,17 +16,11 @@ const Icon = icons[utility.icon];
 <article class="utility-card" id={utility.slug}>
   <div class="utility-card-heading">
     <Icon size={28} aria-hidden="true" />
-    <span>{utility.status}</span>
+    {utility.status !== "Available" && <span>{utility.status}</span>}
   </div>
   <p class="eyebrow">{utility.label}</p>
   <h2><a href={href}>{utility.title}</a></h2>
   <p>{utility.summary}</p>
-  <ul>
-    {utility.capabilities.map((capability) => <li>{capability}</li>)}
-  </ul>
-  <div class="tag-list" aria-label={`${utility.title} technologies`}>
-    {utility.stack.map((item) => <span>{item}</span>)}
-  </div>
   <a
     class="button primary utility-launch"
     href={href}
@@ -37,4 +31,10 @@ const Icon = icons[utility.icon];
     Open utility
     <ArrowRight size={18} aria-hidden="true" />
   </a>
+  <ul>
+    {utility.capabilities.map((capability) => <li>{capability}</li>)}
+  </ul>
+  <div class="tag-list" aria-label={`${utility.title} technologies`}>
+    {utility.stack.map((item) => <span>{item}</span>)}
+  </div>
 </article>

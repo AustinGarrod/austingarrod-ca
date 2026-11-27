@@ -1,25 +1,11 @@
 ---
 import ProjectCard from "@components/ProjectCard.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { profile, projects } from "@data/profile";
+import ContactBand from "@components/ContactBand.astro";
+import { profile } from "@data/profile";
+import { otherProjects, screenshotProjects } from "@data/project-order";
 import { createProjectsStructuredData, PROJECTS_ITEM_LIST_ID } from "@data/seo";
 
-const projectOrder = new Map([
-  ["junkin-electric", -1],
-  ["honour-our-veterans-banner-platform", 0],
-  ["cadence", 1],
-  ["idle-slayer-companion", 2],
-  ["spools", 3],
-  ["charity-data-scraper", 4],
-  ["austingarrod-ca", 5],
-  ["campaign-static-site", 6],
-  ["kids-tv-controller", 7]
-]);
-const orderedProjects = [...projects].sort(
-  (a, b) => (projectOrder.get(a.slug) ?? Number.MAX_SAFE_INTEGER) - (projectOrder.get(b.slug) ?? Number.MAX_SAFE_INTEGER)
-);
-const screenshotProjects = orderedProjects.filter((project) => project.visual === "screenshot" && project.screenshot);
-const otherProjects = orderedProjects.filter((project) => !screenshotProjects.includes(project));
 const projectsStructuredData = createProjectsStructuredData([...screenshotProjects, ...otherProjects]);
 ---
 
@@ -34,7 +20,7 @@ const projectsStructuredData = createProjectsStructuredData([...screenshotProjec
 >
   <section class="page-hero page-hero-compact">
     <div class="container page-hero-inner">
-      <p class="eyebrow">Case studies</p>
+      <p class="eyebrow">Projects</p>
       <h1>Full-stack engineering projects</h1>
       <p>
         A selection of product, business, civic, and local software projects. The case studies explain the architecture, technical decisions, and current state of each project.
@@ -63,4 +49,6 @@ const projectsStructuredData = createProjectsStructuredData([...screenshotProjec
       </div>
     </section>
   </div>
+
+  <ContactBand placement="projects-footer-cta" />
 </BaseLayout>

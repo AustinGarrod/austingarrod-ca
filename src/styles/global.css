@@ -1312,7 +1312,6 @@ button {
 .project-detail-list,
 .project-detail-list li,
 .project-detail-main h2,
-.project-detail-aside,
 .page-hero-inner,
 .page-hero-inner p,
 .tag-list,
@@ -1745,8 +1744,14 @@ textarea:focus-visible {
 
 .utilities-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+@media (max-width: 1100px) {
+  .utilities-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .utility-card {
@@ -1810,7 +1815,6 @@ textarea:focus-visible {
 
 .utility-launch {
   width: fit-content;
-  margin-top: 8px;
 }
 
 @media (max-width: 760px) {
@@ -1832,9 +1836,30 @@ textarea:focus-visible {
 }
 
 .form-status {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
   padding: 12px 14px;
   font-weight: 800;
   border: 1px solid currentColor;
+}
+
+.form-status[hidden] {
+  display: none;
+}
+
+.contact-status {
+  grid-column: 1 / -1;
+  scroll-margin-top: 96px;
+}
+
+.contact-status:not(:has(.form-status:not([hidden]))) {
+  display: none;
+}
+
+.contact-status:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .form-status.success {
@@ -1854,13 +1879,6 @@ textarea:focus-visible {
   border-left: 1px solid var(--line);
 }
 
-.project-detail-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.34fr);
-  gap: 32px;
-  align-items: start;
-}
-
 .project-detail-main {
   display: grid;
   gap: var(--space-6);
@@ -1877,16 +1895,6 @@ textarea:focus-visible {
   min-height: 0;
 }
 
-.project-detail-main h2 {
-  max-width: 880px;
-  margin: 0 0 18px;
-  color: var(--ink);
-  font-size: clamp(2rem, 4.2vw, 3.8rem);
-  font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: 0;
-}
-
 .case-study-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1901,6 +1909,7 @@ textarea:focus-visible {
   border-top: 1px solid var(--line);
 }
 
+.case-study-section h2,
 .case-study-section h3 {
   margin: 0;
   color: var(--ink);
@@ -1908,19 +1917,6 @@ textarea:focus-visible {
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: 0;
-}
-
-.project-detail-aside {
-  display: grid;
-  gap: 24px;
-  padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-
-.project-detail-aside p:not(.eyebrow) {
-  margin: 0;
-  color: var(--muted);
 }
 
 .contact-aside div {
@@ -1959,8 +1955,7 @@ textarea:focus-visible {
   .project-grid,
   .project-card.featured,
   .two-column,
-  .contact-layout,
-  .project-detail-layout {
+  .contact-layout {
     grid-template-columns: 1fr;
   }
 
@@ -2144,3 +2139,329 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* Header: current page, résumé button, menu backdrop */
+
+.nav-link {
+  border-bottom: 2px solid transparent;
+}
+
+.nav-link:hover {
+  color: var(--secondary);
+  border-bottom-color: var(--secondary);
+}
+
+.nav-link.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.header-resume {
+  justify-self: end;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.mobile-link-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+/* The header's backdrop blur makes it the containing block for fixed children,
+   so the backdrop starts at the header's bottom edge and fills the screen. */
+.mobile-nav-backdrop {
+  position: fixed;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 100svh;
+  z-index: 25;
+  background: rgb(248 249 255 / 80%);
+}
+
+@media (max-width: 1100px) {
+  .header-resume {
+    display: none;
+  }
+}
+
+/* Site layout: the footer sits at the bottom of short pages */
+
+body.site-layout {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  flex-direction: column;
+}
+
+body.site-layout > main {
+  flex: 1 0 auto;
+}
+
+/* Footer second row */
+
+.footer-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-6);
+  width: var(--container);
+  margin-inline: auto;
+  padding-block: 0 var(--space-6);
+  border-top: 1px solid var(--line);
+}
+
+.footer-secondary a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.footer-secondary a:hover {
+  color: var(--secondary);
+}
+
+/* Contact band actions */
+
+.cta-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.cta-inner .button.secondary {
+  color: #ffffff;
+  border-color: rgb(255 255 255 / 64%);
+}
+
+.cta-inner .button.secondary:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+/* Home: hero facts and the compact engineering profile */
+
+.hero-facts {
+  display: grid;
+  align-content: end;
+  gap: 0;
+  margin: var(--space-10) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.hero-facts > div {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-facts dt {
+  color: var(--secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hero-facts dd {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.hero-facts strong {
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.hero-facts span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 1101px) {
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+    gap: var(--space-16);
+    align-items: end;
+  }
+
+  .hero-facts {
+    margin: 0;
+  }
+}
+
+.skills-compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.skills-compact li {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-6) var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.skills-compact h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.skills-compact .tag-list {
+  margin-top: 0;
+}
+
+.skills-more {
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 760px) {
+  .skills-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .skills-compact li {
+    padding-right: 0;
+  }
+}
+
+/* Case studies: facts row, label, full-width body, previous and next */
+
+.back-link {
+  width: fit-content;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.page-hero .back-link {
+  margin-bottom: calc(var(--space-2) * -1);
+}
+
+.page-hero .case-study-label {
+  color: var(--ink);
+  font-size: clamp(1.125rem, 1.6vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.case-study-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1.6fr);
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+
+.case-study-facts > div {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.case-study-facts dt {
+  color: var(--secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.case-study-facts dd {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.case-study-facts .tag-list {
+  margin-top: 0;
+}
+
+.project-detail-main {
+  gap: var(--space-12);
+}
+
+.project-pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+  padding-bottom: var(--section-y);
+}
+
+.project-pager-link {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--card-pad-compact);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.project-pager-link .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.project-pager-link strong {
+  color: var(--ink);
+  font-size: var(--type-card-small);
+  line-height: 1.15;
+}
+
+.project-pager-link > span:last-child {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.project-pager-link:hover strong {
+  color: var(--secondary);
+}
+
+.project-pager-next {
+  text-align: right;
+  justify-items: end;
+}
+
+@media (max-width: 1100px) {
+  .case-study-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .case-study-facts,
+  .project-pager {
+    grid-template-columns: 1fr;
+  }
+
+  .project-pager-next {
+    text-align: left;
+    justify-items: start;
+  }
+}
+

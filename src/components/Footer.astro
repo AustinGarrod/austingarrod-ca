@@ -1,12 +1,14 @@
 ---
 import { BriefcaseBusiness, CodeXml, Mail } from "@lucide/astro";
 import { profile } from "@data/profile";
+
+const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
   <div class="footer-inner">
     <div>
-      <p class="footer-kicker">Copyright 2026 Austin Garrod</p>
+      <p class="footer-kicker">Copyright {year} Austin Garrod</p>
       <p class="footer-copy">{profile.title} in Ontario, building maintainable products across interfaces, APIs, and data systems.</p>
     </div>
     <nav class="footer-links" aria-label="Footer links">
@@ -45,4 +47,16 @@ import { profile } from "@data/profile";
       </a>
     </nav>
   </div>
+  <nav class="footer-secondary" aria-label="More links">
+    <a
+      href={profile.resume}
+      download
+      data-umami-event="file-download"
+      data-umami-event-file="resume"
+      data-umami-event-placement="footer"
+    >Résumé (PDF)</a>
+    <a href="/utilities/">Utilities</a>
+    <a href="/account/">Account</a>
+    <a href="/account/privacy/">Privacy</a>
+  </nav>
 </footer>

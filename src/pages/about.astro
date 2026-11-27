@@ -1,4 +1,6 @@
 ---
+import { Download } from "@lucide/astro";
+import ContactBand from "@components/ContactBand.astro";
 import ExperienceTimeline from "@components/ExperienceTimeline.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { profile, skills } from "@data/profile";
@@ -18,6 +20,19 @@ import { profile, skills } from "@data/profile";
       <p>
         I’m a {profile.title.toLowerCase()} at Epilogue, with a background in full-stack product engineering, post-secondary teaching, and applied research. I care about software that teams can understand, maintain, and build on.
       </p>
+      <div class="button-row">
+        <a
+          class="button secondary"
+          href={profile.resume}
+          download
+          data-umami-event="file-download"
+          data-umami-event-file="resume"
+          data-umami-event-placement="about-hero"
+        >
+          <Download size={18} aria-hidden="true" />
+          Résumé (PDF)
+        </a>
+      </div>
     </div>
   </section>
 
@@ -29,7 +44,7 @@ import { profile, skills } from "@data/profile";
     <ExperienceTimeline />
   </section>
 
-  <section class="section-band">
+  <section class="section-band" id="technical-range">
     <div class="container content-section tight">
       <div class="section-heading">
         <p class="eyebrow">Technical range</p>
@@ -61,4 +76,6 @@ import { profile, skills } from "@data/profile";
       <p>Teaching programming and project management at Durham strengthened how I approach debugging, project planning, and technical communication. Explaining software clearly remains central to how I collaborate with developers and company leadership.</p>
     </div>
   </section>
+
+  <ContactBand placement="about-footer-cta" showResume />
 </BaseLayout>

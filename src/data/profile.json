@@ -350,7 +350,7 @@
       "status": "Public",
       "visual": "portfolio",
       "icon": "globe",
-      "href": "https://github.com/AustinGarrod/austingarrod-ca",
+      "source": "https://github.com/AustinGarrod/austingarrod-ca",
       "lastModified": "2026-10-17"
     },
     {
@@ -478,7 +478,7 @@
       "status": "Public",
       "visual": "screenshot",
       "icon": "map",
-      "href": "https://austingarrod.ca/utilities/idle-slayer-companion/",
+      "href": "/utilities/idle-slayer-companion/",
       "source": "https://github.com/AustinGarrod/austingarrod-ca/tree/main/apps/idle-slayer-companion",
       "screenshot": {
         "path": "/images/projects/idle-slayer-companion.webp",

@@ -112,7 +112,7 @@ if (strlen($message) < 20) {
 $clientId = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
 if (rate_limit_exceeded($clientId)) {
     error_log('AustinGarrod.ca contact rate limit reached.');
-    redirect_with_status('error');
+    redirect_with_status('limited');
 }
 
 $safeSubject = '[' . $siteName . '] ' . $subject;

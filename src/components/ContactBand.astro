@@ -1,0 +1,54 @@
+---
+import { ArrowRight, Download } from "@lucide/astro";
+import { profile } from "@data/profile";
+
+interface Props {
+  /** Analytics placement, e.g. "about-footer-cta". */
+  placement: string;
+  heading?: string;
+  text?: string;
+  showResume?: boolean;
+}
+
+const {
+  placement,
+  heading = "Let’s talk software.",
+  text = "Get in touch about product engineering, technical leadership, or a project you see here.",
+  showResume = false
+} = Astro.props;
+---
+
+<section class="cta-band">
+  <div class="container cta-inner">
+    <div>
+      <p class="eyebrow">Get in touch</p>
+      <h2>{heading}</h2>
+      <p>{text}</p>
+    </div>
+    <div class="cta-actions">
+      <a
+        class="button primary"
+        href="/contact/"
+        data-umami-event="cta-click"
+        data-umami-event-action="contact"
+        data-umami-event-placement={placement}
+      >
+        Start a conversation
+        <ArrowRight size={18} aria-hidden="true" />
+      </a>
+      {showResume && (
+        <a
+          class="button secondary"
+          href={profile.resume}
+          download
+          data-umami-event="file-download"
+          data-umami-event-file="resume"
+          data-umami-event-placement={placement}
+        >
+          <Download size={18} aria-hidden="true" />
+          Résumé (PDF)
+        </a>
+      )}
+    </div>
+  </div>
+</section>

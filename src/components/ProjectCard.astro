@@ -3,6 +3,7 @@ import { ArrowRight, ExternalLink, LockKeyhole } from "@lucide/astro";
 import ProjectVisual from "@components/ProjectVisual.astro";
 import type { Project } from "@data/profile";
 import { getProjectPath } from "@data/seo";
+import { isInternalHref } from "@data/project-order";
 
 interface Props {
   project: Project;
@@ -13,6 +14,7 @@ interface Props {
 
 const { project, featured = false, headingLevel = 3, showVisual = true } = Astro.props;
 const projectPath = getProjectPath(project);
+const opensUtility = Boolean(project.href && isInternalHref(project.href));
 ---
 
 <article id={project.slug} class:list={["project-card", featured && "featured", !showVisual && "project-card-text"]}>
@@ -64,7 +66,19 @@ const projectPath = getProjectPath(project);
         View case study
         <ArrowRight size={16} aria-hidden="true" />
       </a>
-      {project.href && (
+      {project.href && opensUtility && (
+        <a
+          class="text-link"
+          href={project.href}
+          data-umami-event="utility-open"
+          data-umami-event-utility={project.slug}
+          data-umami-event-placement="project-card"
+        >
+          Open utility
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+      )}
+      {project.href && !opensUtility && (
         <a
           class="text-link"
           href={project.href}
