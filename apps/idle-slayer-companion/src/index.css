@@ -200,7 +200,7 @@ small { display: block; font-size: .8125rem; color: var(--muted); line-height: 1
 .atlas > footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 6px 16px; border-top: 1px solid var(--line); background: var(--surface); }
 .atlas > footer > span { margin-right: auto; color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .atlas > footer button { font-size: .8125rem; }
-.toast { position: fixed; left: 50%; bottom: 68px; z-index: 50; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(680px, calc(100vw - 24px)); padding: 6px 8px 6px 12px; border: 1px solid var(--frame); border-radius: 0; background: var(--raised); box-shadow: none; transform: translateX(-50%); font-size: .8125rem; line-height: 1.5; pointer-events: none; }
+.toast { position: absolute; left: 50%; bottom: 70px; z-index: 50; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(680px, calc(100vw - 24px)); padding: 6px 8px 6px 12px; border: 1px solid var(--frame); border-radius: 0; background: var(--raised); box-shadow: none; transform: translateX(-50%); font-size: .8125rem; line-height: 1.5; pointer-events: none; }
 .toast > button { flex: 0 0 44px; pointer-events: auto; }
 
 dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 20px; overflow-y: auto; border: 1px solid var(--frame); border-radius: 0; color: var(--ink); background: var(--surface); box-shadow: none; overscroll-behavior: contain; }
@@ -283,7 +283,7 @@ dialog > button { margin: 6px 8px 0 0; }
   .detail-actions { bottom: -12px; margin-top: 4px; padding: 6px 0 12px; }
   .detail-actions > button.full { font-size: .8125rem; }
   .has-details .map-summary { display: none; }
-  .toast { top: calc(var(--toolbar-height) + 8px); bottom: auto; }
+
 }
 
 /* Phones reserve actual map and inspector rows rather than covering the canvas. */
@@ -569,3 +569,47 @@ dialog p, dialog li { font-size: .9375rem; }
 dialog small, dialog p small { font-size: .8125rem; }
 dialog button:not(.dialog-close), .details button { font-size: .875rem; }
 .details .detail-tools > button:not(.detail-toggle) { font-size: 1.5rem; }
+
+/* Map toolbar by intent: Find (search), then Next upgrade, layout and the View, Plan and Record tools.
+   It wraps instead of hiding tools: search takes the full first row on narrow canvases. */
+.atlas .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; }
+.atlas .toolbar > .search-box { flex: 1 1 260px; min-width: 0; }
+.map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.map-tools > button, .map-tools .menu-button > button { font-size: .8125rem; white-space: nowrap; }
+.atlas .map-tools > .next-upgrade { width: auto; padding: 8px 12px; font-size: .8125rem !important; white-space: nowrap; }
+.map-tools .layout-control button { padding: 8px 10px; font-size: .8125rem; white-space: nowrap; }
+.view-layout { display: none; }
+.menu-button { position: relative; }
+.menu-button > button { display: inline-flex; align-items: center; gap: 6px; }
+.menu-button-caret { font-size: .75em; line-height: 1; }
+.menu-button > button[aria-expanded='true'] { border-color: var(--ink); background: var(--surface); }
+.menu-popup { position: absolute; top: calc(100% + 4px); right: 0; z-index: 45; display: grid; gap: 2px; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); padding: 6px; border: 1px solid var(--frame); background: var(--surface); }
+.menu-popup > button, .view-popover > button { display: grid; justify-items: start; gap: 2px; width: 100%; border-color: transparent; background: transparent; text-align: left; font-size: .875rem; }
+.menu-popup > button:hover:not(:disabled), .view-popover > button:hover:not(:disabled) { border-color: var(--line); background: var(--raised); }
+.menu-popup > button small { color: var(--muted); font-size: .75rem; }
+.view-popover { display: grid; gap: 4px; }
+.view-popover .spoiler-control { white-space: normal; }
+.toast { max-width: calc(100% - 24px); }
+@container (max-width: 760px) {
+  .atlas .toolbar > .search-box { flex-basis: 100%; }
+  .map-tools { width: 100%; }
+  .map-tools > .next-upgrade { flex: 1 1 auto; }
+  .toolbar-layout { display: none; }
+  .view-layout { display: flex; }
+  .view-layout button { flex: 1 1 0; }
+  .menu-popup { right: auto; left: 0; }
+  .map-tools > .menu-button:last-child .menu-popup { right: 0; left: auto; }
+}
+/* Upgrade details: the one action first, planning and sharing behind two disclosures that open in place. */
+.detail-actions { align-items: center; }
+.details .text-action { min-height: 44px; padding: 8px 4px; border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.details .danger-text { color: var(--danger); }
+.detail-tools-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.details .menu-button { position: static; }
+.details .menu-popup { position: static; flex-basis: 100%; width: 100%; max-width: none; margin-top: 6px; }
+.details .menu-button:has(> .menu-popup) { flex-basis: 100%; }
+.detail-share-panel { display: grid; gap: 0; }
+.detail-share-panel .upgrade-reference { margin: 0; }
+.details dl.detail-retention { margin-top: 18px; }
+.details .requirement-guidance { display: block; margin: -8px 0 14px; }
+.source-notes > summary { display: list-item; min-height: 44px; padding: 10px 2px; color: var(--muted); font-weight: 600; cursor: pointer; }

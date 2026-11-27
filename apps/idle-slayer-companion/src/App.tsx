@@ -40,6 +40,7 @@ import { useCheckpointSession } from './useCheckpointSession'
 import { useComparisonSession } from './useComparisonSession'
 import { backupFilename, backupPartLabels, backupParts, createBackupBundle, detectBackup, MAX_BUNDLE_BYTES, MAX_INTENTIONS_BYTES, type BackupKind, type BackupPart } from './domain/backup-bundle'
 import { exportCheckpoints } from './domain/checkpoints'
+import { progressBackupFilename } from './domain/progress-comparison'
 import { exportComparison, presentedComparison } from './domain/saved-comparison'
 import { emptyCompanionProgress } from './domain/companion-progress'
 import { emptyProfile, MAX_PROFILE_EPOCH } from './domain/types'
@@ -50,7 +51,7 @@ import type { ReactNode } from 'react'
 type LoadedCatalogs = { map: Catalog | null; companion: CompanionCatalog | null }
 type Panel = 'import' | 'data' | 'settings' | 'help' | 'install' | 'reset' | 'correction' | 'clear' | null
 type ReloadAction = { kind: 'tracking'; enabled: boolean } | { kind: 'catalog' | 'repair' }
-type MapToolAction = keyof Pick<MapActions, 'openHelp' | 'openInstall' | 'openReferences' | 'openProgress'>
+type MapToolAction = keyof Pick<MapActions, 'openHelp' | 'openInstall' | 'openGoals' | 'openPriorAscensions'>
 function download(text: string, filename: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
   const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click()
@@ -304,6 +305,14 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
     setFeedback(missing.length ? `Backup downloaded without: ${missing.join(', ')}. Export those from Advanced after reviewing their recovery.` : 'Backup downloaded: recorded progress, goals and plans, checkpoints and saved comparison.')
     return true
   }
+  /** The original Ascension-only map file, for older copies and the original Ascension Map. */
+  function exportMapBackup() {
+    const result = exportProfileBackup(session.getState().profile)
+    if (!result.ok) { setFeedback(result.error.message); trackEvent('backup_error', { reason: result.error.kind }); return }
+    download(result.text, progressBackupFilename(session.getState().profile))
+    trackEvent('backup_download_requested')
+    setFeedback('Ascension map backup exported. It holds Ascension progress only.')
+  }
   function previewClearAll() {
     open('clear')
     const cleared = emptyCompanionProgress(state.progress.catalogRevision)
@@ -314,7 +323,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   function reviewUltraRequirement(route: RequirementRoute) {
     if (route.kind === 'upgrade') navigate('ascension', { system: 'ascension', id: route.id })
     else if (route.kind === 'milestone') requestMap((actions) => actions.openMilestones())
-    else requestMap((actions) => actions.openProgress())
+    else requestMap((actions) => actions.openPriorAscensions())
   }
   async function readFile(file: File | string, kind: 'save' | 'backup', fromBundle = false) {
     const size = typeof file === 'string' ? new TextEncoder().encode(file).byteLength : file.size
@@ -480,7 +489,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
           {map && <section className="companion-dialog-section" aria-labelledby="ascension-data-heading">
             <h3 id="ascension-data-heading">Ascension files</h3>
             <p>Checkpoints and the saved comparison open in Ascension with their own export and restore. The original map file holds Ascension progress only.</p>
-            <div className="companion-dialog-actions"><button onClick={() => requestMap((actions) => actions.openCheckpoints())}>Checkpoints: export or restore…</button><button onClick={() => requestMap((actions) => actions.openComparison())}>Saved comparison: export or restore…</button><button onClick={() => { mapActions.current?.exportMapBackup() }}>Export Ascension map backup</button><button onClick={() => openMapTool('openReferences')}>Review Ascension references</button><button onClick={() => openMapTool('openProgress')}>Open Ascension data tools</button></div>
+            <div className="companion-dialog-actions"><button onClick={() => requestMap((actions) => actions.openCheckpoints())}>Checkpoints: export or restore…</button><button onClick={() => requestMap((actions) => actions.openComparison())}>Saved comparison: export or restore…</button><button onClick={() => openMapTool('openGoals')}>Goals…</button><button onClick={exportMapBackup}>Export Ascension map backup</button></div>
           </section>}
         </details>
         {state.error && <section className="companion-dialog-section" aria-labelledby="progress-recovery-heading">
@@ -494,7 +503,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
           </div>
         </section>}
       </div>}
-      {panel === 'settings' && <><PrivacyPanel status={tracking} progressStatus={progressStatus} onChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} additionalActions={referencesBlocked && <button disabled={!map} onClick={() => openMapTool('openReferences')}>Review Ascension references</button>} />{reloadAction !== null && <section aria-label="Reload with unsaved progress"><h3>Save a copy before reloading?</h3><p>Export Companion progress and intentions before reloading to keep this visit. Checkpoints and saved comparison have their own recovery.</p><div className="dialog-actions"><button disabled={repairing} onClick={() => { if (exportProgress()) { download(JSON.stringify(workspace.getState().workspace, null, 2), 'companion-intentions.json'); void finishReload(reloadAction) } }}>Export backups and reload</button><button disabled={repairing} className="danger" onClick={() => void finishReload(reloadAction)}>Reload without backup</button><button disabled={repairCommitted.current} onClick={() => { cancelRepair(); setReloadAction(null) }}>Cancel reload</button></div></section>}</>}
+      {panel === 'settings' && <><PrivacyPanel status={tracking} progressStatus={progressStatus} onChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} additionalActions={referencesBlocked && map && <><button onClick={() => requestMap((actions) => actions.openCheckpoints())}>Review checkpoints</button><button onClick={() => requestMap((actions) => actions.openComparison())}>Review saved comparison</button></>} />{reloadAction !== null && <section aria-label="Reload with unsaved progress"><h3>Save a copy before reloading?</h3><p>Export Companion progress and intentions before reloading to keep this visit. Checkpoints and saved comparison have their own recovery.</p><div className="dialog-actions"><button disabled={repairing} onClick={() => { if (exportProgress()) { download(JSON.stringify(workspace.getState().workspace, null, 2), 'companion-intentions.json'); void finishReload(reloadAction) } }}>Export backups and reload</button><button disabled={repairing} className="danger" onClick={() => void finishReload(reloadAction)}>Reload without backup</button><button disabled={repairCommitted.current} onClick={() => { cancelRepair(); setReloadAction(null) }}>Cancel reload</button></div></section>}</>}
       {panel === 'reset' && !preview && map && visibleMap && !uaEligible && state.profile.epoch < MAX_PROFILE_EPOCH && <section className="companion-dialog-section" aria-label="Ultra Ascension requirements">
         <h3>What Ultra Ascension needs</h3>
         <p>Record what is missing in Ascension first. Select a requirement to see it on the map.</p>
