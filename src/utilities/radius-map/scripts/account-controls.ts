@@ -1,4 +1,4 @@
-import { createRadiusAccountLibrary, type RadiusAccountView } from "../lib/account-library";
+import { createRadiusAccountLibrary, SETTLED_STATUSES, type RadiusAccountView } from "../lib/account-library";
 import { mergeLibraries, type AccountMeasurement, type MeasurementChoice } from "../lib/account-measurements";
 
 function field<T extends HTMLElement>(id: string): T {
@@ -70,11 +70,15 @@ function startAfterCacheUpgrade(start: () => void, status: HTMLElement): void {
 export function bindRadiusAccountControls(renderLibrary: (view: RadiusAccountView) => void) {
   const signIn = field<HTMLAnchorElement>("radius-sign-in");
   const signInToSave = field<HTMLAnchorElement>("radius-sign-in-to-save");
+  const signedOut = field<HTMLDivElement>("library-signed-out");
+  const intro = field<HTMLParagraphElement>("panel-intro");
   const manage = field<HTMLAnchorElement>("radius-manage-account");
   const reviewButton = field<HTMLButtonElement>("radius-review");
   const syncNow = field<HTMLButtonElement>("radius-sync-now");
   const status = field<HTMLParagraphElement>("radius-sync-status");
-  const location = field<HTMLParagraphElement>("radius-library-location");
+  const account = status.closest<HTMLElement>(".radius-account");
+  const location = field<HTMLAnchorElement>("radius-library-location");
+  const signInHref = location.getAttribute("href") ?? "/account/";
   const dialog = field<HTMLDialogElement>("radius-review-dialog");
   const form = field<HTMLFormElement>("radius-review-form");
   const choices = field<HTMLDivElement>("radius-review-choices");
@@ -88,13 +92,19 @@ export function bindRadiusAccountControls(renderLibrary: (view: RadiusAccountVie
     view = next;
     // The save button stays visible signed out: it explains that saving needs an account.
     signIn.hidden = signInToSave.hidden = !view.canSignIn;
+    signedOut.hidden = intro.hidden = !!view.signedInId;
+    // Signed out, the empty state says it all unless something stops signing in.
+    if (account) account.hidden = !view.signedInId && view.canSignIn;
     manage.hidden = !view.signedInId;
     reviewButton.hidden = !(view.canSync && (view.conflict || view.prepared));
     reviewButton.disabled = view.inProgress;
     reviewButton.textContent = view.prepared ? "Finish saved review" : "Review sync changes";
+    // Always reachable when signed in, but only prominent when changes wait or a sync failed.
     syncNow.hidden = !view.signedInId;
     syncNow.disabled = !view.canSync || view.inProgress || view.prepared;
-    location.textContent = view.signedInId ? "Account library" : "Sign in to save";
+    syncNow.classList.toggle("is-needed", !SETTLED_STATUSES.includes(view.status));
+    location.textContent = view.signedInId ? "Account" : "Sign in";
+    location.href = view.signedInId ? "/account/" : signInHref;
     status.textContent = view.status;
     renderLibrary(view);
   });

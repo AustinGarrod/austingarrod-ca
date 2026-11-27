@@ -56,7 +56,11 @@ interface SavedLayer {
   marker: Marker;
 }
 
-type WorkspaceTab = "create" | "saved";
+interface BestFitInput extends TriangulationInput {
+  label: string;
+}
+
+type WorkspaceTab = "create" | "saved" | "bestfit";
 type SaveDialogMode = "save" | "rename";
 
 const SAVED_COLORS = ["#0d9488", "#0b1c30", "#006a61", "#2563a6", "#7a5a13", "#7b3f72", "#4b6478", "#39715c"];
@@ -65,6 +69,7 @@ const WORLD_VIEW = L.latLngBounds([[-56, -168], [74, 178]]);
 /** Web Mercator stops at ±85.05°. Longitude is left open so the map can wrap. */
 const MAP_LIMITS = L.latLngBounds([[-85.0511, -540], [85.0511, 540]]);
 const UNDO_DURATION = 6_000;
+const PHONE_LAYOUT = "(max-width: 599px)";
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -81,6 +86,14 @@ function queryElement<T extends HTMLElement>(selector: string, root: ParentNode 
 function shortenLabel(label: string): string {
   const [first, second] = label.split(",").map((part) => part.trim());
   return second ? `${first}, ${second}` : first;
+}
+
+/** A short place name for the chip and the centre row: the coordinates for a typed or dropped pin. */
+function displayPlace(label: string): string {
+  const match = label.match(/^(Coordinates|Dropped pin|Your location|Best-fit point) · (.+)$/);
+  if (!match) return shortenLabel(label);
+  if (match[1] !== "Coordinates" && match[1] !== "Dropped pin") return match[1];
+  return match[2].split(",").map((part) => Number(part).toFixed(4)).join(", ");
 }
 
 function readableCoordinates(coordinates: Coordinates): string {
@@ -101,6 +114,21 @@ function searchFailureMessage(status: number | null, serverMessage: string | und
   return "Search is unavailable right now. Tap the map or enter coordinates instead.";
 }
 
+/** Two significant figures: an estimate's error is not precise to the metre. */
+function roughly(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  return formatDerived(Number(value.toPrecision(2)));
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function initializeRadiusMap(): void {
   if (document.documentElement.dataset.radiusMapReady === "true") return;
   document.documentElement.dataset.radiusMapReady = "true";
@@ -109,46 +137,62 @@ export function initializeRadiusMap(): void {
   const searchInput = element<HTMLInputElement>("location-search");
   const searchButton = element<HTMLButtonElement>("search-button");
   const searchResults = element<HTMLUListElement>("search-results");
+  const locationPicker = element<HTMLDivElement>("location-picker");
   const locationError = element<HTMLParagraphElement>("location-error");
+  const locationChosen = element<HTMLDivElement>("location-chosen");
+  const locationChosenLabel = element<HTMLParagraphElement>("location-chosen-label");
+  const locationChange = element<HTMLButtonElement>("location-change");
   const locationClear = element<HTMLButtonElement>("location-clear");
   const locateButton = element<HTMLButtonElement>("locate-button");
+  const locateLabel = queryElement<HTMLElement>(".sr-only", locateButton);
   const measurementInput = element<HTMLInputElement>("measurement-value");
-  const measurementLabel = element<HTMLLabelElement>("measurement-label");
   const measurementError = element<HTMLParagraphElement>("measurement-error");
   const summaryValue = element<HTMLParagraphElement>("summary-value");
-  const summaryDetail = element<HTMLSpanElement>("summary-detail");
-  const summaryCenter = element<HTMLSpanElement>("summary-centre");
+  const summaryDetail = element<HTMLParagraphElement>("summary-detail");
+  const summaryCenter = element<HTMLParagraphElement>("summary-centre");
+  const copySummaryButton = element<HTMLButtonElement>("copy-summary-button");
   const appStatus = element<HTMLParagraphElement>("app-status");
   const statusUndo = element<HTMLButtonElement>("status-undo");
   const mapHint = element<HTMLDivElement>("map-hint");
+  const mapHintText = element<HTMLSpanElement>("map-hint-text");
   const centerChip = element<HTMLDivElement>("centre-chip");
   const centerChipLabel = element<HTMLElement>("centre-chip-label");
   const centerChipClear = element<HTMLButtonElement>("centre-chip-clear");
   const appShell = queryElement<HTMLElement>(".app-shell");
-  const controlPanel = queryElement<HTMLElement>(".control-panel");
+  const utilityHeader = queryElement<HTMLElement>(".utility-header", appShell);
+  const controlPanel = element<HTMLElement>("radius-panel");
   const panelContent = element<HTMLDivElement>("panel-content");
   const panelToggle = element<HTMLButtonElement>("panel-toggle");
   const panelToggleLabel = queryElement<HTMLElement>(".panel-toggle-label", panelToggle);
-  const createTab = element<HTMLButtonElement>("create-tab");
-  const savedTab = element<HTMLButtonElement>("saved-tab");
-  const createPanel = element<HTMLDivElement>("create-panel");
-  const savedPanel = element<HTMLDivElement>("saved-panel");
+  const tabList = queryElement<HTMLElement>(".workspace-tabs", controlPanel);
+  const tabs: Record<WorkspaceTab, { tab: HTMLButtonElement; panel: HTMLDivElement }> = {
+    create: { tab: element("create-tab"), panel: element("create-panel") },
+    saved: { tab: element("saved-tab"), panel: element("saved-panel") },
+    bestfit: { tab: element("bestfit-tab"), panel: element("bestfit-panel") },
+  };
+  const tabOrder: WorkspaceTab[] = ["create", "saved", "bestfit"];
   const savedCount = element<HTMLSpanElement>("saved-count");
   const editBanner = element<HTMLDivElement>("edit-banner");
   const editBannerName = element<HTMLElement>("edit-banner-name");
   const saveMeasurementButton = element<HTMLButtonElement>("save-measurement-button");
+  const peekSaveButton = element<HTMLButtonElement>("peek-save-button");
   const cancelEditButton = element<HTMLButtonElement>("cancel-edit-button");
   const librarySearch = element<HTMLInputElement>("library-search");
+  const librarySearchField = queryElement<HTMLLabelElement>(".library-search");
   const libraryEmpty = element<HTMLDivElement>("library-empty");
   const libraryNoResults = element<HTMLDivElement>("library-no-results");
   const savedList = element<HTMLDivElement>("saved-list");
   const triangulateButton = element<HTMLButtonElement>("triangulate-button");
   const triangulationHint = element<HTMLParagraphElement>("triangulation-hint");
+  const triangulationInputs = element<HTMLOListElement>("triangulation-inputs");
+  const triangulationCircles = element<HTMLDivElement>("triangulation-circles");
+  const bestFitSignIn = element<HTMLAnchorElement>("bestfit-sign-in");
   const triangulationResult = element<HTMLDivElement>("triangulation-result");
   const triangulationStatus = element<HTMLParagraphElement>("triangulation-status");
-  const resultCoordinates = element<HTMLSpanElement>("result-coordinates");
+  const resultCoordinates = element<HTMLParagraphElement>("result-coordinates");
   const resultInputCount = element<HTMLElement>("result-input-count");
   const resultError = element<HTMLElement>("result-error");
+  const copyResultButton = element<HTMLButtonElement>("copy-result-button");
   const useResultButton = element<HTMLButtonElement>("use-result-button");
   const saveDialog = element<HTMLDialogElement>("save-dialog");
   const saveForm = element<HTMLFormElement>("save-form");
@@ -169,6 +213,9 @@ export function initializeRadiusMap(): void {
   const deleteDialogCancel = element<HTMLButtonElement>("delete-dialog-cancel");
   const deleteDialogSubmit = element<HTMLButtonElement>("delete-dialog-submit");
 
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+  const phoneLayout = window.matchMedia(PHONE_LAYOUT);
+
   const state: AppState = {
     center: null,
     centerLabel: "",
@@ -187,7 +234,7 @@ export function initializeRadiusMap(): void {
     maxBounds: MAP_LIMITS,
     maxBoundsViscosity: 1,
   });
-  L.control.zoom({ position: "topright" }).addTo(map);
+  L.control.zoom({ position: "bottomright" }).addTo(map);
   let tileFailures = 0;
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
@@ -215,6 +262,9 @@ export function initializeRadiusMap(): void {
   let draftCircle: Circle | null = null;
   let resultMarker: Marker | null = null;
   const savedLayers = new Map<string, SavedLayer>();
+  let activeTab: WorkspaceTab = "create";
+  let sheetExpanded = true;
+  let changingCenter = false;
   let saveDialogMode: SaveDialogMode = "save";
   let editOriginal: SavedMeasurement | undefined;
   let preEditDraft: DraftSnapshot | null = null;
@@ -249,6 +299,7 @@ export function initializeRadiusMap(): void {
     if (!view.library) {
       accountSnapshot = "";
       renderLibrary();
+      updateTriangulationAvailability();
       return;
     }
     if (view.accountId && signInDialog.open) signInDialog.close();
@@ -269,8 +320,11 @@ export function initializeRadiusMap(): void {
     }
   });
 
-  function setStatus(message: string): void {
+  // Status
+
+  function setStatus(message: string, tone: "info" | "error" = "info"): void {
     appStatus.textContent = message;
+    appStatus.classList.toggle("is-error", tone === "error");
     clearTimeout(undoTimer);
     undoAction = null;
     statusUndo.hidden = true;
@@ -290,13 +344,19 @@ export function initializeRadiusMap(): void {
     locationError.textContent = message;
     locationError.hidden = false;
     searchInput.setAttribute("aria-invalid", "true");
-    setStatus(message);
+    setStatus(message, "error");
   }
 
   function clearLocationError(): void {
     locationError.textContent = "";
     locationError.hidden = true;
     searchInput.removeAttribute("aria-invalid");
+  }
+
+  /** Keyboard and mouse users continue at the next control; on touch screens focus stays in the panel so no keyboard pops up over the map. */
+  function focusNext(target: HTMLElement): void {
+    if (finePointer.matches) target.focus();
+    else controlPanel.focus({ preventScroll: true });
   }
 
   function persistDraft(): void {
@@ -312,36 +372,49 @@ export function initializeRadiusMap(): void {
     });
   }
 
+  // Layout
+
   function isMobileLayout(): boolean {
-    return window.matchMedia("(max-width: 860px)").matches;
+    return phoneLayout.matches;
   }
 
-  function updateMobilePanelInset(): void {
+  function updateSheetInset(): void {
     if (!isMobileLayout()) {
-      appShell.style.removeProperty("--mobile-panel-height");
+      appShell.style.removeProperty("--sheet-height");
       return;
     }
-    appShell.style.setProperty("--mobile-panel-height", `${Math.ceil(controlPanel.getBoundingClientRect().height)}px`);
+    appShell.style.setProperty("--sheet-height", `${Math.ceil(controlPanel.getBoundingClientRect().height)}px`);
   }
 
-  function setControlsCollapsed(collapsed: boolean): void {
-    controlPanel.classList.toggle("is-collapsed", collapsed);
-    panelContent.hidden = collapsed;
-    panelToggle.setAttribute("aria-expanded", String(!collapsed));
-    panelToggle.setAttribute("aria-label", collapsed ? "Show controls" : "Hide controls");
-    panelToggleLabel.textContent = collapsed ? "Show controls" : "Hide controls";
-    requestAnimationFrame(() => {
-      updateMobilePanelInset();
-      fitCurrentView();
-    });
+  /** Phones show the panel as a bottom sheet: a peek with the distance, or expanded with every tab. */
+  function setSheetExpanded(expanded: boolean, options: { fit?: boolean } = {}): void {
+    sheetExpanded = expanded;
+    const peek = isMobileLayout() && !expanded;
+    controlPanel.classList.toggle("is-peek", peek);
+    panelToggle.setAttribute("aria-expanded", String(!peek));
+    panelToggleLabel.textContent = peek ? "Expand" : "Collapse";
+    panelToggle.setAttribute("aria-label", peek ? "Expand controls" : "Collapse controls");
+    if (peek) panelContent.scrollTop = 0;
+    updateSheetInset();
+    if (options.fit !== false) requestAnimationFrame(fitCurrentView);
+  }
+
+  function updateMapOverlays(): void {
+    mapHint.hidden = !!state.center || savedLayers.size > 0;
+    mapHintText.textContent = `${finePointer.matches ? "Click" : "Tap"} the map to place your centre`;
+    centerChip.hidden = !state.center;
   }
 
   function mapPadding(): { paddingTopLeft: [number, number]; paddingBottomRight: [number, number] } {
-    if (!isMobileLayout()) return { paddingTopLeft: [430, 30], paddingBottomRight: [30, 30] };
-    return {
-      paddingTopLeft: [24, 52],
-      paddingBottomRight: [24, Math.ceil(controlPanel.getBoundingClientRect().height + 24)],
-    };
+    let top = utilityHeader.getBoundingClientRect().bottom;
+    for (const overlay of [centerChip, mapHint]) {
+      if (!overlay.hidden) top = Math.max(top, overlay.getBoundingClientRect().bottom);
+    }
+    top = Math.ceil(top) + 16;
+    if (isMobileLayout()) {
+      return { paddingTopLeft: [16, top], paddingBottomRight: [16, Math.ceil(controlPanel.getBoundingClientRect().height) + 16] };
+    }
+    return { paddingTopLeft: [Math.ceil(controlPanel.getBoundingClientRect().right) + 24, top], paddingBottomRight: [24, 24] };
   }
 
   /** The lowest zoom at which one copy of the world is at least as tall as the map, so no grey shows. */
@@ -376,14 +449,19 @@ export function initializeRadiusMap(): void {
     else if (!state.center) fitWorld();
   }
 
+  // Draft
+
   function currentMeasurement(): number {
     return Number(measurementInput.value);
   }
 
+  function describeMeasurement(value: number, kind: MeasurementKind, unit: DistanceUnit): string {
+    return `${formatMeasurement(value)} ${unit} ${kind}`;
+  }
+
   function defaultMeasurementName(): string {
     const location = state.centerLabel ? shortenLabel(state.centerLabel) : "Saved measurement";
-    const suffix = `${formatMeasurement(currentMeasurement())} ${state.unit} ${state.kind}`;
-    return `${location} — ${suffix}`.slice(0, 80);
+    return `${location} — ${describeMeasurement(currentMeasurement(), state.kind, state.unit)}`.slice(0, 80);
   }
 
   function currentDraftInput(name = defaultMeasurementName()): SavedMeasurementInput | null {
@@ -405,18 +483,28 @@ export function initializeRadiusMap(): void {
 
   function updateSummary(value: number | null): void {
     summaryCenter.textContent = state.center ? state.centerLabel : "Choose a centre to draw the circle";
+    const place = state.center ? displayPlace(state.centerLabel) : "";
+    copySummaryButton.disabled = value === null || !state.center;
     if (value === null) {
       summaryValue.textContent = "—";
       summaryDetail.textContent = "Enter a distance";
+      centerChipLabel.textContent = place;
       return;
     }
     const details = measurementDetails(value, state.kind, state.unit);
-    summaryValue.textContent = `${formatMeasurement(value)} ${state.unit} ${state.kind}`;
-    summaryDetail.textContent = [
+    const summary = describeMeasurement(value, state.kind, state.unit);
+    summaryValue.textContent = summary;
+    // Each part stays whole; the line wraps between them.
+    summaryDetail.replaceChildren(...[
       `${formatDerived(details.converted.value)} ${details.converted.unit}`,
       `${formatDerived(details.counterpart.value)} ${state.unit} ${details.counterpart.kind}`,
       `${formatDerived(details.area)} ${state.unit}² area`,
-    ].join(" · ");
+    ].flatMap((part, index) => {
+      const span = document.createElement("span");
+      span.textContent = part;
+      return index === 0 ? [span] : [document.createTextNode(" · "), span];
+    }));
+    centerChipLabel.textContent = place ? `${summary} · ${place}` : summary;
   }
 
   function removeDraftCircle(): void {
@@ -436,9 +524,10 @@ export function initializeRadiusMap(): void {
     if (error) {
       updateSummary(null);
       removeDraftCircle();
-      saveMeasurementButton.disabled = true;
-      if (options.announce) setStatus(error);
+      saveMeasurementButton.disabled = peekSaveButton.disabled = true;
+      if (options.announce) setStatus(error, "error");
       updateTriangulationAvailability();
+      updateMapOverlays();
       return false;
     }
 
@@ -460,8 +549,9 @@ export function initializeRadiusMap(): void {
       }
       if (options.fit) fitDraftCircle();
     }
-    saveMeasurementButton.disabled = !state.center;
+    saveMeasurementButton.disabled = peekSaveButton.disabled = !state.center;
     updateTriangulationAvailability();
+    updateMapOverlays();
     return true;
   }
 
@@ -476,9 +566,19 @@ export function initializeRadiusMap(): void {
     }
   }
 
+  /** Once a centre is chosen the first step shrinks to one row with Change and Clear. */
+  function updateLocationStep(): void {
+    const collapsed = !!state.center && !changingCenter;
+    controlPanel.classList.toggle("has-centre", !!state.center);
+    locationPicker.hidden = collapsed;
+    locationChosen.hidden = !state.center || changingCenter;
+    locationChosenLabel.textContent = state.center ? displayPlace(state.centerLabel) : "";
+  }
+
   function setCenter(coordinates: Coordinates, label: string, statusMessage: string): void {
     clearResult();
     clearLocationError();
+    changingCenter = false;
     state.center = coordinates;
     state.centerLabel = label;
     if (!draftMarker) {
@@ -501,12 +601,13 @@ export function initializeRadiusMap(): void {
       draftMarker.setLatLng(coordinates as LatLngExpression);
     }
 
-    mapHint.classList.add("is-hidden");
-    centerChip.hidden = false;
-    locationClear.hidden = false;
-    centerChipLabel.textContent = shortenLabel(label);
+    updateLocationStep();
+    updateMapOverlays();
+    // On phones the sheet drops to its peek so the circle and the distance are both in view.
+    // An edit keeps it open so Update and Cancel stay at hand.
+    if (isMobileLayout() && activeTab === "create" && !state.editingId) setSheetExpanded(false, { fit: false });
     const circleWasDrawn = refreshMeasurement({ fit: true });
-    setStatus(circleWasDrawn ? statusMessage : "Centre selected. Enter a valid measurement to draw the circle.");
+    setStatus(circleWasDrawn ? statusMessage : "Centre selected. Enter a valid distance to draw the circle.");
   }
 
   function hideEditState(): void {
@@ -515,7 +616,6 @@ export function initializeRadiusMap(): void {
     editBanner.hidden = true;
     editBannerName.textContent = "";
     saveMeasurementButton.textContent = "Save measurement";
-    cancelEditButton.hidden = true;
   }
 
   function clearDraft(message = "Choose a centre for your next measurement."): void {
@@ -524,19 +624,19 @@ export function initializeRadiusMap(): void {
     draftMarker = null;
     state.center = null;
     state.centerLabel = "";
+    changingCenter = false;
     preEditDraft = null;
     pendingSave = false;
     hideEditState();
-    centerChip.hidden = true;
-    locationClear.hidden = true;
-    mapHint.classList.remove("is-hidden");
     searchInput.value = "";
     clearLocationError();
+    updateLocationStep();
     updateSummary(validateMeasurement(currentMeasurement(), state.kind, state.unit) ? null : currentMeasurement());
-    saveMeasurementButton.disabled = true;
+    saveMeasurementButton.disabled = peekSaveButton.disabled = true;
     setStatus(message);
     clearResult();
     renderSavedLayers();
+    updateMapOverlays();
     forgetDraft();
   }
 
@@ -567,9 +667,12 @@ export function initializeRadiusMap(): void {
       window.umami?.track("radius-map-edit-cancel");
       return;
     }
-    clearDraft("Circle cleared. Search, use your location or tap the map to choose a new centre.");
-    fitCurrentView();
+    clearDraft(`Circle cleared. Search, use your location or ${finePointer.matches ? "click" : "tap"} the map to choose a new centre.`);
+    requestAnimationFrame(fitCurrentView);
+    focusNext(searchInput);
   }
+
+  // Saved measurements
 
   function savedMarkerIcon(measurement: SavedMeasurement, index: number): L.DivIcon {
     const color = SAVED_COLORS[colorIndex(measurement.id)];
@@ -619,16 +722,27 @@ export function initializeRadiusMap(): void {
       }).addTo(map);
       marker.on("click", () => {
         activateTab("saved");
-        document.querySelector<HTMLElement>(`[data-measurement-id="${measurement.id}"]`)?.scrollIntoView({ block: "nearest" });
-        setStatus(`${measurement.name}: ${formatMeasurement(measurement.value)} ${measurement.unit} ${measurement.kind}.`);
+        if (isMobileLayout()) setSheetExpanded(true, { fit: false });
+        rowFor(measurement.id)?.scrollIntoView({ block: "nearest" });
+        setStatus(`${measurement.name}: ${describeMeasurement(measurement.value, measurement.kind, measurement.unit)}.`);
       });
       savedLayers.set(measurement.id, { circle, marker });
     });
     updateTriangulationAvailability();
+    updateMapOverlays();
   }
 
-  function measurementSummary(measurement: SavedMeasurement): string {
-    return `${formatMeasurement(measurement.value)} ${measurement.unit} ${measurement.kind}`;
+  function rowFor(id: string): HTMLElement | null {
+    return savedList.querySelector<HTMLElement>(`[data-measurement-id="${CSS.escape(id)}"]`);
+  }
+
+  function closeRowMenus(except?: HTMLElement): void {
+    savedList.querySelectorAll<HTMLButtonElement>(".row-more[aria-expanded='true']").forEach((button) => {
+      if (button === except) return;
+      button.setAttribute("aria-expanded", "false");
+      const actions = button.closest(".saved-item")?.querySelector<HTMLElement>(".saved-item-actions");
+      if (actions) actions.hidden = true;
+    });
   }
 
   function renderLibrary(): void {
@@ -638,7 +752,7 @@ export function initializeRadiusMap(): void {
     const matches = state.saved.filter((measurement) =>
       measurement.name.toLowerCase().includes(query) || measurement.locationLabel.toLowerCase().includes(query),
     );
-    librarySearch.disabled = !accountId;
+    librarySearchField.hidden = !accountId || state.saved.length === 0;
     libraryEmpty.hidden = !accountId || state.saved.length !== 0;
     libraryNoResults.hidden = !accountId || query.length === 0 || matches.length !== 0;
 
@@ -649,14 +763,16 @@ export function initializeRadiusMap(): void {
       item.className = "saved-item";
       item.dataset.measurementId = measurement.id;
       item.style.setProperty("--item-color", color);
+      if (!measurement.visible) item.classList.add("is-hidden-measurement");
 
       const focusButton = document.createElement("button");
       focusButton.className = "saved-item-main";
       focusButton.type = "button";
-      focusButton.innerHTML = `<span class="saved-number" aria-hidden="true">${index + 1}</span><span class="saved-item-copy"><strong></strong><span></span><small></small></span>`;
+      focusButton.innerHTML = '<span class="saved-number" aria-hidden="true"></span><span class="saved-item-copy"><strong></strong><span></span></span>';
+      queryElement<HTMLElement>(".saved-number", focusButton).textContent = String(index + 1);
       queryElement<HTMLElement>("strong", focusButton).textContent = measurement.name;
-      queryElement<HTMLElement>(".saved-item-copy > span", focusButton).textContent = measurementSummary(measurement);
-      queryElement<HTMLElement>("small", focusButton).textContent = shortenLabel(measurement.locationLabel);
+      queryElement<HTMLElement>(".saved-item-copy > span", focusButton).textContent =
+        `${describeMeasurement(measurement.value, measurement.kind, measurement.unit)} · ${shortenLabel(measurement.locationLabel)}`;
       focusButton.setAttribute("aria-label", `Focus ${measurement.name} on the map`);
       focusButton.addEventListener("click", () => focusSavedMeasurement(measurement.id));
 
@@ -671,23 +787,45 @@ export function initializeRadiusMap(): void {
       visibilityLabel.append(visibilityInput, visibilityTrack);
       visibilityInput.addEventListener("change", () => void updateVisibility(measurement, visibilityInput.checked));
 
+      const actionsId = `saved-actions-${index}`;
+      const moreButton = document.createElement("button");
+      moreButton.type = "button";
+      moreButton.className = "row-more";
+      moreButton.setAttribute("aria-expanded", "false");
+      moreButton.setAttribute("aria-controls", actionsId);
+      moreButton.setAttribute("aria-label", `More actions for ${measurement.name}`);
+      moreButton.innerHTML = '<span aria-hidden="true">⋯</span>';
+
       const actions = document.createElement("div");
       actions.className = "saved-item-actions";
-      const editButton = document.createElement("button");
-      editButton.type = "button";
-      editButton.textContent = "Edit";
-      editButton.addEventListener("click", () => beginEdit(measurement));
-      const renameButton = document.createElement("button");
-      renameButton.type = "button";
-      renameButton.textContent = "Rename";
-      renameButton.addEventListener("click", () => openRenameDialog(measurement));
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
-      deleteButton.textContent = "Delete";
-      deleteButton.className = "delete-text-action";
-      deleteButton.addEventListener("click", () => openDeleteDialog(measurement));
-      actions.append(editButton, renameButton, deleteButton);
-      item.append(focusButton, visibilityLabel, actions);
+      actions.id = actionsId;
+      actions.hidden = true;
+      const action = (label: string, run: () => void, className = "uk-button uk-button-quiet") => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = className;
+        button.textContent = label;
+        button.addEventListener("click", run);
+        return button;
+      };
+      actions.append(
+        action("Edit", () => beginEdit(measurement)),
+        action("Rename", () => openRenameDialog(measurement)),
+        action("Delete", () => openDeleteDialog(measurement), "uk-button uk-button-quiet delete-action"),
+      );
+      moreButton.addEventListener("click", () => {
+        const open = moreButton.getAttribute("aria-expanded") !== "true";
+        closeRowMenus(moreButton);
+        moreButton.setAttribute("aria-expanded", String(open));
+        actions.hidden = !open;
+      });
+      actions.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        closeRowMenus();
+        moreButton.focus();
+      });
+      item.append(focusButton, visibilityLabel, moreButton, actions);
       savedList.append(item);
     });
   }
@@ -705,29 +843,34 @@ export function initializeRadiusMap(): void {
       if (namespace !== accountId) return;
       reportMeasurementFailure("visibility");
       renderLibrary();
-      setStatus(error instanceof Error ? error.message : "Visibility could not be updated.");
+      setStatus(error instanceof Error ? error.message : "Visibility could not be updated.", "error");
       window.umami?.track("radius-map-visibility-result", { outcome: "error" });
     }
+    // The list was redrawn; keep focus on the same switch.
+    rowFor(measurement.id)?.querySelector<HTMLInputElement>("input[type='checkbox']")?.focus();
   }
 
-  function activateTab(tab: WorkspaceTab): void {
-    const createActive = tab === "create";
-    const changed = createPanel.hidden === createActive;
-    createTab.classList.toggle("is-active", createActive);
-    savedTab.classList.toggle("is-active", !createActive);
-    createTab.setAttribute("aria-selected", String(createActive));
-    savedTab.setAttribute("aria-selected", String(!createActive));
-    createPanel.hidden = !createActive;
-    savedPanel.hidden = createActive;
+  // Tabs
+
+  function activateTab(tab: WorkspaceTab, options: { focus?: boolean } = {}): void {
+    const changed = tab !== activeTab;
+    activeTab = tab;
+    for (const name of tabOrder) {
+      const selected = name === tab;
+      tabs[name].tab.setAttribute("aria-selected", String(selected));
+      tabs[name].tab.tabIndex = selected ? 0 : -1;
+      tabs[name].tab.classList.toggle("is-active", selected);
+      tabs[name].panel.hidden = !selected;
+    }
     if (changed) panelContent.scrollTop = 0;
-    requestAnimationFrame(updateMobilePanelInset);
+    if (options.focus) tabs[tab].tab.focus();
+    requestAnimationFrame(updateSheetInset);
   }
 
   function setMeasurementControls(kind: MeasurementKind, unit: DistanceUnit, value: number | string): void {
     state.kind = kind;
     state.unit = unit;
     measurementInput.value = typeof value === "number" ? formatMeasurement(value) : value;
-    measurementLabel.textContent = kind === "radius" ? "Radius" : "Diameter";
     const kindInput = document.querySelector<HTMLInputElement>(`input[name="measurement-kind"][value="${kind}"]`);
     const unitInput = document.querySelector<HTMLInputElement>(`input[name="distance-unit"][value="${unit}"]`);
     if (kindInput) kindInput.checked = true;
@@ -746,15 +889,17 @@ export function initializeRadiusMap(): void {
     // Redraw so the circle being edited is always dashed.
     removeDraftCircle();
     renderSavedLayers();
+    activateTab("create");
     searchInput.value = shortenLabel(measurement.locationLabel);
-    setCenter(measurement.center, measurement.locationLabel, `Editing ${measurement.name}.`);
+    setCenter(measurement.center, measurement.locationLabel, "Change the centre or distance, then update the measurement.");
     editBannerName.textContent = measurement.name;
     editBanner.hidden = false;
     saveMeasurementButton.textContent = "Update measurement";
-    cancelEditButton.hidden = false;
-    activateTab("create");
+    focusNext(measurementInput);
     window.umami?.track("radius-map-edit-start");
   }
+
+  // Dialogs
 
   function openDialog(dialog: HTMLDialogElement): void {
     if (!dialog.open) dialog.showModal();
@@ -763,17 +908,17 @@ export function initializeRadiusMap(): void {
   function openSignInDialog(): void {
     const canSignIn = accountView?.canSignIn ?? false;
     signInDialogCopy.textContent = canSignIn
-      ? "Saving needs a free account. Your circle will be kept while you sign in."
+      ? "Your circle will be kept while you sign in, and saving opens when you come back."
       : navigator.onLine
-        ? "Saving needs an account, and accounts are unavailable right now. Your circle stays on this page."
-        : "Saving needs an account. Go online to sign in; your circle stays on this page.";
+        ? "Accounts are unavailable right now. Your circle stays on this page."
+        : "Go online to sign in. Your circle stays on this page.";
     openDialog(signInDialog);
   }
 
   function openSaveDialog(): void {
     const draft = currentDraftInput();
     if (!draft) {
-      setStatus("Choose a centre and valid measurement before saving.");
+      setStatus("Choose a centre and valid distance before saving.", "error");
       return;
     }
     if (!accountId) {
@@ -787,7 +932,7 @@ export function initializeRadiusMap(): void {
     saveDialogTitle.textContent = editing ? "Update measurement" : "Save measurement";
     saveDialogSubmit.textContent = editing ? "Update" : "Save";
     measurementName.value = editing?.name ?? draft.name;
-    saveDialogSummary.textContent = `${measurementSummary({ ...draft, id: "", radiusMeters: 0, createdAt: "", updatedAt: "" })} · ${shortenLabel(draft.locationLabel)}`;
+    saveDialogSummary.textContent = `${describeMeasurement(draft.value, draft.kind, draft.unit)} · ${shortenLabel(draft.locationLabel)}`;
     saveDialogError.hidden = true;
     openDialog(saveDialog);
     requestAnimationFrame(() => measurementName.select());
@@ -799,7 +944,7 @@ export function initializeRadiusMap(): void {
     saveDialogTitle.textContent = "Rename measurement";
     saveDialogSubmit.textContent = "Rename";
     measurementName.value = measurement.name;
-    saveDialogSummary.textContent = `${measurementSummary(measurement)} · ${shortenLabel(measurement.locationLabel)}`;
+    saveDialogSummary.textContent = `${describeMeasurement(measurement.value, measurement.kind, measurement.unit)} · ${shortenLabel(measurement.locationLabel)}`;
     saveDialogError.hidden = true;
     openDialog(saveDialog);
     requestAnimationFrame(() => measurementName.select());
@@ -821,18 +966,24 @@ export function initializeRadiusMap(): void {
       const tracked = { kind: state.kind, unit: state.unit };
       if (saveDialogMode === "rename") {
         if (!dialogOriginal) throw new Error("Measurement not found.");
+        const renamedId = dialogOriginal.id;
         await accounts.change({ ...dialogOriginal, name }, dialogOriginal);
         if (namespace !== accountId) return;
+        saveDialog.close();
         setStatus(`Renamed to ${name}.`);
+        rowFor(renamedId)?.querySelector<HTMLButtonElement>(".row-more")?.focus();
       } else {
         const draft = currentDraftInput(name);
-        if (!draft) throw new Error("Choose a centre and valid measurement before saving.");
+        if (!draft) throw new Error("Choose a centre and valid distance before saving.");
         await accounts.change(draft, dialogOriginal);
         if (namespace !== accountId) return;
+        saveDialog.close();
         if (operation === "update") finishEdit(`${name} updated.`);
         else clearDraft(`${name} saved. Choose a centre to add another measurement.`);
+        // On phones drop to the peek so the newly saved circle is in view.
+        if (isMobileLayout()) setSheetExpanded(false);
+        focusNext(state.center ? measurementInput : searchInput);
       }
-      saveDialog.close();
       window.umami?.track("radius-map-save-result", {
         operation,
         outcome: "success",
@@ -851,7 +1002,7 @@ export function initializeRadiusMap(): void {
 
   function openDeleteDialog(measurement: SavedMeasurement): void {
     deleteOriginal = measurement;
-    deleteDialogCopy.textContent = `“${measurement.name}” will be deleted from your account library when it syncs.`;
+    deleteDialogCopy.textContent = `“${measurement.name}” will be deleted from your account library when it syncs. You can undo this for a few seconds.`;
     deleteDialogError.hidden = true;
     openDialog(deleteDialog);
   }
@@ -863,11 +1014,12 @@ export function initializeRadiusMap(): void {
       await accounts.change(input, undefined, { id, createdAt });
       if (namespace !== accountId) return;
       setStatus(`Restored ${measurement.name}.`);
+      rowFor(id)?.querySelector<HTMLButtonElement>(".saved-item-main")?.focus();
       window.umami?.track("radius-map-delete-result", { outcome: "undone" });
     } catch (error) {
       if (namespace !== accountId) return;
       reportMeasurementFailure("restore");
-      setStatus(error instanceof Error ? error.message : "The measurement could not be restored.");
+      setStatus(error instanceof Error ? error.message : "The measurement could not be restored.", "error");
     }
   }
 
@@ -875,15 +1027,21 @@ export function initializeRadiusMap(): void {
     const namespace = accountId;
     const measurement = deleteOriginal;
     if (!measurement) return;
+    // Focus moves to the row that takes this one's place.
+    const rows = [...savedList.querySelectorAll<HTMLElement>(".saved-item")];
+    const position = rows.findIndex((row) => row.dataset.measurementId === measurement.id);
     deleteDialogSubmit.disabled = true;
     deleteDialogError.hidden = true;
     try {
       await accounts.change(null, measurement);
       if (namespace !== accountId) return;
-      if (state.editingId === measurement.id) clearDraft();
+      if (state.editingId === measurement.id) finishEdit("");
       clearResult();
       deleteDialog.close();
       offerUndo(`Deleted ${measurement.name}.`, () => void restoreDeleted(measurement));
+      const remaining = savedList.querySelectorAll<HTMLElement>(".saved-item .saved-item-main");
+      const next = remaining[Math.min(Math.max(position, 0), remaining.length - 1)];
+      (next ?? statusUndo).focus();
       window.umami?.track("radius-map-delete-result", { outcome: "success" });
     } catch (error) {
       if (namespace !== accountId) return;
@@ -896,14 +1054,17 @@ export function initializeRadiusMap(): void {
     }
   }
 
-  function visibleTriangulationInputs(): TriangulationInput[] {
-    const inputs: TriangulationInput[] = state.saved
+  // Best fit
+
+  function bestFitInputs(): BestFitInput[] {
+    const inputs: BestFitInput[] = state.saved
       .filter((measurement) => measurement.visible && measurement.id !== state.editingId)
-      .map((measurement) => ({ id: measurement.id, center: measurement.center, radiusMeters: measurement.radiusMeters }));
+      .map((measurement) => ({ id: measurement.id, label: measurement.name, center: measurement.center, radiusMeters: measurement.radiusMeters }));
     const draft = currentDraftInput();
     if (draft && draftCircle) {
       inputs.push({
         id: state.editingId ? `editing-${state.editingId}` : "current-draft",
+        label: state.editingId ? `${editOriginal?.name ?? "Measurement"} (being edited)` : "Current circle (not saved)",
         center: draft.center,
         radiusMeters: measurementToRadiusMeters(draft.value, draft.kind, draft.unit),
       });
@@ -912,21 +1073,30 @@ export function initializeRadiusMap(): void {
   }
 
   function updateTriangulationAvailability(): void {
-    const count = visibleTriangulationInputs().length;
+    const inputs = bestFitInputs();
+    const count = inputs.length;
+    const missing = Math.max(0, 3 - count);
     triangulateButton.disabled = count < 3;
-    triangulationHint.textContent = count < 3
-      ? `Show ${3 - count} more ${3 - count === 1 ? "circle" : "circles"} to calculate a centre.`
-      : `${count} visible circles will be used${draftCircle ? ", including the current draft" : ""}.`;
-  }
-
-  function formatErrorDistance(meters: number): string {
-    const value = state.unit === "km" ? meters / 1_000 : meters / 1_609.344;
-    return `${formatMeasurement(Math.max(value, 0.00001))} ${state.unit}`;
+    const signedOut = !accountView?.signedInId;
+    bestFitSignIn.hidden = !(signedOut && accountView?.canSignIn && count < 3);
+    if (signedOut && count < 3) {
+      triangulationHint.textContent = "Best fit needs 3 saved circles. Sign in to save them.";
+    } else if (count < 3) {
+      triangulationHint.textContent = `Show ${missing} more ${missing === 1 ? "circle" : "circles"} to calculate a point. Saved circles count when they are shown.`;
+    } else {
+      triangulationHint.textContent = `All ${count} circles above will be used.`;
+    }
+    triangulationInputs.replaceChildren(...inputs.map((input) => {
+      const item = document.createElement("li");
+      item.textContent = input.label;
+      return item;
+    }));
+    triangulationCircles.hidden = count === 0;
   }
 
   function calculateBestFit(): void {
     clearResult();
-    const result = triangulateBestFit(visibleTriangulationInputs());
+    const result = triangulateBestFit(bestFitInputs());
     if (!result) {
       triangulationStatus.textContent = "Use at least 3 circles with different centres to calculate a reliable point.";
       triangulationStatus.hidden = false;
@@ -941,12 +1111,17 @@ export function initializeRadiusMap(): void {
       alt: "Estimated best-fit point",
       zIndexOffset: 1000,
     }).addTo(map);
+    const metres = result.rmsErrorMeters;
+    const errorValue = state.unit === "km" ? metres / 1_000 : metres / 1_609.344;
     resultCoordinates.textContent = readableCoordinates(result.center);
     resultInputCount.textContent = String(result.inputCount);
-    resultError.textContent = formatErrorDistance(result.rmsErrorMeters);
+    resultError.textContent = `${roughly(errorValue)} ${state.unit}`;
     triangulationResult.hidden = false;
     triangulationStatus.hidden = true;
     fitVisibleCircles();
+    setStatus(`Best-fit point found at ${readableCoordinates(result.center)}.`);
+    triangulationResult.scrollIntoView({ block: "nearest" });
+    triangulationResult.focus({ preventScroll: true });
     window.umami?.track("radius-map-triangulation-result", { outcome: "success" });
   }
 
@@ -957,12 +1132,15 @@ export function initializeRadiusMap(): void {
     activateTab("create");
     searchInput.value = "";
     setCenter(coordinates, `Best-fit point · ${readableCoordinates(coordinates)}`, "Best-fit point loaded as the current centre.");
+    focusNext(measurementInput);
     window.umami?.track("radius-map-centre-selected", { method: "best-fit" });
   }
 
   function reportMeasurementFailure(operation: string): void {
     reportFailure(new Error("Account measurement change could not be saved"), `measurement.${operation}`);
   }
+
+  // Place search
 
   function closeSearchResults(): void {
     searchResults.replaceChildren();
@@ -991,6 +1169,7 @@ export function initializeRadiusMap(): void {
         searchInput.value = shortenLabel(result.label);
         closeSearchResults();
         setCenter({ lat: result.lat, lng: result.lng }, result.label, `Circle centred on ${shortenLabel(result.label)}.`);
+        focusNext(measurementInput);
         window.umami?.track("radius-map-centre-selected", { method: "search" });
       });
       item.append(button);
@@ -1041,6 +1220,7 @@ export function initializeRadiusMap(): void {
     if (coordinates) {
       closeSearchResults();
       setCenter(coordinates, `Coordinates · ${readableCoordinates(coordinates)}`, "Circle centred on the entered coordinates.");
+      focusNext(measurementInput);
       window.umami?.track("radius-map-centre-selected", { method: "coordinates" });
       return;
     }
@@ -1055,6 +1235,17 @@ export function initializeRadiusMap(): void {
     void searchForLocation(query);
   });
 
+  searchInput.addEventListener("keydown", (event) => {
+    // Escape abandons a change of centre and keeps the one already chosen.
+    if (event.key !== "Escape" || !state.center || !changingCenter) return;
+    event.preventDefault();
+    changingCenter = false;
+    closeSearchResults();
+    clearLocationError();
+    updateLocationStep();
+    locationChange.focus();
+  });
+
   locateButton.addEventListener("click", () => {
     clearLocationError();
     if (!navigator.geolocation) {
@@ -1063,31 +1254,37 @@ export function initializeRadiusMap(): void {
       return;
     }
     locateButton.disabled = true;
-    queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Locating…";
+    locateButton.setAttribute("aria-busy", "true");
+    locateLabel.textContent = "Locating…";
     setStatus("Waiting for your browser's location permission…");
+    const done = () => {
+      locateButton.disabled = false;
+      locateButton.removeAttribute("aria-busy");
+      locateLabel.textContent = "Use my location";
+    };
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coordinates = { lat: position.coords.latitude, lng: position.coords.longitude };
+        done();
         closeSearchResults();
         searchInput.value = "";
         setCenter(coordinates, `Your location · ${readableCoordinates(coordinates)}`, "Circle centred on your current location.");
+        focusNext(measurementInput);
         window.umami?.track("radius-map-geolocation-result", { outcome: "success" });
         window.umami?.track("radius-map-centre-selected", { method: "geolocation" });
-        locateButton.disabled = false;
-        queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Use my location";
       },
       (error) => {
+        done();
         const messages: Record<number, string> = {
           1: "Location permission was not granted. Search or tap the map instead.",
           2: "Your location could not be determined. Try again or use the map.",
           3: "Location lookup timed out. Try again or use the map.",
         };
         showLocationError(messages[error.code] ?? "Your location could not be determined.");
+        locateButton.focus();
         const outcome = error.code === 1 ? "denied" : error.code === 3 ? "timeout" : "unavailable";
         reportState("geolocation", { outcome, code: error.code });
         window.umami?.track("radius-map-geolocation-result", { outcome });
-        locateButton.disabled = false;
-        queryElement<HTMLElement>("span:last-child", locateButton).textContent = "Use my location";
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
     );
@@ -1097,9 +1294,12 @@ export function initializeRadiusMap(): void {
     const coordinates = { lat: event.latlng.lat, lng: event.latlng.lng };
     closeSearchResults();
     searchInput.value = "";
+    if (activeTab !== "create") activateTab("create");
     setCenter(coordinates, `Dropped pin · ${readableCoordinates(coordinates)}`, "Circle centred on the dropped pin. Drag it to fine-tune the centre.");
     window.umami?.track("radius-map-centre-selected", { method: "map" });
   });
+
+  // Distance
 
   measurementInput.addEventListener("input", () => {
     clearResult();
@@ -1125,12 +1325,11 @@ export function initializeRadiusMap(): void {
       if (!input.checked) return;
       clearResult();
       state.kind = input.value as MeasurementKind;
-      measurementLabel.textContent = state.kind === "radius" ? "Radius" : "Diameter";
       const valid = refreshMeasurement({ fit: true, announce: true });
       window.umami?.track("radius-map-measurement-change", { control: "kind", kind: state.kind, outcome: valid ? "valid" : "invalid" });
       if (valid) setStatus(state.kind === "radius"
-        ? "Using radius. The entered distance runs from the centre to the circle edge."
-        : "Using diameter. The entered distance runs across the full circle.");
+        ? "Using radius. The distance runs from the centre to the circle edge."
+        : "Using diameter. The distance runs across the full circle.");
     });
   });
 
@@ -1146,20 +1345,54 @@ export function initializeRadiusMap(): void {
     });
   });
 
-  createTab.addEventListener("click", () => {
-    activateTab("create");
-    window.umami?.track("radius-map-workspace-change", { workspace: "create" });
+  copySummaryButton.addEventListener("click", () => {
+    if (!state.center) return;
+    const text = `${summaryValue.textContent} around ${shortenLabel(state.centerLabel)} (${readableCoordinates(state.center)})`;
+    void copyText(text).then((copied) => setStatus(copied ? "Measurement copied." : `Copy did not work. ${text}`));
   });
-  savedTab.addEventListener("click", () => {
-    activateTab("saved");
-    window.umami?.track("radius-map-workspace-change", { workspace: "saved" });
+
+  // Tabs: one tab stop, arrow keys move between them.
+
+  for (const name of tabOrder) {
+    tabs[name].tab.addEventListener("click", () => {
+      activateTab(name);
+      window.umami?.track("radius-map-workspace-change", { workspace: name });
+    });
+  }
+  tabList.addEventListener("keydown", (event) => {
+    const current = tabOrder.indexOf(activeTab);
+    const next = event.key === "ArrowRight" ? (current + 1) % tabOrder.length
+      : event.key === "ArrowLeft" ? (current + tabOrder.length - 1) % tabOrder.length
+        : event.key === "Home" ? 0
+          : event.key === "End" ? tabOrder.length - 1
+            : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    activateTab(tabOrder[next], { focus: true });
+    window.umami?.track("radius-map-workspace-change", { workspace: tabOrder[next] });
   });
+
   librarySearch.addEventListener("input", renderLibrary);
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest(".saved-item")) closeRowMenus();
+  });
   triangulateButton.addEventListener("click", calculateBestFit);
   useResultButton.addEventListener("click", useBestFitResult);
+  copyResultButton.addEventListener("click", () => {
+    if (!state.result) return;
+    const text = readableCoordinates(state.result.center);
+    void copyText(text).then((copied) => setStatus(copied ? `Coordinates copied: ${text}.` : `Copy did not work. The coordinates are ${text}.`));
+  });
   cancelEditButton.addEventListener("click", () => {
     finishEdit("Editing cancelled.");
+    focusNext(saveMeasurementButton.disabled ? searchInput : measurementInput);
     window.umami?.track("radius-map-edit-cancel");
+  });
+  locationChange.addEventListener("click", () => {
+    changingCenter = true;
+    updateLocationStep();
+    searchInput.focus();
+    searchInput.select();
   });
   locationClear.addEventListener("click", clearCircle);
   centerChipClear.addEventListener("click", clearCircle);
@@ -1169,6 +1402,7 @@ export function initializeRadiusMap(): void {
     action?.();
   });
   saveMeasurementButton.addEventListener("click", openSaveDialog);
+  peekSaveButton.addEventListener("click", openSaveDialog);
   saveForm.addEventListener("submit", (event) => {
     event.preventDefault();
     void submitSaveDialog();
@@ -1195,24 +1429,18 @@ export function initializeRadiusMap(): void {
   });
 
   panelToggle.addEventListener("click", () => {
-    if (isMobileLayout()) {
-      const collapsed = !controlPanel.classList.contains("is-collapsed");
-      setControlsCollapsed(collapsed);
-      window.umami?.track("radius-map-controls-toggle", { state: collapsed ? "collapsed" : "expanded" });
-    }
+    if (!isMobileLayout()) return;
+    setSheetExpanded(!sheetExpanded);
+    window.umami?.track("radius-map-controls-toggle", { state: sheetExpanded ? "expanded" : "collapsed" });
   });
-  controlPanel.addEventListener("transitionend", (event) => {
-    if (event.propertyName !== "max-height") return;
-    updateMobilePanelInset();
-    fitCurrentView();
-  });
+
+  if ("ResizeObserver" in window) new ResizeObserver(updateSheetInset).observe(controlPanel);
 
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (!isMobileLayout() && panelContent.hidden) setControlsCollapsed(false);
-      else updateMobilePanelInset();
+      setSheetExpanded(sheetExpanded, { fit: false });
       map.invalidateSize();
       updateMinimumZoom();
       fitCurrentView();
@@ -1231,11 +1459,15 @@ export function initializeRadiusMap(): void {
     }
   }
 
-  updateMobilePanelInset();
+  setStatus(`Search, use your location or ${finePointer.matches ? "click" : "tap"} the map to choose a centre.`);
+  activateTab("create");
+  // Phones open on the peek: the search row with most of the map in view.
+  setSheetExpanded(false, { fit: false });
   updateMinimumZoom();
-  fitWorld();
   renderLibrary();
   refreshMeasurement();
+  updateLocationStep();
+  fitWorld();
   restoreDraft();
   draftTracking = true;
   accounts.start();

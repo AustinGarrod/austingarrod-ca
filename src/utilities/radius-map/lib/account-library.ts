@@ -47,6 +47,8 @@ export interface RadiusAccountView {
 const database = "austingarrod.radius-map.accounts.v1";
 const empty: MeasurementsDocument = { version: 1, measurements: [] };
 const signedOutStatus = "Sign in to save and sync measurements.";
+/** Statuses that mean nothing is waiting, so Sync now can step back. */
+export const SETTLED_STATUSES: readonly string[] = ["Account library synced.", "Account library available offline."];
 const reviewChanged = "The library changed during review. Open the latest review before applying your choices.";
 const authErrors = ["login_required", "csrf_failed", "account_changed", "session_changed"];
 
@@ -132,7 +134,7 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
     }
     if (active.conflictBase) return "Changes on another device need review.";
     if (active.pending || !sameLibrary(active.working, active.baseline?.state ?? empty)) return "Saved on this device. Waiting to sync.";
-    return online() ? "Account library synced." : "Account library available offline.";
+    return online() ? SETTLED_STATUSES[0] : SETTLED_STATUSES[1];
   }
 
   function readView(id: string): void {
