@@ -57,8 +57,8 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <div id="dex-warning" class="dex-notice" role="alert" hidden></div>
     <div id="dex-conflict" class="dex-notice" role="alert" hidden><p>Your binder layout changed on another device. Choose which layout to keep; your Pokémon marks will be merged.</p><button id="conflict-local">Keep this layout</button><button id="conflict-remote">Use synced layout</button></div>
 
-    <MasterSetBinders />
     <p id="transfer-message" role="status" class="dex-help"></p>
+    <MasterSetBinders />
     <div id="national-workspace" hidden>
     <section class="dex-progress" aria-label="Collection progress">
       <p id="progress-line" class="dex-progress-line"></p>
@@ -139,8 +139,11 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <dialog id="transfer-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="transfer-title">
     <header class="dex-dialog-header"><h2 id="transfer-title">Import and export</h2><button type="button" data-close-dialog aria-label="Close import and export">×</button></header>
     <section class="dex-transfer-choice" aria-labelledby="transfer-import-title">
-      <div><h3 id="transfer-import-title">Import a CSV</h3><p class="dex-help">Add cards from TCG Collector, Collectr, TCGplayer or another tracker.</p></div>
-      <button id="import-cards" type="button" aria-haspopup="dialog"><FileUp size={16} aria-hidden="true" /> Import cards</button>
+      <div><h3 id="transfer-import-title">Import cards</h3><p class="dex-help">Bring over a collection from Collectr, TCG Collector, TCGplayer or another tracker.</p></div>
+      <div class="dex-actions">
+        <button id="import-collectr" type="button" aria-haspopup="dialog"><FileUp size={16} aria-hidden="true" /> Import from Collectr</button>
+        <button id="import-cards" type="button" aria-haspopup="dialog">Import a CSV</button>
+      </div>
     </section>
     <section class="dex-transfer-choice" aria-labelledby="transfer-export-title">
       <div><h3 id="transfer-export-title">Export cards</h3><p class="dex-help">Owned, missing or ordered cards as a CSV for another tracker.</p></div>

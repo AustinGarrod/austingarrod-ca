@@ -31,16 +31,22 @@ export function createTransfers(options: Options) {
   const filename = get("card-import-filename"), columns = get("card-import-columns");
   const form = get<HTMLFormElement>("card-import-form");
   const target = select("card-import-target"), format = select("card-import-format");
+  const portfolios = get<HTMLFieldSetElement>("card-import-portfolios");
+  const portfolioOptions = get("card-import-portfolio-options");
+  const portfolioCount = get("card-import-portfolio-count");
   const reviewPanel = get("card-import-review"), previewButton = button("card-import-preview");
   const status = get("card-import-status"), error = get("card-import-error");
+  const saveStatus = get("card-import-save-status"), saveError = get("card-import-save-error");
   const applyButton = button("card-import-apply"), rowList = get("card-review-rows");
   const filter = select("card-review-filter"), mappingPanel = get<HTMLDetailsElement>("card-import-mapping");
   const destinations = new Map<string, string>();
   const choices = new Map<number, TransferMatch>();
+  const selectedPortfolios = new Set<string>();
   const pageSize = 30;
   let generation = 0, page = 0, busy = false;
+  let sourceFormat: TransferFormat = "auto";
   let parsed: ReturnType<typeof parseTransferCsv> | null = null;
-  let review: { rows: ReviewedCard[]; forDex: boolean; beforeSets: MasterState; beforeDex: BinderState;
+  let review: { rows: ReviewedCard[]; malformedRows: number; forDex: boolean; beforeSets: MasterState; beforeDex: BinderState;
     ids: (match: TransferMatch) => readonly number[]; current: () => boolean } | null = null;
 
   function clearReview() {
@@ -52,22 +58,71 @@ export function createTransfers(options: Options) {
     reviewPanel.hidden = true;
     rowList.replaceChildren();
     get("card-import-destinations").replaceChildren();
-    error.textContent = status.textContent = "";
+    error.textContent = status.textContent = saveStatus.textContent = saveError.textContent = "";
   }
   function setBusy(value: boolean) {
     busy = value;
-    previewButton.disabled = value || !parsed;
+    previewButton.disabled = value || !parsed || (!portfolios.hidden && !selectedPortfolios.size);
     target.disabled = format.disabled = file.disabled = value;
+    portfolios.disabled = value;
     for (const control of columns.querySelectorAll<HTMLSelectElement>("select")) control.disabled = value;
     for (const control of reviewPanel.querySelectorAll<HTMLButtonElement | HTMLSelectElement>("button, select")) {
       if (!control.hasAttribute("data-close-dialog")) control.disabled = value;
     }
   }
-  function openImport() {
+  function setImportFormat(value: TransferFormat) {
+    sourceFormat = value;
+    const collectr = value === "collectr";
+    importDialog.classList.toggle("dex-collectr-import", collectr);
+    get("card-import-title").textContent = collectr ? "Import from Collectr" : "Import cards";
+    get("card-import-intro").hidden = collectr;
+    get("card-import-collectr-help").hidden = !collectr;
+  }
+  function drawPortfolios(column?: number) {
+    const names = new Set<string>();
+    if (parsed && column !== undefined) {
+      for (const { cells } of parsed.records) {
+        if (cells.length === parsed.headers.length) names.add(cells[column].trim());
+      }
+    }
+    selectedPortfolios.clear();
+    for (const name of names) selectedPortfolios.add(name);
+    portfolios.hidden = names.size < 2;
+    portfolioOptions.replaceChildren();
+    if (portfolios.hidden) return;
+
+    function updateCount() {
+      portfolioCount.textContent = selectedPortfolios.size
+        ? `${selectedPortfolios.size} of ${names.size} portfolios selected.`
+        : "Select a portfolio to preview.";
+    }
+    const controls = [...names].map(name => {
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = true;
+      box.addEventListener("change", () => {
+        if (box.checked) selectedPortfolios.add(name);
+        else selectedPortfolios.delete(name);
+        clearReview();
+        updateCount();
+        setBusy(false);
+      });
+      const label = document.createElement("label");
+      label.className = "dex-dialog-checkbox";
+      label.append(box, document.createTextNode(name || "Rows without a portfolio name"));
+      return label;
+    });
+    portfolioOptions.replaceChildren(...controls);
+    updateCount();
+  }
+  function openImport(initialFormat: TransferFormat) {
     if (importDialog.open) return;
     clearReview();
     parsed = null;
     form.reset();
+    format.value = initialFormat;
+    setImportFormat(initialFormat);
+    drawPortfolios();
     setBusy(false);
     mappingPanel.hidden = true;
     mappingPanel.open = false;
@@ -76,6 +131,7 @@ export function createTransfers(options: Options) {
   importDialog.addEventListener("close", () => {
     clearReview();
     parsed = null;
+    drawPortfolios();
     file.value = "";
     filename.textContent = "";
     filename.hidden = true;
@@ -86,23 +142,34 @@ export function createTransfers(options: Options) {
     if (!parsed) return;
     const { headers } = parsed;
     const { format: detected, mapping } = mapTransferHeaders(headers, format.value as TransferFormat);
+    setImportFormat(detected);
     mappingPanel.hidden = false;
     mappingPanel.open = detected === "custom" && (mapping.set === undefined || (mapping.name === undefined && mapping.number === undefined));
-    const labels = (Object.keys(transferFields) as TransferField[]).map(field => {
+    const fields = Object.keys(transferFields) as TransferField[];
+    const labels = fields.filter(field => field !== "portfolio" || detected === "collectr").map(field => {
       const control = document.createElement("select");
       control.dataset.field = field;
       control.disabled = busy;
       control.append(new Option("Skip column", ""), ...headers.map((header, i) => new Option(header || `Column ${i + 1}`, String(i))));
       control.value = mapping[field] === undefined ? "" : String(mapping[field]);
-      control.addEventListener("change", clearReview);
+      control.addEventListener("change", () => {
+        clearReview();
+        if (field === "portfolio") {
+          drawPortfolios(control.value === "" ? undefined : Number(control.value));
+          setBusy(false);
+        }
+      });
       return labelFor(transferFields[field], control);
     });
     columns.replaceChildren(...labels);
+    drawPortfolios(mapping.portfolio);
     if (detected !== "custom") status.textContent = `Using ${({ tcgcollector: "TCG Collector", collectr: "Collectr", tcgplayer: "TCGplayer" })[detected]} columns.`;
   }
   file.addEventListener("change", async () => {
     clearReview();
     parsed = null;
+    drawPortfolios();
+    setImportFormat(format.value as TransferFormat);
     mappingPanel.hidden = true;
     const selectedFile = file.files?.[0];
     filename.textContent = selectedFile?.name ?? "";
@@ -127,8 +194,11 @@ export function createTransfers(options: Options) {
   });
   format.addEventListener("change", () => {
     clearReview();
+    drawPortfolios();
+    setImportFormat(format.value as TransferFormat);
     try { showColumns(); }
     catch (cause) { error.textContent = (cause as Error).message; mappingPanel.hidden = true; }
+    setBusy(false);
   });
   target.addEventListener("change", clearReview);
 
@@ -160,6 +230,11 @@ export function createTransfers(options: Options) {
       const item = document.createElement("li"), detail = document.createElement("small");
       const match = matched(row);
       item.textContent = `Row ${row.line} · ${row.label}`;
+      if (row.portfolio !== undefined) {
+        const source = document.createElement("small");
+        source.textContent = row.portfolio ? `Portfolio: ${row.portfolio}` : "No portfolio name";
+        item.append(source);
+      }
       function updateDetail(current?: TransferMatch) {
         if (!current) { detail.textContent = row.reason ?? "Skipped"; return; }
         const ids = data.forDex ? data.ids(current) : [];
@@ -228,7 +303,10 @@ export function createTransfers(options: Options) {
       list.replaceChildren(...controls);
       if (focusSet) list.querySelector<HTMLSelectElement>(`select[data-set="${focusSet}"]`)?.focus();
     }
-    get("card-review-summary").textContent = `${added} to add · ${already} already owned · ${skipped} skipped or need review${multipleCopies ? ` · ${multipleCopies} matching rows with extra copies` : ""}.`;
+    const { malformedRows } = data;
+    const fileWarning = malformedRows
+      ? ` Skipped ${malformedRows} ${malformedRows === 1 ? "row" : "rows"} in the file because the columns differ from the header.` : "";
+    get("card-review-summary").textContent = `${added} to add · ${already} already owned · ${skipped} skipped or need review${multipleCopies ? ` · ${multipleCopies} matching ${multipleCopies === 1 ? "row" : "rows"} with extra copies` : ""}.${fileWarning}`;
     applyButton.disabled = busy || missingTarget || (!groups.length && !ids.length);
     applyButton.textContent = data.forDex ? "Add Pokémon" : "Add cards";
   }
@@ -238,7 +316,7 @@ export function createTransfers(options: Options) {
 
   form.addEventListener("submit", async event => {
     event.preventDefault();
-    if (!parsed || busy) return;
+    if (!parsed || previewButton.disabled) return;
     clearReview();
     const ticket = generation, scope = options.scope(), forDex = target.value === "dex";
     const current = () => ticket === generation && scope === options.scope() && importDialog.open;
@@ -251,14 +329,17 @@ export function createTransfers(options: Options) {
         if (control.value) mapping[control.dataset.field as TransferField] = Number(control.value);
       }
       const { rows, invalid } = transferRows(parsed, mapping);
+      const selectedRows = portfolios.hidden ? rows : rows.filter(row => selectedPortfolios.has(row.portfolio ?? ""));
       const [matches, beforeSets, ids] = await Promise.all([
-        reviewCards(rows, options.catalog(), forDex),
+        reviewCards(selectedRows, options.catalog(), forDex, sourceFormat),
         forDex ? { schemaVersion: 1 as const, binders: [] } : options.sets(),
         forDex ? options.species() : () => [],
       ]);
       if (!current()) return;
-      const invalidRows = invalid.map(line => ({ line, label: "Unrecognized row", reason: "Column count differs from the header", quantity: 0 }));
-      review = { rows: [...matches, ...invalidRows].sort((a, b) => a.line - b.line), forDex, beforeSets,
+      // A row with the wrong number of cells cannot be reliably assigned to a portfolio.
+      const collectr = sourceFormat === "collectr";
+      const invalidRows = collectr ? [] : invalid.map(line => ({ line, label: "Unrecognized row", reason: "Column count differs from the header", quantity: 0 }));
+      review = { rows: [...matches, ...invalidRows].sort((a, b) => a.line - b.line), malformedRows: collectr ? invalid.length : 0, forDex, beforeSets,
         beforeDex: options.dex(), ids, current };
       filter.value = "all";
       reviewPanel.hidden = false;
@@ -268,19 +349,27 @@ export function createTransfers(options: Options) {
     } finally {
       if (current()) {
         setBusy(false);
-        if (review) { drawSummary(); drawRows(); }
+        if (review) {
+          drawSummary();
+          drawRows();
+          if (sourceFormat === "collectr") {
+            const heading = get("card-review-title");
+            heading.focus({ preventScroll: true });
+            heading.scrollIntoView({ block: "start" });
+          }
+        }
       }
     }
   });
   applyButton.addEventListener("click", async () => {
     const data = review;
     if (!data || busy) return;
-    if (!data.current()) { error.textContent = "The account changed. Review the import again."; return; }
+    if (!data.current()) { saveError.textContent = "The account changed. Review the import again."; return; }
     const { groups, ids } = results();
     const selectedDestinations = new Map(destinations);
     setBusy(true);
-    error.textContent = "";
-    status.textContent = "Saving ownership…";
+    saveError.textContent = "";
+    saveStatus.textContent = "Saving ownership…";
     try {
       if (data.forDex) await options.saveDex(ids, data.beforeDex, data.current);
       else await options.saveSets(state => {
@@ -288,14 +377,16 @@ export function createTransfers(options: Options) {
         addSetImports(state, groups, selectedDestinations);
       });
       if (data.current()) {
+        const printings = groups.reduce((total, group) => total + group.marks.length, 0);
         get("transfer-message").textContent = data.forDex
-          ? `Saved Pokédex ownership for ${ids.length} Pokémon.` : `Saved ${groups.reduce((total, group) => total + group.marks.length, 0)} distinct printings across ${groups.length} set binders.`;
+          ? `Saved Pokédex ownership for ${ids.length} Pokémon.`
+          : `Saved ${printings} distinct ${printings === 1 ? "printing" : "printings"} across ${groups.length} set ${groups.length === 1 ? "binder" : "binders"}.`;
         importDialog.close();
       }
     } catch (cause) {
-      if (data.current()) error.textContent = cause instanceof Error ? cause.message : "The import could not be saved. Try again.";
+      if (data.current()) saveError.textContent = cause instanceof Error ? cause.message : "The import could not be saved. Try again.";
     } finally {
-      if (data.current()) { setBusy(false); status.textContent = ""; drawSummary(); drawRows(); }
+      if (data.current()) { setBusy(false); saveStatus.textContent = ""; drawSummary(); drawRows(); }
     }
   });
 
@@ -367,6 +458,7 @@ export function createTransfers(options: Options) {
       }
     }
   });
-  for (const id of ["first-import", "import-cards"]) button(id).addEventListener("click", openImport);
+  for (const id of ["first-import", "import-cards"]) button(id).addEventListener("click", () => openImport("auto"));
+  for (const id of ["first-import-collectr", "import-collectr"]) button(id).addEventListener("click", () => openImport("collectr"));
   return { scopeChanged() { importDialog.close(); exportDialog.close(); } };
 }

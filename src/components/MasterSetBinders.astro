@@ -20,7 +20,13 @@ import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
       <span class="dex-choice-action">Add National Pokédex <ArrowRight size={16} aria-hidden="true" /></span>
     </button>
   </div>
-  <p class="dex-onboarding-import">Already tracking cards somewhere else? <button id="first-import" type="button" class="dex-link">Import a CSV</button></p>
+  <div class="dex-onboarding-import">
+    <p>Already tracking cards somewhere else?</p>
+    <div class="dex-actions">
+      <button id="first-import-collectr" type="button" aria-haspopup="dialog">Import from Collectr</button>
+      <button id="first-import" type="button" aria-haspopup="dialog">Import a CSV</button>
+    </div>
+  </div>
 </section>
 <section id="binder-account-onboarding" class="dex-onboarding" aria-labelledby="binder-account-onboarding-title" hidden>
   <h2 id="binder-account-onboarding-title">Open your account binders</h2>

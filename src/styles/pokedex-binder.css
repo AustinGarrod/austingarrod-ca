@@ -225,7 +225,10 @@
 .dex-choice-kind svg { color: var(--secondary); }
 .dex-choice-text { color: var(--muted); font-size: 14px; line-height: 1.5; }
 .dex-choice-action { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
-.dex-onboarding .dex-onboarding-import { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin: 16px 0 0; }
+.dex-onboarding .dex-onboarding-import { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 16px 0 0; }
+.dex-onboarding .dex-onboarding-import p { margin: 0; }
+#transfer-message:empty { margin: 0; }
+#transfer-message:not(:empty) { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-low); color: var(--ink); }
 .pokedex-page button.dex-link { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .pokedex-page button.dex-link:hover:not(:disabled) { border: 0; background: transparent; color: var(--secondary); }
 @media (max-width: 600px) { .dex-choices { grid-template-columns: minmax(0, 1fr); } .pokedex-page button.dex-choice { min-height: 0; padding: 16px; } }

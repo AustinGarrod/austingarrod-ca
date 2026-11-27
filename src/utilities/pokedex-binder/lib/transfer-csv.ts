@@ -3,7 +3,7 @@ import { identityText } from "./transfer-identity";
 export const transferFields = {
   set: "Set name or code", name: "Card name", number: "Collector number", finish: "Finish",
   variantId: "Catalog variant ID", quantity: "Quantity", language: "Language", game: "Game",
-  region: "TCG region", productId: "TCGplayer Product ID", watchlist: "Watchlist",
+  region: "TCG region", productId: "TCGplayer Product ID", watchlist: "Watchlist", portfolio: "Collectr portfolio",
 } as const;
 export type TransferField = keyof typeof transferFields;
 export type ColumnMap = Partial<Record<TransferField, number>>;
@@ -81,7 +81,7 @@ const commonHeaders: Record<TransferField, string[]> = {
   finish: ["Finish", "Card variant", "Printing", "Variance", "Variant", "Foil"],
   variantId: ["Variant ID"], quantity: ["Quantity", "Total quantity", "Qty", "Copies", "Count"],
   language: ["Language", "Card language"], game: ["Game", "Product line", "Category"],
-  region: ["TCG region"], productId: ["Product ID"], watchlist: ["Watchlist"],
+  region: ["TCG region"], productId: ["Product ID"], watchlist: ["Watchlist"], portfolio: ["Portfolio Name"],
 };
 
 export function mapTransferHeaders(headers: string[], requested: TransferFormat) {
@@ -94,7 +94,10 @@ export function mapTransferHeaders(headers: string[], requested: TransferFormat)
   if (format === "tcgcollector" && !has("Quantity")) throw new Error("Choose the TCG Collector collection export. It includes quantity.");
   const configured = { ...commonHeaders };
   if (format === "tcgplayer") configured.quantity = ["Total quantity", "Quantity", "Qty"];
-  if (format === "collectr") configured.game = ["Category"];
+  if (format === "collectr") {
+    configured.game = ["Category"];
+    configured.productId = []; // Collectr and TCGplayer issue separate product IDs.
+  }
   const mapping: ColumnMap = {};
   for (const field of Object.keys(transferFields) as TransferField[]) {
     for (const alias of configured[field]) {
@@ -105,6 +108,7 @@ export function mapTransferHeaders(headers: string[], requested: TransferFormat)
     }
   }
   if (format !== "custom" || !has("Set ID", "Variant ID")) delete mapping.variantId;
+  if (format !== "collectr") delete mapping.portfolio;
   return { format, mapping };
 }
 

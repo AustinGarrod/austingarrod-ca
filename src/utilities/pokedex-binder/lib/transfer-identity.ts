@@ -10,8 +10,14 @@ export function numberKey(value: string): string {
   return collectorNumber(value).toLowerCase().replace(/^([a-z]*)0+(?=\d)/, "$1");
 }
 
+const numberedNameSuffix = /\s+-\s+([a-z]*\d+)\s*\/\s*[a-z]*\d+\s*$/i;
+
+export function embeddedCollectorNumber(name: string): string {
+  return name.match(numberedNameSuffix)?.[1] ?? "";
+}
+
 export function cardNameKey(name: string): string {
-  return identityText(name.replace(/\s+-\s+[a-z]*\d+\s*\/\s*[a-z]*\d+\s*$/i, ""));
+  return identityText(name.replace(numberedNameSuffix, ""));
 }
 
 const aliases: Record<string, readonly string[]> = {
@@ -35,15 +41,16 @@ export function findTransferSets<T extends SetIdentity>(sets: readonly T[], valu
     || (name.startsWith("ex") && /^ex\d+$/.test(set.id) && identityText(set.name) === name.slice(2)));
 }
 
-export function findNumberedTransferSets<T extends SetIdentity>(sets: readonly T[], value: string, number: string): T[] {
+export function findNumberedTransferSets<T extends SetIdentity>(sets: readonly T[], value: string, ...numbers: string[]): T[] {
   const candidates = findTransferSets(sets, value);
-  const prefix = numberKey(number).match(/^(tg|gg|sv)\d/);
-  if (!prefix || !candidates.length) return candidates;
-  const suffix = { tg: "Trainer Gallery", gg: "Galarian Gallery", sv: "Shiny Vault" }[prefix[1]];
-  return candidates.flatMap(set => {
-    const subset = sets.find(item => item.name === `${set.name} ${suffix}`);
-    return subset ? [set, subset] : [set];
-  });
+  const names: Record<string, string> = { tg: "Trainer Gallery", gg: "Galarian Gallery", sv: "Shiny Vault" };
+  const suffixes = [...new Set(numbers.flatMap(number => {
+    const prefix = numberKey(number).match(/^(tg|gg|sv)\d/)?.[1];
+    return prefix ? [names[prefix]] : [];
+  }))];
+  if (!suffixes.length) return candidates;
+  return [...new Set(candidates.flatMap(set => [set, ...sets.filter(item =>
+    suffixes.some(suffix => item.name === `${set.name} ${suffix}`))]))];
 }
 
 export type ProductIdentity = [setId: string, number: string, subtype?: "shadowless" | null, printings?: string[]];

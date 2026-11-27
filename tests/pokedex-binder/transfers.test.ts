@@ -17,7 +17,7 @@ async function parseAndReview(text: string, forDex = false) {
   const csv = parseTransferCsv(text);
   const { format, mapping } = mapTransferHeaders(csv.headers, "auto");
   const { rows, invalid } = transferRows(csv, mapping);
-  return { format, invalid, cards: await reviewCards(rows, catalog, forDex) };
+  return { format, invalid, cards: await reviewCards(rows, catalog, forDex, format) };
 }
 
 describe("optional National Pokédex state", () => {
@@ -78,6 +78,50 @@ describe("collection transfers", () => {
     expect(ambiguous.cards[0].choices?.length).toBeGreaterThan(1);
     const dex = await parseAndReview("Set ID,Collector number,Card name\nsv03.5,001,Bulbasaur\n", true);
     expect(dex.cards[0].match?.card.name).toBe("Bulbasaur");
+  });
+
+  it("keeps Collectr portfolio names and only matches name-only rows when the printing is unique", async () => {
+    const source = readFileSync("tests/pokedex-binder/fixtures/collectr.csv", "utf8");
+    const { cards, format, invalid } = await parseAndReview(source);
+    expect(format).toBe("collectr");
+    expect(invalid).toEqual([]);
+    expect(cards[0]).toMatchObject({ portfolio: "151 binder", match: { variant: { id: "reverse" } } });
+    expect(cards[1]).toMatchObject({ portfolio: "151 binder", match: { card: { number: "011" }, variant: { id: "normal" } } });
+    expect(cards[2].match).toBeUndefined();
+    expect(cards[2].choices?.map(choice => choice.variant?.id)).toEqual(expect.arrayContaining(["normal", "reverse"]));
+    expect(cards[4].reason).toBe("Watchlist entry");
+    expect(cards[8].reason).toBe("Catalog covers English cards");
+    expect(cards[9].match).toBeUndefined();
+    expect(cards[9].choices?.map(choice => choice.card.number)).toEqual(["001", "002", "167"]);
+    expect(cards[10].reason).toBe("Card was not found in that set");
+    const matched = cards.flatMap(card => card.match ? [card.match] : []);
+    const groups = groupSetImport(matched, emptyMaster());
+    expect(groups.find(group => group.set.id === "sv03.5")?.marks).toHaveLength(2);
+    const dex = await parseAndReview(source, true);
+    expect(dex.cards[1].match?.card.number).toBe("011");
+    expect(dex.cards[2].match?.card.number).toBe("004");
+    const sameName = await parseAndReview("Portfolio Name,Category,Set,Product Name,Variance,Quantity\n" +
+      "One,Pokémon,151,Ivysaur,Regular,1\nOne,Pokémon,151,Ivysaur,,1\n");
+    expect(sameName.cards[0].match?.card.number).toBe("002");
+    expect(sameName.cards[1].match).toBeUndefined();
+    expect(sameName.cards[1].choices?.map(choice => choice.card.number)).toContain("167");
+  });
+
+  it("uses the number embedded in a Collectr product name and flags inconsistent identities", async () => {
+    const { cards } = await parseAndReview("Portfolio Name,Category,Set,Product Name,Card Number,Variance,Quantity,Product ID\n" +
+      "One,Pokémon,151,Ivysaur - 167/165,,Holo,1,106996\n" +
+      "One,Pokémon,151,Ivysaur - 167/165,,Regular,1,\n" +
+      "One,Pokémon,151,Ivysaur - 167/165,002,Regular,1,\n" +
+      "One,Pokémon,151,Bulbasaur - 001/165,1,Reverse Holo,1,\n" +
+      "One,Pokémon,Lost Origin,Parasect - TG01/TG30,005/196,Holofoil,1,\n");
+    expect(cards[0].match?.card.number).toBe("167");
+    expect(cards[1].match).toBeUndefined();
+    expect(cards[1].choices?.map(choice => choice.card.number)).toEqual(["167"]);
+    expect(cards[2].match).toBeUndefined();
+    expect(cards[2].choices?.map(choice => choice.card.number)).toEqual(["002", "167"]);
+    expect(cards[3].match?.variant?.id).toBe("reverse");
+    expect(cards[4].match).toBeUndefined();
+    expect(cards[4].choices?.map(choice => choice.card.number)).toEqual(expect.arrayContaining(["005", "TG01"]));
   });
 
   it("routes set ownership additively and round-trips portable CSV without inventing cards", async () => {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { binderAction, cardLists, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder, transferAction } from './test-pokedex-helpers.mjs';
 
@@ -8,6 +8,7 @@ const app = origin + '/utilities/pokemon-binder/';
 const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
 const errors = [];
 const incoming = 'Set,Collector number,Name,Finish,Quantity\n151,001,Bulbasaur,Reverse Holo,4\nBase Set,4,Charizard,Normal Holo,1\n151,002,Ivysaur,,1\nMissing Set,001,Unknown,,1\n';
+const collectr = await readFile(new URL('../tests/pokedex-binder/fixtures/collectr.csv', import.meta.url));
 
 async function context(width, user = () => null, saved = () => null) {
   const result = await browser.newContext({ viewport: { width, height: 860 }, acceptDownloads: true });
@@ -40,8 +41,102 @@ async function preview(page, trigger, text, target = 'sets') {
   await expect(page.locator('#card-import-review')).toBeVisible();
 }
 
+async function checkCollectr(width) {
+  const ctx = await context(width);
+  const page = await ctx.newPage();
+  const shot = stage => page.screenshot({ path: `output/pokedex-transfers/collectr-${stage}-${width}.png` });
+  try {
+    await open(page);
+    await shot('entry');
+    await page.locator('#first-import-collectr').click();
+    const dialog = page.getByRole('dialog', { name: 'Import from Collectr' });
+    const choose = dialog.locator('#card-import-file');
+    const format = dialog.locator('#card-import-format');
+    const portfolios = dialog.getByRole('group', { name: 'Collectr portfolios' });
+    const binder = portfolios.getByRole('checkbox', { name: '151 binder' });
+    const trade = portfolios.getByRole('checkbox', { name: 'Trade binder' });
+    const previewButton = dialog.getByRole('button', { name: 'Preview import' });
+    const review = dialog.locator('#card-import-review');
+    const summary = review.locator('#card-review-summary');
+    const rows = review.locator('#card-review-rows');
+    await expect(dialog.getByText(/export your collection as a csv/i)).toBeVisible();
+    await expect(format).toHaveValue('collectr');
+    await shot('empty');
+    await choose.setInputFiles({ name: 'collectr-export.csv', mimeType: 'text/csv', buffer: Buffer.concat([collectr, Buffer.from('\nTrade binder,Pokémon,151\n')]) });
+    await expect(binder).toBeChecked();
+    await expect(trade).toBeChecked();
+    await expect(portfolios).toContainText('2 of 2 portfolios selected');
+    await shot('portfolios');
+    await binder.uncheck();
+    await trade.uncheck();
+    await expect(previewButton).toBeDisabled();
+    await binder.check();
+    await previewButton.click();
+    await expect(summary).toContainText('2 to add · 0 already owned · 5 skipped or need review');
+    await expect(summary).toContainText('Skipped 1 row in the file because the columns differ from the header.');
+    await expect(rows).toContainText('Portfolio: 151 binder');
+    await expect(rows).not.toContainText('Trade binder');
+    await expect(rows).toContainText('Watchlist entry');
+    await expect(rows).toContainText('Quantity must be a positive whole number');
+    await expect(rows).toContainText('Card was not found in that set');
+    await expect(review.getByLabel('Match row 4')).toBeVisible();
+    assert.equal(await dialog.evaluate(node => node.scrollWidth > node.clientWidth + 1), false, 'Collectr import dialog overflow');
+    await expect(review.getByRole('heading', { name: 'Review matches' })).toBeFocused();
+    await expect(review.getByRole('button', { name: 'Add cards', exact: true })).toBeInViewport();
+    await trade.check();
+    await expect(review).toBeHidden();
+    await previewButton.click();
+    await expect(summary).toContainText('3 to add · 0 already owned · 7 skipped or need review');
+    await trade.uncheck();
+    await previewButton.click();
+    await review.getByLabel('Match row 4').selectOption({ label: '151 #004 · Charmander · Regular' });
+    await expect(summary).toContainText('3 to add');
+    await shot('review');
+    await review.getByRole('button', { name: 'Add cards', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(homeCards(page)).toHaveCount(1);
+    await expect(homeCard(page, '151')).toBeVisible();
+    await expect(page.locator('#transfer-message')).toHaveText('Saved 3 distinct printings across 1 set binder.');
+    await expect(page.locator('#transfer-message')).toBeInViewport();
+    await shot('result');
+
+    await binderAction(page, '#transfer-open');
+    await expect(page.locator('#transfer-dialog')).toBeVisible();
+    await shot('transfer');
+    await page.locator('#import-collectr').click();
+    await expect(format).toHaveValue('collectr');
+    await choose.setInputFiles({ name: 'collectr-export.csv', mimeType: 'text/csv', buffer: collectr });
+    await trade.uncheck();
+    await previewButton.click();
+    await expect(summary).toContainText('0 to add · 2 already owned');
+    await review.getByRole('button', { name: 'Cancel' }).click();
+    await expect(homeCards(page)).toHaveCount(1);
+    await expect(homeCard(page, 'National Pokédex')).toHaveCount(0);
+
+    await preview(page, '#import-cards', collectr);
+    await expect(format).toHaveValue('auto');
+    await expect(portfolios).toBeVisible();
+    await dialog.locator('#card-import-target').selectOption('dex');
+    await expect(review).toBeHidden();
+    await trade.uncheck();
+    await previewButton.click();
+    await expect(summary).toContainText('3 to add');
+    await review.getByRole('button', { name: 'Add Pokémon' }).click();
+    await expect(dialog).toBeHidden();
+    await goHome(page);
+    await expect(homeCard(page, 'National Pokédex')).toBeVisible();
+    await page.reload();
+    await expect(homeCards(page)).toHaveCount(2);
+    await expect(homeCard(page, 'National Pokédex').locator('[data-owned-count]')).toHaveText('3');
+  } finally {
+    await ctx.close();
+  }
+}
+
 try {
+  await mkdir('output/pokedex-transfers', { recursive: true });
   for (const width of [390, 1440]) {
+    await checkCollectr(width);
     const ctx = await context(width), page = await ctx.newPage();
     await open(page);
     await expect(page.locator('#binder-onboarding')).toBeVisible();
@@ -173,7 +268,7 @@ try {
     console.log(`Passed ${width}px onboarding, preview, repeat import, export, and Pokédex hide and re-enable.`);
   }
 
-  const retryContext = await context(1440), retryPage = await retryContext.newPage();
+  const retryContext = await context(390), retryPage = await retryContext.newPage();
   await open(retryPage);
   for (const name of ['Original 151', 'Second 151']) {
     await newSetBinder(retryPage);
@@ -183,7 +278,7 @@ try {
     await expect(retryPage.locator('#master-editor')).toBeHidden();
   }
   await expect(retryPage.locator('#national-workspace')).toBeHidden();
-  await preview(retryPage, '#import-cards', 'Set,Number,Card,Finish\n151,001,Bulbasaur,Reverse Holo\nBase Set,4,Charizard,Normal Holo\n');
+  await preview(retryPage, '#import-cards', collectr);
   await expect(retryPage.locator('#card-import-apply')).toBeDisabled();
   await retryPage.locator('#card-import-destinations select').selectOption({ label: 'Second 151' });
   await retryPage.evaluate(() => {
@@ -197,13 +292,15 @@ try {
     };
   });
   await retryPage.locator('#card-import-apply').click();
-  await expect(retryPage.locator('#card-import-error')).toContainText('Simulated failed save');
+  const saveError = retryPage.locator('#card-import-save-error');
+  await expect(saveError).toContainText('Simulated failed save');
+  await expect(saveError).toBeInViewport();
   await expect(homeCards(retryPage)).toHaveCount(2);
   await retryPage.locator('#card-import-apply').click();
   await expect(retryPage.locator('#card-import-dialog')).toBeHidden();
   await goHome(retryPage);
   await expect(homeCard(retryPage, 'Original 151').locator('[data-owned-count]')).toHaveText('0');
-  await expect(homeCard(retryPage, 'Second 151').locator('[data-owned-count]')).toHaveText('1');
+  await expect(homeCard(retryPage, 'Second 151').locator('[data-owned-count]')).toHaveText('2');
   await expect(homeCards(retryPage)).toHaveCount(3);
   await retryContext.close();
   console.log('Passed explicit binder routing and atomic retry after an interrupted save.');
@@ -216,7 +313,10 @@ try {
   } : null);
   const page = await ctx.newPage();
   await open(page);
-  await preview(page, '#first-import', incoming);
+  await preview(page, '#first-import-collectr', collectr);
+  await page.getByRole('checkbox', { name: 'Trade binder' }).uncheck();
+  await page.locator('#card-import-preview').click();
+  await expect(page.locator('#card-review-summary')).toContainText('2 to add');
   session = fixture;
   const second = await ctx.newPage();
   await open(second);
@@ -226,6 +326,9 @@ try {
     channel.close();
   });
   await expect(page.locator('#card-import-dialog')).toBeHidden();
+  await expect(page.locator('#card-import-file')).toHaveValue('');
+  await expect(page.locator('#card-import-portfolio-options input')).toHaveCount(0);
+  await expect(page.locator('#card-review-rows li')).toHaveCount(0);
   await expect(page.locator('#binder-account-onboarding')).toBeVisible();
   await expect(page.locator('#binder-onboarding')).toBeHidden();
   await page.locator('#first-connect').click();

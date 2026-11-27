@@ -543,7 +543,7 @@ async function initialize() {
   });
   transferDialog.addEventListener("click", event => {
     // Import, export and backup open their own dialogs; this one steps aside.
-    if ((event.target as Element).closest("#import-cards, #export-cards, #transfer-backup")) transferDialog.close();
+    if ((event.target as Element).closest("#import-cards, #import-collectr, #export-cards, #transfer-backup")) transferDialog.close();
   });
   el("transfer-backup").addEventListener("click", () => el("sync-open").click());
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();

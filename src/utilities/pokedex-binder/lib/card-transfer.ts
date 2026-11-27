@@ -2,8 +2,8 @@ import { csv } from "./list-export";
 import { loadBinderCards, relatedSets, setCardKey } from "./binder-catalog";
 import { newBinder, setSlots, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
 import type { CardStatus } from "./model";
-import { cardNameKey, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
-import type { TransferRow } from "./transfer-csv";
+import { cardNameKey, embeddedCollectorNumber, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
+import type { TransferFormat, TransferRow } from "./transfer-csv";
 
 export interface TransferCatalog {
   sets: readonly SetSummary[];
@@ -15,6 +15,7 @@ export interface ReviewedCard {
   line: number;
   label: string;
   quantity: number;
+  portfolio?: string;
   match?: TransferMatch;
   choices?: TransferMatch[];
   reason?: string;
@@ -61,25 +62,27 @@ function eligibility(row: TransferRow): { quantity: number; reason?: string } {
   return { quantity };
 }
 
-export async function reviewCards(rows: TransferRow[], catalog: TransferCatalog, forDex: boolean): Promise<ReviewedCard[]> {
+export async function reviewCards(rows: TransferRow[], catalog: TransferCatalog, forDex: boolean, format: TransferFormat = "auto"): Promise<ReviewedCard[]> {
   const reviewed = new Map<number, ReviewedCard>();
-  const work = new Map<SetSummary, { row: TransferRow; result: ReviewedCard; product?: ProductIdentity }[]>();
+  const work = new Map<SetSummary, { row: TransferRow; result: ReviewedCard; number: string; embedded: string; product?: ProductIdentity }[]>();
   const setCache = new Map<string, SetSummary[]>();
   let products: Record<string, ProductIdentity> | undefined;
   for (const row of rows) {
     const { quantity, reason } = eligibility(row);
     const label = [row.name || row.productId || "Card", row.set, row.number && `#${row.number}`, row.finish]
       .filter(Boolean).map(value => value!.slice(0, 120)).join(" · ");
-    const result: ReviewedCard = { line: row.line, label, quantity, reason };
+    const result: ReviewedCard = { line: row.line, label, quantity, reason, portfolio: row.portfolio };
     reviewed.set(row.line, result);
     if (reason) continue;
     if (row.productId && !products) products = await catalog.products();
     const product = row.productId && products && Object.hasOwn(products, row.productId) ? products[row.productId] : undefined;
-    const number = row.number || product?.[1] || "";
-    const setKey = JSON.stringify([row.set ?? "", row.set ? number.match(/^(tg|gg|sv)/i)?.[0].toLowerCase() : product?.[0]]);
+    const embedded = format === "collectr" && row.name ? embeddedCollectorNumber(row.name) : "";
+    const number = row.number || embedded || product?.[1] || "";
+    const setKey = JSON.stringify([row.set ?? "", row.set
+      ? [number, embedded].map(value => numberKey(value).match(/^(tg|gg|sv)\d/)?.[1]) : product?.[0]]);
     let sets = setCache.get(setKey);
     if (!sets) {
-      sets = row.set ? findNumberedTransferSets(catalog.sets, row.set, number) : product ? findTransferSets(catalog.sets, product[0]) : [];
+      sets = row.set ? findNumberedTransferSets(catalog.sets, row.set, number, embedded) : product ? findTransferSets(catalog.sets, product[0]) : [];
       setCache.set(setKey, sets);
     }
     if (product && row.set && sets.length && !sets.some(set => set.id === product[0])) {
@@ -90,7 +93,7 @@ export async function reviewCards(rows: TransferRow[], catalog: TransferCatalog,
     if (!candidates.length) { result.reason = row.set ? "Set is outside the catalog" : "Set or Product ID was not recognized"; continue; }
     for (const set of candidates) {
       if (!work.has(set)) work.set(set, []);
-      work.get(set)!.push({ row, result, product });
+      work.get(set)!.push({ row, result, number, embedded, product });
     }
   }
   const candidates = new Map<ReviewedCard, { options: TransferMatch[]; exact: boolean; rank: number }>();
@@ -101,23 +104,29 @@ export async function reviewCards(rows: TransferRow[], catalog: TransferCatalog,
       const cards = await catalog.cards(set.id);
       const byNumber = Map.groupBy(cards, card => numberKey(card.number));
       const byName = Map.groupBy(cards, card => cardNameKey(card.name));
-      for (const { row, result, product } of entries) {
-        const number = row.number || product?.[1];
-        const key = number ? numberKey(number) : "";
+      for (const { row, result, number, embedded, product } of entries) {
+        const key = numberKey(number);
         const numbered = key ? byNumber.get(key) ?? [] : [];
         const named = row.name ? byName.get(cardNameKey(row.name)) ?? [] : [];
-        const matching = numbered.length ? numbered.filter(card => !row.name || named.includes(card)) : [];
-        const conflicting = !!(row.number && product && numberKey(row.number) !== numberKey(product[1]));
-        const possible = matching.length && !conflicting ? matching : [...new Set([...numbered, ...named])];
-        const withProduct = product?.[0] === set.id && (row.number ? !conflicting : true);
+        const nameOnly = !key && format === "collectr";
+        const matching = nameOnly ? named : numbered.filter(card => !row.name || named.includes(card));
+        const conflictingSources = (embedded && numberKey(embedded) !== key)
+          || (product && numberKey(product[1]) !== key);
+        const embeddedOptions = conflictingSources && embedded ? byNumber.get(numberKey(embedded)) ?? [] : [];
+        const possible = matching.length && !conflictingSources ? matching : [...new Set([...numbered, ...embeddedOptions, ...named])];
+        const withProduct = product?.[0] === set.id && !conflictingSources;
         const shadowless = (withProduct && product?.[2] === "shadowless") || identityText(row.set ?? "") === "basesetshadowless";
-        const options = possible.flatMap(card => {
+        const optionsFor = (cards: SetCard[], allowFallback: boolean) => cards.flatMap(card => {
           if (forDex) return [{ set, card }];
           const finishes = finishOptions(card, row, shadowless);
-          return (finishes.length ? finishes : card.variants).map(variant => ({ set, card, variant }));
+          const variants = !finishes.length && allowFallback ? card.variants : finishes;
+          return variants.map(variant => ({ set, card, variant }));
         });
-        const exact = matching.length === 1 && !conflicting && (forDex || finishOptions(matching[0], row, shadowless).length === 1);
-        const rank = matching.length && !conflicting ? 2 : numbered.length ? 1 : 0;
+        const nameFinishes = nameOnly && !forDex && row.finish ? optionsFor(matching, false) : [];
+        const options = nameFinishes.length ? nameFinishes : optionsFor(possible, true);
+        const exact = !conflictingSources && (nameFinishes.length === 1
+          || (matching.length === 1 && (forDex || finishOptions(matching[0], row, shadowless).length === 1)));
+        const rank = matching.length && !conflictingSources ? 2 : numbered.length || embeddedOptions.length ? 1 : 0;
         const previous = candidates.get(result);
         if (previous && previous.rank > rank) continue;
         const existing = previous?.rank === rank ? previous : { options: [], exact: false, rank };
