@@ -26,7 +26,7 @@ export function GoalsPanel({ catalog, profile, targetId, onInspect, intentions, 
   }
   return <section className="goals-panel telemetry-private rr-block" aria-labelledby={only === 'choice' ? 'goal-choice-heading' : 'goals-heading'}>
     {only !== 'choice' && <>
-      <h3 id="goals-heading" ref={heading} tabIndex={-1}>Goals</h3>
+      <h3 id="goals-heading" ref={heading} tabIndex={-1}>Saved goals</h3>
       <p>Set a goal from an upgrade’s Plan tools. A goal records nothing; it tracks a target against the game’s requirements, not your SP balance, and stays when progress is imported, restored, cleared or undone.</p>
     </>}
     {target && <div className="goal-choice"><h4 id="goal-choice-heading" tabIndex={-1} className={only === 'choice' ? 'sr-only' : undefined}>Goal for {target.title}</h4><small>ID: {target.id} · <SPCost value={target.cost} /></small><label>Completion<select aria-label="Goal completion" value={mode} onChange={(event) => setMode(event.target.value as GoalMode)}><option value="acquire">Acquire</option><option value="activate">Activate</option><option value="rebuild" disabled={target.retention !== 'repeat'}>Rebuild</option></select></label><button className={only === 'choice' ? 'primary' : undefined} onClick={save}>Save goal</button><p>Acquire: recorded as owned. Activate: owned and its effect active. Rebuild: owned again after every reset.</p></div>}

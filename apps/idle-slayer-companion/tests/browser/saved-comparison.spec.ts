@@ -1,3 +1,4 @@
+import { historyAction, mapAction } from './helpers/app'
 import { installProfileTestHelpers } from './fixtures'
 import { expect, test } from './fixtures'
 import { chromium, type Page } from '@playwright/test'
@@ -31,9 +32,7 @@ async function seed(page: Page, profile = initial, comparisonIds: string[] = [])
 }
 async function open(page: Page) {
   await expect(page.locator('.toolbar')).toBeVisible()
-  const mobile = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await mobile.isVisible() ? mobile : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Saved upgrade comparison…', exact: true }).click()
+  await mapAction(page, 'Saved upgrade comparison…')
   return page.getByRole('dialog', { name: 'Saved upgrade comparison', exact: true })
 }
 const stored = (page: Page) => page.evaluate((key) => window.__readMapProfileText(key), COMPARISON_STORAGE_KEY)
@@ -160,13 +159,13 @@ test('requirement review uses the existing return route without changing either 
   await expect(page.locator('.details h2')).toBeFocused()
   await page.getByRole('button', { name: 'Return to Coimbo Release', exact: true }).click()
   await expect(page.locator('.details h2')).toHaveText('Coimbo Release')
-  await page.getByRole('button', { name: 'Compare this upgrade…', exact: true }).click()
+  await mapAction(page, 'Compare this upgrade…')
   await expect(page.locator('.saved-comparison-card')).toHaveCount(3)
   // A new comparison review starts at its chosen card, not an older route origin.
   await page.locator(`article[data-upgrade-id="${upgrade('Coimbo Release').id}"]`).getByRole('button', { name: /^Review Limit Break/ }).first().click()
-  await page.getByRole('button', { name: 'Compare this upgrade…', exact: true }).click()
+  await mapAction(page, 'Compare this upgrade…')
   await page.locator(`article[data-upgrade-id="${upgrade('Astral Slayer').id}"]`).getByRole('button', { name: 'Review At least one Ultra Ascension', exact: true }).first().click()
-  await expect(page.getByRole('dialog', { name: 'Your progress', exact: true }).getByRole('button', { name: 'Return to Astral Slayer', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Previous Ultra Ascensions', exact: true }).getByRole('button', { name: 'Return to Astral Slayer', exact: true })).toBeVisible()
   expect(await progress(page)).toBe(before); expect(await stored(page)).toBe(reference)
 })
 
@@ -178,22 +177,14 @@ test('native reset and Undo recompute facts while leaving the reference list unc
   let dialog = await open(page)
   await expect(dialog.locator(`article[data-upgrade-id="${lock.id}"]`)).toContainText('Owned · awaiting activation')
   await page.keyboard.press('Escape')
-  const mobile = page.getByRole('button', { name: 'Map options', exact: true })
-  if (await mobile.isVisible()) await mobile.click()
-  await page.getByRole('button', { name: 'Progress', exact: true }).click()
-  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
+  await mapAction(page, 'Record Ultra Ascension…')
+  await page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
   dialog = await open(page)
   await expect(dialog.locator(`article[data-upgrade-id="${lock.id}"]`)).toContainText('Owned and active')
   await expect(dialog.locator(`article[data-upgrade-id="${repeat.id}"]`)).toContainText('not currently owned')
   expect(await stored(page)).toBe(reference)
   await page.keyboard.press('Escape')
-  if (await mobile.isVisible()) {
-    await mobile.click()
-    await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Undo', exact: true }).click()
-  } else {
-    await page.locator('.companion-session-status').getByRole('button', { name: 'Undo', exact: true }).click()
-  }
+  await historyAction(page, 'Undo')
   await expect.poll(async () => JSON.parse((await progress(page))!)).toEqual(profile)
   expect(await stored(page)).toBe(reference)
 })
@@ -206,7 +197,7 @@ test('current visibility hides identities, counts, picker options and exported I
   await page.locator(`.search-result[data-upgrade-id="${secret[0]}"]`).click()
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
-  await page.getByRole('button', { name: 'Compare this upgrade…', exact: true }).click()
+  await mapAction(page, 'Compare this upgrade…')
   const dialog = page.getByRole('dialog', { name: 'Saved upgrade comparison', exact: true })
   await dialog.getByRole('button', { name: 'Replace entry 2…', exact: true }).click()
   await page.evaluate(() => {
@@ -361,7 +352,7 @@ test('ordinary narrow comparison controls wrap and retain touch and keyboard acc
   }
   await page.screenshot({ path: info.outputPath('comparison-320.png') })
   await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0)
-  const trigger = page.getByRole('button', { name: 'Map options', exact: true }); await expect(trigger).toBeFocused()
+  const trigger = page.locator('.toolbar').getByRole('button', { name: 'Plan', exact: true }); await expect(trigger).toBeFocused()
 })
 
 test('comparison reflows with actual 32px browser text in portrait and landscape', async ({ baseURL }, info) => {

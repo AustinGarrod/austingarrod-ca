@@ -1,3 +1,4 @@
+import { historyAction, mapAction, openGoals, exportMapBackup } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -20,16 +21,14 @@ async function choose(page: Page, title: string, mode = 'acquire') {
   await page.locator('.search-result').filter({ has: page.locator('.discovery-title', { hasText: new RegExp('^' + title + '$') }) }).first().click()
   const toggle = page.getByRole('button', { name: 'Show details', exact: true })
   if (await toggle.isVisible()) await toggle.click()
-  await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
+  await mapAction(page, 'Set a goal…')
   await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption(mode)
   await page.getByRole('button', { name: 'Save goal', exact: true }).click()
   await expect(page.locator('.goals-panel')).toContainText('Goal saved')
 }
+/** The full goals list: Plan → Goals. */
 async function progress(page: Page) {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  const action = page.getByRole('button', { name: 'Progress', exact: true })
-  if (!await action.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await action.click()
+  await openGoals(page)
 }
 const saved = (page: Page) => page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)
 
@@ -40,12 +39,16 @@ test('intentions persist independently, reorder and retire without recording pur
   expect(await saved(page)).toBeNull()
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await choose(page, 'Permanent Slayer', 'rebuild')
+  // The goal dialog shows only the chosen goal; All goals… opens the full list.
+  await expect(page.locator('.goal-list li')).toHaveCount(1)
+  await page.getByRole('button', { name: 'All goals…', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Goals', exact: true })).toBeVisible()
   const goals = page.locator('.goal-list li')
   await expect(goals).toHaveCount(2)
   await goals.nth(1).getByRole('button', { name: 'Higher priority', exact: true }).click()
   await expect(goals.first()).toHaveAttribute('data-goal-id', catalog.startId)
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   const path = await (await download).path()
   expect(JSON.parse(readFileSync(path!, 'utf8'))).toEqual(initial)
   expect(await saved(page)).toBeNull()
@@ -126,8 +129,9 @@ test('recurring checklist recomputes from a real reset and retains conditionally
   }, { key: PROFILE_STORAGE_KEY, profile, goalsKey: GOALS_STORAGE_KEY, intentions })
   await page.goto('./ascension/'); await progress(page)
   await expect(page.locator('.goals-panel')).toContainText('2 achieved')
-  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await mapAction(page, 'Record Ultra Ascension…')
+  await page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
   await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
   await progress(page)
   await expect(page.locator('.goals-panel')).toContainText('1 achieved')
@@ -137,11 +141,7 @@ test('recurring checklist recomputes from a real reset and retains conditionally
   expect(actual.purchases[village.id]).toBeTruthy()
   expect(actual.purchases[catalog.startId]).toBeUndefined()
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await undo.click()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await historyAction(page, 'Undo')
   await progress(page)
   await expect(page.locator('.goals-panel')).toContainText('2 achieved')
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), GOALS_STORAGE_KEY)).toEqual(intentions)
@@ -264,12 +264,19 @@ for (const action of ['save', 'retire', 'higher', 'lower'] as const) {
     const incoming = { ...original, targets: [...original.targets, { id: available[0]!.id, mode: 'acquire' }] }
     await page.addInitScript(({ key, original }) => localStorage.setItem(key, JSON.stringify(original)), { key: GOALS_STORAGE_KEY, original })
     await page.goto('./ascension/')
-    await page.getByRole('searchbox').fill('Permanent Slayer')
-    await page.locator(`.search-result[data-upgrade-id="${catalog.startId}"]`).click()
-    const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-    await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
-    await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('activate')
-    await expect(page.locator('.goal-list li')).toHaveCount(2)
+    // Saving happens in the small goal dialog (which lists only the chosen goal); ordering and
+    // retiring happen in the full list under Plan → Goals.
+    if (action === 'save') {
+      await page.getByRole('searchbox').fill('Permanent Slayer')
+      await page.locator(`.search-result[data-upgrade-id="${catalog.startId}"]`).click()
+      const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
+      await mapAction(page, 'Set a goal…')
+      await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('activate')
+      await expect(page.locator('.goal-list li')).toHaveCount(1)
+    } else {
+      await openGoals(page)
+      await expect(page.locator('.goal-list li')).toHaveCount(2)
+    }
     const control = action === 'save' ? page.getByRole('button', { name: 'Save goal', exact: true }) :
       action === 'retire' ? page.locator('.goal-list li').first().getByRole('button', { name: 'Retire goal', exact: true }) :
       action === 'higher' ? page.locator('.goal-list li').last().getByRole('button', { name: 'Higher priority', exact: true }) :
@@ -283,7 +290,7 @@ for (const action of ['save', 'retire', 'higher', 'lower'] as const) {
     }, { legacyKey: GOALS_STORAGE_KEY, key: COMPANION_WORKSPACE_KEY, incoming })
     await control.click()
     const expected = { ...incoming, targets: action === 'save' ? incoming.targets.map((goal, index) => index === 0 ? { ...goal, mode: 'activate' } : goal) : action === 'retire' ? incoming.targets.slice(1) : [incoming.targets[1], incoming.targets[0], incoming.targets[2]] }
-    await expect(page.locator('.goal-list li')).toHaveCount(expected.targets.length)
+    await expect(page.locator('.goal-list li')).toHaveCount(action === 'save' ? 1 : expected.targets.length)
     await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), GOALS_STORAGE_KEY)).toEqual(expected)
     expect(await saved(page)).toBeNull()
   })

@@ -265,13 +265,20 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
     setBusy(true); setPreview(null); setWorkspaceRestore(null); setWorkspaceReview(null); setBundleReview(null); setFeedback('')
     let text: string
     try {
-      if (file.size > MAX_BUNDLE_BYTES) { setFeedback('This file is larger than any backup this app writes. Nothing was changed.'); return }
+      if (file.size > MAX_BUNDLE_BYTES) { setFeedback('This file is larger than any backup this app writes. Nothing was changed.'); trackEvent('backup_error', { reason: 'size' }); return }
       text = await file.text()
-    } catch { if (ticket === request.current) setFeedback('This file could not be read. Nothing was changed.'); return }
+    } catch (error) {
+      reportFailure(error, 'backup.read', { bytes: file.size })
+      trackEvent('backup_error', { reason: 'read' })
+      if (ticket === request.current) setFeedback('This file could not be read. Nothing was changed.')
+      return
+    }
     finally { if (ticket === request.current) setBusy(false) }
     if (ticket !== request.current) return
     const detected = detectBackup(text)
     if (detected.kind === 'bundle') { setBundleReview({ name: file.name, exportedAt: detected.exportedAt, parts: detected.parts, started: [] }); return }
+    // Each single document reports its own validation; a file no reader recognises is reported here.
+    if (detected.kind === 'unknown') trackEvent('backup_error', { reason: detected.reason === 'invalid-json' ? 'invalid-json' : detected.reason === 'too-large' ? 'size' : 'invalid-profile' })
     if (detected.kind === 'unknown') { setFeedback(detected.reason === 'invalid-json' ? 'This file is not valid JSON. Nothing was changed.' : detected.reason === 'too-large' ? 'This file is larger than any backup this app writes. Nothing was changed.' : 'This is not a file this app saves. Choose a Companion backup, a single exported document or an original Ascension Map backup. Nothing was changed.'); return }
     restorePart(detected.kind, detected.text, file.name)
   }
@@ -420,7 +427,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
         <CompanionModules busy={state.pending} section={section === 'ascension' ? 'overview' : section} entities={entities} progress={state.progress} onRecord={record} onTrack={(system, tracked) => session.command(state.version, (progress) => ({ ...progress, modules: { ...progress.modules, [system]: { ...progress.modules[system], tracked } } }), 'companion_record')} pinnedRefs={pinnedRefs} onPinGoal={(ref) => { const goals = workspace.workspace.goals; workspace.edit({ ...workspace.workspace, goals: pinnedRefs.has(entityKey(ref)) ? goals.filter((goal) => entityKey(goal.ref) !== entityKey(ref)) : [...goals, { ref, mode: ref.system === 'ascension' ? 'acquire' : ref.system === 'divinity' ? 'select' : ref.system === 'enemy' ? 'mastery' : 'complete' }] }) }} onNavigate={navigate} recipePlans={workspace.workspace.recipePlans} onRecipePlan={(id, quantity) => { const recipePlans = { ...workspace.workspace.recipePlans }; if (!quantity || quantity === '0') delete recipePlans[id]; else recipePlans[id] = quantity; workspace.edit({ ...workspace.workspace, recipePlans }) }} referenceEntries={references} goalEntries={goalEntries} entityStates={entityStates} focusedRef={inspection?.ref} ultraAscension={map ? { count: state.profile.epoch, eligible: uaEligible, onRecord: startReset } : undefined} spoilers={{ shown: state.profile.showSpoilers, onChange: (shown) => session.applyProfile({ ...state.profile, showSpoilers: shown }, false, "spoilers") }} onImport={() => open("import")} ascensionSummary={ascensionSummary} />
       </>}
     </CompanionShell>
-    {panel && <Dialog key={panel} dismissDisabled={repairLocked} closeOnBackdrop={panel === 'help' || (panel === 'settings' && reloadAction === null) || (panel === 'install' && !repairing)} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-data-button')} title={panel === 'import' ? 'Import save' : panel === 'data' ? 'Data & backup' : panel === 'clear' ? 'Clear all recorded progress' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Review companion Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
+    {panel && <Dialog key={panel} dismissDisabled={repairLocked} closeOnBackdrop={panel === 'help' || (panel === 'settings' && reloadAction === null) || (panel === 'install' && !repairing)} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-data-button')} title={panel === 'import' ? 'Import save' : panel === 'data' ? 'Data & backup' : panel === 'clear' ? 'Clear all recorded progress' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Record Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
       {feedback && <p role="status" ref={panelFeedback}>{feedback}</p>}
       {panel === 'import' && !preview && <div className="companion-import-form">
         <p>Select a reviewed Windows Steam save. Files are read locally and never uploaded. Import replaces supported tracked progress together; intentions and tracking preferences are kept.</p>

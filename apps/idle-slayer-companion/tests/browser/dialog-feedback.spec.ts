@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures'
-import { openAction as openSharedAction, openData } from './helpers/app'
+import { exportMapBackup, exposeMapAction, mapAction, openAction as openSharedAction, openData, openPriorAscensions, restoreFile } from './helpers/app'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
@@ -28,10 +28,9 @@ async function assertLocalFeedback(page: Page, text: string) {
 
 test('blocked Ultra Ascension explains the result in its shared dialog at phone width without stale feedback', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
-  await page.goto('./ascension/'); await openAction(page, 'Progress')
-  const action = page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true })
-  await action.click()
-  const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  await page.goto('./ascension/')
+  await mapAction(page, 'Record Ultra Ascension…')
+  const reset = page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true })
   const feedback = reset.getByRole('status')
   await expect(feedback).toContainText('does not meet the Ultra Ascension requirements')
   await expect(feedback).toBeInViewport()
@@ -40,26 +39,39 @@ test('blocked Ultra Ascension explains the result in its shared dialog at phone 
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.atlas > .sr-only[role="status"]')).toHaveText('')
-  await openAction(page, 'Progress')
+  await openPriorAscensions(page)
   await expect(page.getByRole('dialog').locator('.dialog-feedback')).toHaveText('')
 })
 
-test('invalid restore and successful export replace feedback inside Progress and keep the profile intact', async ({ page }) => {
+/** Data & backup reports file results once, inside its private operation area and in view. */
+async function assertDataFeedback(page: Page, text: string) {
+  const dialog = page.getByRole('dialog', { name: 'Data & backup', exact: true })
+  const status = dialog.locator('.companion-operation > p[role="status"]')
+  await expect(status).toHaveCount(1)
+  await expect(status).toContainText(text)
+  await expect(status).toBeInViewport()
+  await expect(page.locator('.toast')).toHaveCount(0)
+  await expect(page.locator('.companion-feedback')).toHaveCount(0)
+  expect(await status.evaluate((element) => element.closest('.rr-block') !== null)).toBe(true)
+}
+
+test('invalid restore and successful export replace feedback inside Data & backup and keep the profile intact', async ({ page }) => {
   const profile = { ...emptyProfile(catalog.revision), purchases: { 'unknown-fixture': { epoch: 0, active: false } } }
   await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile })
   await page.setViewportSize({ width: 320, height: 568 })
-  await page.goto('./ascension/'); await openAction(page, 'Progress')
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from('BACKUP_PRIVATE_MARKER') })
-  await assertLocalFeedback(page, 'The backup is not valid JSON. Progress was not replaced.')
-  await expect(page.getByRole('dialog')).not.toContainText('BACKUP_PRIVATE_MARKER')
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'second-synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from('ANOTHER_PRIVATE_MARKER') })
-  await assertLocalFeedback(page, 'The backup is not valid JSON. Progress was not replaced.')
-  await expect(page.getByRole('dialog').locator('.dialog-feedback p')).toHaveCount(1)
+  await page.goto('./ascension/')
+  await restoreFile(page, { name: 'synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from('BACKUP_PRIVATE_MARKER') })
+  const data = page.getByRole('dialog', { name: 'Data & backup', exact: true })
+  await assertDataFeedback(page, 'This file is not valid JSON. Nothing was changed.')
+  await expect(data).not.toContainText('BACKUP_PRIVATE_MARKER')
+  await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'second-synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from('ANOTHER_PRIVATE_MARKER') })
+  await assertDataFeedback(page, 'This file is not valid JSON. Nothing was changed.')
+  await expect(data).not.toContainText('ANOTHER_PRIVATE_MARKER')
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual(profile)
-  await assertLocalFeedback(page, 'Progress backup exported.')
-  await expect(page.getByRole('dialog').locator('.dialog-feedback')).not.toContainText('not valid JSON')
+  await assertDataFeedback(page, 'Ascension map backup exported. It holds Ascension progress only.')
+  await expect(data.locator('.companion-operation > p[role="status"]')).not.toContainText('not valid JSON')
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(profile)
 })
 
@@ -127,11 +139,11 @@ test('Companion size refusal keeps the migrated map exportable and exposes recov
   expect(downloads).toHaveLength(0)
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(profile)
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await openAction(page, 'Progress')
+  // The original Ascension-only map file stays exportable from Data & backup.
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual(profile)
-  await assertLocalFeedback(page, 'Progress backup exported.')
+  await assertDataFeedback(page, 'Ascension map backup exported. It holds Ascension progress only.')
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.getByRole('button', { name: 'Export backup', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('4 MiB save and export limit')
@@ -153,7 +165,7 @@ test('shared conflict and reload dialogs keep export feedback and move review in
   const other = await context.newPage(); await other.goto(page.url())
   await expect(other.locator('.toolbar')).toBeVisible()
   const spoilers = other.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await spoilers.isVisible()) await other.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(other, spoilers)
   await spoilers.check()
   await page.setViewportSize({ width: 320, height: 568 })
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
@@ -180,7 +192,8 @@ test('shared conflict and reload dialogs keep export feedback and move review in
   await expect(feedback).toBeVisible()
   await expect(feedback).toBeInViewport()
   expect(await feedback.evaluate((element) => element.closest('.rr-block') !== null)).toBe(true)
-  await backups.getByRole('button', { name: 'Open Ascension data tools', exact: true }).click()
+  await backups.getByRole('button', { name: 'Checkpoints: export or restore…', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(1)
   await expect(backups).toBeVisible()
@@ -217,7 +230,7 @@ test('global export success stays visible and announced beside a persistent stor
 
 test('empty named dialog feedback preserves zero space until real feedback exists', async ({ page }) => {
   await page.goto('./ascension/')
-  await openAction(page, 'Progress')
+  await openPriorAscensions(page)
   const feedback = page.getByRole('dialog').getByRole('status', { name: 'Map action feedback', exact: true })
   await expect(feedback).toBeEmpty()
   expect(await feedback.evaluate((element) => ({ height: element.getBoundingClientRect().height, margin: getComputedStyle(element).marginBottom, content: element.childElementCount }))).toEqual({ height: 0, margin: '0px', content: 0 })

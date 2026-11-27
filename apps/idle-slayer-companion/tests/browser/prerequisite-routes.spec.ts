@@ -1,3 +1,4 @@
+import { exposeMapAction, mapAction, toolAction } from './helpers/app'
 import { installProfileTestHelpers } from './fixtures'
 import { expect, test } from './fixtures'
 import { chromium, type Page } from '@playwright/test'
@@ -18,9 +19,7 @@ test.beforeEach(async ({ page }) => {
 async function seed(page: Page, profile: Profile) { await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile }) }
 async function open(page: Page) {
   await expect(page.locator('.toolbar')).toBeVisible()
-  const compact = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Compare prerequisite routes…', exact: true }).click()
+  await mapAction(page, 'Compare prerequisite routes…')
   return page.getByRole('dialog', { name: 'Prerequisite routes', exact: true })
 }
 async function add(page: Page, title: string) {
@@ -43,9 +42,9 @@ test('four complete Legendary Belt alternatives and intended OR choice never cha
   expect(await stored(page)).toBeNull(); expect(page.url()).toBe(url)
   expect(await page.evaluate((key) => window.__readMapProfileText(key), GOALS_STORAGE_KEY)).toBeNull()
   await page.keyboard.press('Escape')
-  const compact = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
+  const undo = toolAction(page, 'Undo')
+  await exposeMapAction(page, undo)
+  await expect(undo).toBeDisabled()
 })
 test('shared target purchases count once and saved goal completion modes are copied without edits', async ({ page }) => {
   const goals = { version: 1, targets: [{ id: node('Permanent Quests').id, mode: 'acquire' }, { id: node('Soul Reaper').id, mode: 'activate' }] }

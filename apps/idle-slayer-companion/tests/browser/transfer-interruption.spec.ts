@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
-import { openAction as openSharedAction } from './helpers/app'
+import { closeMapOptions, expectLayout, exportMapBackup, exposeMapAction, mapAction, openAction as openSharedAction, openData, openImport, openPriorAscensions, restoreFile } from './helpers/app'
 import { readFileSync } from 'node:fs'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
 import { encodeProgressTransfer, progressTransferLink } from '../../src/domain/progress-transfer'
@@ -76,17 +76,16 @@ async function prepareConfirmation(page: Page, state: string) {
     await expect(page.getByRole('dialog', { name: state === 'OR path' ? 'Choose a prerequisite path' : 'Record purchase?', exact: true })).toBeVisible()
     return
   }
-  await openAction(page, 'Progress')
-  if (state === 'clear') await page.getByRole('button', { name: 'Clear Ascension progress…', exact: true }).click()
+  if (state === 'clear') await (await openData(page, { advanced: false })).getByRole('button', { name: 'Clear Ascension progress…', exact: true }).click()
   else if (state === 'history') {
+    await openPriorAscensions(page)
     await page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true }).fill('5')
     await page.getByRole('button', { name: 'Review history…', exact: true }).click()
   } else if (state === 'restore') {
-    await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
+    await restoreFile(page, { name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
     await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toBeVisible()
   } else {
-    await page.getByRole('button', { name: 'Import save…', exact: true }).click()
-    await page.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
+    await (await openImport(page)).getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
     await expect(page.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
   }
   await expect(page.getByRole('dialog')).toHaveCount(1)
@@ -108,12 +107,7 @@ test('arrivals close current reference and planning dialogs while preserving sep
     ['Compare prerequisite routes…', 'Prerequisite routes'], ['Plan hypothetical UAs…', 'Hypothetical UA roadmap'],
     ['Recent upgrades…', 'Recent upgrades'],
   ]) {
-    if (title === 'Progress checkpoints') await openAction(page, 'Progress')
-    else {
-      const desktop = page.getByRole('button', { name: 'Map view…', exact: true })
-      await (await desktop.isVisible() ? desktop : page.getByRole('button', { name: 'Map options', exact: true })).click()
-    }
-    await page.getByRole('button', { name: action, exact: true }).click()
+    await mapAction(page, action)
     await expect(page.getByRole('dialog', { name: title, exact: true })).toBeVisible()
     const receiver = await arrive(page, transfer, true)
     expect(await saved(page)).toEqual(initial)
@@ -137,18 +131,17 @@ for (const state of ['clear', 'purchase', 'OR path', 'history', 'restore', 'game
       await receiver.getByRole('button', { name: 'Cancel', exact: true }).click()
       await expect(page.getByRole('dialog')).toHaveCount(0)
       expect(await saved(page)).toEqual(initial)
-      await expect(page.getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await expectLayout(page, 'Game Layout')
     }
     const receiver = await arrive(page, transfer, true)
     await receiver.getByRole('button', { name: 'Apply transfer', exact: true }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect.poll(() => saved(page)).toEqual(incoming)
     await openAction(page, 'Undo')
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect.poll(() => saved(page)).toEqual(initial)
-    await expect(page.getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expectLayout(page, 'Game Layout')
   })
 }
 
@@ -175,12 +168,12 @@ for (const kind of ['backup', 'game save'] as const) {
           }
         }
       }, { kind, outcome })
-      await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2'); await openAction(page, 'Progress')
-      if (kind === 'backup') await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
-      else {
-        await page.getByRole('button', { name: 'Import save…', exact: true }).click()
-        await page.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
-      }
+      await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
+      // Backups are read by Data & backup's restore control, game saves by Data → Import save.
+      const reopen = () => kind === 'backup' ? openData(page, { advanced: false }) : openImport(page)
+      const panel = await reopen()
+      if (kind === 'backup') await panel.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
+      else await panel.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
       await expect.poll(() => page.evaluate(() => typeof (window as DeferredWindow).releaseRead)).toBe('function')
       const transfer = await link(baseURL!)
       await arrive(page, transfer, false)
@@ -188,12 +181,14 @@ for (const kind of ['backup', 'game save'] as const) {
       expect(await saved(page)).toEqual(initial)
       await receiver.getByRole('button', { name: 'Cancel', exact: true }).click()
       // Reopening the original panel must not revive the superseded file read.
-      await openAction(page, 'Progress')
+      const reopened = await reopen()
       await page.evaluate(() => (window as DeferredWindow).releaseRead?.())
       await expect.poll(() => page.evaluate(() => (window as DeferredWindow).readFinished)).toBe(true)
       await expect(page.getByRole('dialog')).toHaveCount(1)
-      await expect(page.getByRole('dialog', { name: 'Your progress', exact: true })).toBeVisible()
-      await expect(page.getByRole('dialog').locator('.dialog-feedback')).toHaveText('')
+      await expect(reopened).toBeVisible()
+      await expect(reopened.locator('.companion-operation > p[role="status"]')).toHaveCount(0)
+      await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toHaveCount(0)
+      await expect(reopened.getByRole('button', { name: 'Apply snapshot', exact: true })).toHaveCount(0)
       expect(await saved(page)).toEqual(initial)
     })
   }
@@ -211,10 +206,9 @@ test('an arrival invalidates pending privacy saving before it can reload or chan
   await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
   await expect(page.locator('.toolbar')).toBeVisible()
   const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, checkbox)
   await checkbox.uncheck()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await openAction(page, 'Privacy & tracking')
   await page.getByRole('button', { name: 'Disable tracking and reload', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Reload with unsaved progress', exact: true })).toBeVisible()
@@ -233,10 +227,9 @@ test('an arrival invalidates pending privacy saving before it can reload or chan
   await receiver.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
-  if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, checkbox)
   await expect(checkbox).not.toBeChecked()
-  const reopenedOptions = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await reopenedOptions.isVisible()) await reopenedOptions.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await openAction(page, 'Undo')
   await expect.poll(() => page.evaluate(() => typeof (window as DeferredWindow).releaseWrite)).toBe('function')
   await expect(page.locator('.atlas')).toHaveAttribute('aria-busy', 'true')
@@ -255,10 +248,9 @@ for (const state of ['conflict', 'tracking reload'] as const) {
     await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
     await expect(page.locator('.toolbar')).toBeVisible()
     const spoilers = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-    if (!await spoilers.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+    await exposeMapAction(page, spoilers)
     await spoilers.uncheck()
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await expect(page.getByRole('alert')).toContainText('could not be saved')
     if (state === 'conflict') {
       const other = await context.newPage(); await other.goto(page.url())
@@ -275,19 +267,18 @@ for (const state of ['conflict', 'tracking reload'] as const) {
     await receiver.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
-    await openAction(page, 'Progress')
     const download = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+    await exportMapBackup(page)
     expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual({ ...initial, showSpoilers: false })
     expect(await page.evaluate((key) => window.__readMapProfileText(key), ANALYTICS_PREFERENCE_KEY)).toBeNull()
   })
 }
 
 test('a game file selected after arrival cannot replace the receiver', async ({ page, baseURL }) => {
-  await seed(page); await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2'); await openAction(page, 'Progress')
+  await seed(page); await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2')
+  const importDialog = await openImport(page)
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Import save…', exact: true }).click()
-  await page.getByLabel('Choose game save', { exact: true }).click()
+  await importDialog.getByLabel('Choose game save', { exact: true }).click()
   const selection = await chooser
   const receiver = await arrive(page, await link(baseURL!), true)
   await selection.setFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
@@ -304,10 +295,9 @@ test('an arrival cancels a pending confirmed conflict write without reviving rec
   }, PROFILE_STORAGE_KEY)
   await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2'); await expect(page.locator('.toolbar')).toBeVisible()
   const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, checkbox)
   await checkbox.uncheck()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await expect(page.getByRole('alert')).toContainText('could not be saved')
   const external = { ...initial, epoch: 3 }
   const other = await context.newPage(); await other.goto(page.url())
@@ -333,9 +323,8 @@ test('an arrival cancels a pending confirmed conflict write without reviving rec
   expect(await saved(page)).toEqual(external)
   await receiver.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await openAction(page, 'Progress')
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual({ ...initial, showSpoilers: false })
 })
 
@@ -365,8 +354,8 @@ test('navigation away cancels a received preview and a pending decode without ap
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.evaluate(() => (window as Window & { releaseDecode?: () => void }).releaseDecode?.())
   await expect.poll(() => page.evaluate(() => (window as Window & { decodeFinished?: boolean }).decodeFinished)).toBe(true)
-  await openAction(page, 'Progress')
-  await expect(page.getByRole('dialog', { name: 'Your progress', exact: true })).toBeVisible()
+  await openPriorAscensions(page)
+  await expect(page.getByRole('dialog', { name: 'Previous Ultra Ascensions', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Apply transfer', exact: true })).toHaveCount(0)
   expect(await saved(page)).toEqual(initial)
 })

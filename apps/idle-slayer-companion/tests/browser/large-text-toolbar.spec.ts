@@ -1,5 +1,5 @@
 import { installProfileTestHelpers } from './fixtures'
-import { openAction, openSearchResults } from './helpers/app'
+import { chooseLayout, closeMapOptions, expectLayout, exposeMapAction, mapAction, openAction, openPriorAscensions, openSearchResults, toolAction } from './helpers/app'
 import { chromium, expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -56,7 +56,7 @@ test('single-event forward impact wraps every text line and preserves native con
   const toggle = page.getByRole('button', { name: 'Show details', exact: true })
   if (await toggle.isVisible()) await toggle.click()
   const stored = await page.evaluate(() => window.__readMapProfileText('idle-slayer-ascension-map.profile.v1'))
-  await page.getByRole('button', { name: 'Analyze forward impact…', exact: true }).click()
+  await mapAction(page, 'Analyze forward impact…')
   const dialog = page.getByRole('dialog', { name: 'Forward impact', exact: true })
   await expect(dialog).toBeVisible()
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -94,11 +94,17 @@ test('optional map help remains readable and actionable at the actual 200% font'
   const help = page.getByRole('dialog', { name: 'Map help', exact: true })
   await expect(help).toBeVisible()
   expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-  await help.getByRole('button', { name: 'Review spoiler setting', exact: true }).click()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  await expect(options.getByRole('checkbox', { name: 'Show spoilers', exact: true })).not.toBeChecked()
-  await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  // Help's spoiler action is explicit, stays in the dialog and reports its result on the button.
+  const spoilers = help.getByRole('button', { name: 'Show spoilers', exact: true })
+  await spoilers.scrollIntoViewIfNeeded()
+  expect(await spoilers.evaluate((element) => { const r = element.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && element.scrollWidth <= element.clientWidth + 1 })).toBe(true)
+  await spoilers.click()
+  await expect(help.getByRole('button', { name: 'Spoilers shown', exact: true })).toBeDisabled()
+  await help.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
+  await exposeMapAction(page, checkbox)
+  await expect(checkbox).toBeChecked()
 })
 
 test('complete discovery remains reachable with the actual browser default font at 200%', async ({ page }) => {
@@ -137,7 +143,7 @@ for (const layout of ['Game Layout', 'Detailed Layout']) test(`${layout} toolbar
   await page.evaluate(async () => { await document.fonts.ready })
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
   await expect.poll(() => page.locator('.toolbar').evaluate((toolbar) => {
-    const controls = [...toolbar.querySelectorAll<HTMLElement>('.brand h1, .layout-control button, .mobile-options, .search-box input, .next-upgrade')]
+    const controls = [...toolbar.querySelectorAll<HTMLElement>('.layout-control button, .search-box input, .next-upgrade, .map-tools .menu-button > button')]
     const boxes = controls.map((element) => element.getBoundingClientRect())
     const overflow = controls.filter((element) => element.tagName !== 'INPUT' && (element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)).map((element) => element.textContent?.trim())
     const overlaps = boxes.flatMap((first, index) => boxes.slice(index + 1).filter((second) => first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top))
@@ -145,8 +151,8 @@ for (const layout of ['Game Layout', 'Detailed Layout']) test(`${layout} toolbar
   })).toEqual({ overflow: [], overlaps: 0, inside: true, horizontalOverflow: false })
   await page.screenshot({ path: test.info().outputPath('toolbar-200-percent.png') })
 
-  await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
-  await expect(page.getByRole('button', { name: layout, exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await chooseLayout(page, layout)
+  await expectLayout(page, layout)
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.locator('.search-result').filter({ hasText: 'Permanent Slayer' }).click()
   await expect(page.locator('.details h2')).toHaveText('Permanent Slayer')
@@ -158,9 +164,14 @@ for (const layout of ['Game Layout', 'Detailed Layout']) test(`${layout} toolbar
     }).map((control) => control.className)
     return { overlaps, usable: rect.width >= 44 && rect.height >= 44 && rect.left >= map.left && rect.right <= map.right && rect.top >= map.top && rect.bottom <= map.bottom }
   })).toEqual({ overlaps: [], usable: true })
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Map options', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  for (const tool of ['View', 'Plan', 'Record']) {
+    await page.locator('.toolbar').getByRole('button', { name: tool, exact: true }).click()
+    const popup = page.locator('.toolbar .menu-popup')
+    await expect(popup).toBeVisible()
+    expect(await popup.evaluate((element) => { const r = element.getBoundingClientRect(); return r.left >= 0 && r.right <= document.documentElement.clientWidth && element.scrollWidth <= element.clientWidth + 1 })).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+  }
   await page.getByRole('button', { name: 'Next upgrade', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Suggested next upgrade', exact: true })).toBeVisible()
 })
@@ -185,21 +196,28 @@ test('chosen progression intentions are readable at the actual 200% font without
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.locator('.search-result').filter({ hasText: 'Permanent Slayer' }).click()
   await page.getByRole('button', { name: 'Show details', exact: true }).click()
-  await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
+  await mapAction(page, 'Set a goal…')
   await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('rebuild')
   await page.getByRole('button', { name: 'Save goal', exact: true }).click()
   const panel = page.locator('.goals-panel')
-  await expect(panel).toContainText('1 visible goal · 0 achieved')
+  await expect(panel).toContainText('Goal saved')
   await page.getByRole('combobox', { name: 'Goal completion', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: test.info().outputPath('goals-choice-200-percent.png') })
-  expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-  for (const button of await panel.locator('button').all()) {
-    await button.scrollIntoViewIfNeeded()
-    const bounds = await button.boundingBox()
-    expect(bounds!.width).toBeGreaterThanOrEqual(44)
-    expect(bounds!.height).toBeGreaterThanOrEqual(44)
-    expect(await button.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  const readableButtons = async () => {
+    expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    for (const button of await panel.locator('button').all()) {
+      await button.scrollIntoViewIfNeeded()
+      const bounds = await button.boundingBox()
+      expect(bounds!.width).toBeGreaterThanOrEqual(44)
+      expect(bounds!.height).toBeGreaterThanOrEqual(44)
+      expect(await button.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    }
   }
+  await readableButtons()
+  // The full list (All goals…) carries the ordering and retiring controls.
+  await page.getByRole('button', { name: 'All goals…', exact: true }).click()
+  await expect(panel).toContainText('1 visible goal · 0 achieved')
+  await readableButtons()
   await page.screenshot({ path: test.info().outputPath('goals-200-percent.png') })
   expect(await page.evaluate(() => window.__readMapProfileText('idle-slayer-ascension-map.profile.v1'))).toBeNull()
 })
@@ -207,12 +225,15 @@ test('chosen progression intentions are readable at the actual 200% font without
 test('action-labelled Undo and Redo reflow at the actual 200% browser font', async ({ page }) => {
   await page.goto('./ascension/')
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  await options.getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
-  const controls = options.getByRole('group', { name: 'Session history', exact: true })
+  // A short phone keeps Undo and Redo, with the change they reverse, in the Record tools.
+  const spoilers = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
+  await exposeMapAction(page, spoilers)
+  await spoilers.check()
+  await closeMapOptions(page)
+  const record = page.locator('.toolbar').getByRole('button', { name: 'Record', exact: true })
+  await record.click()
   for (const name of ['Undo', 'Redo']) {
-    const button = controls.getByRole('button', { name, exact: true })
+    const button = toolAction(page, name)
     await button.scrollIntoViewIfNeeded()
     await expect(button).toBeInViewport()
     expect(await button.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
@@ -220,12 +241,14 @@ test('action-labelled Undo and Redo reflow at the actual 200% browser font', asy
     expect(box!.width).toBeGreaterThanOrEqual(44)
     expect(box!.height).toBeGreaterThanOrEqual(44)
   }
-  await controls.getByRole('button', { name: 'Undo', exact: true }).click()
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('checkbox', { name: 'Show spoilers', exact: true })).not.toBeChecked()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Redo', exact: true }).click()
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('checkbox', { name: 'Show spoilers', exact: true })).toBeChecked()
+  await toolAction(page, 'Undo').click()
+  await exposeMapAction(page, spoilers)
+  await expect(spoilers).not.toBeChecked()
+  await closeMapOptions(page)
+  await record.click()
+  await toolAction(page, 'Redo').click()
+  await exposeMapAction(page, spoilers)
+  await expect(spoilers).toBeChecked()
 })
 
 test('overview fits visible frames and keeps its return label readable at the actual 200% font', async ({ page }) => {
@@ -236,9 +259,8 @@ test('overview fits visible frames and keeps its return label readable at the ac
   await page.getByRole('searchbox').press('Enter')
   const original = await page.evaluate(() => window.__readMapProfileText('idle-slayer-ascension-map.profile.v1'))
   for (const layout of ['Game Layout', 'Detailed Layout']) {
-    await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
-    await page.getByRole('button', { name: 'Map options', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click()
+    await chooseLayout(page, layout)
+    await mapAction(page, 'Overview visible map')
     await settle()
     await expect(page.locator('.toast')).toHaveCount(0)
     const back = page.getByRole('button', { name: 'Return to inspection', exact: true })
@@ -286,6 +308,7 @@ test('public reference copying and manual selection reflow at the actual 200% br
   await expect(page.locator('.details h2')).toHaveText('Permanent Slayer')
   await page.getByRole('button', { name: 'Show details', exact: true }).click()
   const region = page.getByRole('region', { name: 'Share upgrade reference', exact: true })
+  await exposeMapAction(page, region)
   const copy = region.getByRole('button', { name: 'Copy upgrade reference', exact: true })
   await copy.scrollIntoViewIfNeeded()
   expect(await copy.evaluate((element) => { const r = element.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(element); return r.width >= 44 && r.height >= 44 && [...range.getClientRects()].every((b) => b.left >= r.left - 1 && b.right <= r.right + 1) })).toBe(true)
@@ -307,8 +330,7 @@ test('recent inspection controls stay usable at the actual 200% browser font', a
     await page.getByRole('searchbox').fill(node.title)
     await page.locator(`.search-result[data-upgrade-id="${node.id}"]`).click()
   }
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Recent upgrades…', exact: true }).click()
+  await mapAction(page, 'Recent upgrades…')
   const dialog = page.getByRole('dialog', { name: 'Recent upgrades', exact: true })
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   for (const row of await dialog.locator('[data-upgrade-id]').all()) {
@@ -330,8 +352,7 @@ test('recent guidance and its clear action fit with wide font metrics at actual 
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.getByRole('searchbox').press('Enter')
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Recent upgrades…', exact: true }).click()
+  await mapAction(page, 'Recent upgrades…')
   const dialog = page.getByRole('dialog', { name: 'Recent upgrades', exact: true })
   // System-font metrics differ across platforms; keep the real browser text size.
   await dialog.locator('.recent-upgrades').evaluate((element) => { (element as HTMLElement).style.fontFamily = 'Verdana, sans-serif' })
@@ -363,9 +384,7 @@ test('recent guidance and its clear action fit with wide font metrics at actual 
 test('prior ascension history keeps its input and actions inside a narrow large-text dialog', async ({ page }) => {
   await page.goto('./ascension/')
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Progress', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Your progress', exact: true })
+  const dialog = await openPriorAscensions(page)
   const form = dialog.locator('.prior-ascensions')
   expect(await form.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   const input = form.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })
@@ -418,9 +437,9 @@ test('reference sheet controls and exact outgoing document reflow at actual 32px
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.locator(`.search-result[data-upgrade-id="${catalog.startId}"]`).click()
   await page.getByRole('button', { name: 'Show details', exact: true }).click()
-  await page.getByRole('button', { name: 'Add to reference sheet', exact: true }).click()
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Reference sheet', exact: true }).click()
+  await mapAction(page, 'Add to reference sheet')
+  await closeMapOptions(page)
+  await mapAction(page, 'Reference sheet…')
   const dialog = page.getByRole('dialog', { name: 'Upgrade reference sheet', exact: true })
   await dialog.getByRole('button', { name: 'Review outgoing sheet', exact: true }).click()
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)

@@ -181,7 +181,7 @@ test('actual Ultra Ascension previews and resets the real quest-pack catalog wit
   await page.addInitScript(({ key, stored }) => localStorage.setItem(key, stored), { key: COMPANION_STORAGE_KEY, stored })
   await page.goto('./')
   await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  const preview = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  const preview = page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true })
   await expect(preview.getByRole('heading', { name: 'Apply this Ultra Ascension?', exact: true })).toBeVisible()
   expect(await progress(page)).toEqual(initial)
   await preview.getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()

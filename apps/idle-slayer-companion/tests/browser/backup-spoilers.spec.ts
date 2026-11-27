@@ -1,4 +1,4 @@
-import { openProgress } from './helpers/app'
+import { historyAction, restoreFile } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -9,8 +9,7 @@ import { emptyProfile, type Catalog, type Profile } from '../../src/domain/types
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 
 async function chooseBackup(page: Page, profile: Profile) {
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({
+  await restoreFile(page, {
     name: 'synthetic-profile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)),
   })
   const dialog = page.getByRole('dialog', { name: 'Restore progress?', exact: true })
@@ -68,9 +67,7 @@ for (const currentSpoilerPolicy of [false, true]) {
         const restoredVisibility = visibility(catalog, restored)
         await expect(page.locator('.map-summary')).toContainText(`${restoredVisibility.owned} / ${restoredVisibility.total} visible upgrades owned`)
 
-        const undo = page.getByRole('button', { name: 'Undo', exact: true })
-        if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-        await undo.click()
+        await historyAction(page, 'Undo')
         await expect.poll(() => stored(page)).toEqual(current)
       })
     }
@@ -82,8 +79,7 @@ test('invalid JSON backup keeps the current profile without displaying a restore
   current.purchases['future-current-upgrade'] = { epoch: 0, active: false }
   await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile: current })
   await page.goto('./ascension/')
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({
+  await restoreFile(page, {
     name: 'invalid-synthetic-profile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...current, showSpoilers: 'true' })),
   })
   await expect(page.getByRole('status', { name: 'Map action feedback', exact: true })).toContainText('does not match the supported profile format')

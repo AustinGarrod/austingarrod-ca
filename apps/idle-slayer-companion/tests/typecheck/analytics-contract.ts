@@ -27,6 +27,9 @@ export function authoredAnalyticsContract(controller: ReturnType<typeof createAn
   trackEvent('app_ready', { source: 'map' })
   // @ts-expect-error Only actual panels are permitted.
   controller.trackEvent('panel_opened', { panel: 'new-panel' })
+  // @ts-expect-error Retired dialogs (Map options, Your progress) are no longer panels.
+  controller.trackEvent('panel_opened', { panel: 'options' })
+  controller.trackEvent('panel_closed', { panel: 'goal' })
   // @ts-expect-error A string that looks like a boolean is not a boolean.
   trackEvent('details_toggled', { expanded: 'true' })
   // @ts-expect-error Camera actions cannot contain arbitrary link actions.

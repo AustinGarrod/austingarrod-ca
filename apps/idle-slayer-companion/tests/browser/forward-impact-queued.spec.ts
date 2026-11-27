@@ -2,7 +2,7 @@ import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
 import { PROFILE_STORAGE_KEY } from '../../src/domain/storage'
-import { openProgress } from './helpers/app'
+import { mapAction, openData } from './helpers/app'
 
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 type QueuedWindow = Window & { releaseForecastBackup?: () => void; forecastBackupFinished?: boolean }
@@ -23,16 +23,16 @@ for (const failure of [false, true]) test(`a queued backup ${failure ? 'failure'
   }, failure)
   await page.route('https://analytics.garrod.house/**', (route) => route.abort())
   await page.goto('./ascension/')
-  const progress = await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-queued.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...emptyProfile(catalog.revision), epoch: 9 })) })
+  const data = await openData(page, { advanced: false })
+  await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'synthetic-queued.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...emptyProfile(catalog.revision), epoch: 9 })) })
   await expect.poll(() => page.evaluate(() => typeof (window as QueuedWindow).releaseForecastBackup)).toBe('function')
-  await progress.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await data.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.getByRole('searchbox').press('Enter')
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
   const stored = await page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)
-  await page.getByRole('button', { name: 'Analyze forward impact…', exact: true }).click()
+  await mapAction(page, 'Analyze forward impact…')
   const dialog = page.getByRole('dialog', { name: 'Forward impact', exact: true })
   await expect(dialog).toBeVisible()
   await page.evaluate(() => (window as QueuedWindow).releaseForecastBackup?.())
@@ -42,6 +42,7 @@ for (const failure of [false, true]) test(`a queued backup ${failure ? 'failure'
   await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toHaveCount(0)
   await expect(dialog).not.toContainText('could not be read')
   await expect(dialog).not.toContainText('epoch 9')
+  await expect(page.locator('.companion-feedback')).toHaveCount(0)
   expect(await page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)).toBe(stored)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)

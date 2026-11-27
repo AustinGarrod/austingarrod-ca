@@ -83,8 +83,14 @@ test('backup groups keep exports and file labels separate, and intentions restor
   await review.getByRole('button', { name: 'Replace intentions', exact: true }).click()
   await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).workspace, COMPANION_WORKSPACE_KEY)).toEqual(workspace)
   expect(await progress(page)).toEqual(before)
-  await dialog.getByRole('button', { name: 'Open Ascension data tools', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Your progress', exact: true })).toBeVisible()
+  // The original Ascension-only map file and the Ascension collections sit beside the single files.
+  const mapFile = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Export Ascension map backup', exact: true }).click()
+  expect((await mapFile).suggestedFilename()).toMatch(/\.json$/)
+  await expect(dialog.getByRole('status').filter({ hasText: 'Ascension map backup exported. It holds Ascension progress only.' })).toBeVisible()
+  expect(await progress(page)).toEqual(before)
+  await dialog.getByRole('button', { name: 'Checkpoints: export or restore…', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })).toBeVisible()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
 })
 
@@ -179,7 +185,7 @@ test('Back up everything writes one file whose parts restore through their own p
 test('an unmet Ultra Ascension names what is missing and clearing names its scope with a red confirm', async ({ page }) => {
   await page.goto('./')
   await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  const reset = page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true })
   const needs = reset.getByRole('region', { name: 'Ultra Ascension requirements', exact: true })
   await expect(needs).toBeVisible()
   await expect(needs.locator('.requirement-missing').first()).toBeVisible()

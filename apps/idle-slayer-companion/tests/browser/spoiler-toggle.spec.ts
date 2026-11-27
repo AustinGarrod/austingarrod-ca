@@ -1,3 +1,4 @@
+import { closeMapOptions, exposeMapAction, setSpoilers } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -66,22 +67,23 @@ async function expectCameraUnchanged(page: Page, expected: Camera) {
 async function spoilerCheckbox(page: Page): Promise<Locator> {
   await expect(page.locator('.toolbar')).toBeVisible()
   const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, checkbox)
   return page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
 }
 
 async function showSpoilers(page: Page, shown: boolean) {
   const checkbox = await spoilerCheckbox(page)
-  await checkbox.setChecked(shown)
+  await setSpoilers(page, shown)
   await expect(checkbox).toBeChecked({ checked: shown })
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
 }
 
 async function chooseLayout(page: Page, name: 'Game Layout' | 'Detailed Layout') {
   const button = page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name, exact: true })
+  await exposeMapAction(page, button)
   await button.click()
   await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await closeMapOptions(page)
   await finishRenderCycles(page)
 }
 
@@ -188,6 +190,8 @@ test('changing spoilers interrupts an active camera tween without a later reset'
   await page.goto('./ascension/')
   await expect(page.locator('.toolbar')).toBeVisible()
   await finishRenderCycles(page)
+  // Show spoilers lives under View; keep it open while zooming (a synthetic click leaves focus and View in place).
+  await exposeMapAction(page, page.getByRole('checkbox', { name: 'Show spoilers', exact: true }))
   const before = await camera(page)
   await page.evaluate(() => {
     const checkbox = document.querySelector<HTMLInputElement>('.toolbar .spoiler-control input')!
@@ -223,7 +227,7 @@ test('changing spoilers interrupts an active camera tween without a later reset'
     })
     Object.assign(window, { spoilerTweenOutcome: outcome })
   })
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click()
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).evaluate((button: HTMLButtonElement) => button.click())
   const captured = await page.evaluate(() => (window as unknown as { spoilerTweenOutcome: Promise<Camera> }).spoilerTweenOutcome)
   expect(captured.zoom).toBeGreaterThan(before.zoom)
   expect(captured.zoom).toBeLessThan(before.zoom * 1.2)

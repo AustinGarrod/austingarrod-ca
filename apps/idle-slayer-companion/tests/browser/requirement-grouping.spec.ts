@@ -1,3 +1,4 @@
+import { closeMapOptions, exposeMapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 
 test.beforeEach(async ({ page }) => {
@@ -11,10 +12,9 @@ for (const title of ['Soul Reaper III', 'Advanced Divinities']) {
     await page.goto('./ascension/')
     await expect(page.locator('.toolbar')).toBeVisible()
     const spoilers = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-    if (!await spoilers.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+    await exposeMapAction(page, spoilers)
     await spoilers.check()
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await page.getByRole('searchbox').fill(title)
     await page.locator('.search-result').filter({ hasText: title }).click()
     const expand = page.getByRole('button', { name: 'Show details', exact: true })

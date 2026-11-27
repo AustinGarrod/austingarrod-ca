@@ -1,5 +1,5 @@
 import { seedProfile } from './helpers/profile'
-import { openProgress } from './helpers/app'
+import { exportMapBackup, mapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import { emptyProfile, MAX_PROFILE_EPOCH, type Catalog } from '../../src/domain/types'
@@ -16,16 +16,15 @@ test('maximum accepted epoch refuses Ultra Ascension and remains exportable with
     'unknown-future': { epoch: 1, active: false },
   }, milestones: { 'unknown-milestone': true as const } }
   await seedProfile(page, profile)
-  await page.goto('./ascension/'); await openProgress(page)
-  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  await page.goto('./ascension/')
+  await mapAction(page, 'Record Ultra Ascension…')
+  const reset = page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true })
   await expect(reset.getByRole('button', { name: 'Record companion Ultra Ascension', exact: true })).toHaveCount(0)
   await expect(reset.getByRole('status')).toContainText('supported Ultra Ascension count limit')
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), key)).toEqual(profile)
   await reset.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await openProgress(page)
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual(profile)
 })
 
@@ -37,9 +36,9 @@ test('last safe Ultra Ascension saves, reloads and exports its reset without los
     'unknown-future': { epoch: 1, active: false },
   }, milestones: { 'unknown-milestone': true as const } }
   await seedProfile(page, profile, true)
-  await page.goto('./ascension/'); await openProgress(page)
-  await page.getByRole('button', { name: 'Record Ultra Ascension…', exact: true }).click()
-  const reset = page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true })
+  await page.goto('./ascension/')
+  await mapAction(page, 'Record Ultra Ascension…')
+  const reset = page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true })
   await expect(reset).toContainText(`Recorded Ultra Ascensions: ${MAX_PROFILE_EPOCH - 1} → ${MAX_PROFILE_EPOCH}`)
   await reset.getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
   const expected = { ...profile, epoch: MAX_PROFILE_EPOCH, purchases: {
@@ -47,8 +46,8 @@ test('last safe Ultra Ascension saves, reloads and exports its reset without los
     'unknown-future': { epoch: 1, active: false },
   } }
   await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), key)).toEqual(expected)
-  await page.reload(); await openProgress(page)
+  await page.reload()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual(expected)
 })

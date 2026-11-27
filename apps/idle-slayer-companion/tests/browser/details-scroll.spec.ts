@@ -1,3 +1,4 @@
+import { chooseLayout } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Locator, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -36,7 +37,7 @@ async function scrollDetails(details: Locator) {
 for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
   test(`${layout} resets details scrolling for a neighboring selection and keeps the same selection's position`, async ({ page }) => {
     await page.goto('./ascension/')
-    await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
+    await chooseLayout(page, layout)
     await selectUpgrade(page, start.title)
     await expandDetails(page)
     const details = page.getByRole('complementary', { name: 'Upgrade details', exact: true })

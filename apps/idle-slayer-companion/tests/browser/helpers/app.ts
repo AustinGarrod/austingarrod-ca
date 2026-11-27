@@ -27,9 +27,21 @@ export async function exposeMapAction(page: Page, action: Locator) {
   }
 }
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * A map control by its visible label. Menu actions that carry a note (why Record Ultra Ascension is not
+ * available yet, what Undo or Redo would change) currently include the note in their accessible name,
+ * so they are also matched by their label span.
+ */
+export function toolAction(page: Page, name: string) {
+  return page.getByRole('button', { name, exact: true })
+    .or(page.locator('.menu-popup > button').filter({ has: page.locator(':scope > span', { hasText: new RegExp(`^${escapeRegExp(name)}$`) }) }))
+}
+
 /** Click a map control wherever it lives in the map tools. */
 export async function mapAction(page: Page, name: string) {
-  const action = page.getByRole('button', { name, exact: true })
+  const action = toolAction(page, name)
   await exposeMapAction(page, action)
   await action.click()
 }
@@ -53,9 +65,7 @@ export async function openAction(page: Page, name: string) {
     await action.click()
     return
   }
-  const action = page.getByRole('button', { name, exact: true })
-  await exposeMapAction(page, action)
-  await action.click()
+  await mapAction(page, name)
 }
 
 /** Open Data & backup; by default also expand its Advanced single-file section. */
@@ -118,15 +128,41 @@ export async function restoreFile(page: Page, file: { name: string; mimeType: st
   await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles(file)
 }
 
+/** The QR transfer moved to Data & backup; it opens the map's 'Transfer map progress' dialog. */
+export async function openTransfer(page: Page, mode: 'send' | 'receive') {
+  const data = await openData(page, { advanced: false })
+  await data.getByRole('button', { name: mode === 'send' ? 'Send map progress by QR…' : 'Receive a transfer…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Transfer map progress', exact: true })
+  await expect(dialog).toBeVisible()
+  return dialog
+}
+
+/** The original Ascension-only map file, now under Data & backup's Advanced single files. Returns the Data dialog. */
+export async function exportMapBackup(page: Page) {
+  const data = await openData(page)
+  await data.getByRole('button', { name: 'Export Ascension map backup', exact: true }).click()
+  return data
+}
+
 /** Close any open View, Plan or Record tools. */
 export async function closeMapOptions(page: Page) {
   for (const toggle of toolDisclosures(page)) if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'true') await toggle.click()
 }
 
-export async function showSpoilers(page: Page, shown = true) {
+/**
+ * Set Show spoilers under View and read the result back. Hiding a selected spoiler closes its details and
+ * can move focus out of View (closing it), so the check reopens View when needed. Leaves View open.
+ */
+export async function setSpoilers(page: Page, shown: boolean) {
   const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
   await exposeMapAction(page, checkbox)
-  await checkbox.setChecked(shown)
+  if (await checkbox.isChecked() !== shown) await checkbox.click()
+  await exposeMapAction(page, checkbox)
+  await expect(checkbox).toBeChecked({ checked: shown })
+}
+
+export async function showSpoilers(page: Page, shown = true) {
+  await setSpoilers(page, shown)
   await closeMapOptions(page)
 }
 
@@ -135,6 +171,7 @@ export async function openSearchResults(page: Page) {
   await expectMapReady(page)
   const toggle = page.getByRole('button', { name: 'Toggle search results', exact: true })
   if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click()
+  else await page.getByRole('searchbox').focus()
   await expect(page.getByRole('region', { name: 'Visible upgrade results', exact: true })).toBeVisible()
   await expect(page.getByRole('searchbox')).toBeFocused()
 }
@@ -148,11 +185,26 @@ export async function selectUpgrade(page: Page, title: string) {
   await expect(page.locator('.details h2')).toHaveText(title)
 }
 
-export async function chooseLayout(page: Page, name: 'Detailed Layout' | 'Game Layout') {
+/** The layout switch: in the toolbar on wide maps, under View on narrow ones. */
+export function layoutButton(page: Page, name: string) {
+  return page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name, exact: true })
+}
+
+export async function chooseLayout(page: Page, name: string) {
   await expectMapReady(page)
-  const action = page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name, exact: true })
+  const action = layoutButton(page, name)
+  await exposeMapAction(page, action)
   await action.click()
   await expect(action).toHaveAttribute('aria-pressed', 'true')
+  await closeMapOptions(page)
+}
+
+/** Assert which layout is chosen, wherever the switch currently lives. */
+export async function expectLayout(page: Page, name: string) {
+  const action = layoutButton(page, name)
+  await exposeMapAction(page, action)
+  await expect(action).toHaveAttribute('aria-pressed', 'true')
+  await closeMapOptions(page)
 }
 
 export async function undoProgress(page: Page) {

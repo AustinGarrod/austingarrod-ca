@@ -1,3 +1,4 @@
+import { chooseLayout, expectLayout, exposeMapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -21,20 +22,20 @@ async function openSuggestions(page: Page) {
 
 async function undo(page: Page) {
   const button = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await button.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, button)
   await button.click()
 }
 
 test('wiki suggestion follows recorded purchases and undo without changing layout', async ({ page }) => {
   await page.goto('./ascension/')
-  await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: 'Game Layout', exact: true }).click()
+  await chooseLayout(page, 'Game Layout')
   let dialog = await openSuggestions(page)
   await expect(dialog.locator('.recommendation-main')).toHaveAttribute('data-upgrade-id', start.id)
   await expect(dialog.locator('.recommendation-main')).toContainText('2 SP')
   await dialog.locator('.recommendation-main').getByRole('button', { name: 'Show on map', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.locator('.details h2')).toHaveText(start.title)
-  await expect(page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Game Layout')
   expect(await page.evaluate(() => window.__readMapProfileText('idle-slayer-ascension-map.profile.v1'))).toBeNull()
 
   dialog = await openSuggestions(page)

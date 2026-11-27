@@ -141,28 +141,20 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 568 
     })
     expect(centered.x).toBeLessThanOrEqual(1)
     expect(centered.y).toBeLessThanOrEqual(1)
-    await (await openData(page)).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
-    const references = page.getByRole('dialog', { name: 'Ascension references', exact: true })
-    await expectSingleDialog(page, references)
+    // Data & backup's Ascension files open each Ascension tool as the only dialog.
     for (const [action, destination] of [
-      ['Progress checkpoints…', 'Progress checkpoints'],
-      ['Saved upgrade comparison…', 'Saved upgrade comparison'],
-      ['Progression goals…', 'Your progress'],
-      ['Map data tools…', 'Your progress'],
+      ['Checkpoints: export or restore…', 'Progress checkpoints'],
+      ['Saved comparison: export or restore…', 'Saved upgrade comparison'],
+      ['Goals…', 'Goals'],
     ] as const) {
-      await references.getByRole('button', { name: action, exact: true }).click()
+      const backup = await openData(page)
+      await expectSingleDialog(page, backup)
+      await backup.getByRole('button', { name: action, exact: true }).click()
       const child = page.getByRole('dialog', { name: destination, exact: true })
       await expectSingleDialog(page, child)
       await page.keyboard.press('Escape')
-      await (await openData(page)).getByRole('button', { name: 'Review Ascension references', exact: true }).click()
-      await expectSingleDialog(page, references)
+      await expect(page.locator('dialog[open]')).toHaveCount(0)
     }
-    await page.keyboard.press('Escape')
-    await openData(page)
-    const backup = page.getByRole('dialog', { name: 'Data & backup', exact: true })
-    await backup.getByRole('button', { name: 'Open Ascension data tools', exact: true }).click()
-    await expectSingleDialog(page, page.getByRole('dialog', { name: 'Your progress', exact: true }))
-    await page.keyboard.press('Escape')
     await openUtility(page, 'About & sources')
     const about = page.getByRole('dialog', { name: 'About & sources', exact: true })
     await expectSingleDialog(page, about)
@@ -176,11 +168,16 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 568 
     await install.getByRole('button', { name: 'Check update / retry download', exact: true }).click()
     await expect(install).toContainText('Connect to the internet to check for an update or retry the offline download.')
     await page.keyboard.press('Escape')
-    const optionsButton = page.getByRole('button', { name: 'Map options', exact: true })
-    await (await optionsButton.isVisible() ? optionsButton : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    for (const name of utilities) await expect(options.getByRole('button', { name, exact: true })).toHaveCount(0)
-    await page.keyboard.press('Escape')
+    // The map's View, Plan and Record tools hold map actions only, never the shell utilities.
+    for (const tool of ['View', 'Plan', 'Record']) {
+      const toggle = page.locator('.toolbar').getByRole('button', { name: tool, exact: true })
+      await toggle.click()
+      const popup = page.locator('.toolbar .menu-popup')
+      await expect(popup).toBeVisible()
+      for (const name of utilities) await expect(popup.getByRole('button', { name, exact: true })).toHaveCount(0)
+      await toggle.click()
+      await expect(popup).toHaveCount(0)
+    }
     expect(await recordedProgress(page)).toBe(before)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   })
@@ -197,11 +194,9 @@ test('Privacy routes a blocked reload to checkpoint recovery without replacing s
   const privacy = privacyDialog(page)
   await privacy.getByRole('button', { name: /^(Enable|Disable) tracking and reload$/ }).click()
   await expect(privacy).toContainText('Checkpoints or saved comparison need recovery. Review them in Ascension before reloading.')
-  await privacy.getByRole('button', { name: 'Review Ascension references', exact: true }).click()
-  const references = page.getByRole('dialog', { name: 'Ascension references', exact: true })
-  await expectSingleDialog(page, references)
-  await expect(references).toContainText('Some local references need recovery before closing or reloading.')
-  await references.getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  // A blocked reload offers each reference's own review; there is no separate references dialog.
+  await expect(privacy.getByRole('button', { name: 'Review saved comparison', exact: true })).toBeVisible()
+  await privacy.getByRole('button', { name: 'Review checkpoints', exact: true }).click()
   const checkpoints = page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })
   await expectSingleDialog(page, checkpoints)
   await expect(checkpoints.getByRole('button', { name: 'Replace saved checkpoints…', exact: true })).toBeVisible()

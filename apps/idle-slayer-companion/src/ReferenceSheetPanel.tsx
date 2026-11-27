@@ -33,12 +33,14 @@ export function ReferenceSheetPanel({ catalog, ids, getIds, viewer, getViewer, r
     setFeedback('Reviewed sheet opened in a separate tab. Use the browser Print command to print or save as PDF.')
   }
   return <section className="reference-sheet-panel telemetry-private rr-block" aria-label="Reference sheet selection">
-    <p>Choose up to {MAX_SHEET_UPGRADES} visible upgrades using Add to reference sheet in their expanded details. This selection lasts for this visit. The sheet contains public catalog facts only.</p>
+    <p>Choose up to {MAX_SHEET_UPGRADES} visible upgrades with Add to reference sheet in their Share menu. This selection lasts for this visit. The sheet contains public catalog facts only.</p>
     <ul>{sheet.ids.map((id) => <li key={id}><b>{catalog.upgrades.find((upgrade) => upgrade.id === id)!.title}</b><small>Native ID: {id}</small><button onClick={() => remove(id)} aria-label={`Remove sheet upgrade ${id}`}>Remove from sheet</button></li>)}</ul>
-    {!sheet.ids.length && <p>No visible upgrades selected. Inspect an upgrade and add it from its expanded details.</p>}
+    {!sheet.ids.length && <p>No visible upgrades selected. Inspect an upgrade and add it from its Share menu.</p>}
     <button disabled={!sheet.ids.length} onClick={() => { const current = createReferenceSheet(catalog, getViewer(), getIds()); setPreview(current.ids.length ? current.html : null); setFeedback('') }}>Review outgoing sheet</button>
     <button disabled={!sheet.ids.length} onClick={clear}>Clear reference selection</button>
-    {currentPreview && <><p>The document below is the complete outgoing file. It includes only the selected visible facts and their attribution. Requirement excerpts are not complete routes. No recorded progress or notes are included.</p><iframe title="Complete outgoing upgrade reference sheet" srcDoc={currentPreview} sandbox="" referrerPolicy="no-referrer" /><div className="reference-sheet-actions"><button onClick={save}>Save reviewed HTML</button><button onClick={print}>Open reviewed sheet for printing</button></div></>}
+    {/* The actions and their result sit above the reviewed document, so they stay in view after review. */}
+    {currentPreview && <><p>The document below is the complete outgoing file. It includes only the selected visible facts and their attribution. Requirement excerpts are not complete routes. No recorded progress or notes are included.</p><div className="reference-sheet-actions"><button onClick={save}>Save reviewed HTML</button><button onClick={print}>Open reviewed sheet for printing</button></div></>}
     <p aria-live="polite" aria-atomic="true">{feedback}</p>
+    {currentPreview && <iframe title="Complete outgoing upgrade reference sheet" srcDoc={currentPreview} sandbox="" referrerPolicy="no-referrer" />}
   </section>
 }

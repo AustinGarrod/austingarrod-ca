@@ -144,7 +144,7 @@ test('Game titles appear on hover and keyboard focus while details retain the fu
   await expect.poll(() => titleIsPainted(title)).toBe(false)
   await node.hover()
   await expect.poll(() => titleIsPainted(title)).toBe(true)
-  await page.getByRole('button', { name: 'Game Layout', exact: true }).hover()
+  await page.getByRole('button', { name: 'Next upgrade', exact: true }).hover()
   await expect.poll(() => titleIsPainted(title)).toBe(false)
   await page.keyboard.press('Tab')
   await node.focus()

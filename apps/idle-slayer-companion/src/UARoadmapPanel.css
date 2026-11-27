@@ -17,5 +17,4 @@ dialog:has(.ua-roadmap) { width: min(1000px, calc(100vw - 24px)); overflow-wrap:
 .roadmap-items label, .roadmap-boundary, .roadmap-route label { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; min-height: 44px; }
 .roadmap-items input, .roadmap-boundary input, .roadmap-route input { flex-shrink: 0; }
 .roadmap-summary { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.detail-secondary > .roadmap-entry { margin-top: 12px; max-width: 100%; overflow-wrap: anywhere; font-size: .875rem; }
 @media (min-width: 64em) { .roadmap-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

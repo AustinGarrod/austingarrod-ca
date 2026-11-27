@@ -291,7 +291,7 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
       const ids = current.ids.filter((entry) => live.ids.has(entry))
       if (ids.includes(id)) return { ids, feedback: 'This upgrade is already in the reference selection.' }
       if (ids.length >= MAX_SHEET_UPGRADES) return { ids, feedback: 'The four-upgrade sheet is full. Remove an entry in Reference sheet before adding another.' }
-      return { ids: [...ids, id], feedback: 'Upgrade added to the reference selection. Open Reference sheet in Map options to review it.' }
+      return { ids: [...ids, id], feedback: 'Upgrade added to the reference selection. Open Plan → Reference sheet… to review it.' }
     })
   }
   const graphTabStop = visible.ids.has(graphFocus) ? graphFocus : visible.upgrades[0]?.id
@@ -730,7 +730,10 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     lastSelection.current = null; setSelected(null); setRequirementReview(null)
     if (keyboardSearchDetails.current) {
       keyboardSearchDetails.current = false
-      searchInput.current?.focus({ preventScroll: true })
+      // Return to search only when focus was in the closing details (or lost with them); a player
+      // working in another control, such as Show spoilers under View, keeps their place.
+      const active = document.activeElement
+      if (!active || active === document.body || document.querySelector('.details')?.contains(active)) searchInput.current?.focus({ preventScroll: true })
     }
   }
   function toggleSpoilers(enabled: boolean) {

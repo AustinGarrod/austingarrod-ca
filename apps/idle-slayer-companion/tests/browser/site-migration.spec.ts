@@ -13,7 +13,7 @@ import { COMPANION_WORKSPACE_KEY, emptyCompanionWorkspace } from '../../src/doma
 import { CHECKPOINT_STORAGE_KEY, emptyCheckpoints } from '../../src/domain/checkpoints'
 import { COMPARISON_STORAGE_KEY, emptyComparison } from '../../src/domain/saved-comparison'
 import { visibility } from '../../src/domain/rules'
-import { openData, openProgress } from './helpers/app'
+import { mapAction, openData } from './helpers/app'
 import type { Locator, Page } from '@playwright/test'
 
 test.use({ serviceWorkers: 'allow', appServiceWorkers: true })
@@ -104,10 +104,7 @@ async function exportedFile(page: Page, action: Locator) {
   return readFileSync(file!)
 }
 async function openComparison(page: Page) {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  const mobile = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await mobile.isVisible() ? mobile : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Saved upgrade comparison…', exact: true }).click()
+  await mapAction(page, 'Saved upgrade comparison…')
   return page.getByRole('dialog', { name: 'Saved upgrade comparison', exact: true })
 }
 
@@ -142,7 +139,7 @@ test('four guided JSON backups restore across origins without silently replacing
   const progressFile = await exportedFile(page, page.getByRole('button', { name: 'Export Companion progress', exact: true }))
   const intentionsFile = await exportedFile(page, page.getByRole('button', { name: 'Export intentions', exact: true }))
   await page.goto(origin + companion + 'ascension/')
-  await (await openProgress(page)).getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   const checkpointFile = await exportedFile(page, page.getByRole('button', { name: 'Export checkpoints', exact: true }))
   await page.goto(origin + companion + 'ascension/')
   const comparisonFile = await exportedFile(page, (await openComparison(page)).getByRole('button', { name: 'Export comparison', exact: true }))
@@ -177,7 +174,7 @@ test('four guided JSON backups restore across origins without silently replacing
   await page.getByRole('button', { name: 'Replace intentions', exact: true }).click()
   await expect.poll(() => page.evaluate((key) => { const raw = JSON.parse(localStorage.getItem(key)!); return raw.workspace ?? raw }, COMPANION_WORKSPACE_KEY)).toEqual(intentions)
   await page.goto(baseURL + 'ascension/')
-  await (await openProgress(page)).getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   await page.getByLabel('Progress checkpoints JSON backup', { exact: true }).setInputFiles({ name: 'checkpoints.json', mimeType: 'application/json', buffer: checkpointFile })
   await page.getByRole('button', { name: 'Replace checkpoint collection', exact: true }).click()
   await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), CHECKPOINT_STORAGE_KEY)).toEqual(checkpoints)

@@ -1,3 +1,4 @@
+import { closeMapOptions, exposeMapAction, mapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -36,7 +37,7 @@ test('copyable exact-ID link uses recipient progress, clears incoming URL data a
   expect(await saved(page)).toBe(JSON.stringify(own))
   expect(await page.title()).toBe('Idle Slayer Companion · Ascension')
   await expand(page)
-  await page.getByRole('button', { name: 'Copy upgrade reference', exact: true }).click()
+  await mapAction(page, 'Copy upgrade reference')
   await expect(page.locator('.reference-copy-feedback')).toHaveText('Upgrade reference copied.')
   expect(await page.evaluate(() => (window as Window & { copiedUpgradeReference?: string }).copiedUpgradeReference)).toBe(link)
   const navigationHeaders: string[] = []
@@ -99,17 +100,16 @@ test('live fragments resolve once, sanitize immediately and do not resurrect a h
   await expect(page.locator('.toast')).toContainText('unavailable under your current spoiler setting')
   await expect(page.locator('.details h2')).toHaveText('Permanent Slayer')
   const spoilerControl = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await spoilerControl.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, spoilerControl)
   await spoilerControl.check()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await expect(page.locator('.details h2')).toHaveText('Permanent Slayer')
 })
 
 test('clipboard fallback is selectable, replay-blocked and clears with a different selection', async ({ page, baseURL }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Synthetic clipboard refusal') } } }))
   await page.goto(reference(baseURL!, catalog.startId)); await expand(page)
-  await page.getByRole('button', { name: 'Copy upgrade reference', exact: true }).click()
+  await mapAction(page, 'Copy upgrade reference')
   const field = page.getByRole('textbox', { name: 'Upgrade reference link', exact: true })
   await expect(field).toHaveValue(reference(baseURL!, catalog.startId))
   await expect(page.getByRole('region', { name: 'Share upgrade reference', exact: true })).toHaveClass(/telemetry-private rr-block/)
@@ -118,6 +118,9 @@ test('clipboard fallback is selectable, replay-blocked and clears with a differe
   expect(await saved(page)).toBeNull()
   await page.getByRole('searchbox').fill('Minions')
   await page.locator('.search-result').filter({ has: page.locator('.discovery-title', { hasText: /^Minions$/ }) }).click()
+  // Reopen Share for the new selection: its reference starts fresh.
+  await expand(page)
+  await exposeMapAction(page, page.getByRole('region', { name: 'Share upgrade reference', exact: true }))
   await expect(page.getByRole('textbox', { name: 'Upgrade reference link', exact: true })).toHaveCount(0)
   await expect(page.locator('.reference-copy-feedback')).toBeEmpty()
 })

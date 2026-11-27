@@ -527,9 +527,6 @@ dialog:has(.purchase-confirm-actions) { overflow-wrap: anywhere; }
 .reference-sheet-panel iframe { width: 100%; height: 26rem; border: 1px solid var(--muted); background: white; }
 .reference-sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-@media (max-width: 68.75em), (max-height: 540px) {
-  .details:not(.expanded) > .detail-secondary { display: none; }
-}
 
 /* Compact labels carry the same typography as the portfolio utility shell. */
 label, dt, th, .state-label, .node-symbol, .recommendation-status, .tracking-status { font-family: 'JetBrains Mono', ui-monospace, monospace; }
@@ -573,7 +570,7 @@ dialog button:not(.dialog-close), .details button { font-size: .875rem; }
 /* Map toolbar by intent: Find (search), then Next upgrade, layout and the View, Plan and Record tools.
    It wraps instead of hiding tools: search takes the full first row on narrow canvases. */
 .atlas .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; }
-.atlas .toolbar > .search-box { flex: 1 1 260px; min-width: 0; }
+.atlas .toolbar > .search-box { flex: 1 1 180px; min-width: 0; }
 .map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .map-tools > button, .map-tools .menu-button > button { font-size: .8125rem; white-space: nowrap; }
 .atlas .map-tools > .next-upgrade { width: auto; padding: 8px 12px; font-size: .8125rem !important; white-space: nowrap; }
@@ -589,6 +586,10 @@ dialog button:not(.dialog-close), .details button { font-size: .875rem; }
 .menu-popup > button small { color: var(--muted); font-size: .75rem; }
 .view-popover { display: grid; gap: 4px; }
 .view-popover .spoiler-control { white-space: normal; }
+/* Popup labels wrap rather than overflow when text is enlarged. */
+.menu-popup > button, .menu-popup .view-popover > button, .menu-popup .layout-control button { white-space: normal; overflow-wrap: anywhere; }
+.menu-popup .view-layout { flex-wrap: wrap; }
+.menu-popup .view-layout button { flex: 1 1 auto; }
 .toast { max-width: calc(100% - 24px); }
 @container (max-width: 760px) {
   .atlas .toolbar > .search-box { flex-basis: 100%; }
@@ -597,8 +598,19 @@ dialog button:not(.dialog-close), .details button { font-size: .875rem; }
   .toolbar-layout { display: none; }
   .view-layout { display: flex; }
   .view-layout button { flex: 1 1 0; }
-  .menu-popup { right: auto; left: 0; }
-  .map-tools > .menu-button:last-child .menu-popup { right: 0; left: auto; }
+  /* The tools sit at the right of their row, so every popup opens from the row's right edge, below it. */
+  .map-tools { position: relative; }
+  .map-tools > .menu-button { position: static; }
+  .map-tools .menu-popup { right: 0; left: auto; }
+}
+/* Narrow phones: tighter tools fit one row at ordinary text sizes, so short screens keep a usable
+   canvas (larger text still wraps); popups take the tools' full width so none opens off-screen. */
+@container (max-width: 420px) {
+  .map-tools { gap: 4px; }
+  .map-tools .menu-popup { left: 0; min-width: 0; max-width: none; }
+  .atlas .map-tools > .next-upgrade { flex: 1 1 auto; padding: 8px 6px; }
+  .map-tools .menu-button > button { padding: 8px; }
+  .map-tools .menu-button-caret { display: none; }
 }
 /* Upgrade details: the one action first, planning and sharing behind two disclosures that open in place. */
 .detail-actions { align-items: center; }

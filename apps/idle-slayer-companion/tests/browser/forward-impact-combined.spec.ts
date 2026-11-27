@@ -1,6 +1,7 @@
 import { expect, test } from './fixtures'
 
-for (const next of ['Recent upgrades…', 'Compare this upgrade…']) test(`a same-task ${next} action replaces the private forecast without changing stored documents`, async ({ page }, info) => {
+// Both actions sit in the upgrade's Plan tools, after the purchase controls.
+for (const next of ['Set a goal…', 'Compare this upgrade…']) test(`a same-task ${next} action replaces the private forecast without changing stored documents`, async ({ page }, info) => {
   if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 568 })
   await page.addInitScript(() => { if (location.origin !== 'null') localStorage.setItem('idle-slayer-ascension-map.analytics.v1', 'disabled') })
   await page.route('https://analytics.garrod.house/**', (route) => route.abort())
@@ -9,13 +10,14 @@ for (const next of ['Recent upgrades…', 'Compare this upgrade…']) test(`a sa
   await page.getByRole('searchbox').press('Enter')
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
+  await page.locator('.details').getByRole('button', { name: 'Plan with this upgrade', exact: true }).click()
   const stored = await page.evaluate(() => Object.keys(localStorage).sort().map((key) => [key, window.__readMapProfileText(key)]))
   const connected = await page.locator('.details').evaluate((element, next) => {
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('button')]
     const analyze = buttons.find((button) => button.textContent === 'Analyze forward impact…')
     const following = buttons.find((button) => button.textContent === next)
     if (!analyze || !following) throw new Error('Expected both actual native auxiliary controls')
-    if (!analyze.closest('.detail-secondary') || !(element.querySelector('.detail-actions')!.compareDocumentPosition(analyze) & Node.DOCUMENT_POSITION_FOLLOWING)) throw new Error('Expected analysis after main purchase controls')
+    if (!analyze.closest('.detail-plan .menu-popup') || !(element.querySelector('.detail-actions')!.compareDocumentPosition(analyze) & Node.DOCUMENT_POSITION_FOLLOWING)) throw new Error('Expected analysis after main purchase controls')
     analyze.click()
     const connected = following.isConnected
     following.click()
@@ -23,7 +25,7 @@ for (const next of ['Recent upgrades…', 'Compare this upgrade…']) test(`a sa
   }, next)
   expect(connected).toBe(true)
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  const dialog = page.getByRole('dialog', { name: next === 'Recent upgrades…' ? 'Recent upgrades' : 'Saved upgrade comparison', exact: true })
+  const dialog = page.getByRole('dialog', { name: next === 'Set a goal…' ? 'Set a goal for Permanent Slayer' : 'Saved upgrade comparison', exact: true })
   await expect(dialog).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Forward impact', exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => Object.keys(localStorage).sort().map((key) => [key, window.__readMapProfileText(key)]))).toEqual(stored)

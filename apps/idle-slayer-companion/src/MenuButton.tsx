@@ -11,7 +11,8 @@ export interface MenuItem {
   ariaLabel?: string
 }
 
-const focusable = (root: HTMLElement | null) => [...(root?.querySelectorAll<HTMLElement>('button:not(:disabled):not([aria-disabled="true"]), input:not(:disabled), select:not(:disabled), textarea, a[href]') ?? [])]
+// Only rendered controls: a popover can hold controls that a wide layout hides (the View layout switch).
+const focusable = (root: HTMLElement | null) => [...(root?.querySelectorAll<HTMLElement>('button:not(:disabled):not([aria-disabled="true"]), input:not(:disabled), select:not(:disabled), textarea, a[href]') ?? [])].filter((element) => element.getClientRects().length > 0)
 
 function usePopup() {
   const [open, setOpen] = useState(false)
@@ -45,7 +46,8 @@ export function MenuButton({ label, buttonLabel, items, className, icon }: { lab
   const menu = usePopup()
   const available = items.filter((item): item is MenuItem => Boolean(item))
   function onButtonKey(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); menu.show('first') }
+    if (event.key === 'Escape' && menu.open) { event.preventDefault(); event.stopPropagation(); menu.close() }
+    else if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); menu.show('first') }
     else if (event.key === 'ArrowUp') { event.preventDefault(); menu.show('last') }
   }
   function onMenuKey(event: KeyboardEvent<HTMLDivElement>) {
@@ -60,7 +62,8 @@ export function MenuButton({ label, buttonLabel, items, className, icon }: { lab
   return <div className={`menu-button${className ? ' ' + className : ''}`} ref={menu.wrapper} onBlur={(event) => { if (menu.open && event.relatedTarget && !menu.wrapper.current?.contains(event.relatedTarget as Node)) menu.setOpen(false) }}>
     <button type="button" ref={menu.button} aria-label={buttonLabel} aria-expanded={menu.open} aria-controls={menu.open ? id : undefined} onClick={() => { if (menu.open) menu.setOpen(false); else menu.show('first') }} onKeyDown={onButtonKey}>{icon}{label}<span className="menu-button-caret" aria-hidden="true">▾</span></button>
     {menu.open && <div className="menu-popup" role="group" id={id} aria-label={buttonLabel ?? label} ref={menu.popup} onKeyDown={onMenuKey}>
-      {available.map((item, index) => <button type="button" key={item.label} aria-label={item.ariaLabel} aria-describedby={item.note ? `${id}-note-${index}` : undefined} disabled={item.disabled} onClick={() => { if (item.disabled) return; menu.close(); item.onSelect() }}>
+      {/* The note is a description, not part of the name: "Undo", described as "No change available". */}
+      {available.map((item, index) => <button type="button" key={item.label} aria-label={item.ariaLabel ?? (item.note ? item.label : undefined)} aria-describedby={item.note ? `${id}-note-${index}` : undefined} disabled={item.disabled} onClick={() => { if (item.disabled) return; menu.close(); item.onSelect() }}>
         <span>{item.label}</span>{item.note && <small id={`${id}-note-${index}`}>{item.note}</small>}
       </button>)}
     </div>}
@@ -78,7 +81,7 @@ export function PopoverButton({ label, buttonLabel, children, className }: { lab
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); popover.close() }
   }
   return <div className={`menu-button${className ? ' ' + className : ''}`} ref={popover.wrapper} onBlur={(event) => { if (popover.open && !popover.wrapper.current?.contains(event.relatedTarget as Node | null) && event.relatedTarget) popover.setOpen(false) }}>
-    <button type="button" ref={popover.button} aria-label={buttonLabel} aria-expanded={popover.open} aria-controls={popover.open ? id : undefined} onClick={() => { if (popover.open) popover.setOpen(false); else popover.show('first') }} onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); popover.show('first') } }}>{label}<span className="menu-button-caret" aria-hidden="true">▾</span></button>
+    <button type="button" ref={popover.button} aria-label={buttonLabel} aria-expanded={popover.open} aria-controls={popover.open ? id : undefined} onClick={() => { if (popover.open) popover.setOpen(false); else popover.show('first') }} onKeyDown={(event) => { if (event.key === 'Escape' && popover.open) { event.preventDefault(); event.stopPropagation(); popover.close() } else if (event.key === 'ArrowDown') { event.preventDefault(); popover.show('first') } }}>{label}<span className="menu-button-caret" aria-hidden="true">▾</span></button>
     {popover.open && <div className="menu-popup menu-popover" role="group" aria-label={buttonLabel ?? label} id={id} ref={popover.popup} onKeyDown={onKey}>{children(() => popover.close())}</div>}
   </div>
 }
