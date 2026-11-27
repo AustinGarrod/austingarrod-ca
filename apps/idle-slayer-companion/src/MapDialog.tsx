@@ -3,7 +3,11 @@ import type { ReactNode } from 'react'
 
 export const DialogFeedbackContext = createContext<{ title: string | null; announcement: string; sequence: number; content: ReactNode; clear: () => void }>({ title: null, announcement: '', sequence: 0, content: null, clear: () => {} })
 
-export function Dialog({ title, children, close, dismissDisabled = false, returnFocus }: { title: string; children: ReactNode; close: () => void; dismissDisabled?: boolean; returnFocus?: () => HTMLElement | null }) {
+/**
+ * Modal dialog. `initialFocus` runs after showModal(), which otherwise moves focus to the first
+ * control and resets the scroll position; children cannot focus themselves while mounting.
+ */
+export function Dialog({ title, children, close, dismissDisabled = false, returnFocus, initialFocus }: { title: string; children: ReactNode; close: () => void; dismissDisabled?: boolean; returnFocus?: () => HTMLElement | null; initialFocus?: () => HTMLElement | null | undefined }) {
   const ref = useRef<HTMLDialogElement>(null)
   const feedbackRef = useRef<HTMLDivElement>(null)
   const feedback = useContext(DialogFeedbackContext)
@@ -13,6 +17,8 @@ export function Dialog({ title, children, close, dismissDisabled = false, return
     const previousFocus = document.activeElement
     const dialog = ref.current
     dialog?.showModal()
+    const target = initialFocus?.()
+    if (target && dialog?.contains(target)) { target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'start' }) }
     return () => {
       dialog?.close()
       const target = returnFocus?.() ?? (previousFocus instanceof HTMLElement && previousFocus.isConnected ? previousFocus : null)
