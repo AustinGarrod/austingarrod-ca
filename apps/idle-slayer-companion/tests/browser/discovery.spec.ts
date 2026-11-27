@@ -5,6 +5,7 @@ import type { Catalog, Profile } from '../../src/domain/types'
 import { emptyProfile } from '../../src/domain/types'
 import { satisfies, visibility } from '../../src/domain/rules'
 import { tabThroughDiscovery } from './helpers/discovery-focus'
+import { openSearchResults } from './helpers/app'
 
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 const initial = emptyProfile(catalog.revision)
@@ -24,7 +25,7 @@ async function seed(page: Page, profile: Profile) {
 
 test('browses every visible upgrade beyond the former 40-result limit and selects the final result', async ({ page }) => {
   await page.goto('./ascension/')
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   await expect(page.locator('.search-result')).toHaveCount(visible.total)
   await expect(page.locator('.results-heading')).toContainText(`${visible.total} visible results`)
   const final = visible.upgrades.at(-1)!
@@ -60,7 +61,7 @@ test('filters owned and pending progress separately, keeping spoiler-visible nat
   profile.purchases[pending.id] = { epoch: 0, active: false }
   await seed(page, profile)
   await page.goto('./ascension/')
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   const filter = page.getByRole('combobox', { name: 'Progress state' })
   await filter.selectOption('owned')
   await expect(page.locator('.search-result')).toHaveCount(2)
@@ -103,7 +104,7 @@ test('hidden effects, identities and counts never enter discovery; Escape and Ta
   await page.route('**/catalog.json', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(augmented) }))
   await page.goto('./ascension/')
   const search = page.getByRole('searchbox')
-  await search.focus()
+  await openSearchResults(page)
   await expect(page.locator('.search-result')).toHaveCount(visible.total)
   await expect(page.locator('.discovery-identity')).toHaveCount(0)
   await search.fill('PRIVATE-HIDDEN-EFFECT-9981')
@@ -124,7 +125,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
   test(`discovery scrolls inside ${viewport.width}×${viewport.height} without overflowing the page`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.goto('./ascension/')
-    await page.getByRole('searchbox').focus()
+    await openSearchResults(page)
     const panel = page.getByRole('region', { name: 'Visible upgrade results' })
     await expect(panel).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('discovery.png') })
@@ -158,7 +159,7 @@ test('native Tab keeps every focused title clear of the sticky header at 320×35
 test('pointer focus keeps a partially scrolled row stationary until its click selects it', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 350 })
   await page.goto('./ascension/')
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   const second = visible.upgrades[1]
   const row = result(page, second.id)
   const panel = page.getByRole('region', { name: 'Visible upgrade results' })

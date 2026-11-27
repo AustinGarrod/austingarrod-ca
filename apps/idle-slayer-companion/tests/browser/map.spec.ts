@@ -1,5 +1,5 @@
 import { noPageOverflow, selectedNodeIsUsable } from './helpers/geometry'
-import { exposeMapAction, openProgress, showSpoilers, selectUpgrade, chooseLayout, undoProgress } from './helpers/app'
+import { exposeMapAction, openProgress, openSearchResults, showSpoilers, selectUpgrade, chooseLayout, undoProgress } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -42,7 +42,7 @@ test('spoilers share one boundary across nodes, search, details and totals', asy
   await expect(page.locator('.search-result').filter({ hasText: hidden.title })).toHaveCount(0)
   await showSpoilers(page, true)
   await expect(page.locator('.map-summary')).toContainText(`0 / ${catalog.upgrades.length}`)
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   await page.locator('.search-result').filter({ hasText: hidden.title }).first().click()
   await expect(page.locator('.details h2')).toHaveText(hidden.title)
   await showSpoilers(page, false)

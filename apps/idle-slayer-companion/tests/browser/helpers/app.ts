@@ -81,9 +81,20 @@ export async function showSpoilers(page: Page, shown = true) {
   await closeMapOptions(page)
 }
 
+/** Browse every visible upgrade: focus alone no longer opens results, so use the search disclosure. */
+export async function openSearchResults(page: Page) {
+  await expectMapReady(page)
+  const toggle = page.getByRole('button', { name: 'Toggle search results', exact: true })
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click()
+  await expect(page.getByRole('region', { name: 'Visible upgrade results', exact: true })).toBeVisible()
+  await expect(page.getByRole('searchbox')).toBeFocused()
+}
+
 export async function selectUpgrade(page: Page, title: string) {
   await expectMapReady(page)
   await page.getByRole('searchbox').fill(title)
+  // Refilling the same title does not count as typing, so open the results explicitly.
+  await openSearchResults(page)
   await page.locator('.search-result').filter({ hasText: title }).first().click()
   await expect(page.locator('.details h2')).toHaveText(title)
 }

@@ -98,6 +98,8 @@ export function CompanionShell({ section, onNavigate, children, ascension, onDat
 
   return <div className={`companion-shell${collapsed ? ' companion-rail-collapsed' : ''}${largeText ? ' companion-large-text' : ''}${section === 'ascension' ? ' companion-map-section' : ''}`}>
     <a className="companion-skip" href="#companion-content" inert={navigationModal}>Skip to content</a>
+    {/* On the map, a second skip passes the search and its results to the first map tool. */}
+    {section === 'ascension' && <a className="companion-skip" href="#map-tools" inert={navigationModal} onClick={(event) => { const target = document.getElementById('map-tools'); if (!target) return; event.preventDefault(); target.focus() }}>Skip to map tools</a>}
     {/* The site's slim utility header, reproduced for this separate build. No tracker attributes: the portfolio's tracker never loads here. */}
     <header className="companion-topbar" inert={navigationModal} ref={topbar}>
       <div className="companion-header-start">

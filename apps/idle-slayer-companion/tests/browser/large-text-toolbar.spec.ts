@@ -1,5 +1,5 @@
 import { installProfileTestHelpers } from './fixtures'
-import { openAction } from './helpers/app'
+import { openAction, openSearchResults } from './helpers/app'
 import { chromium, expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -106,7 +106,7 @@ test('complete discovery remains reachable with the actual browser default font 
   const upgrades = visibility(catalog, emptyProfile(catalog.revision)).upgrades
   await page.goto('./ascension/')
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   await expect(page.getByRole('combobox', { name: 'Progress state' })).toBeVisible()
   await expect(page.locator('.search-result')).toHaveCount(upgrades.length)
   const final = upgrades.at(-1)!
