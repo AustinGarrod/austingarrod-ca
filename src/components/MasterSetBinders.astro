@@ -68,6 +68,10 @@ import { LayoutGrid } from "@lucide/astro";
     <details id="master-extra-options" hidden><summary>Custom extras</summary><div id="master-extra-options-list"></div></details>
     <p id="master-form-error" class="dex-error" role="alert"></p>
     <div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Save binder</button></div>
+    <section id="master-delete-section" class="dex-dialog-danger" aria-label="Delete binder" hidden>
+      <button id="master-delete" type="button" class="dex-danger">Delete binder</button>
+      <p class="dex-help">Removes this binder and its card marks. Your other binders stay as they are.</p>
+    </section>
   </form>
 </dialog>
 <dialog id="master-extra-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="master-extra-title">

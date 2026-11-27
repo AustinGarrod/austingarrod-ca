@@ -23,7 +23,7 @@ import {
   type SetSummary,
 } from "../lib/master";
 import type { BinderAccountState } from "../lib/accounts";
-import type { MasterStore } from "../lib/master-store";
+import { conflictInvolvesDelete, type MasterStore } from "../lib/master-store";
 import { validateSettings, type CardStatus } from "../lib/model";
 import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
 import { binderCards, binderSetIds, loadBinderCards, relatedSets, setCardKey } from "../lib/binder-catalog";
@@ -39,9 +39,17 @@ async function json<T>(file: string): Promise<T> {
   if (!response.ok) throw new Error("Set catalog could not load. Try again.");
   return response.json();
 }
+export interface MasterOptions {
+  openPrinting(target: PricingTarget): void;
+  bindersChanged(): void;
+  /** Asks before a destructive action. The dialog also offers a backup download. */
+  confirm(title: string, text: string, label: string, tone?: "danger"): Promise<boolean>;
+  /** Called after the open binder was deleted, so focus can move somewhere useful. */
+  deleted(): void;
+}
 export function createMasterUI(store: MasterStore, openScan: (target: SetScan) => void, scannerClose: () => void,
   view: { checklist: boolean }, renderNationalView: () => void, setInfo: Record<string, { symbol?: string }>,
-  pricing: { openPrinting(target: PricingTarget): void; bindersChanged(): void }) {
+  pricing: MasterOptions) {
   let scope = "guest",
     online = false,
     state = emptyMaster(),
@@ -159,6 +167,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const changed = !sameSave(state, save.state);
     state = save.state;
     if (changed) pricing.bindersChanged();
+    if (editing && dialog("master-editor").open && !state.binders.some((b) => b.id === editing))
+      node("master-form-error").textContent = "This binder was deleted. Close these settings to continue.";
     ready = true;
     node("master-conflict").hidden = !save.conflict;
     node("master-message").textContent =
@@ -167,8 +177,13 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
         : !online || save.flight || !sameSave(save.state, save.baseline)
           ? "Set binders saved on this device · Waiting to sync"
           : "Set binders synced";
-    if (save.conflict)
-      node("master-message").textContent = "Two devices changed the same binder. Review the copies by keeping both.";
+    if (save.conflict) {
+      const deleted = conflictInvolvesDelete(save);
+      node("master-message").textContent = deleted
+        ? "A binder was deleted on one device and changed on another. Keep the changed binder to bring it back; you can delete it again afterwards."
+        : "Two devices changed the same binder. Review the copies by keeping both.";
+      node("master-conflict").textContent = deleted ? "Keep the changed binder" : "Keep both versions of conflicting set binders";
+    }
     await render();
   }
   function progress(b: SetBinder) {
@@ -556,6 +571,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       extras.append(label);
     }
     node("master-form-error").textContent = "";
+    node("master-delete-section").hidden = !b;
     await specialties();
     dialog("master-editor").showModal();
     input(b ? "master-name" : "master-set").focus({ preventScroll: true });
@@ -563,7 +579,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   async function saveForm() {
     const set = chosenSet();
     if (!set) throw new Error("Choose a set from the catalog list.");
-    const binderId = editing ?? crypto.randomUUID(),
+    const existing = editing;
+    const binderId = existing ?? crypto.randomUUID(),
       name = input("master-name").value.trim();
     const settings: SetBinder["settings"] = validateSettings({
       columns: +input("master-columns").value,
@@ -585,6 +602,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     await change((doc) => {
       let b = doc.binders.find((v) => v.id === binderId);
       if (!b) {
+        // Never bring back a binder that was deleted while its settings were open.
+        if (existing) throw new Error("This binder was deleted. Close these settings to continue.");
         b = { ...newBinder(set.id, name), id: binderId };
         doc.binders.push(b);
       }
@@ -604,6 +623,42 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     void saveForm().catch((e) => {
       node("master-form-error").textContent = e.message;
     });
+  });
+  async function deleteBinder() {
+    const binderId = editing, target = scope;
+    const b = state.binders.find((binder) => binder.id === binderId);
+    if (!binderId || !b) throw new Error("This binder was already deleted.");
+    const marks = b.owned.length + (b.ordered?.length ?? 0);
+    const confirmed = await pricing.confirm(`Delete “${b.name}”?`,
+      `This removes the binder${marks ? ` and its ${marks} card ${marks === 1 ? "mark" : "marks"}` : ""} from this device`
+        + (target === "guest" ? ". " : " and your account. Your account keeps a recovery copy. ")
+        + "Download a backup first if you might want it back.",
+      "Delete binder", "danger");
+    if (!confirmed) {
+      input("master-name").focus({ preventScroll: true });
+      return;
+    }
+    if (target !== scope || editing !== binderId) throw new Error("The binder changed. Open its settings again.");
+    if (++pendingEdits === 1) window.addEventListener("beforeunload", waitForLocalSave);
+    try {
+      await store.remove(target, binderId);
+    } finally {
+      if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
+    }
+    editing = null;
+    if (id === binderId) id = "";
+    dialog("master-editor").close();
+    if (target === scope) {
+      await refresh();
+      schedule();
+    }
+    channel?.postMessage(target);
+    node("master-message").textContent = `Deleted “${b.name}”.`;
+    pricing.deleted();
+  }
+  node("master-delete").addEventListener("click", () => {
+    node("master-form-error").textContent = "";
+    void deleteBinder().catch((e) => { node("master-form-error").textContent = e instanceof Error ? e.message : "The binder could not be deleted."; });
   });
   listen("master-new", "click", () => openEditor());
   listen("first-set", "click", () => openEditor());

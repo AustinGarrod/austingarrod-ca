@@ -103,10 +103,12 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label>
       <label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label>
       <p class="dex-help">Changing the layout keeps all of your collected Pokémon.</p>
-      <button id="national-hide" type="button" class="dex-quiet">Hide National Pokédex</button>
-      <p class="dex-help">You can add it back with your progress and layout.</p>
       <p id="layout-error" class="dex-error" role="alert"></p>
       <div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div>
+      <section class="dex-dialog-danger" aria-label="Hide National Pokédex">
+        <button id="national-hide" type="button" class="dex-danger">Hide National Pokédex</button>
+        <p class="dex-help">Your collected Pokémon and layout are kept. You can add it back with your progress.</p>
+      </section>
     </form>
   </dialog>
 

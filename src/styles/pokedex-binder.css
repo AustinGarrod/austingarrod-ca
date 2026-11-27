@@ -38,7 +38,10 @@
 .pokedex-page button.dex-primary:hover { background: var(--primary-container); }
 .pokedex-page button.dex-quiet { border-color: transparent; background: transparent; color: var(--muted); }
 .pokedex-page button.dex-quiet:hover:not(:disabled) { border-color: var(--line); background: var(--surface-low); color: var(--ink); }
-.pokedex-page button.dex-danger { color: var(--danger); margin-top: 18px; }
+.pokedex-page button.dex-danger { color: var(--danger); border-color: var(--danger); background: var(--surface); }
+.pokedex-page button.dex-danger:hover:not(:disabled) { color: white; border-color: var(--danger); background: var(--danger); }
+.dex-dialog-danger { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.dex-dialog .dex-dialog-danger p { flex: 1 1 200px; margin: 0; }
 .pokedex-page select {
   appearance: none;
   height: var(--dex-control-height);

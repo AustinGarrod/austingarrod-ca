@@ -107,10 +107,29 @@ function mergeLibrary(
   }
   return validateMaster(result);
 }
+/** Says whether an unresolved conflict involves a binder deleted on one side and changed on the other. */
+export function conflictInvolvesDelete(save: Pick<SetSave, "state" | "baseline" | "conflict">) {
+  const remote = save.conflict?.state;
+  if (!remote) return false;
+  return save.baseline.binders.some((before) => {
+    const local = save.state.binders.find((b) => b.id === before.id);
+    const other = remote.binders.find((b) => b.id === before.id);
+    return (!local && other && !equal(other, before)) || (!other && local && !equal(local, before));
+  });
+}
 export class MasterStore {
   constructor(readonly db: BinderRecovery) {}
   async read(scope: string) {
     return (await this.db.get<SetSave>("sets:" + scope)) ?? fresh();
+  }
+  /** Deletes one set binder. An account keeps the version before the delete as a recovery copy. */
+  remove(scope: string, id: string) {
+    return this.update(scope, (save) => {
+      const kept = save.state.binders.filter((b) => b.id !== id);
+      if (kept.length === save.state.binders.length) throw new Error("This binder was already deleted.");
+      save.state.binders = kept;
+      if (scope !== "guest") save.preservePrevious = true;
+    });
   }
   update(scope: string, apply: (s: SetSave) => void) {
     return this.db.update<SetSave>("sets:" + scope, (current) => {

@@ -106,6 +106,11 @@ async function initialize() {
   const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets, {
     openPrinting(target) { pricing.openPrinting(target); },
     bindersChanged() { dashboard.bindersChanged(); },
+    confirm: confirmAction,
+    deleted() {
+      const target = ["master-switch", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
+      target?.focus();
+    },
   });
   const dashboard = createBuyCards({
     collection: master.collection,
@@ -189,9 +194,11 @@ async function initialize() {
     if(scope!==controller.restoreScope()) throw new Error("The account changed. Download the current backup again.");
     download(JSON.stringify({utility:"pokedex-binder",schemaVersion:2,exportedAt:new Date().toISOString(),state,masterSets:sets}), "pokedex-binder-backup.json", "application/json");
   }
-  function confirmAction(title: string, text: string, label: string): Promise<boolean> {
+  function confirmAction(title: string, text: string, label: string, tone?: "danger"): Promise<boolean> {
     const dialog = el<HTMLDialogElement>("confirm-dialog");
     el("confirm-title").textContent = title; el("confirm-text").textContent = text; el("confirm-accept").textContent = label;
+    el("confirm-accept").classList.toggle("dex-primary", tone !== "danger");
+    el("confirm-accept").classList.toggle("dex-danger", tone === "danger");
     return new Promise(resolve => {
       let result = false;
       const accept = () => { result = true; dialog.close(); };
