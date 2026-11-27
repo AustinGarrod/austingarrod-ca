@@ -91,17 +91,75 @@
   font-size: 13px;
 }
 
-.dex-buying-binder-filters > .dex-buying-filters {
+.dex-buying-binder-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 4fr);
+  align-items: start;
+  gap: 12px;
   padding: 16px;
   border: 1px solid var(--line);
   background: var(--surface);
 }
 
+.dex-buying-filter-bar {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.dex-buying-filter-bar .dex-buying-search {
+  flex: 1;
+}
+
+.dex-buying-filter-panel > .dex-help {
+  margin: 8px 0 0;
+}
+
+.pokedex-page .dex-buying-filters-toggle {
+  display: none;
+  flex: none;
+}
+
 .dex-buying-filters {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
+}
+
+.dex-buying-filter-count {
+  min-width: 20px;
+  padding: 0 5px;
+  background: var(--ink);
+  color: white;
+  font: 700 11px/20px "JetBrains Mono", monospace;
+  text-align: center;
+}
+
+.dex-buying-store-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  min-height: var(--dex-control-height);
+  margin: 0;
+  padding: 0 10px;
+  background: var(--surface-low);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dex-buying-store-line[data-availability="unavailable"] {
+  color: var(--danger);
+}
+
+.dex-buying-store-line .dex-link,
+.dex-buying-recheck .dex-link {
+  font-size: 13px;
+}
+
+.dex-buying-dashboard .dex-buying-recheck {
+  margin: 2px 0 0;
 }
 
 .dex-buying-dashboard label {
@@ -361,11 +419,23 @@
 }
 
 @media (max-width: 900px) {
+  .dex-buying-binder-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .dex-buying-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .dex-buying-search {
-    grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+  .pokedex-page .dex-buying-filters-toggle {
+    display: inline-flex;
+  }
+  .dex-buying-binder-filters:not(.is-open) .dex-buying-filter-panel {
+    display: none;
+  }
+  .pokedex-page .dex-buying-filters-toggle[aria-expanded="true"] {
+    border-color: var(--ink);
   }
 }
 
@@ -377,7 +447,7 @@
     margin-bottom: 16px;
   }
   .buy-catalog-search,
-  .dex-buying-binder-filters > .dex-buying-filters {
+  .dex-buying-binder-filters {
     padding: 12px;
   }
   .buy-catalog-search .catalog-search-filters {

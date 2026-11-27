@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+import { binderAction, cardLists, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder, transferAction } from './test-pokedex-helpers.mjs';
 
 const origin = process.env.POKEDEX_TRANSFER_ORIGIN || 'http://127.0.0.1:4321';
 const app = origin + '/utilities/pokemon-binder/';
@@ -31,7 +32,8 @@ async function open(page) {
 }
 
 async function preview(page, trigger, text, target = 'sets') {
-  await page.locator(trigger).click();
+  if (trigger === '#import-cards') await transferAction(page, trigger);
+  else await page.locator(trigger).click();
   await page.locator('#card-import-target').selectOption(target);
   await page.locator('#card-import-file').setInputFiles({ name: 'cards.csv', mimeType: 'text/csv', buffer: Buffer.from(text) });
   await page.locator('#card-import-preview').click();
@@ -53,7 +55,7 @@ try {
     assert.equal(await page.locator('#card-import-dialog').evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false, 'Import dialog overflow');
     await page.locator('#card-import-apply').click();
     await expect(page.locator('#card-import-dialog')).toBeHidden();
-    await expect(page.locator('#master-switch option')).toHaveCount(2);
+    await expect(homeCards(page)).toHaveCount(2);
     await expect(page.locator('#national-workspace')).toBeHidden();
     await expect(page.locator('#binder-onboarding')).toBeHidden();
 
@@ -61,9 +63,9 @@ try {
     await expect(page.locator('#card-review-summary')).toContainText('0 to add · 2 already owned');
     await page.locator('#card-import-apply').click();
     await expect(page.locator('#card-import-dialog')).toBeHidden();
-    await expect(page.locator('#master-switch option')).toHaveCount(2);
+    await expect(homeCards(page)).toHaveCount(2);
 
-    await page.locator('#export-cards').click();
+    await transferAction(page, '#export-cards');
     await page.locator('#card-export-scope').selectOption('');
     const downloadPromise = page.waitForEvent('download');
     await page.locator('#card-export-download').click();
@@ -113,18 +115,17 @@ try {
     assert.equal(await page.locator('#card-export-dialog').evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false, 'Export dialog overflow');
     await page.keyboard.press('Escape');
 
-    const set151 = page.locator('#master-switch option').filter({ hasText: /^151/ });
-    await page.locator('#master-switch').selectOption(await set151.getAttribute('value'));
+    await openBinder(page, '151');
     await page.locator('#master-view-checklist').click();
     const regular = page.locator('[data-checklist-row="001:normal"]');
-    await regular.getByRole('button', { name: 'Mark ordered for #001 · Bulbasaur · Regular' }).click();
+    await page.getByRole('radiogroup', { name: 'Status of #001 · Bulbasaur · Regular' }).getByRole('radio', { name: 'Ordered' }).check();
     await expect(page.locator('#master-ordered')).toHaveText('1');
-    await page.locator('#master-status').selectOption('missing');
+    await chooseFilter(page, '#master-status', 'missing');
     await expect(regular).toHaveCount(0);
-    await page.locator('#master-status').selectOption('ordered');
-    await expect(regular).toContainText('Ordered');
+    await chooseFilter(page, '#master-status', 'ordered');
+    await expect(regular.getByRole('radio', { name: 'Ordered' })).toBeChecked();
     assert.equal(await page.locator('#master-checklist').evaluate(section => section.scrollWidth > section.clientWidth + 1), false, 'Checklist overflow');
-    await page.locator('#export-cards').click();
+    await transferAction(page, '#export-cards');
     await page.locator('#card-export-list').selectOption('ordered');
     const orderedPromise = page.waitForEvent('download');
     await page.locator('#card-export-download').click();
@@ -134,10 +135,11 @@ try {
     assert.match(orderedCsv, /001,Bulbasaur,normal/);
     assert.doesNotMatch(orderedCsv, /001,Bulbasaur,reverse/);
     await page.keyboard.press('Escape');
-    await regular.getByRole('checkbox').check();
+    await openBinder(page, '151');
+    await regular.getByRole('radio', { name: 'Have it' }).click(); // The ordered filter hides the row once it is collected.
     await expect(page.locator('#master-ordered')).toHaveText('0');
-    await page.locator('#master-status').selectOption('owned');
-    await expect(regular.getByRole('checkbox')).toBeChecked();
+    await chooseFilter(page, '#master-status', 'owned');
+    await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
 
     await preview(page, '#import-cards', incoming, 'dex');
     await expect(page.locator('#card-review-summary')).toContainText('3 to add');
@@ -147,21 +149,22 @@ try {
     await expect(page.locator('#owned-count')).toHaveText('3');
     await page.locator('#view-checklist').click();
     const squirtle = page.locator('#checklist-list [data-checklist-row="7"]');
-    await squirtle.getByRole('button', { name: 'Mark ordered for Squirtle' }).click();
-    await page.locator('#dex-filter').selectOption('ordered');
+    await squirtle.getByRole('radiogroup', { name: 'Status of Squirtle' }).getByRole('radio', { name: 'Ordered' }).check();
+    await chooseFilter(page, '#dex-filter', 'ordered');
     await expect(page.locator('#ordered-count')).toHaveText('1');
-    await expect(squirtle).toContainText('Ordered');
+    await expect(squirtle.getByRole('radio', { name: 'Ordered' })).toBeChecked();
+    await cardLists(page);
     await page.locator('#position-list').selectOption('ordered');
     const positionPromise = page.waitForEvent('download');
     await page.locator('#export-csv').click();
     const positionCsv = await readFile(await (await positionPromise).path(), 'utf8');
     assert.match(positionCsv, /7,Squirtle,Ordered/);
-    await page.locator('#layout-open').click();
+    await binderAction(page, '#layout-open');
     await page.locator('#national-hide').click();
     await expect(page.locator('#national-workspace')).toBeHidden();
     await page.goto(origin + '/utilities/pokedex-binder/');
     await expect(page).toHaveURL(app);
-    await expect(page.locator('#master-switch option')).toHaveCount(2);
+    await expect(homeCards(page)).toHaveCount(2);
     await page.locator('#national-add').click();
     await expect(page.locator('#national-workspace')).toBeVisible();
     await expect(page.locator('#owned-count')).toHaveText('3');
@@ -172,8 +175,8 @@ try {
 
   const retryContext = await context(1440), retryPage = await retryContext.newPage();
   await open(retryPage);
-  for (const [index, name] of ['Original 151', 'Second 151'].entries()) {
-    await retryPage.locator(index ? '#master-new' : '#first-set').click();
+  for (const name of ['Original 151', 'Second 151']) {
+    await newSetBinder(retryPage);
     await retryPage.locator('#master-set').fill('sv03.5');
     await retryPage.locator('#master-name').fill(name);
     await retryPage.getByRole('button', { name: 'Save binder', exact: true }).click();
@@ -195,12 +198,13 @@ try {
   });
   await retryPage.locator('#card-import-apply').click();
   await expect(retryPage.locator('#card-import-error')).toContainText('Simulated failed save');
-  await expect(retryPage.locator('#master-switch option')).toHaveCount(2);
+  await expect(homeCards(retryPage)).toHaveCount(2);
   await retryPage.locator('#card-import-apply').click();
   await expect(retryPage.locator('#card-import-dialog')).toBeHidden();
-  await expect(retryPage.locator('#master-switch option').filter({ hasText: 'Original 151' })).toContainText('0/');
-  await expect(retryPage.locator('#master-switch option').filter({ hasText: 'Second 151' })).toContainText('1/');
-  await expect(retryPage.locator('#master-switch option')).toHaveCount(3);
+  await goHome(retryPage);
+  await expect(homeCard(retryPage, 'Original 151').locator('[data-owned-count]')).toHaveText('0');
+  await expect(homeCard(retryPage, 'Second 151').locator('[data-owned-count]')).toHaveText('1');
+  await expect(homeCards(retryPage)).toHaveCount(3);
   await retryContext.close();
   console.log('Passed explicit binder routing and atomic retry after an interrupted save.');
 

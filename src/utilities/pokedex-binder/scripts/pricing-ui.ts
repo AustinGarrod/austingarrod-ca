@@ -220,11 +220,16 @@ export function createPricingUI(options: Options) {
         return;
       }
       if (!exact() || candidates.length > 1) {
-        variant.replaceChildren(new Option("Choose a finish", ""), ...candidates.map(item => new Option(item.label, item.id)));
-        variant.value = exact() ? printing.variant : "";
-        variant.options[0].disabled = true;
+        variant.replaceChildren(...candidates.map(item => new Option(item.label, item.id)));
         node("card-pricing-variants").hidden = false;
-        if (!exact()) node("card-pricing-status").textContent = "Choose a finish to see exact prices.";
+        if (exact()) variant.value = printing.variant;
+        else {
+          // Start with the first finish so prices load at once; the select switches finishes.
+          const first = candidates[0];
+          target = { ...printing, variant: first.id, finish: first.label };
+          variant.value = first.id;
+          showPrinting();
+        }
       }
     }).catch(() => {
       if (active(version) && !exact()) node("card-pricing-status").textContent = "Printings could not load. Try opening the card again.";

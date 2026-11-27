@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
+import { binderAction } from '../../scripts/test-pokedex-helpers.mjs';
 const origin = process.env.BINDER_BROWSER_ORIGIN || 'http://127.0.0.1:4325';
 assert.ok(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin), 'Use a localhost fixture server.');
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
@@ -44,7 +45,7 @@ try {
     await page.locator('#owned-grid-1').check();
     await expect(page.locator('#owned-count')).toHaveText('1');
     assert.deepEqual(cloud.ownedDexIds, [25], 'Sign-in must not overwrite the account or guest collection.');
-    await page.locator('#sync-open').click();
+    await binderAction(page, '#sync-open');
     await expect(page.locator('#binder-account-status')).toContainText('binder@example.test');
     await page.locator('#binder-account-review').click();
     await expect(page.locator('#binder-migration-dialog')).toBeVisible();

@@ -1,24 +1,29 @@
 ---
-import { ArrowRight } from "@lucide/astro";
+import { ArrowDownUp, ArrowRight, BookOpen, Layers } from "@lucide/astro";
 ---
-<section id="set-overview" aria-labelledby="set-overview-title" hidden>
+<section id="set-overview" class="binders-home" aria-labelledby="set-overview-title" hidden>
   <header class="set-overview-heading">
-    <h2 id="set-overview-title" tabindex="-1">Set overview</h2>
-    <span id="set-overview-binder-count" class="dex-label"></span>
+    <div>
+      <h2 id="set-overview-title" tabindex="-1">Your binders</h2>
+      <span id="set-overview-binder-count" class="dex-label"></span>
+    </div>
+    <div class="dex-actions">
+      <button id="home-transfer-open" type="button" aria-haspopup="dialog"><ArrowDownUp size={16} aria-hidden="true" /> Import and export</button>
+    </div>
   </header>
-  <div id="set-overview-totals" class="set-overview-totals">
+  <div id="set-overview-totals" class="set-overview-totals" hidden>
     <dl class="set-overview-counts">
       <div><dt>Collected</dt><dd id="set-overview-owned" data-owned-count></dd></div>
       <div><dt>Ordered</dt><dd id="set-overview-ordered" data-ordered-count></dd></div>
       <div><dt>Still to find</dt><dd id="set-overview-needed" data-needed-count></dd></div>
     </dl>
     <div class="set-overview-completion">
-      <span class="dex-label">Overall completion</span>
+      <span class="dex-label">All binders</span>
       <div class="set-overview-measure">
         <span id="set-overview-percent" data-percent></span>
         <span><span data-required-count></span> required cards</span>
       </div>
-      <progress id="set-overview-progress" aria-label="Overall set completion"></progress>
+      <progress id="set-overview-progress" aria-label="Completion across all binders"></progress>
     </div>
     <div class="set-overview-value" data-market-value>
       <span class="dex-label">Estimated set binder value</span>
@@ -30,8 +35,16 @@ import { ArrowRight } from "@lucide/astro";
       <button id="set-overview-retry" type="button" hidden>Retry loading sets</button>
     </div>
   </div>
-  <p id="set-overview-empty" role="status" hidden>No set binders yet. Create a set binder to track its progress here.</p>
-  <div id="set-overview-list" class="set-overview-list"></div>
+  <div id="set-overview-list" class="set-overview-list">
+    <section class="set-overview-add" aria-labelledby="set-overview-add-title">
+      <h3 id="set-overview-add-title">Add a binder</h3>
+      <p>A set binder holds every card in one set. The National Pokédex holds one card per species.</p>
+      <div class="set-overview-add-actions">
+        <button id="master-new" type="button"><Layers size={16} aria-hidden="true" /> New set binder</button>
+        <button id="national-add" type="button" hidden><BookOpen size={16} aria-hidden="true" /> Add National Pokédex</button>
+      </div>
+    </section>
+  </div>
   <template id="set-overview-card">
     <article class="set-overview-card">
       <header>

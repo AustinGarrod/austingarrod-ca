@@ -3,35 +3,35 @@ import BinderPages from "./BinderPages.astro";
 import BinderChecklist from "./BinderChecklist.astro";
 import BinderToolbar from "./BinderToolbar.astro";
 import SetOverview from "./SetOverview.astro";
-import { LayoutGrid } from "@lucide/astro";
+import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
 ---
 <section id="binder-onboarding" class="dex-onboarding" aria-labelledby="binder-onboarding-title" hidden>
   <h2 id="binder-onboarding-title">Start your first binder</h2>
-  <p>Collect every card in a set, track one Pokémon per species, or bring in a collection you already have.</p>
-  <div class="dex-actions"><button id="first-set" class="dex-primary">Create a set binder</button><button id="first-dex">Add National Pokédex</button><button id="first-import">Import cards</button></div>
+  <p>Choose what this binder collects. You can add the other kind later.</p>
+  <div class="dex-choices">
+    <button id="first-set" type="button" class="dex-choice">
+      <span class="dex-choice-kind"><Layers size={18} aria-hidden="true" /> Set binder</span>
+      <span class="dex-choice-text">Every card in one set, with the finishes you choose to collect.</span>
+      <span class="dex-choice-action">Choose a set <ArrowRight size={16} aria-hidden="true" /></span>
+    </button>
+    <button id="first-dex" type="button" class="dex-choice">
+      <span class="dex-choice-kind"><BookOpen size={18} aria-hidden="true" /> National Pokédex</span>
+      <span class="dex-choice-text">One card per species in Pokédex order: <span data-species-count>1,025</span> pockets. Any printing counts.</span>
+      <span class="dex-choice-action">Add National Pokédex <ArrowRight size={16} aria-hidden="true" /></span>
+    </button>
+  </div>
+  <p class="dex-onboarding-import">Already tracking cards somewhere else? <button id="first-import" type="button" class="dex-link">Import a CSV</button></p>
 </section>
 <section id="binder-account-onboarding" class="dex-onboarding" aria-labelledby="binder-account-onboarding-title" hidden>
   <h2 id="binder-account-onboarding-title">Open your account binders</h2>
   <p id="binder-account-onboarding-message" role="status"></p>
   <div class="dex-actions"><button id="first-connect" class="dex-primary">Review &amp; connect</button><button id="first-device">Keep using this device</button></div>
 </section>
-<section id="binder-toolbar" class="master-switch dex-toolbar" aria-label="Your binders" hidden>
-  <label for="master-switch">Open binder <select id="master-switch"></select></label>
-  <button type="button" id="set-overview-open" aria-controls="set-overview" aria-pressed="false"><LayoutGrid size={16} aria-hidden="true" /> Set overview</button>
-  <button id="master-new" class="dex-quiet">New set binder</button>
-  <button id="national-add" class="dex-quiet" hidden>Add National Pokédex</button>
-  <button id="import-cards" class="dex-quiet">Import cards</button>
-  <button id="export-cards" class="dex-quiet" hidden>Export cards</button>
-</section>
-<p id="master-message" role="status" class="dex-help"></p>
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>
 <SetOverview />
 <section id="master-workspace" hidden aria-labelledby="master-title">
-  <div class="dex-section-heading"><h2 id="master-title" tabindex="-1"></h2></div>
-  <section class="dex-progress" aria-label="Collection progress"><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
-  <BinderToolbar prefix="master-">
-    <button id="master-add-extra" class="dex-quiet">Add extra</button>
-  </BinderToolbar>
+  <section class="dex-progress" aria-label="Collection progress"><p id="master-progress-line" class="dex-progress-line"></p><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
+  <BinderToolbar prefix="master-" />
   <section id="master-results" class="dex-search-results" aria-label="Search results" hidden></section>
   <BinderPages prefix="master-" />
   <BinderChecklist prefix="master-">
@@ -44,30 +44,41 @@ import { LayoutGrid } from "@lucide/astro";
     <button type="button" data-close-dialog aria-label="Close binder editor">×</button>
   </header>
   <form id="master-form" class="dex-dialog-form">
-    <label>English set<input id="master-set" list="master-catalog" required autocomplete="off" placeholder="Search set name or code" /></label>
-    <datalist id="master-catalog"></datalist>
-    <label>Binder name<input id="master-name" required maxlength="100" /></label>
-    <label>Completion goal<select id="master-goal"><option value="variants">Every selected variant</option><option value="numbers">One of each number</option></select></label>
-    <label id="master-related-option" class="dex-dialog-checkbox" hidden><input id="master-related" type="checkbox" /> <span id="master-related-label"></span></label>
-    <fieldset id="master-section-layout" class="dex-section-layout" hidden>
-      <legend>Full checklist layout</legend>
-      <ol id="master-section-order" aria-label="Binder sections in pocket order"></ol>
+    <fieldset class="dex-form-section">
+      <legend>What to collect</legend>
+      <label>English set<input id="master-set" list="master-catalog" required autocomplete="off" placeholder="Search set name or code" /></label>
+      <datalist id="master-catalog"></datalist>
+      <label>Binder name<input id="master-name" required maxlength="100" /></label>
+      <label>Completion goal<select id="master-goal"><option value="variants">Every selected variant</option><option value="numbers">One of each number</option></select></label>
+      <label id="master-related-option" class="dex-dialog-checkbox" hidden><input id="master-related" type="checkbox" /> <span id="master-related-label"></span></label>
+      <details id="master-specialty-section"><summary>Specialty printings to include</summary><div id="master-specialties"></div></details>
+      <details id="master-extra-options" hidden><summary>Custom extras</summary><div id="master-extra-options-list"></div></details>
     </fieldset>
-    <label>Pocket order<select id="master-order"><option value="together">Finishes together by number</option><option value="sections">Parallel finishes after the numbered set</option></select></label>
-    <details id="master-specialty-section"><summary>Specialty printings to include</summary><div id="master-specialties"></div></details>
-    <div class="dex-form-grid">
-      <label>Columns<input id="master-columns" type="number" min="1" max="6" required /></label>
-      <label>Rows<input id="master-rows" type="number" min="1" max="6" required /></label>
-    </div>
-    <label class="dex-dialog-checkbox"><input id="master-fillers" type="checkbox" /> Add a filler pocket after each single-finish card</label>
-    <label id="master-filler-options" hidden>Through collector number (printed set total)
-      <input id="master-filler-through" type="number" min="1" max="9007199254740991" step="1" required disabled />
-    </label>
-    <label>Reserved starting pockets<input id="master-blanks" type="number" min="0" max="1000" required /></label>
-    <label class="dex-dialog-checkbox"><input id="master-backs" type="checkbox" /> Use both sides of each sheet</label>
-    <details id="master-extra-options" hidden><summary>Custom extras</summary><div id="master-extra-options-list"></div></details>
+    <fieldset class="dex-form-section">
+      <legend>Binder pages</legend>
+      <div class="dex-form-grid">
+        <label>Columns<input id="master-columns" type="number" min="1" max="6" required /></label>
+        <label>Rows<input id="master-rows" type="number" min="1" max="6" required /></label>
+      </div>
+      <label class="dex-dialog-checkbox"><input id="master-backs" type="checkbox" /> Use both sides of each sheet</label>
+      <label>Pocket order<select id="master-order"><option value="together">Finishes together by number</option><option value="sections">Parallel finishes after the numbered set</option></select></label>
+      <fieldset id="master-section-layout" class="dex-section-layout" hidden>
+        <legend>Full checklist layout</legend>
+        <ol id="master-section-order" aria-label="Binder sections in pocket order"></ol>
+      </fieldset>
+      <label class="dex-dialog-checkbox"><input id="master-fillers" type="checkbox" /> Add a filler pocket after each single-finish card</label>
+      <label id="master-filler-options" hidden>Through collector number (printed set total)
+        <input id="master-filler-through" type="number" min="1" max="9007199254740991" step="1" required disabled />
+      </label>
+      <label>Reserved starting pockets<input id="master-blanks" type="number" min="0" max="1000" required /></label>
+    </fieldset>
+    <p id="master-summary" class="dex-binder-summary" role="status" aria-live="polite"></p>
     <p id="master-form-error" class="dex-error" role="alert"></p>
     <div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Save binder</button></div>
+    <section id="master-delete-section" class="dex-dialog-danger" aria-label="Delete binder" hidden>
+      <button id="master-delete" type="button" class="dex-danger">Delete binder</button>
+      <p class="dex-help">Removes this binder and its card marks. Your other binders stay as they are.</p>
+    </section>
   </form>
 </dialog>
 <dialog id="master-extra-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="master-extra-title">

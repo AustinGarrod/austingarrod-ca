@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
+import { binderAction as pokedexAction, homeCard, homeCards, newSetBinder, openBinder as openPokedexBinder, transferAction } from './test-pokedex-helpers.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
@@ -134,7 +135,7 @@ async function openBinder(page) {
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
 }
 async function adoptBinder(page, chooseAccount) {
-  await page.locator('#sync-open').click();
+  await pokedexAction(page, '#sync-open');
   await expect(page.locator('#binder-account-review')).toBeVisible();
   await page.locator('#binder-account-review').click();
   await expect(page.locator('#binder-migration-dialog')).toBeVisible();
@@ -256,7 +257,7 @@ try {
     await expect(page.locator('#radius-sign-in-to-save')).toBeVisible();
     await page.locator('#sign-in-dialog-cancel').click();
     await openBinder(page); await page.locator('#first-dex').click(); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
-    await page.locator('#master-new').click();
+    await newSetBinder(page);
     await page.locator('#master-set').fill('sv03.5');
     await page.locator('#master-name').fill('My 151');
     await page.locator('#master-fillers').check();
@@ -264,7 +265,7 @@ try {
     await page.locator('#master-form button.dex-primary').click();
     await page.locator('[data-key="001:reverse"]').check();
     await expect(page.locator('#master-progress')).toHaveText('1 / 360');
-    await page.locator('#master-switch').selectOption('');
+    await openPokedexBinder(page, 'National Pokédex');
     await openSlayer(page); await expect(page.getByRole('dialog', { name: 'Account & sync', exact: true })).toContainText('Sign in'); desktopOriginals = await originals(page);
   });
   await scenario('desktop account page verifies a real emailed code', async () => {
@@ -274,10 +275,11 @@ try {
   });
   await scenario('Binder reuses the session and preserves guest data during adoption', async () => {
     await openBinder(page); await expect(page.locator('#owned-count')).toHaveText('1');
-    const savedBinder = page.locator('#master-switch option').filter({ hasText: 'My 151' });
-    await expect(savedBinder).toContainText('1/360');
-    await page.locator('#sync-open').click(); await expect(page.locator('#binder-account-status')).toContainText(email); await page.keyboard.press('Escape');
-    await adoptBinder(page, false); await page.locator('#owned-grid-2').check();
+    const savedBinder = homeCard(page, 'My 151');
+    await expect(savedBinder.locator('[data-owned-count]')).toHaveText('1');
+    await expect(savedBinder.locator('[data-required-count]')).toHaveText('360');
+    await pokedexAction(page, '#sync-open'); await expect(page.locator('#binder-account-status')).toContainText(email); await page.keyboard.press('Escape');
+    await adoptBinder(page, false); await openPokedexBinder(page, 'National Pokédex'); await page.locator('#owned-grid-2').check();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.ownedDexIds.join(',')).toBe('1,2');
     const oldKey = await desktop.request.get(origin + '/utilities/pokedex-binder/api/binder.php', { headers: { 'X-Pokedex-Key': 'retired' } });
     assert.equal(oldKey.status(), 410, 'The migrated private key must be permanently revoked');
@@ -307,8 +309,7 @@ try {
   });
   await scenario('mobile browser retrieves both utilities without another sign-in', async () => {
     await openBinder(phone); await adoptBinder(phone, true); await expect(phone.locator('#owned-count')).toHaveText('2');
-    const setOption=phone.locator('#master-switch option').filter({hasText:'My 151'});
-    await expect(setOption).toHaveCount(1);await phone.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
+    await expect(homeCard(phone, 'My 151')).toHaveCount(1); await openPokedexBinder(phone, 'My 151');
     await expect(phone.locator('[data-key="001:reverse"]')).toBeChecked();
     await expect(phone.locator('.master-filler').first()).toContainText('Filler after #003');
     await phone.locator('[data-key="001:normal"]').check();
@@ -320,19 +321,19 @@ try {
   });
   await scenario('Pokédex visibility syncs independently from set binders and ownership', async () => {
     await openBinder(page); await openBinder(phone);
-    await page.locator('#layout-open').click(); await page.locator('#national-hide').click();
+    await openPokedexBinder(page, 'National Pokédex'); await pokedexAction(page, '#layout-open'); await page.locator('#national-hide').click();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.enabled).toBe(false);
-    await phone.locator('#sync-open').click(); await phone.locator('#binder-account-sync').click(); await phone.keyboard.press('Escape');
+    await pokedexAction(phone, '#sync-open'); await phone.locator('#binder-account-sync').click(); await phone.keyboard.press('Escape');
     await expect(phone.locator('#national-workspace')).toBeHidden();
-    await expect(phone.locator('#master-switch option')).toHaveCount(1);
+    await expect(homeCards(phone)).toHaveCount(1);
     await phone.locator('#national-add').click(); await expect(phone.locator('#owned-count')).toHaveText('2');
     await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'binder')).state.enabled).toBe(true);
-    await page.locator('#sync-open').click(); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
-    await page.locator('#master-switch').selectOption('');
+    await pokedexAction(page, '#sync-open'); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    await openPokedexBinder(page, 'National Pokédex');
     await expect(page.locator('#owned-count')).toHaveText('2');
   });
   await scenario('a confirmed CSV import syncs set ownership to the other browser', async () => {
-    await phone.locator('#import-cards').click();
+    await transferAction(phone, '#import-cards');
     await phone.locator('#card-import-file').setInputFiles({ name: 'fixture.csv', mimeType: 'text/csv',
       buffer: Buffer.from('Set,Number,Card,Finish\n151,002,Ivysaur,Reverse Holo\n') });
     await phone.locator('#card-import-preview').click();
@@ -340,9 +341,8 @@ try {
     await phone.locator('#card-import-apply').click();
     await expect(phone.locator('#card-import-dialog')).toBeHidden();
     await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'master-sets')).state.binders[0].owned).toContain('002:reverse');
-    await page.locator('#sync-open').click(); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
-    const setOption = page.locator('#master-switch option').filter({ hasText: 'My 151' });
-    await page.locator('#master-switch').selectOption(await setOption.getAttribute('value'));
+    await pokedexAction(page, '#sync-open'); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    await openPokedexBinder(page, 'My 151');
     await expect(page.locator('[data-key="002:reverse"]')).toBeChecked();
   });
   let mapMobile, mapPhone;

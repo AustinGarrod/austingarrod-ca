@@ -99,6 +99,52 @@
   border: 1px solid var(--line);
 }
 
+/* Binder form: what the binder collects, then how its pages are laid out. */
+.dex-form-section {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dex-form-section + .dex-form-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.dex-form-section > legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 0;
+  color: var(--secondary);
+  font: 700 12px/1.4 "JetBrains Mono", monospace;
+  text-transform: uppercase;
+}
+
+.dex-form-section > legend + * {
+  clear: both;
+}
+
+.dex-form-section > * {
+  margin-block: 0;
+  min-width: 0;
+}
+
+.dex-form-section > :not(legend) + :not(:empty, [hidden]) {
+  margin-block-start: 12px;
+}
+
+.dex-collection-dialog .dex-binder-summary {
+  padding: 10px 12px;
+  border-left: 3px solid var(--secondary);
+  background: var(--surface-low);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
 .dex-section-layout {
   padding: 0 12px;
   border: 1px solid var(--line);
@@ -226,6 +272,33 @@
 .dex-collection-dialog .catalog-search-rows button:hover:not(:disabled),
 .dex-collection-dialog :is(#catalog-search-back, #card-retail-refresh):hover:not(:disabled) {
   background: var(--surface-mid);
+}
+
+/* A printing row: its finish, then View card and, when a binder can hold it, Mark collected. */
+.dex-collection-dialog .catalog-search-rows li:has(> .catalog-search-actions),
+.buy-catalog-search .catalog-search-rows li:has(> .catalog-search-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.catalog-search-rows li > strong {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.catalog-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dex-collection-dialog .catalog-search-actions select {
+  width: auto;
+  max-width: 12rem;
+  margin: 0;
 }
 
 .catalog-search-rows strong {

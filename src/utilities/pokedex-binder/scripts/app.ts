@@ -1,10 +1,10 @@
 import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
 import { printLists } from "./print-list";
-import { binderPages, blankPocket, cardPocket, orderButton } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, filterControl, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
-import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
+import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type CardStatus, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
@@ -15,9 +15,9 @@ import { createTransfers } from "./transfers";
 import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
 import { binderViews } from "./binder-views";
-import { createCatalogSearch } from "./catalog-search";
-import { catalogArtwork } from "../lib/catalog-search";
-import type { TransferMatch } from "../lib/card-transfer";
+import { createCatalogSearch, type MarkTarget } from "./catalog-search";
+import { catalogArtwork, type CatalogPrinting } from "../lib/catalog-search";
+import { addSetImports, groupSetImport, type TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
 
 interface SetInfo { id: string; name: string; code: string | null; releaseDate: string | null; symbol?: string }
@@ -42,6 +42,7 @@ async function initialize() {
   const catalog = await response.json() as Catalog;
   if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.species) || !catalog.species.length) throw new Error("The Pokémon catalog needs updating. Your saved binder is safe.");
   const species = catalog.species;
+  for (const count of document.querySelectorAll("[data-species-count]")) count.textContent = species.length.toLocaleString("en-CA");
   const controller = createUnifiedBinderController({ species });
   let account: BinderAccountState = controller.accountState();
   let migrationPreview: MigrationPreview | null = null;
@@ -60,6 +61,7 @@ async function initialize() {
   const generation = el<HTMLSelectElement>("dex-generation");
   const checklistSet = el<HTMLInputElement>("checklist-set");
   const checklist = binderChecklist("", filter, render);
+  const showFilterCount = filterControl("", [filter, generation]);
   el("checklist-sets").innerHTML = Object.values(catalog.sets).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))
     .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
@@ -81,7 +83,15 @@ async function initialize() {
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const drawPages = binderPages("", page => { currentPage = page; render(); });
+  const drawPages = binderPages("", page => { currentPage = page; selected = null; render(); });
+  function closeNationalDetails() {
+    if (selected === null) return false;
+    const id = selected;
+    selected = null;
+    render();
+    document.getElementById("open-grid-" + id)?.focus({ preventScroll: true });
+    return true;
+  }
   const scanDialog = el<HTMLDialogElement>("scan-dialog");
   function closeScanner() { scanner?.close(); }
   function openScanner(target?: SetScan) {
@@ -98,12 +108,17 @@ async function initialize() {
   const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets, {
     openPrinting(target) { pricing.openPrinting(target); },
     bindersChanged() { dashboard.bindersChanged(); },
+    confirm: confirmAction,
+    deleted() {
+      const target = ["set-overview-title", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
+      target?.focus();
+    },
   });
   const dashboard = createBuyCards({
     collection: master.collection,
     binders: master.backup,
     offerScope: controller.restoreScope,
-    selected: () => el<HTMLSelectElement>("master-switch").value,
+    selected: () => master.currentId(),
     inspect: target => pricing.openBuyingPrinting(target),
     closeDetail: () => pricing.closeBuyingPrinting(),
   });
@@ -125,9 +140,71 @@ async function initialize() {
       dashboard.enter(fromBinders);
     } else {
       dashboard.leave();
+      // The Binders tab shows the binder kept in history.state, or the home list.
+      void master.fromHistory();
     }
   });
-  const catalogSearch = createCatalogSearch({ cards: master.collection().cards, openPrinting: pricing.openPrinting });
+  // Choosing the Binders tab while already on it returns to the list of binders.
+  navigation.onHome(() => void master.goHome().then(() => el("set-overview-title").focus()));
+  /** Which Pokémon a set card counts for in the National Pokédex, from the collector-number catalog. */
+  async function speciesIndex() {
+    if (speciesLookup) return speciesLookup;
+    const data = await getCollectorNumbers();
+    const index = new Map<string, number[]>();
+    for (const [setId, entries] of Object.entries(data)) {
+      for (const [id, numbers] of Object.entries(entries)) {
+        for (const number of numbers) {
+          const key = `${setId}:${number}`;
+          if (!index.has(key)) index.set(key, []);
+          index.get(key)!.push(Number(id));
+        }
+      }
+    }
+    return speciesLookup = (match: TransferMatch) => index.get(`${match.set.id}:${match.card.number}`) ?? [];
+  }
+  /** The catalog card behind a search result printing, as an import match. */
+  async function printingMatch(printing: CatalogPrinting): Promise<TransferMatch | undefined> {
+    const { sets, cards } = master.collection();
+    const set = sets.find(item => item.id === printing.setId);
+    const card = set && (await cards(set.id)).find(item => item.number === printing.number && item.name === printing.name);
+    return set && card ? { set, card, variant: card.variants.find(item => item.id === printing.variant) } : undefined;
+  }
+  function accountReady() {
+    if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before marking cards.");
+  }
+  const catalogSearch = createCatalogSearch({
+    cards: master.collection().cards, openPrinting: pricing.openPrinting,
+    // Search cards can mark a printing collected, but only in a binder that already holds that card.
+    async markTargets(printing) {
+      const match = await printingMatch(printing);
+      if (!match) return [];
+      const targets: MarkTarget[] = (groupSetImport([match], await master.backup())[0]?.options ?? [])
+        .map(binder => ({ id: binder.id, name: binder.name }));
+      if (nationalEnabled(snapshot.state) && (await speciesIndex())(match).length) targets.push({ id: "national", name: "National Pokédex" });
+      return targets;
+    },
+    async markCollected(printing, targetId) {
+      accountReady();
+      const match = await printingMatch(printing);
+      if (!match) throw new Error("This printing is not in the catalog.");
+      const label = `${printing.name} (${printing.finish})`;
+      if (targetId === "national") {
+        const ids = (await speciesIndex())(match);
+        if (!ids.length || !nationalEnabled(snapshot.state)) throw new Error("The National Pokédex can't hold this card.");
+        for (const id of ids) await controller.setStatus(id, "owned");
+        return `Marked ${label} collected in the National Pokédex.`;
+      }
+      let name = "";
+      await master.applyCollection(state => {
+        const group = groupSetImport([match], state)[0];
+        const binder = group?.options.find(item => item.id === targetId);
+        if (!group || !binder) throw new Error("That binder changed. Search for the card again.");
+        name = binder.name;
+        addSetImports(state, [group], new Map([[match.set.id, binder.id]]));
+      });
+      return `Marked ${label} collected in ${name}.`;
+    },
+  });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
   searchCards.disabled = false;
@@ -144,21 +221,7 @@ async function initialize() {
     } }),
     scope: () => `${controller.restoreScope()}:${accountTicket}`,
     sets: master.backup, dex: () => snapshot.state,
-    async species() {
-      if (speciesLookup) return speciesLookup;
-      const data = await getCollectorNumbers();
-      const index = new Map<string, number[]>();
-      for (const [setId, entries] of Object.entries(data)) {
-        for (const [id, numbers] of Object.entries(entries)) {
-          for (const number of numbers) {
-            const key = `${setId}:${number}`;
-            if (!index.has(key)) index.set(key, []);
-            index.get(key)!.push(Number(id));
-          }
-        }
-      }
-      return speciesLookup = match => index.get(`${match.set.id}:${match.card.number}`) ?? [];
-    },
+    species: speciesIndex,
     saveSets(apply) {
       if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
       return master.applyCollection(apply);
@@ -168,7 +231,7 @@ async function initialize() {
       await controller.importSpecies(ids, expected, current);
       if (current()) await master.showNational();
     },
-    selected: () => el<HTMLSelectElement>("master-switch").value,
+    selected: () => master.currentId(),
     download,
   });
   async function backup() {
@@ -181,9 +244,11 @@ async function initialize() {
     if(scope!==controller.restoreScope()) throw new Error("The account changed. Download the current backup again.");
     download(JSON.stringify({utility:"pokedex-binder",schemaVersion:2,exportedAt:new Date().toISOString(),state,masterSets:sets}), "pokedex-binder-backup.json", "application/json");
   }
-  function confirmAction(title: string, text: string, label: string): Promise<boolean> {
+  function confirmAction(title: string, text: string, label: string, tone?: "danger"): Promise<boolean> {
     const dialog = el<HTMLDialogElement>("confirm-dialog");
     el("confirm-title").textContent = title; el("confirm-text").textContent = text; el("confirm-accept").textContent = label;
+    el("confirm-accept").classList.toggle("dex-primary", tone !== "danger");
+    el("confirm-accept").classList.toggle("dex-danger", tone === "danger");
     return new Promise(resolve => {
       let result = false;
       const accept = () => { result = true; dialog.close(); };
@@ -215,7 +280,7 @@ async function initialize() {
     const scrollPositions = ["page-overview", "results-list", ...(selected === renderedSpecies ? ["printing-list"] : [])]
       .map(id => ({ id, top: document.getElementById(id)?.scrollTop ?? 0 }));
     const owned = new Set(snapshot.state.ownedDexIds), count = owned.size, ordered = new Set(snapshot.state.orderedDexIds);
-    master.dex(nationalEnabled(snapshot.state), count, species.length);
+    master.dex(nationalEnabled(snapshot.state), count, species.length, ordered.size);
     const settings = snapshot.state.settings, pages = pageCount(species.length, settings);
     currentPage = Math.max(1, Math.min(currentPage, pages));
     renderFeedback();
@@ -225,6 +290,9 @@ async function initialize() {
     el<HTMLProgressElement>("completion-bar").value = count / species.length * 100;
     el("completion-label").textContent = `${(count / species.length * 100).toFixed(1)}% complete`;
     el("completion-detail").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} Pokémon · Any card counts`;
+    // Phones show progress as one line beside a thin bar.
+    el("progress-line").textContent = `${count.toLocaleString()} of ${species.length.toLocaleString()} · ${ordered.size.toLocaleString()} ordered · ${(count / species.length * 100).toFixed(1)}%`;
+    showFilterCount();
     el("binder-view").classList.toggle("has-details", selected !== null);
     details.hidden = selected === null;
     const pageCounts = new Map<number, { total: number; owned: number }>();
@@ -253,7 +321,8 @@ async function initialize() {
   }
   function renderNationalView() {
     if (el("national-workspace").hidden) return;
-    el("binder-view").hidden = view.checklist;
+    // While a search is active its results replace the page grid.
+    el("binder-view").hidden = view.checklist || !!search.value.trim();
     el("checklist-view").hidden = !view.checklist;
     el("view-binder").setAttribute("aria-pressed", String(!view.checklist));
     el("view-checklist").setAttribute("aria-pressed", String(view.checklist));
@@ -265,8 +334,10 @@ async function initialize() {
     el("dex-results").hidden = !active;
     if (!active) return;
     const results = filteredSpecies();
-    el("results-count").textContent = `${results.length} Pokémon found${results.length > 60 ? " · Showing the first 60" : ""}`;
-    el("results-list").innerHTML = results.slice(0, 60).map(item => `<div class="dex-result"><div><strong>${dex(item.id)} ${escape(item.name)}</strong><small>${locationText(item.id)}</small></div><button data-goto="${item.id}">Go to page</button></div>`).join("") || '<p class="dex-help">No Pokémon match. Try a name, Pokédex number, or another filter.</p>';
+    el("results-count").textContent = results.length
+      ? `${results.length} Pokémon found${results.length > 60 ? " · Showing the first 60" : ""}`
+      : "No Pokémon match. Try a name, Pokédex number, or another filter.";
+    el("results-list").innerHTML = results.slice(0, 60).map(item => `<li class="dex-result"><span class="dex-result-number">${dex(item.id)}</span><strong class="dex-result-name">${escape(item.name)}</strong><span class="dex-result-finish"></span><span class="dex-result-place">${locationText(item.id)}</span><button data-goto="${item.id}" aria-label="Go to ${escape(item.name)} on its page">Go to page</button></li>`).join("");
   }
   let collectorRequest: Promise<CollectorNumbers> | undefined;
   function getCollectorNumbers(): Promise<CollectorNumbers> {
@@ -325,10 +396,7 @@ async function initialize() {
     const item = species.find(candidate => candidate.id === selected);
     if (!item) return;
     const loc = locationFor(item.id, snapshot.state.settings, species);
-    details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2><p class="dex-help">Sheet ${loc.sheet} · ${titleCase(loc.side)}</p></div></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div></div><label class="dex-owned-label"><input id="detail-owned" type="checkbox" data-owned="${item.id}" ${snapshot.state.ownedDexIds.includes(item.id) ? "checked" : ""} /> I have a card for this slot</label><h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
-    if (!snapshot.state.ownedDexIds.includes(item.id)) {
-      details.querySelector(".dex-owned-label")?.insertAdjacentHTML("afterend", orderButton(item.id, snapshot.state.orderedDexIds?.includes(item.id) ?? false));
-    }
+    details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(item.name)}">×</button></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div><div><span class="dex-label">Sheet</span><strong>${loc.sheet} · ${titleCase(loc.side)}</strong></div></div>${statusControl(item.id, cardStatus(snapshot.state.ownedDexIds.includes(item.id), snapshot.state.orderedDexIds?.includes(item.id) ?? false), item.name)}<h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
     renderPrintings();
   }
   function renderPrintings() {
@@ -351,12 +419,12 @@ async function initialize() {
         <button type="button" data-printing-prices="${escape(card.id)}" aria-haspopup="dialog">Prices and offers</button></div></article>`;
     }).join("");
   }
-  async function selectPokemon(id: number, scroll = true) {
+  async function selectPokemon(id: number, focusSheet = true) {
     if (!species.some(item => item.id === id)) return;
     selected = id; printingQuery = ""; detailError = false;
     loadedPrintings = printingCache.get(id) ?? null; detailLoading = !loadedPrintings;
     render();
-    if (scroll && matchMedia("(max-width: 900px)").matches) details.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focusSheet) showDetailsSheet(details, "open-grid-" + id);
     if (loadedPrintings) return;
     try {
       const response = await fetch(`${root}catalog/printings/${id}.json`);
@@ -367,7 +435,14 @@ async function initialize() {
       if (selected === id) { loadedPrintings = data; detailLoading = false; renderPrintings(); }
     } catch { if (selected === id) { detailLoading = false; detailError = true; renderPrintings(); } }
   }
-  function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  function goToPokemon(id: number) {
+    currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false;
+    // Leaving the search shows the page grid again.
+    search.value = "";
+    void selectPokemon(id, false);
+    el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+    el("open-grid-" + id).focus({ preventScroll: true });
+  }
   function renderSync() {
     el("binder-account-panel").hidden = !account.enabled;
     el<HTMLAnchorElement>("binder-account-link").href = accountHref("/utilities/pokemon-binder/");
@@ -441,20 +516,66 @@ async function initialize() {
   });
   el("dex-app").setAttribute("aria-busy", "false");
   el("scan-open").addEventListener("click", () => openScanner());
+  // The binder menu: a <details> that closes after a choice, on Escape and on a click elsewhere.
+  const menu = el<HTMLDetailsElement>("binder-menu"), menuButton = menu.querySelector("summary")!;
+  menu.addEventListener("click", event => { if ((event.target as Element).closest(".dex-menu-list button")) menu.open = false; });
+  document.addEventListener("click", event => { if (menu.open && !menu.contains(event.target as Node)) menu.open = false; });
+  menu.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || !menu.open) return;
+    event.preventDefault();
+    menu.open = false;
+    menuButton.focus();
+  });
+  // A dialog opened from the menu cannot return focus to its hidden button, so focus goes back to the menu.
+  for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog")) dialog.addEventListener("close", () => {
+    queueMicrotask(() => {
+      if (document.querySelector("dialog[open]")) return;
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused !== document.body && focused.getClientRects().length) return;
+      (menuButton.getClientRects().length ? menuButton : el("binder-view-title")).focus({ preventScroll: true });
+    });
+  });
+  // Import and export: one dialog that leads to import, export, card lists and the JSON backup.
+  const transferDialog = el<HTMLDialogElement>("transfer-dialog");
+  for (const id of ["transfer-open", "home-transfer-open"]) el(id).addEventListener("click", () => {
+    el("export-message").textContent = "";
+    transferDialog.showModal();
+  });
+  transferDialog.addEventListener("click", event => {
+    // Import, export and backup open their own dialogs; this one steps aside.
+    if ((event.target as Element).closest("#import-cards, #export-cards, #transfer-backup")) transferDialog.close();
+  });
+  el("transfer-backup").addEventListener("click", () => el("sync-open").click());
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
   else { scanDialog.close(); scanDialog.dataset.phase = "closed"; }
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {
-    const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-order]");
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-close-details]");
     if (!button) return;
-    if (button.hasAttribute("data-pokemon")) void selectPokemon(Number(button.dataset.pokemon));
+    if (button.hasAttribute("data-pokemon")) {
+      const id = Number(button.dataset.pokemon);
+      if (id === selected) closeNationalDetails(); else void selectPokemon(id);
+    }
+    if (button.hasAttribute("data-close-details")) {
+      if (details.contains(button)) closeNationalDetails(); else master.closeDetails();
+    }
     if (button.hasAttribute("data-goto")) goToPokemon(Number(button.dataset.goto));
     if (button.hasAttribute("data-close-dialog")) button.closest("dialog")?.close();
-    if (button.dataset.order) void action(() => controller.setStatus(Number(button.dataset.order), button.dataset.ordered === "true" ? "missing" : "ordered"), button);
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || event.defaultPrevented || document.querySelector("dialog[open]")) return;
+    const target = event.target;
+    // Escape in a filled search field clears the field first.
+    if (target instanceof HTMLInputElement && target.type === "search" && target.value) return;
+    if (closeNationalDetails() || master.closeDetails()) event.preventDefault();
   });
   document.addEventListener("change", event => {
     const input = event.target as HTMLInputElement;
+    if (input.matches("[data-dex-status]")) {
+      if (input.checked) void action(() => controller.setStatus(Number(input.dataset.dexStatus), input.value as CardStatus));
+      return;
+    }
     if (input.matches("[data-owned]")) void action(() => controller.setOwned(Number(input.dataset.owned), input.checked));
   });
   details.addEventListener("input", event => { if ((event.target as HTMLElement).id === "printing-search") { printingQuery = (event.target as HTMLInputElement).value; renderPrintings(); } });
@@ -486,12 +607,13 @@ async function initialize() {
   for (const id of ["first-dex", "national-add"]) el(id).addEventListener("click", event => void action(async () => {
     await controller.setEnabled(true);
     await master.showNational();
-    el("layout-open").focus();
+    el("binder-view-title").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("national-hide").addEventListener("click", event => void action(async () => {
     await controller.setEnabled(false);
     el<HTMLDialogElement>("layout-dialog").close();
-    el(nationalEnabled(snapshot.state) ? "layout-open" : el("binder-onboarding").hidden ? "master-switch" : "first-dex").focus();
+    if (!nationalEnabled(snapshot.state)) await master.goHome();
+    el(nationalEnabled(snapshot.state) ? "binder-view-title" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("first-device").addEventListener("click", () => {
     onboardingTicket++;
@@ -572,7 +694,7 @@ async function initialize() {
   const exportButton = el<HTMLButtonElement>("export-csv");
   const printButton = el<HTMLButtonElement>("print-missing");
   const scopeSelect = el<HTMLSelectElement>("export-scope");
-  const binderSelect = el<HTMLSelectElement>("master-switch");
+
   const positionList = el<HTMLSelectElement>("position-list");
   positionList.addEventListener("change", () => {
     const ordered = positionList.value === "ordered";
@@ -582,7 +704,7 @@ async function initialize() {
   });
   async function outputList(print: boolean) {
     const all = scopeSelect.value === "all";
-    const selectedId = binderSelect.value;
+    const selectedId = master.currentId();
     const scope = controller.restoreScope();
     const status = positionList.value === "ordered" ? "ordered" : "missing";
     const lists: BinderList[] = [];
@@ -596,7 +718,7 @@ async function initialize() {
       }
       if (all || selectedId) lists.push(...await master.positionLists(all ? null : selectedId, status));
       if (!lists.length) throw new Error("Choose an active binder first.");
-      if (controller.restoreScope() !== scope || status !== positionList.value || all !== (scopeSelect.value === "all") || (!all && selectedId !== binderSelect.value)) {
+      if (controller.restoreScope() !== scope || status !== positionList.value || all !== (scopeSelect.value === "all") || (!all && selectedId !== master.currentId())) {
         throw new Error("The collection selection changed. Request the list again.");
       }
       if (print) printLists(lists, all, status);

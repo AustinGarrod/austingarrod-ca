@@ -1,5 +1,5 @@
 ---
-import { BookOpen, ChevronRight, Download, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
+import { ArrowDownUp, ArrowLeft, BookOpen, ChevronRight, Download, Ellipsis, FileUp, Plus, Printer, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
@@ -25,22 +25,34 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">
       <a id="binders-open" href="/utilities/pokemon-binder/" data-binder-view="binders" aria-current="page"><BookOpen size={16} aria-hidden="true" /> Binders</a>
-      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy Cards</a>
+      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
     </nav>
     <div id="binders-workspace">
-    <section class="dex-intro">
-      <h1 id="binder-view-title" tabindex="-1"><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
-      <div class="dex-actions">
-        <button id="catalog-search-open" class="dex-primary" type="button" aria-haspopup="dialog" disabled><Search size={16} aria-hidden="true" /> Search cards</button>
-        <button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button>
-        <button id="layout-open" class="dex-quiet" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button>
-        <button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button>
-        <button id="master-settings" class="dex-quiet" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
-        <button id="sync-open" class="dex-quiet"><Cloud size={16} aria-hidden="true" /> Sync & backup</button>
+    <header id="binder-bar" class="dex-appbar">
+      <button id="binder-back" type="button" class="dex-back" aria-label="All binders" hidden><ArrowLeft size={18} aria-hidden="true" /><span>All binders</span></button>
+      <div class="dex-appbar-title">
+        <p id="master-set-label" class="dex-eyebrow" hidden></p>
+        <h1 id="binder-view-title" tabindex="-1"><span id="home-title">{utility.title}</span><span id="national-title" hidden>National Pokédex</span><span id="master-title" hidden></span><span id="buy-title">Buy cards</span></h1>
+        <p id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</p>
+        <p id="master-message" role="status" class="dex-status-note"></p>
       </div>
-    </section>
+      <div class="dex-appbar-actions">
+        <button id="catalog-search-open" type="button" aria-haspopup="dialog" aria-label="Search cards" disabled><Search size={17} aria-hidden="true" /><span>Search cards</span></button>
+        <details id="binder-menu" class="dex-menu">
+          <summary aria-label="Binder actions"><Ellipsis size={18} aria-hidden="true" /><span>Menu</span></summary>
+          <div class="dex-menu-list">
+            <button id="scan-open" type="button"><Camera size={16} aria-hidden="true" /> Scan cards</button>
+            <button id="master-scan" type="button" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button>
+            <button id="layout-open" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
+            <button id="master-settings" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
+            <button id="master-add-extra" type="button" aria-haspopup="dialog" hidden><Plus size={16} aria-hidden="true" /> Add an extra card</button>
+            <button id="transfer-open" type="button" aria-haspopup="dialog"><ArrowDownUp size={16} aria-hidden="true" /> Import and export</button>
+            <button id="sync-open" type="button" aria-haspopup="dialog"><Cloud size={16} aria-hidden="true" /> Sync and backup</button>
+          </div>
+        </details>
+      </div>
+    </header>
 
-    <div id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</div>
     <div id="dex-warning" class="dex-notice" role="alert" hidden></div>
     <div id="dex-conflict" class="dex-notice" role="alert" hidden><p>Your binder layout changed on another device. Choose which layout to keep; your Pokémon marks will be merged.</p><button id="conflict-local">Keep this layout</button><button id="conflict-remote">Use synced layout</button></div>
 
@@ -48,6 +60,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <p id="transfer-message" role="status" class="dex-help"></p>
     <div id="national-workspace" hidden>
     <section class="dex-progress" aria-label="Collection progress">
+      <p id="progress-line" class="dex-progress-line"></p>
       <div><span class="dex-label">Collected</span><strong id="owned-count">—</strong></div>
       <div><span class="dex-label">Ordered</span><strong id="ordered-count">—</strong></div>
       <div><span class="dex-label">Still to find</span><strong id="missing-count">—</strong></div>
@@ -55,9 +68,9 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </section>
 
     <BinderToolbar>
-      <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation" aria-label="Generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
+      <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
     </BinderToolbar>
-    <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label"></p><div id="results-list"></div></section>
+    <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label" role="status"></p><ol id="results-list" class="dex-result-list"></ol></section>
 
     <BinderPages />
 
@@ -75,14 +88,6 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     </BinderChecklist>
 
     </div>
-    <section id="missing-list-controls" class="dex-export-bar" aria-label="Card lists" hidden>
-      <div class="dex-actions">
-        <label class="dex-field-inline">Card list <select id="position-list"><option value="missing">Missing cards</option><option value="ordered">Ordered cards</option></select></label>
-        <label class="dex-field-inline">Binders <select id="export-scope"><option value="current">Current binder</option><option value="all">All binders</option></select></label>
-      </div>
-      <div class="dex-actions"><button id="export-csv"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing">Print missing list</button></div>
-    </section>
-    <p id="export-message" role="status" class="dex-help"></p>
     </div>
     <BinderBuyCards />
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
@@ -94,7 +99,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
 
   <dialog id="layout-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="layout-title">
     <form id="layout-form">
-      <header class="dex-dialog-header"><h2 id="layout-title">Binder layout</h2><button type="button" data-close-dialog aria-label="Close binder layout">×</button></header>
+      <header class="dex-dialog-header"><h2 id="layout-title">Binder settings</h2><button type="button" data-close-dialog aria-label="Close binder settings">×</button></header>
       <p class="dex-dialog-intro">Each page is one usable side. Pokémon fill from left to right, then top to bottom.</p>
       <div class="dex-form-grid">
         <label>Columns<input name="columns" type="number" min="1" max="6" required /></label>
@@ -103,10 +108,12 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <label>Page sides<select name="useBackSides"><option value="true">Use both sides of each sheet</option><option value="false">Use front sides only</option></select></label>
       <label>Reserved starting pockets<input name="leadingBlankPockets" type="number" min="0" max="1000" required /><small>Leave room before Bulbasaur for title cards or blank pages.</small></label>
       <p class="dex-help">Changing the layout keeps all of your collected Pokémon.</p>
-      <button id="national-hide" type="button" class="dex-quiet">Hide National Pokédex</button>
-      <p class="dex-help">You can add it back with your progress and layout.</p>
       <p id="layout-error" class="dex-error" role="alert"></p>
       <div class="dex-dialog-actions"><button type="button" data-close-dialog>Cancel</button><button class="dex-primary" type="submit">Apply layout</button></div>
+      <section class="dex-dialog-danger" aria-label="Hide National Pokédex">
+        <button id="national-hide" type="button" class="dex-danger">Hide National Pokédex</button>
+        <p class="dex-help">Your collected Pokémon and layout are kept. You can add it back with your progress.</p>
+      </section>
     </form>
   </dialog>
 
@@ -127,6 +134,30 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <div class="dex-backup-actions"><button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button><label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label></div>
     </section>
     <p id="sync-error" class="dex-error" role="alert"></p>
+  </dialog>
+  <dialog id="transfer-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="transfer-title">
+    <header class="dex-dialog-header"><h2 id="transfer-title">Import and export</h2><button type="button" data-close-dialog aria-label="Close import and export">×</button></header>
+    <section class="dex-transfer-choice" aria-labelledby="transfer-import-title">
+      <div><h3 id="transfer-import-title">Import a CSV</h3><p class="dex-help">Add cards from TCG Collector, Collectr, TCGplayer or another tracker.</p></div>
+      <button id="import-cards" type="button" aria-haspopup="dialog"><FileUp size={16} aria-hidden="true" /> Import cards</button>
+    </section>
+    <section class="dex-transfer-choice" aria-labelledby="transfer-export-title">
+      <div><h3 id="transfer-export-title">Export cards</h3><p class="dex-help">Owned, missing or ordered cards as a CSV for another tracker.</p></div>
+      <button id="export-cards" type="button" aria-haspopup="dialog" hidden><Download size={16} aria-hidden="true" /> Export cards</button>
+    </section>
+    <section id="missing-list-controls" class="dex-transfer-choice" aria-labelledby="transfer-list-title" hidden>
+      <div><h3 id="transfer-list-title">Missing or ordered list</h3><p class="dex-help">With each card’s page and pocket, to download or print.</p></div>
+      <div class="dex-form-grid">
+        <label>Card list<select id="position-list"><option value="missing">Missing cards</option><option value="ordered">Ordered cards</option></select></label>
+        <label>Binders<select id="export-scope"><option value="current">This binder</option><option value="all">All binders</option></select></label>
+      </div>
+      <div class="dex-actions"><button id="export-csv" type="button"><Download size={16} aria-hidden="true" /> Export missing CSV</button><button id="print-missing" type="button"><Printer size={16} aria-hidden="true" /> Print missing list</button></div>
+      <p id="export-message" role="status" class="dex-help"></p>
+    </section>
+    <section class="dex-transfer-choice" aria-labelledby="transfer-backup-title">
+      <div><h3 id="transfer-backup-title">JSON backup</h3><p class="dex-help">Everything in this browser, to restore later or on another device.</p></div>
+      <button id="transfer-backup" type="button" aria-haspopup="dialog"><Cloud size={16} aria-hidden="true" /> Back up or restore</button>
+    </section>
   </dialog>
   <dialog id="binder-migration-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="binder-migration-title">
     <form id="binder-migration-form"><header class="dex-dialog-header"><h2 id="binder-migration-title">Review your binder copies</h2><button type="button" data-close-dialog aria-label="Close migration review">×</button></header>
@@ -180,8 +211,10 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     // Accept the first tap even while the application module, catalog or account is loading.
     (() => {
       const dialog = document.getElementById("scan-dialog");
-      document.getElementById("scan-open").addEventListener("click", () => {
+      const button = document.getElementById("scan-open");
+      button.addEventListener("click", () => {
         if (!dialog.open && ["loading", "load-error"].includes(dialog.dataset.phase)) dialog.showModal();
+        button.closest("details")?.removeAttribute("open");
       });
       document.getElementById("scan-reload").addEventListener("click", () => location.reload());
     })();

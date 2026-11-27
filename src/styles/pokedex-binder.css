@@ -7,17 +7,13 @@
 .dex-footer a { text-decoration: underline; text-underline-offset: 3px; }
 .dex-app { max-width: 1480px; margin: 0 auto; padding: 26px 32px 24px; }
 .dex-app [hidden],.dex-dialog [hidden] { display: none !important; }
-.dex-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.dex-intro h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: clamp(23px,3vw,32px); line-height: 1.2; }
-.dex-intro h1 svg { flex: none; color: var(--secondary); }
-.dex-intro p { margin: 0; color: var(--muted); font-size: 14px; }
 .dex-eyebrow,.dex-label { font-family: 'JetBrains Mono',monospace; font-size: 11px; line-height: 1.5; color: var(--subtle); }
 .dex-eyebrow { text-transform: uppercase; }
 .dex-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pokedex-page button,
 .pokedex-page select,
 .pokedex-page .dex-file-label,
-.pokedex-page input:where(:not([type=checkbox], [type=file], [type=range], [type=hidden])) {
+.pokedex-page input:where(:not([type=checkbox], [type=radio], [type=file], [type=range], [type=hidden])) {
   min-width: 0;
   min-height: var(--dex-control-height);
   border: 1px solid var(--line);
@@ -38,7 +34,10 @@
 .pokedex-page button.dex-primary:hover { background: var(--primary-container); }
 .pokedex-page button.dex-quiet { border-color: transparent; background: transparent; color: var(--muted); }
 .pokedex-page button.dex-quiet:hover:not(:disabled) { border-color: var(--line); background: var(--surface-low); color: var(--ink); }
-.pokedex-page button.dex-danger { color: var(--danger); margin-top: 18px; }
+.pokedex-page button.dex-danger { color: var(--danger); border-color: var(--danger); background: var(--surface); }
+.pokedex-page button.dex-danger:hover:not(:disabled) { color: white; border-color: var(--danger); background: var(--danger); }
+.dex-dialog-danger { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.dex-dialog .dex-dialog-danger p { flex: 1 1 200px; margin: 0; }
 .pokedex-page select {
   appearance: none;
   height: var(--dex-control-height);
@@ -52,7 +51,7 @@
   background-size: 12px 8px;
 }
 .pokedex-page input[type=checkbox] { accent-color: var(--secondary); width: 17px; height: 17px; cursor: pointer; margin: 0; flex: none; }
-.dex-status { color: var(--secondary); font-size: 12px; margin: 10px 0 12px; }
+.dex-status { color: var(--secondary); font-size: 12px; margin: 0; }
 .dex-status::before { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 8px 1px 0; background: currentColor; }
 .dex-notice { padding: 12px 16px; margin: 12px 0; border: 1px solid var(--line); background: var(--surface-low); font-size: 13px; overflow-wrap: anywhere; }
 .dex-notice p { margin-top: 0; }
@@ -118,15 +117,16 @@
 .dex-details-empty>svg { color: var(--secondary); margin-bottom: 22px; }
 .dex-details-empty h2 { font-size: 18px; }
 .dex-details-empty p { font-size: 13px; color: var(--subtle); }
-.dex-detail-hero { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); }
-.dex-detail-hero img { width: 80px; height: 80px; object-fit: contain; }
-.dex-detail-hero h2 { margin: 2px 0; font-size: 22px; }
+.dex-detail-hero { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.dex-detail-hero img { flex: none; width: 80px; height: 80px; object-fit: contain; }
+.dex-detail-hero > div { flex: 1; min-width: 0; }
+.dex-detail-hero h2 { margin: 2px 0; font-size: 22px; overflow-wrap: anywhere; }
 .dex-detail-hero p { margin: 0; }
+.pokedex-page .dex-details-close { flex: 0 0 var(--dex-control-height); align-self: flex-start; width: var(--dex-control-height); margin: -8px -8px 0 0; padding: 0; border-color: transparent; background: transparent; font-size: 22px; font-weight: 500; }
 .dex-detail-body { padding: 16px; }
 .dex-location { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; }
 .dex-location div { display: inline-flex; align-items: baseline; gap: 4px; }
 .dex-location strong { font-size: 14px; font-variant-numeric: tabular-nums; }
-.dex-owned-label { display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 600; padding: 12px 0; border-block: 1px solid var(--line); cursor: pointer; }
 .dex-detail-body h3 { font-size: 15px; margin: 20px 0 4px; }
 .dex-detail-body input[type=search] { width: 100%; margin: 10px 0; }
 .dex-printings { max-height: 560px; overflow-y: auto; }
@@ -140,24 +140,35 @@
 .dex-card-printing .dex-card-title { font-weight: 600; }
 .dex-card-printing small { display: block; font-size: 10px; color: var(--subtle); }
 .dex-search-results { padding: 16px; border: 1px solid var(--line); background: var(--surface); margin-bottom: 20px; }
-#results-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
-.dex-result { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--line); padding: 8px 10px; }
-.dex-result strong { display: block; font-size: 12px; }
-.dex-result small { display: block; font-size: 10px; color: var(--subtle); }
-.dex-result button { font-size: 10px; min-height: 34px; padding: 6px 8px; flex: none; }
+.dex-search-results > .dex-label { margin: 0 0 8px; }
+/* Search results: one row per match with number, name, finish, page and pocket, and one action. */
+.dex-result-list { margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--line); }
+.dex-result { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 1fr) auto auto; align-items: center; gap: 4px 16px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.dex-result-number { color: var(--muted); font: 500 12px/1.4 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.dex-result-name { font-weight: 700; overflow-wrap: anywhere; }
+.dex-result-finish { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.dex-result-place { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pokedex-page .dex-result button { flex: none; }
+@media (max-width: 600px) {
+  .dex-result { grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 0; }
+  .dex-result-number { grid-area: 1 / 1; }
+  .dex-result-name { grid-area: 1 / 2; }
+  .dex-result-finish { grid-area: 2 / 1 / 3 / 3; }
+  .dex-result-place { grid-area: 3 / 1 / 4 / 3; }
+  .dex-result-finish:empty { display: none; }
+  .dex-result > button { grid-area: 1 / 3 / 4 / 4; }
+}
 .dex-checklist { border: 1px solid var(--line); background: var(--surface); padding: 16px; }
 .dex-checklist-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .dex-checklist-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; min-width: 0; flex: 1 1 160px; }
 .dex-checklist-controls label:first-child { flex-grow: 3; }
 .dex-checklist-controls input,.dex-checklist-controls select { width: 100%; }
 .dex-checklist-controls button { flex: 0 0 auto; }
-.dex-checklist-row { display: grid; grid-template-columns: 44px 48px minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 8px; border-top: 1px solid var(--line); font-size: 13px; }
+.dex-checklist-row { display: grid; grid-template-columns: 48px minmax(0,1fr) auto auto auto; align-items: center; gap: 10px 16px; padding: 8px; border-top: 1px solid var(--line); font-size: 13px; }
 .dex-checklist-row img { width: 48px; height: 48px; }
 .dex-checklist-row small { color: var(--subtle); font-size: 11px; }
-.dex-export-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 26px 0 22px; padding-top: 22px; border-top: 1px solid var(--line); }
 #export-message:empty { display: none; }
 @media print { .dex-print-only section + section { break-before: page; } .dex-print-only h2, .dex-print-only section > p { break-after: avoid; } }
-.dex-export-bar p { font-size: 12px; color: var(--muted); }
 .dex-footer { font-size: 10px; color: var(--subtle); line-height: 1.7; max-width: 800px; }
 .dex-dialog { width: min(490px,calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; border: 1px solid var(--ink); border-radius: 0; padding: 24px; color: var(--ink); background: var(--surface); }
 .dex-dialog::backdrop { background: rgb(11 28 48 / 55%); }
@@ -202,9 +213,20 @@
   .dex-price-card img { width: 63px; height: 88px; }
   .dex-retail-offers li > div:last-child { text-align: left; }
 }
-.dex-onboarding { border: 1px solid var(--line); border-top: 2px solid var(--secondary); background: var(--surface); max-width: 720px; padding: clamp(16px,3vw,28px); margin: 16px 0; }
+.dex-onboarding { border: 1px solid var(--line); border-top: 2px solid var(--secondary); background: var(--surface); max-width: 860px; padding: clamp(16px,3vw,28px); margin: 16px 0; }
 .dex-onboarding h2 { margin: 0; font-size: 23px; }
-.dex-onboarding p { max-width: 55ch; margin: 6px 0 16px; color: var(--muted); font-size: 14px; }
+.dex-onboarding p { max-width: 60ch; margin: 6px 0 16px; color: var(--muted); font-size: 14px; }
+.dex-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pokedex-page button.dex-choice { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; min-height: 148px; padding: 20px; text-align: left; font-weight: 400; }
+.pokedex-page button.dex-choice:hover:not(:disabled) { border-color: var(--ink); background: var(--surface); }
+.dex-choice-kind { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 18px; font-weight: 700; line-height: 1.25; }
+.dex-choice-kind svg { color: var(--secondary); }
+.dex-choice-text { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.dex-choice-action { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.dex-onboarding .dex-onboarding-import { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin: 16px 0 0; }
+.pokedex-page button.dex-link { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.pokedex-page button.dex-link:hover:not(:disabled) { border: 0; background: transparent; color: var(--secondary); }
+@media (max-width: 600px) { .dex-choices { grid-template-columns: minmax(0, 1fr); } .pokedex-page button.dex-choice { min-height: 0; padding: 16px; } }
 .dex-transfer-dialog { width: min(700px,calc(100vw - 32px)); }
 .dex-transfer-mapping { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(160px,100%),1fr)); gap: 0 12px; }
 .dex-transfer-rows { list-style: none; padding: 0; overflow-wrap: anywhere; }
@@ -229,29 +251,27 @@
 @media(min-width:1400px) { .dex-pocket-open { min-height: 140px !important; }.dex-pocket img { width: 80px; height: 80px; } }
 @media(max-width:1100px) { .dex-workspace { grid-template-columns: 110px minmax(0,1fr) 280px; gap: 14px; }.dex-app { padding: 26px 20px; }.dex-binder-grid { padding: 12px; gap: 6px; }.dex-page-heading { padding: 14px; }.dex-pocket-name { font-size: 10px; }.dex-page-overview { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media (max-width:900px) {
-  .dex-details { grid-column: 2; }
+  /* Card details open as a sheet over the grid; the padding lets every pocket scroll clear of it. */
+  .dex-workspace.has-details { padding-bottom: 56dvh; }
+  .dex-details { position: fixed; z-index: 30; inset: auto 0 0; max-height: 56dvh; overflow-y: auto; overscroll-behavior: contain; border: 0; border-top: 1px solid var(--ink); }
+  .dex-details .dex-detail-hero { position: sticky; z-index: 1; top: 0; padding: 8px 12px 8px 16px; }
+  .dex-details .dex-detail-hero img { width: 48px; height: 48px; }
+  .dex-details .dex-detail-hero h2 { font-size: 19px; }
+  .pokedex-page .dex-details-close { margin: 0; align-self: center; }
   .dex-details-empty, .dex-details:has(.dex-details-empty) { display: none; }
   .dex-printings { max-height: none; }
-  .dex-toolbar .dex-search { flex-basis: 100%; }
-  .dex-intro { align-items: start; }
-  .dex-intro > .dex-actions { justify-content: flex-end; max-width: 26rem; }
   .dex-card-printing img { width: 78px; height: 109px; }
 }
 @media (max-width:600px) {
   .dex-app { padding: 16px 12px 18px; }
-  .dex-intro { display: block; }
-  .dex-intro > .dex-actions { justify-content: start; max-width: none; margin-top: 10px; gap: 4px 6px; }
-  .dex-intro h1 svg { width: 24px; }
-  .dex-progress > .dex-completion { grid-column: 1 / -1; padding: 8px 10px; border-top: 1px solid var(--line); }
-  .dex-progress strong { font-size: 21px; }
   .dex-field-inline { flex: 1; }
   .dex-field-inline select { width: 100%; }
-  .dex-field-inline > span { display: none; }
-  .dex-view-toggle { width: 100%; }
   .dex-workspace, .dex-workspace.has-details { display: flex; flex-direction: column; gap: 12px; }
   .dex-workspace > * { width: 100%; }
   .dex-overview .dex-section-heading { margin-bottom: 8px; }
-  .dex-page-overview { grid-template-columns: repeat(10,minmax(0,1fr)); max-height: 82px; gap: 4px; }
+  /* One row of page chips that scrolls sideways. */
+  .dex-page-overview { display: flex; gap: 4px; max-height: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .pokedex-page .dex-page-chip { flex: 0 0 44px; min-height: 40px; }
   .dex-generation-progress { display: none; }
   .dex-overview > .dex-help { margin: 6px 0 0; }
   .dex-page-heading { padding: 10px; }
@@ -267,15 +287,11 @@
   .dex-binder-grid[data-dense=true] .dex-pocket-name { font-size: 9px; }
   .dex-binder-grid[data-dense=true] img { height: 40px; width: 40px; }
   .dex-binder-grid[data-dense=true] .dex-pocket-check > span { display: none; }
-  .dex-export-bar { display: block; }
-  .dex-export-bar .dex-actions { margin-top: 8px; }
-  .dex-export-bar .dex-field-inline { display: grid; gap: 4px; }
   .dex-dialog { padding: 16px; }
   .dex-checklist { padding: 12px; }
   #master-checklist .dex-checklist-controls label { flex: 1 1 130px; }
   .dex-letter-jump { flex-wrap: nowrap; overflow-x: auto; padding: 3px; scrollbar-width: thin; }
   .dex-letter-jump button { flex: none; }
-  .dex-details { scroll-margin-top: 10px; }
 }
 @media print { .dex-app,.dex-dialog,.skip-link { display: none !important; }.dex-print-only { display: block; color: black; font: 10pt Arial,sans-serif; }.dex-print-only h1 { font-size: 20pt; }.dex-print-only table { width: 100%; border-collapse: collapse; }.dex-print-only th,.dex-print-only td { border-bottom: 1px solid #ccc; text-align: left; padding: 5px; }.dex-print-only tr { break-inside: avoid; } }
 
@@ -289,13 +305,9 @@
 .dex-checklist-row.selected { outline: 2px solid var(--secondary); outline-offset: -2px; background: var(--surface-low); }
 .dex-checklist-row.selected.owned { background: #dfefe9; }
 .dex-checklist-identity { min-width: 0; }
-.dex-checklist-mark { display: flex; align-items: center; justify-content: center; min-height: 44px; cursor: pointer; }
 .dex-checklist-card-numbers { display: block; color: var(--muted); overflow-wrap: anywhere; }
 .pokedex-page .dex-checklist-name { display: block; min-height: 28px; padding: 2px 0; border: 0; background: transparent; font-size: 15px; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
 .pokedex-page .dex-checklist-name:hover { background: transparent; text-decoration: underline; }
-.dex-checklist-state { display: flex; align-items: center; flex-wrap: wrap; gap: 0 8px; min-height: 28px; }
-.dex-collection-state { color: var(--muted); font-size: 12px; font-weight: 650; }
-.dex-checklist-row.owned .dex-collection-state { color: #176050; }
 .dex-checklist-location { display: flex; flex-wrap: wrap; gap: 0 6px; color: var(--muted); font-size: 12px; }
 .dex-checklist-location span { white-space: nowrap; }
 .dex-checklist-location span + span::before { content: "·"; margin-inline-end: 6px; }
@@ -309,21 +321,39 @@
 @media (max-width:900px) { .dex-progress { grid-template-columns: repeat(3, minmax(100px, 125px)) 1fr; } }
 .dex-pocket.ordered { background: #fff7e4; border-color: #b78431; }
 .dex-checklist-row.ordered { background: #fffbf1; border-left-color: #b78431; }
-.dex-checklist-row.ordered .dex-collection-state { color: #684516; }
-.pokedex-page .dex-order-button { min-height: 32px; padding: 4px 8px; margin: 4px 0; font-size: 12px; }
-.pokedex-page .dex-checklist-state .dex-order-button { min-height: 32px; padding: 3px 4px; margin: 0; text-decoration: underline; text-underline-offset: 3px; }
+/* Quiet buttons have no hover on touch screens, so they keep a visible border there. */
+@media (hover: none) { .pokedex-page button.dex-quiet { border-color: var(--line); } }
+/* The global label rule sets spans in uppercase mono; inline filter labels stay sentence case. */
+.pokedex-page .dex-field-inline > span { font-family: inherit; font-size: 12px; font-weight: 600; text-transform: none; }
+#master-set-label { margin: 0 0 2px; }
+/* Card status: Missing, Ordered or Have it, as one segmented control. */
+.dex-status-control { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--control-line); background: var(--surface); }
+.pokedex-page .dex-status-option { position: relative; display: grid; place-items: center; min-height: 42px; margin: 0; padding: 6px 8px; color: var(--muted); cursor: pointer; font: 700 12px/1.2 'JetBrains Mono', monospace; text-align: center; }
+.dex-status-option + .dex-status-option { border-left: 1px solid var(--control-line); }
+.pokedex-page .dex-status-option > span { font: inherit; text-transform: none; white-space: nowrap; }
+/* The radio covers its whole segment, so a tap anywhere on it selects that status. */
+.pokedex-page .dex-status-option input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.dex-status-option:hover { color: var(--ink); background: var(--surface-low); }
+.pokedex-page .dex-status-option:has(input:checked) { color: var(--ink); background: var(--surface-highest); }
+.pokedex-page .dex-status-option:has(input[value=ordered]:checked) { color: #5a3b10; background: #f6e3bd; }
+.pokedex-page .dex-status-option:has(input[value=owned]:checked) { color: white; background: var(--secondary); }
+.dex-status-option:has(input:focus-visible) { z-index: 1; outline: 2px solid var(--secondary); outline-offset: 2px; }
+.dex-checklist-row .dex-status-control { width: 264px; }
+.dex-detail-status { margin: 4px 0 8px; }
+.dex-pocket-tag { align-self: center; margin-top: 4px; padding: 1px 6px; border: 1px solid #b78431; background: var(--surface); color: #684516; font: 600 10px/1.5 'JetBrains Mono', monospace; }
+@media (max-width:900px) {
+  .dex-checklist-row { grid-template-columns: 48px minmax(0,1fr) auto; gap: 4px 10px; }
+  .dex-checklist-art { grid-row: 1 / 3; }
+  .dex-checklist-row > .dex-checklist-location { grid-column: 2; grid-row: 2; }
+  .dex-checklist-row > .dex-checklist-jump { grid-column: 3; grid-row: 2; justify-self: end; }
+}
 @media (max-width:600px) {
-  .dex-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dex-progress>div:nth-child(2) { border-right: 1px solid var(--line); }
-  .dex-progress>div:nth-child(3) { border-right: 0; }
-  .dex-progress>div:not(.dex-completion) { padding: 8px 10px; }
-  .dex-checklist-row { grid-template-columns: 36px minmax(0,1fr) auto; gap: 0 6px; padding-inline: 2px; }
-  .dex-checklist-mark { grid-row: 1 / 3; }
-  .dex-checklist-row>.dex-checklist-identity { grid-column: 2; }
-  .dex-checklist-row>.dex-checklist-location { grid-column: 2 / -1; grid-row: 2; }
+  .dex-checklist-row { grid-template-columns: minmax(0,1fr) auto; gap: 6px; padding: 10px 4px; }
   .dex-checklist-art { display: none; }
-  .dex-checklist-jump { grid-column: 3; grid-row: 1; padding: 7px; }
-  .dex-checklist-location { margin-top: 2px; }
+  .dex-checklist-row > .dex-checklist-identity { grid-column: 1; grid-row: 1; }
+  .dex-checklist-row > .dex-checklist-jump { grid-column: 2; grid-row: 1; justify-self: end; padding: 7px; }
+  .dex-checklist-row > .dex-status-control { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .dex-checklist-row > .dex-checklist-location { grid-column: 1 / -1; grid-row: 3; }
 }
 @media (forced-colors:active) {
   .pokedex-page :is(select, .dex-pagination select) { appearance: auto; background-image: none; padding-inline-end: 8px; }
@@ -402,23 +432,14 @@
   .dex-scan-result-actions button { min-width: 0; flex-basis: 0; }
 }
 
-.master-switch { display: flex; align-items: end; flex-wrap: wrap; gap: 6px 8px; padding-block: 10px; border-block: 1px solid var(--line); }
-.master-switch label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.master-switch select { max-width: min(78vw, 34rem); }
-@media (max-width:600px) {
-  .master-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; }
-  .master-switch > label { grid-column: span 4; min-width: 0; }
-  .master-switch > button { grid-column: span 2; }
-  .master-switch select { width: 100%; max-width: none; }
-  .pokedex-page .master-switch button { padding: 4px 6px; font-size: 12px; line-height: 16px; }
-  .pokedex-page .master-switch button > svg { width: 14px; height: 14px; }
-  #set-overview-open { align-self: end; }
-}
 #master-message:empty { display: none; }
 #master-workspace { padding: 4px 0 12px; }
 #master-workspace h2 { overflow-wrap: anywhere; }
 #master-workspace > .dex-section-heading { margin-bottom: 8px; }
-#master-title { font-size: clamp(19px, 2vw, 25px); }
+#master-title, #national-title { font-size: clamp(19px, 2vw, 25px); }
+#national-workspace > .dex-section-heading { margin: 4px 0 8px; }
+.pokedex-page button.dex-back { min-height: 44px; margin: 0 0 8px -4px; padding: 0 8px 0 4px; border-color: transparent; background: transparent; color: var(--ink); font-size: 14px; }
+.pokedex-page button.dex-back:hover:not(:disabled) { border-color: transparent; background: transparent; color: var(--secondary); text-decoration: underline; text-underline-offset: 3px; }
 #master-specialties input, #master-form input[type=checkbox], #master-extra-form input[type=checkbox] { width: auto; }
 .master-filler { justify-content: center; color: var(--muted); border-style: dashed; }
 #master-specialties { display: grid; max-height: 14rem; overflow-y: auto; }
@@ -426,10 +447,14 @@
 
 #master-extra-options-list label { display: flex; gap: 6px; align-items: center; }
 
-.set-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
-#set-overview-open[aria-pressed=true] { color: white; background: var(--ink); border-color: var(--ink); }
-.set-overview-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 0 12px; }
+.set-overview-heading { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin: 18px 0 12px; }
 .set-overview-heading h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); line-height: 1.15; }
+.set-overview-heading > div:first-child { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+/* The last card in the home list adds a binder. */
+.set-overview-add { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 18px 20px; border: 1px dashed var(--control-line); background: transparent; }
+.set-overview-add h3 { margin: 0; font-size: 18px; line-height: 1.25; }
+.set-overview-add p { margin: 0; color: var(--muted); font-size: 14px; }
+.set-overview-add-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
 .set-overview-totals, .set-overview-card, #set-overview-empty { border: 1px solid var(--line); background: var(--surface); }
 .set-overview-totals { display: grid; grid-template-columns: minmax(270px, 2fr) minmax(0, 3fr); }
 .set-overview-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
@@ -452,7 +477,6 @@
 #set-overview-empty { padding: 20px; }
 .set-overview-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin: 14px 0; }
 .set-overview-card { display: flex; flex-direction: column; min-width: 0; }
-.set-overview-card:only-child { width: 100%; max-width: 660px; }
 .set-overview-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
 .set-overview-card header > div { min-width: 0; }
 .set-overview-set { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 0 0 6px; overflow-wrap: anywhere; }
@@ -489,7 +513,8 @@
 }
 #master-list img { width: 44px; height: 56px; object-fit: contain; }
 #master-binder-grid .dex-pocket-open small { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
-#master-pokemon-details img { width: min(36%,110px); height: auto; }
+#master-pokemon-details .dex-detail-hero img { width: min(36%,110px); height: auto; }
+@media (max-width:900px) { #master-pokemon-details .dex-detail-hero img { width: 44px; height: auto; } }
 
 .pokedex-page :is(button, select, input, a, summary):focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
 #binder-account-panel { padding: 12px 0; border-top: 1px solid var(--line); }
@@ -529,3 +554,92 @@
 .pokedex-page .dex-scan-dialog .dex-set-scan-alternatives button.dex-scan-correct { margin: 0; }
 #set-photo-controls .dex-file-label { min-height: 44px; }
 #set-result-photo .dex-file-label { min-height: 44px; padding: 4px 0; border: 0; color: var(--muted); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Binder app bar: back to the list, the binder's name with its status, Search cards and one menu. */
+.dex-appbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.dex-appbar-title { grid-column: 2; min-width: 0; }
+.dex-back[hidden] + .dex-appbar-title { grid-column: 1 / 3; }
+.dex-appbar-actions { grid-column: 3; }
+.dex-appbar h1 { margin: 0; font-size: clamp(23px, 3vw, 32px); line-height: 1.2; overflow-wrap: anywhere; }
+/* One h1 names the view: Buy cards, or in Binders the home title or the open binder. */
+#binder-view-title[data-view="buy-cards"] > :not(#buy-title), #binder-view-title:not([data-view="buy-cards"]) > #buy-title { display: none; }
+.dex-appbar .dex-eyebrow { margin: 0 0 2px; }
+.dex-appbar .dex-status { margin-top: 4px; }
+.dex-status-note { margin: 2px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.dex-status-note:empty { display: none; }
+.dex-appbar-actions { display: flex; align-items: center; gap: 8px; }
+.pokedex-page button.dex-back { min-height: 44px; margin: 0; padding: 0 12px 0 6px; border-color: var(--line); background: var(--surface); color: var(--ink); font-size: 14px; }
+.pokedex-page button.dex-back:hover:not(:disabled) { border-color: var(--ink); background: var(--surface-low); color: var(--ink); }
+.dex-menu { position: relative; }
+.dex-menu > summary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 44px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 600; list-style: none; }
+.dex-menu > summary::-webkit-details-marker { display: none; }
+.dex-menu > summary:hover, .dex-menu[open] > summary { border-color: var(--ink); background: var(--surface-low); }
+.dex-menu-list { position: absolute; z-index: 40; top: calc(100% + 4px); right: 0; display: grid; min-width: 15rem; padding: 4px 0; border: 1px solid var(--ink); background: var(--surface); }
+.pokedex-page .dex-menu-list button { justify-content: flex-start; width: 100%; min-height: 44px; padding: 8px 16px; border: 0; background: transparent; font-size: 14px; font-weight: 500; text-align: left; }
+.pokedex-page .dex-menu-list button:hover:not(:disabled) { border: 0; background: var(--surface-low); }
+.pokedex-page .dex-menu-list button:focus-visible { outline-offset: -2px; }
+.dex-menu-list [hidden] { display: none !important; }
+
+/* Tool row: search, Filter and the Binder or Checklist toggle. */
+.dex-toolbar { flex-wrap: nowrap; }
+.pokedex-page .dex-filter-toggle { display: none; flex: none; order: 1; }
+.dex-filter-count { min-width: 20px; padding: 0 5px; background: var(--ink); color: white; font: 700 11px/20px 'JetBrains Mono', monospace; text-align: center; }
+.dex-filter-panel { display: flex; align-items: center; gap: 8px; order: 2; }
+.dex-view-toggle { flex: none; order: 3; }
+.dex-search:focus-within { outline: 2px solid var(--secondary); outline-offset: 2px; }
+.pokedex-page .dex-search input:focus-visible { outline: none; border: 0; }
+.dex-progress-line { display: none; }
+
+/* Import and export dialog. */
+.dex-transfer-choice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+.dex-transfer-choice:first-of-type { border-top: 0; padding-top: 0; }
+.dex-transfer-choice > div:first-child { flex: 1 1 16rem; min-width: 0; }
+.dex-dialog .dex-transfer-choice h3 { margin: 0; font-size: 16px; }
+.dex-dialog .dex-transfer-choice p { margin: 4px 0 0; }
+.dex-transfer-choice .dex-form-grid { flex-basis: 100%; }
+.dex-transfer-choice > .dex-actions { flex-basis: 100%; }
+#export-message:empty { display: none; }
+
+@media (max-width: 900px) {
+  .dex-toolbar { flex-wrap: wrap; }
+  .dex-toolbar .dex-search { flex: 1 1 12rem; }
+}
+@media (max-width: 600px) {
+  .dex-app { padding-top: 8px; }
+  .dex-app .dex-binder-nav { margin-bottom: 8px; }
+  /* One row: back, the name and status, Search cards and the menu as icons. */
+  .dex-appbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 8px; margin-bottom: 8px; padding-bottom: 6px; }
+  .dex-appbar h1 { font-size: 20px; }
+  .dex-appbar .dex-eyebrow { display: none; }
+  .dex-appbar .dex-status { margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pokedex-page button.dex-back { width: 44px; padding: 0; }
+  :is(.dex-back, .dex-appbar-actions > button, .dex-menu > summary) > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pokedex-page .dex-appbar-actions > button { width: 44px; padding: 0; }
+  .dex-menu > summary { padding: 0; }
+  .dex-appbar-actions { gap: 4px; }
+  /* Tool row: search, then Filter and the view toggle as icons; filters open below. */
+  .dex-toolbar { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .dex-toolbar .dex-search { flex: 1 1 0; min-width: 0; }
+  .pokedex-page .dex-filter-toggle { display: inline-flex; width: auto; min-width: 44px; padding: 0 10px; }
+  .dex-filter-toggle > span:first-of-type { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .dex-filter-toggle[aria-expanded=true] { border-color: var(--ink); }
+  .dex-view-toggle { width: auto; }
+  .pokedex-page .dex-view-toggle button { width: 44px; padding: 0; }
+  .dex-view-toggle button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .dex-filter-panel { display: none; order: 5; flex-basis: 100%; }
+  .dex-toolbar.is-filtering .dex-filter-panel { display: flex; }
+  .dex-filter-panel .dex-field-inline > span { display: none; }
+  /* Progress as one line with a thin bar. */
+  .dex-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border: 0; background: none; }
+  .dex-progress > div:not(.dex-completion) { display: none; }
+  .dex-progress > .dex-completion { flex: 1; min-width: 48px; padding: 0; background: none; border: 0; }
+  .dex-progress > .dex-completion > :not(progress) { display: none; }
+  .dex-progress-line { display: block; flex: none; max-width: 75%; margin: 0; color: var(--ink); font-size: 13px; line-height: 20px; font-variant-numeric: tabular-nums; }
+  /* Pages: previous, next and the page select replace the page chips. */
+  .dex-overview { display: none; }
+  .dex-page-heading { padding: 4px 4px 4px 10px; }
+  .dex-binder-grid { padding: 6px; }
+  .dex-page-heading h2 { font-size: 18px; }
+  .dex-page-heading .dex-eyebrow, .dex-page-heading .dex-help { display: none; }
+  .dex-transfer-choice > button { width: 100%; }
+}

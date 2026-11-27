@@ -1,5 +1,5 @@
 ---
-import { BookOpen, ListChecks, Search } from "@lucide/astro";
+import { BookOpen, ListChecks, Search, SlidersHorizontal } from "@lucide/astro";
 
 interface Props { prefix?: "master-" }
 const { prefix = "" } = Astro.props;
@@ -11,14 +11,19 @@ const status = national ? "dex-filter" : "master-status";
   <label class="dex-search" for={search}>
     <Search size={19} aria-hidden="true" />
     <span class="sr-only">{national ? "Search Pokémon name or Pokédex number" : "Search card name, collector number, or finish"}</span>
-    <input id={search} type="search" placeholder={national ? "Find a Pokémon or #0001" : "Find a card or collector number"} autocomplete="off" />
+    <input id={search} type="search" placeholder={national ? "Find a Pokémon or #0001" : "Find a card or number"} autocomplete="off" />
   </label>
-  <label class="dex-field-inline" for={status}><span>Show</span>
-    <select id={status} aria-label="Show"><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="ordered">Ordered</option><option value="owned">Collected</option></select>
-  </label>
-  <slot />
-  <div class="dex-view-toggle" aria-label="View">
-    <button id={prefix + "view-binder"} aria-pressed="true"><BookOpen size={16} aria-hidden="true" /> Binder</button>
-    <button id={prefix + "view-checklist"} aria-pressed="false"><ListChecks size={16} aria-hidden="true" /> Checklist</button>
+  <button type="button" id={prefix + "filter-toggle"} class="dex-filter-toggle" aria-expanded="false" aria-controls={prefix + "filter-panel"} aria-label="Filter">
+    <SlidersHorizontal size={17} aria-hidden="true" /><span>Filter</span><span class="dex-filter-count" hidden></span>
+  </button>
+  <div id={prefix + "filter-panel"} class="dex-filter-panel">
+    <label class="dex-field-inline" for={status}><span>Show</span>
+      <select id={status}><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="ordered">Ordered</option><option value="owned">Have it</option></select>
+    </label>
+    <slot />
+  </div>
+  <div class="dex-view-toggle" role="group" aria-label="View">
+    <button id={prefix + "view-binder"} aria-pressed="true"><BookOpen size={16} aria-hidden="true" /><span>Binder</span></button>
+    <button id={prefix + "view-checklist"} aria-pressed="false"><ListChecks size={16} aria-hidden="true" /><span>Checklist</span></button>
   </div>
 </section>

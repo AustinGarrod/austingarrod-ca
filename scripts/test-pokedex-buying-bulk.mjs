@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
+import { newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
 const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 12]].map(async ([set, count]) => {
@@ -73,8 +74,8 @@ export async function testFullBuyCards(browser, origin) {
     const finish = buying.locator("#buy-cards-finish");
 
     await page.goto(origin + "/utilities/pokemon-binder/");
-    for (const [index, [set, name]] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]].entries()) {
-      await page.locator(index === 0 ? "#first-set" : "#master-new").click();
+    for (const [set, name] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]]) {
+      await newSetBinder(page);
       await page.locator("#master-set").fill(set);
       await page.locator("#master-name").fill(name);
       await page.locator("#master-goal").selectOption("numbers");
@@ -82,16 +83,17 @@ export async function testFullBuyCards(browser, origin) {
       await expect(page.locator("#master-title")).toContainText(name);
       if (set !== "sv03.5") continue;
       if (await page.locator("#master-checklist").isHidden()) await page.locator("#master-view-checklist").click();
-      await page.locator('[data-checklist-row="003:*"]').getByRole("checkbox").check();
-      await page.locator('[data-checklist-row="006:*"]').getByRole("button", { name: /Mark ordered/ }).click();
+      await page.locator('[data-checklist-row="003:*"]').getByRole("radio", { name: "Have it" }).check();
+      await page.locator('[data-checklist-row="006:*"]').getByRole("radio", { name: "Ordered" }).check();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
 
     await buyTab.click();
+    await buying.locator("#buy-cards-filters-toggle").click();
     await scope.selectOption({ label: "Main 151" });
-    await expect(rows).toHaveCount(6);
-    await buying.locator("#buy-cards-next").click();
-    await expect(rows).toHaveCount(1);
+    // 24 cards per page: the seven missing cards share one page.
+    await expect(rows).toHaveCount(7);
+    await expect(buying.locator("#buy-cards-pages")).toBeHidden();
     await search.fill("Ivysaur 002");
     await availability.selectOption("stock");
     await expect(rows).toHaveCount(0);
@@ -178,11 +180,11 @@ export async function testFullBuyCards(browser, origin) {
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText("$2.50");
     const beforeCachedChecks = requests.length;
-    await rows.first().locator("[data-buy-check]").click();
-    await expect(progress).toContainText("Checked 1 of 1 printings");
+    // A checked row offers Compare offers only; the page check covers it.
+    await expect(rows.first().locator("[data-buy-check]")).toHaveCount(0);
     await buying.locator("#buy-cards-check").click();
     await expect(progress).toContainText("Checked 1 of 1 printings");
-    assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy row and page checks.");
+    assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy a page check.");
     const beforeExpiry = lookups.length;
     observed += 606_000;
     cents = 325;
@@ -230,6 +232,7 @@ export async function testFullBuyCards(browser, origin) {
     await expect(buying).toBeHidden();
     assert.equal(lookups.length, beforeReload, "Reloading in Binders must not start any retailer checks.");
     await buyTab.click();
+    await buying.locator("#buy-cards-filters-toggle").click();
     await scope.selectOption({ label: "Main 151" });
     await search.fill("Ivysaur 002");
     await finish.selectOption({ label: "Regular" });
@@ -237,7 +240,7 @@ export async function testFullBuyCards(browser, origin) {
     assert.ok(lookups.slice(beforeReload).some(lookup => key(lookup) === visiblePrinting),
       "A previously checked printing can refresh after reopening an expired dashboard in a new document.");
     await bindersTab.click();
-    await page.locator("#master-new").click();
+    await newSetBinder(page);
     await page.locator("#master-set").fill("base1");
     await page.locator("#master-name").fill("Base Set cooldown test");
     await page.locator("#master-goal").selectOption("numbers");

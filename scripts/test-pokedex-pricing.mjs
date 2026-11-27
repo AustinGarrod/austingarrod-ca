@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { chromium, expect } from "@playwright/test";
 import { testFullBuyCards } from "./test-pokedex-buying-bulk.mjs";
+import { binderAction, newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binderUrl = origin + "/utilities/pokemon-binder/";
@@ -72,8 +73,8 @@ try {
     });
     await page.goto(buyingUrl);
     const buying = page.locator("#buy-cards-workspace");
-    await expect(buying.getByRole("heading", { name: "Buy Cards", level: 1 })).toBeVisible();
-    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(buying.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
+    await expect(page.locator("h1:visible")).toHaveCount(1);
     await expect(page.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
     const setup = buying.getByRole("link", { name: "Go to Binders" });
     await expect(setup).toBeVisible();
@@ -198,7 +199,7 @@ try {
     });
     await page.goto(binderUrl);
     await expect(page.locator("#binder-onboarding")).toBeVisible();
-    await page.locator("#catalog-search-open").click();
+    await binderAction(page, "#catalog-search-open");
     await page.locator("#catalog-search-query").fill("Bulbasaur 001/165");
     await page.locator("#catalog-search-set").selectOption("sv03.5");
     await page.locator("#catalog-search-results li").filter({ hasText: "Bulbasaur" }).getByRole("button").first().click();
@@ -218,14 +219,14 @@ try {
     await priceDialog.getByRole("button", { name: "Close card prices" }).click();
 
     for (const name of ["First 151", "Second 151"]) {
-      await page.locator(name === "First 151" ? "#first-set" : "#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill(name);
       await page.getByRole("button", { name: "Save binder", exact: true }).click();
       await expect(page.locator("#master-title")).toContainText(name);
       if (await page.locator("#master-checklist").isHidden()) await page.locator("#master-view-checklist").click();
-      await page.locator('[data-checklist-row="001:normal"]').getByRole("checkbox").check();
-      await page.locator('[data-checklist-row="001:reverse"]').getByRole("button", { name: /Mark ordered/ }).click();
+      await page.locator('[data-checklist-row="001:normal"]').getByRole("radio", { name: "Have it" }).check();
+      await page.locator('[data-checklist-row="001:reverse"]').getByRole("radio", { name: "Ordered" }).check();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
     const buying = page.locator("#buy-cards-workspace");
@@ -233,12 +234,21 @@ try {
     const bindersTab = page.locator("#binders-open");
     const scope = buying.locator("#buy-cards-scope");
     const inlineDetails = buying.locator("#buy-card-pricing");
-    const activeBinder = await page.locator("#master-switch").inputValue();
+    // The open binder is kept in history.state, not in the URL.
+    const activeBinder = await page.evaluate(() => history.state?.binder);
     assert.ok(activeBinder);
     await buyTab.press("Enter");
     await expect(page).toHaveURL(buyingUrl);
     await expect(buyTab).toHaveAttribute("aria-current", "page");
-    await expect(buying.getByRole("heading", { name: "Buy Cards" })).toBeFocused();
+    await expect(buying.getByRole("heading", { name: "Buy cards" })).toBeFocused();
+    const filtersToggle = buying.locator("#buy-cards-filters-toggle");
+    await expect(buying.locator("#buy-cards-filter")).toBeVisible();
+    if (await filtersToggle.isVisible()) {
+      // On phones the filters sit behind one button that counts the applied filters.
+      await expect(filtersToggle).toHaveAttribute("aria-label", "Filters, 1 applied");
+      await filtersToggle.click();
+      await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
+    }
     await expect(scope).toHaveValue(activeBinder);
     await expect(scope.locator("option:checked")).toHaveText("Second 151");
     await expect(page.locator("#master-title")).toBeHidden();
@@ -251,10 +261,10 @@ try {
     await expect(page).toHaveURL(buyingUrl);
     await expect(scope).toBeVisible();
     await expect(scope).toHaveValue(activeBinder);
+    // The Binders tab lands on the list of binders.
     await bindersTab.click();
     await expect(page).toHaveURL(binderUrl);
-    await expect(page.locator("#master-title")).toBeVisible();
-    await page.locator("#set-overview-open").click();
+    await expect(page.locator("#set-overview")).toBeVisible();
     await expect(page.locator("#set-overview-totals [data-value-amount]")).toHaveText("$2.46 CAD");
     await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 2 collected");
     await expect(page.locator("#set-overview-list [data-value-amount]")).toHaveText(["$1.23 CAD", "$1.23 CAD"]);
@@ -382,21 +392,21 @@ try {
     const firstCardText = await rows.first().innerText();
     await nextPage.click();
     await expect(rows.first()).not.toHaveText(firstCardText);
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(24);
     const secondPageLabel = await buying.locator("#buy-cards-page").textContent();
     await page.goBack();
     await expect(page).toHaveURL(binderUrl);
     await expect(page.locator("#set-overview")).toBeVisible();
     await page.goForward();
     await expect(page).toHaveURL(buyingUrl);
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(24);
     await expect(buying.locator("#buy-cards-page")).toHaveText(secondPageLabel);
     const visibleCards = await rows.allTextContents();
     assert.equal(lookups.length, beforePage, "Changing pages must not fetch retailer offers.");
     await checkPage.click();
-    await expect.poll(() => lookups.length - beforePage).toBe(6);
+    await expect.poll(() => lookups.length - beforePage).toBe(24);
     const pageRequests = lookups.slice(beforePage);
-    assert.equal(new Set(pageRequests.map(lookup => JSON.stringify(lookup))).size, 6);
+    assert.equal(new Set(pageRequests.map(lookup => JSON.stringify(lookup))).size, 24);
     assert.ok(pageRequests.every(({ set, number }) => set === "sv03.5" && visibleCards.some(text => text.includes("#" + number))));
     await sort.selectOption("retail");
     await expect(rows.first()).toContainText("Ivysaur");
@@ -427,7 +437,7 @@ try {
       let releaseMarket;
       marketGate = new Promise(resolve => { releaseMarket = resolve; });
       await bindersTab.click();
-      await page.locator("#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Any finish 151");
       await page.locator("#master-goal").selectOption("numbers");
@@ -439,7 +449,7 @@ try {
       await availability.selectOption("");
       await search.fill("Ivysaur 002");
       await expect(rows).toHaveCount(1);
-      await expect(rows.first().locator("[data-buy-check]")).toBeDisabled();
+      await expect(rows.first().locator("[data-buy-check]")).toHaveCount(0); // A row without an exact finish cannot be checked.
       await expect(checkPage).toBeDisabled();
       await rows.first().locator("[data-buy-finish]").selectOption("normal");
       await finish.selectOption("Reverse holo");
@@ -457,7 +467,7 @@ try {
       releaseMarket();
       await expect(rows.first().locator(".dex-buying-market")).toContainText("$3.49");
       const beforeInlineCheck = lookups.length;
-      await rows.first().locator("[data-buy-check]").click();
+      await checkPage.click(); // Once a row has offers, the page check refreshes it.
       await expect.poll(() => lookups.length).toBe(beforeInlineCheck + 1);
       await expect(rows.first()).toContainText("$2.50");
       assert.deepEqual(lookups.slice(beforeInlineCheck), [{ set: "sv03.5", number: "002", variant: "normal" }]);
@@ -468,7 +478,7 @@ try {
       await expect(scope).toHaveValue("");
       await expect(scope.locator("option")).toHaveCount(4);
       await expect(search).toHaveValue("");
-      await expect(rows).toHaveCount(6);
+      await expect(rows).toHaveCount(24);
       await search.fill("Ivysaur 002");
       await expect(rows.first()).toContainText("$2.50");
       await expect(rows.first()).toContainText("Checked");
@@ -478,13 +488,13 @@ try {
       await bindersTab.click();
       user = account;
       await notifySessionChange(page);
-      await page.locator("#sync-open").click();
+      await binderAction(page, "#sync-open");
       await page.locator("#binder-account-review").click();
       await page.locator("#binder-migration-layout").selectOption("device");
       await page.locator("#binder-migration-form button[type=submit]").click();
       await expect(page.locator("#dex-status")).toHaveText("Synced · Saved on this device");
       await expect(page.locator("#binder-migration-dialog")).toBeHidden();
-      await page.locator("#master-new").click();
+      await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Account only 151");
       await page.getByRole("button", { name: "Save binder", exact: true }).click();

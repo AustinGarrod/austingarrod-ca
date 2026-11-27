@@ -47,7 +47,8 @@ interface CheckJob {
   unavailable: number;
 }
 
-const pageSize = 6;
+// Display only: rows are not checked until the person asks.
+const pageSize = 24;
 const node = <T extends HTMLElement = HTMLElement>(part: string) => document.getElementById("buy-cards-" + part) as T;
 const select = (id: string) => node<HTMLSelectElement>(id);
 const button = (id: string) => node<HTMLButtonElement>(id);
@@ -88,6 +89,19 @@ export function createBuyCards(options: Options) {
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
   const checkPage = button("check"), checkAll = button("check-all"), cancel = button("cancel"), clear = button("clear");
   const filters = [search, finish, availability, store, maxPrice, condition, sort];
+  // On phones the filters other than search sit behind one button that says how many are applied.
+  const filtersToggle = button("filters-toggle"), filterCount = node("filter-count");
+  filtersToggle.addEventListener("click", () => {
+    const open = !binderFilters.classList.contains("is-open");
+    binderFilters.classList.toggle("is-open", open);
+    filtersToggle.setAttribute("aria-expanded", String(open));
+  });
+  function showFilterCount() {
+    const applied = [scope, finish, availability, store, maxPrice, condition].filter(field => field.value).length;
+    filterCount.textContent = applied ? String(applied) : "";
+    filterCount.hidden = !applied;
+    filtersToggle.setAttribute("aria-label", applied ? `Filters, ${applied} applied` : "Filters");
+  }
   const picks = new Map<string, string>();
   const quotes = createBuyOfferCache(options.offerScope, draw);
   let entries: BuyingEntry[] = [], visible: Row[] = [], setErrors = 0, page = 0, version = 0;
@@ -181,9 +195,22 @@ export function createBuyCards(options: Options) {
       : "";
     const market = price ? `<strong>${cad(price.cents)} CAD</strong> <small>${escape(calendarDate(price.observedAt))}</small>`
       : marketPending.has(target.setId) ? "Loading…" : "No estimate";
-    const storeResults = canCheck || stores.some(item => item.availability !== "unchecked")
-      ? `<dl class="dex-buying-offers">${stores.map(item => storeCell(item, checking)).join("")}</dl>`
-      : `<p class="dex-help">${target.variant === "*" ? "Choose a finish to check stores." : "Store lookup is unavailable for this finish."}</p>`;
+    // Store checks stay manual: they share a server-wide lookup limit.
+    const checkButton = (text: string, label: string) =>
+      `<button type="button" class="dex-link" data-buy-check="${id}" aria-label="${label} for ${title}" ${!canCheck || manualCheck ? "disabled" : ""}>${text}</button>`;
+    const unchecked = stores.every(item => item.availability === "unchecked");
+    const allFailed = stores.length > 0 && stores.every(item => item.availability === "unavailable");
+    const someUnchecked = stores.some(item => item.availability === "unchecked");
+    const someFailed = stores.some(item => item.availability === "unavailable");
+    // When only some stores have a result, a small action under them checks the rest.
+    const recheck = canCheck && !checking && (someUnchecked || someFailed)
+      ? `<p class="dex-buying-recheck">${someUnchecked ? checkButton("Check stores", "Check stores") : checkButton("Retry", "Retry store check")}</p>` : "";
+    const storeResults = !canCheck && unchecked
+      ? `<p class="dex-buying-store-line">${target.variant === "*" ? "Choose a finish to check stores." : "Store lookup is unavailable for this finish."}</p>`
+      : unchecked && checking ? `<p class="dex-buying-store-line" role="status">Checking stores…</p>`
+      : unchecked ? `<p class="dex-buying-store-line">Stores: Needs a check · ${checkButton("Check stores", "Check stores")}</p>`
+      : allFailed && !checking ? `<p class="dex-buying-store-line" data-availability="unavailable">Stores unavailable · ${checkButton("Retry", "Retry store check")}</p>`
+      : `<dl class="dex-buying-offers">${stores.map(item => storeCell(item, checking)).join("")}</dl>${recheck}`;
     return `<li class="dex-buying-row">
       <div class="dex-buying-identity">${image ? `<img src="${escape(image)}" width="42" height="59" alt="" loading="lazy">` : ""}
         <div><strong>${escape(target.name)}</strong><small>${escape(target.setName)} · #${escape(target.number)} · ${escape(target.finish)}
@@ -192,8 +219,7 @@ export function createBuyCards(options: Options) {
       </div>
       <div>${storeResults}
         <div class="dex-actions">${picker}
-          <button type="button" data-buy-check="${id}" aria-label="Check stores for ${title}" ${!canCheck || manualCheck ? "disabled" : ""}>Check stores</button>
-          <button type="button" class="dex-quiet" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Compare offers for ${title}">Compare offers</button>
+          <button type="button" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Compare offers for ${title}">Compare offers</button>
         </div>
       </div>
     </li>`;
@@ -273,6 +299,7 @@ export function createBuyCards(options: Options) {
     checkAll.disabled = manualCheck || !binderTargets.size;
     cancel.hidden = !manualCheck;
     clear.hidden = filters.every(input => !input.value || input === sort && sort.value === "binder");
+    showFilterCount();
 
     const active = document.activeElement as HTMLElement | null;
     const attribute = ["data-buy-check", "data-buy-card", "data-buy-finish"].find(name => active?.hasAttribute(name));

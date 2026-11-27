@@ -208,7 +208,7 @@ private_regions = {
     "/utilities/pokemon-binder/": [
         "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
         "catalog-search-dialog", "card-pricing-dialog", "buy-cards-workspace",
-        "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog",
+        "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog", "transfer-dialog",
     ],
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
