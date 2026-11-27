@@ -25,13 +25,13 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">
       <a id="binders-open" href="/utilities/pokemon-binder/" data-binder-view="binders" aria-current="page"><BookOpen size={16} aria-hidden="true" /> Binders</a>
-      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy Cards</a>
+      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
     </nav>
     <div id="binders-workspace">
     <section class="dex-intro">
       <h1 id="binder-view-title" tabindex="-1"><BookOpen size={30} aria-hidden="true" /> {utility.title}</h1>
       <div class="dex-actions">
-        <button id="catalog-search-open" class="dex-primary" type="button" aria-haspopup="dialog" disabled><Search size={16} aria-hidden="true" /> Search cards</button>
+        <button id="catalog-search-open" type="button" aria-haspopup="dialog" disabled><Search size={16} aria-hidden="true" /> Search cards</button>
         <button id="scan-open"><Camera size={16} aria-hidden="true" /> Scan cards</button>
         <button id="layout-open" class="dex-quiet" hidden><Settings2 size={16} aria-hidden="true" /> Binder layout</button>
         <button id="master-scan" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button>

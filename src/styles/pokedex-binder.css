@@ -207,9 +207,20 @@
   .dex-price-card img { width: 63px; height: 88px; }
   .dex-retail-offers li > div:last-child { text-align: left; }
 }
-.dex-onboarding { border: 1px solid var(--line); border-top: 2px solid var(--secondary); background: var(--surface); max-width: 720px; padding: clamp(16px,3vw,28px); margin: 16px 0; }
+.dex-onboarding { border: 1px solid var(--line); border-top: 2px solid var(--secondary); background: var(--surface); max-width: 860px; padding: clamp(16px,3vw,28px); margin: 16px 0; }
 .dex-onboarding h2 { margin: 0; font-size: 23px; }
-.dex-onboarding p { max-width: 55ch; margin: 6px 0 16px; color: var(--muted); font-size: 14px; }
+.dex-onboarding p { max-width: 60ch; margin: 6px 0 16px; color: var(--muted); font-size: 14px; }
+.dex-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pokedex-page button.dex-choice { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; min-height: 148px; padding: 20px; text-align: left; font-weight: 400; }
+.pokedex-page button.dex-choice:hover:not(:disabled) { border-color: var(--ink); background: var(--surface); }
+.dex-choice-kind { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 18px; font-weight: 700; line-height: 1.25; }
+.dex-choice-kind svg { color: var(--secondary); }
+.dex-choice-text { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.dex-choice-action { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.dex-onboarding .dex-onboarding-import { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin: 16px 0 0; }
+.pokedex-page button.dex-link { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.pokedex-page button.dex-link:hover:not(:disabled) { border: 0; background: transparent; color: var(--secondary); }
+@media (max-width: 600px) { .dex-choices { grid-template-columns: minmax(0, 1fr); } .pokedex-page button.dex-choice { min-height: 0; padding: 16px; } }
 .dex-transfer-dialog { width: min(700px,calc(100vw - 32px)); }
 .dex-transfer-mapping { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(160px,100%),1fr)); gap: 0 12px; }
 .dex-transfer-rows { list-style: none; padding: 0; overflow-wrap: anywhere; }
@@ -320,7 +331,13 @@
 .dex-pocket.ordered { background: #fff7e4; border-color: #b78431; }
 .dex-checklist-row.ordered { background: #fffbf1; border-left-color: #b78431; }
 .dex-checklist-row.ordered .dex-collection-state { color: #684516; }
-.pokedex-page .dex-order-button { min-height: 32px; padding: 4px 8px; margin: 4px 0; font-size: 12px; }
+.pokedex-page .dex-order-button { padding: 4px 12px; margin: 8px 0 0; }
+.dex-detail-body .dex-actions { align-items: flex-end; }
+/* Quiet buttons have no hover on touch screens, so they keep a visible border there. */
+@media (hover: none) { .pokedex-page button.dex-quiet { border-color: var(--line); } }
+/* The global label rule sets spans in uppercase mono; inline filter labels stay sentence case. */
+.pokedex-page .dex-field-inline > span { font-family: inherit; font-size: 12px; font-weight: 600; text-transform: none; }
+#master-set-label { margin: 0 0 2px; }
 .pokedex-page .dex-checklist-state .dex-order-button { min-height: 32px; padding: 3px 4px; margin: 0; text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width:600px) {
   .dex-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }

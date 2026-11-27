@@ -72,7 +72,7 @@ try {
     });
     await page.goto(buyingUrl);
     const buying = page.locator("#buy-cards-workspace");
-    await expect(buying.getByRole("heading", { name: "Buy Cards", level: 1 })).toBeVisible();
+    await expect(buying.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
     await expect(page.locator("h1")).toHaveCount(1);
     await expect(page.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
     const setup = buying.getByRole("link", { name: "Go to Binders" });
@@ -238,7 +238,7 @@ try {
     await buyTab.press("Enter");
     await expect(page).toHaveURL(buyingUrl);
     await expect(buyTab).toHaveAttribute("aria-current", "page");
-    await expect(buying.getByRole("heading", { name: "Buy Cards" })).toBeFocused();
+    await expect(buying.getByRole("heading", { name: "Buy cards" })).toBeFocused();
     await expect(scope).toHaveValue(activeBinder);
     await expect(scope.locator("option:checked")).toHaveText("Second 151");
     await expect(page.locator("#master-title")).toBeHidden();

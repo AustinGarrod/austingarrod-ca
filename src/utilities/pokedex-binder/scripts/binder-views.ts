@@ -8,7 +8,7 @@ function currentView(): BinderView {
 export function binderViews() {
   const heading = document.getElementById("binder-view-title")!;
   const binderHeading = [...heading.childNodes];
-  const buyingHeading = document.createTextNode("Buy Cards");
+  const buyingHeading = document.createTextNode("Buy cards");
   const views = {
     binders: {
       workspace: document.getElementById("binders-workspace")!,
@@ -37,7 +37,7 @@ export function binderViews() {
     }
     selected = view;
     fromBinders = prior === "binders";
-    document.title = view === "buy-cards" ? "Buy Cards | " + binderTitle : binderTitle;
+    document.title = view === "buy-cards" ? "Buy cards | " + binderTitle : binderTitle;
     if (heading.parentElement !== views[view].header) {
       heading.replaceChildren(...(view === "binders" ? binderHeading : [buyingHeading]));
       views[view].header.prepend(heading);

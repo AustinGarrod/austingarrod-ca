@@ -3,12 +3,24 @@ import BinderPages from "./BinderPages.astro";
 import BinderChecklist from "./BinderChecklist.astro";
 import BinderToolbar from "./BinderToolbar.astro";
 import SetOverview from "./SetOverview.astro";
-import { LayoutGrid } from "@lucide/astro";
+import { ArrowRight, BookOpen, Layers, LayoutGrid } from "@lucide/astro";
 ---
 <section id="binder-onboarding" class="dex-onboarding" aria-labelledby="binder-onboarding-title" hidden>
   <h2 id="binder-onboarding-title">Start your first binder</h2>
-  <p>Collect every card in a set, track one Pokémon per species, or bring in a collection you already have.</p>
-  <div class="dex-actions"><button id="first-set" class="dex-primary">Create a set binder</button><button id="first-dex">Add National Pokédex</button><button id="first-import">Import cards</button></div>
+  <p>Choose what this binder collects. You can add the other kind later.</p>
+  <div class="dex-choices">
+    <button id="first-set" type="button" class="dex-choice">
+      <span class="dex-choice-kind"><Layers size={18} aria-hidden="true" /> Set binder</span>
+      <span class="dex-choice-text">Every card in one set, with the finishes you choose to collect.</span>
+      <span class="dex-choice-action">Choose a set <ArrowRight size={16} aria-hidden="true" /></span>
+    </button>
+    <button id="first-dex" type="button" class="dex-choice">
+      <span class="dex-choice-kind"><BookOpen size={18} aria-hidden="true" /> National Pokédex</span>
+      <span class="dex-choice-text">One card per species in Pokédex order: <span data-species-count>1,025</span> pockets. Any printing counts.</span>
+      <span class="dex-choice-action">Add National Pokédex <ArrowRight size={16} aria-hidden="true" /></span>
+    </button>
+  </div>
+  <p class="dex-onboarding-import">Already tracking cards somewhere else? <button id="first-import" type="button" class="dex-link">Import a CSV</button></p>
 </section>
 <section id="binder-account-onboarding" class="dex-onboarding" aria-labelledby="binder-account-onboarding-title" hidden>
   <h2 id="binder-account-onboarding-title">Open your account binders</h2>
@@ -27,7 +39,7 @@ import { LayoutGrid } from "@lucide/astro";
 <button id="master-conflict" hidden>Keep both versions of conflicting set binders</button>
 <SetOverview />
 <section id="master-workspace" hidden aria-labelledby="master-title">
-  <div class="dex-section-heading"><h2 id="master-title" tabindex="-1"></h2></div>
+  <div class="dex-section-heading"><div><p id="master-set-label" class="dex-eyebrow" hidden></p><h2 id="master-title" tabindex="-1"></h2></div></div>
   <section class="dex-progress" aria-label="Collection progress"><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
   <BinderToolbar prefix="master-">
     <button id="master-add-extra" class="dex-quiet">Add extra</button>

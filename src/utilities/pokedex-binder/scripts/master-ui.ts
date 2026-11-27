@@ -323,7 +323,12 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     }
     const { pockets, all, required, owned, ordered } = progress(b),
       extras = all.filter((s) => !s.required);
-    node("master-title").textContent = b.name + " · " + (sets.find((s) => s.id === b.setId)?.name ?? b.setId);
+    node("master-title").textContent = b.name;
+    // The set shows as a label above the name only when the binder is named something else.
+    const binderSet = sets.find((s) => s.id === b.setId);
+    const setLabel = node("master-set-label");
+    setLabel.textContent = [binderSet?.name ?? b.setId, binderSet?.code].filter(Boolean).join(" · ");
+    setLabel.hidden = (binderSet?.name ?? b.setId) === b.name;
     node("master-progress").textContent = owned + " / " + required.length;
     node("master-optional").textContent = extras.filter((s) => s.owned).length + " / " + extras.length;
     node("master-percent").textContent =
@@ -406,7 +411,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     detail.hidden = !selected || listView;
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
     detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(sourceSet(selected)?.code || selected.sourceSetId || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(finishLabel(selected))}</p></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(identity(selected))}">×</button></div>
-      <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
+      <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column],["Sheet",selected.sheet + " · " + (selected.side === "back" ? "Back" : "Front")]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div>
       <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label><div class="dex-actions">${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}
       ${selected.category === "Extra" ? "" : '<button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button>'}</div></div>`;
     if (focused && document.activeElement === document.body) document.getElementById(focused)?.focus({preventScroll:true});
