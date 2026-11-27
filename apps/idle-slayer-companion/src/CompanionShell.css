@@ -135,14 +135,20 @@
   .companion-session-status { padding: 6px 12px; }
   /* The header carries the save state; the row appears only for something to act on (Undo, Redo, a result, recovery). */
   .companion-session-status > .progress-save-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-  .companion-session-status:not(:has(.session-history-controls button:not(:disabled), > [role='status'], > button, > span:not(.progress-save-status))) { display: none; }
+  .companion-shell:not(.companion-map-section) .companion-session-status:not(:has(.session-history-controls button:not(:disabled), > [role='status'], > button, > span:not(.progress-save-status))) { display: none; }
   .companion-session-status .session-history-controls { flex: 0 1 220px; margin-left: auto; }
+  /* On the map the row stays in place, so the canvas never resizes when Undo becomes available. */
+  .companion-map-section .companion-session-status { padding: 4px 8px; gap: 4px 8px; }
   .companion-map-section .workspace.has-details { --map-reserve: min(230px, max(0px, calc(var(--workspace-height) - 120px))); --map-navigation-reserve: min(230px, max(0px, calc(var(--workspace-height) - 120px))); }
 }
 @media (max-width: 600px) and (max-height: 430px) {
   .companion-map-section .detail-actions { position: static; }
   .companion-map-section .workspace.has-details { --map-reserve: min(110px, max(0px, calc(var(--workspace-height) - 72px))); --map-navigation-reserve: min(130px, max(0px, calc(var(--workspace-height) - 72px))); }
   .companion-map-section .workspace.has-details.navigation-open { --map-reserve: var(--map-navigation-reserve); }
+}
+@media (max-width: 600px) and (max-height: 650px) {
+  /* Short phone canvases keep the row only for a result or recovery; Undo and Redo move into the map's Record menu. */
+  .companion-map-section .companion-session-status:not(:has(> button, > div[role='status'])) { display: none; }
 }
 /* Large browser text: let the header wrap instead of clipping its links. */
 .companion-large-text .companion-topbar { display: flex; flex-wrap: wrap; padding-top: 4px; padding-bottom: 4px; }

@@ -540,6 +540,26 @@ button.danger { border-color: var(--danger); }
 .atlas .react-flow__node.selected:focus-visible .upgrade-node { outline-color: var(--primary); }
 .atlas .react-flow__node.selected:focus-visible { outline-color: var(--secondary); outline-offset: 10px; }
 
+/* Upgrades you can record now stand out without a new colour: an inverted black badge on the ink border.
+   Locked artwork is dimmed. Teal stays reserved for owned progress and focus. */
+.upgrade-node.available .node-symbol { color: #ffffff; border-color: var(--ink); background: var(--ink); }
+.upgrade-node.locked > .upgrade-icon { opacity: .45; }
+.map-summary { gap: 2px; max-width: min(600px, calc(100% - 24px)); padding: 6px 10px; }
+.map-summary-counts, .map-summary-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+.map-summary-counts > span + span, .map-summary-legend { color: var(--muted); }
+.map-summary-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend-symbol { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 2px; border: 1px solid currentColor; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .6875rem; font-style: normal; font-weight: 700; line-height: 1; }
+.legend-symbol.purchased { color: var(--complete); }
+.legend-symbol.available { color: #ffffff; border-color: var(--ink); background: var(--ink); }
+.legend-symbol.pending { color: var(--pending); border-style: dashed; }
+.legend-symbol.locked { color: var(--ink); border-style: dashed; border-color: var(--frame); }
+.legend-short { display: none; }
+@media (max-width: 759px) {
+  .map-summary .connection-hint, .map-summary-spoilers, .legend-long { display: none; }
+  .legend-short { display: inline; }
+}
+@media (forced-colors: active) { .upgrade-node.available .node-symbol, .legend-symbol.available { forced-color-adjust: none; color: Canvas; background: CanvasText; } }
+
 /* One dialog type scale: title 18px, section heading 16px semibold with 24px above, body 15px,
    notes 13px and one button size, shared by the shell dialogs, map dialogs and upgrade details. */
 .dialog-heading h2 { font-size: 1.125rem; line-height: 1.4; }

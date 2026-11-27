@@ -26,7 +26,7 @@ The migration guide appears before the workspace in a capped, scrollable notice 
 
 Game Layout preserves every extracted native center with only the established screen Y reflection. Its nodes retain 100×100 bounds and 64×64 icon artwork. Detailed Layout keeps the existing visible-only layered arrangement, 132×122 card bounds, routed corridors, and camera behavior. Both layouts use square surfaces. The existing native line endpoints remain behind opaque node surfaces, preserving routing geometry.
 
-Purchased nodes use a teal border and check; available nodes use an ink border and plus; pending nodes use a slate dashed border and clock; locked nodes use muted dashed borders and diamond. Accessible labels and visible symbols communicate state independently of color. No state implies Slayer Point affordability.
+Purchased nodes use a teal border and check; available nodes use an ink border and an inverted black badge with a white plus, so they stand out without spending another colour; pending nodes use a slate dashed border and clock; locked nodes use muted dashed borders, a diamond and dimmed artwork. The map summary is two short lines: owned, available and Ultra Ascension counts, then a four-symbol legend with the line meaning. Accessible labels and visible symbols communicate state independently of color. No state implies Slayer Point affordability.
 
 Selection uses a black node outline. Keyboard focus uses a separate teal outer outline. Incident incoming paths use teal dashes and outgoing paths use ink arrowheads; ordinary paths are slate. The native map keeps its reviewed line thickness and center vectors. Connection emphasis never changes dependency or activation rules.
 
