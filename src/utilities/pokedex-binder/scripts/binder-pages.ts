@@ -39,6 +39,16 @@ export function binderPages(prefix: string, turn: (page: number) => void) {
   };
 }
 
+/** Opens card details as a sheet on narrow screens: focus moves into it and the chosen pocket stays visible above it. */
+export function showDetailsSheet(sheet: HTMLElement, pocketId: string) {
+  if (!matchMedia("(max-width: 900px)").matches || sheet.hidden) return;
+  sheet.focus({ preventScroll: true });
+  const pocket = document.getElementById(pocketId)?.closest(".dex-pocket");
+  if (!pocket) return;
+  const overlap = pocket.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top + 8;
+  if (overlap > 0) window.scrollBy({ top: overlap, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+}
+
 export function blankPocket(position: number, label: string, filler = false) {
   return '<div class="dex-pocket-blank' + (filler ? ' master-filler' : '') + '"><span>Pocket ' + position + '</span>' + escape(label) + '</div>';
 }

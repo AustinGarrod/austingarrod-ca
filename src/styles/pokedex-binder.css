@@ -118,10 +118,12 @@
 .dex-details-empty>svg { color: var(--secondary); margin-bottom: 22px; }
 .dex-details-empty h2 { font-size: 18px; }
 .dex-details-empty p { font-size: 13px; color: var(--subtle); }
-.dex-detail-hero { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); }
-.dex-detail-hero img { width: 80px; height: 80px; object-fit: contain; }
-.dex-detail-hero h2 { margin: 2px 0; font-size: 22px; }
+.dex-detail-hero { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.dex-detail-hero img { flex: none; width: 80px; height: 80px; object-fit: contain; }
+.dex-detail-hero > div { flex: 1; min-width: 0; }
+.dex-detail-hero h2 { margin: 2px 0; font-size: 22px; overflow-wrap: anywhere; }
 .dex-detail-hero p { margin: 0; }
+.pokedex-page .dex-details-close { flex: 0 0 var(--dex-control-height); align-self: flex-start; width: var(--dex-control-height); margin: -8px -8px 0 0; padding: 0; border-color: transparent; background: transparent; font-size: 22px; font-weight: 500; }
 .dex-detail-body { padding: 16px; }
 .dex-location { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; }
 .dex-location div { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -229,7 +231,13 @@
 @media(min-width:1400px) { .dex-pocket-open { min-height: 140px !important; }.dex-pocket img { width: 80px; height: 80px; } }
 @media(max-width:1100px) { .dex-workspace { grid-template-columns: 110px minmax(0,1fr) 280px; gap: 14px; }.dex-app { padding: 26px 20px; }.dex-binder-grid { padding: 12px; gap: 6px; }.dex-page-heading { padding: 14px; }.dex-pocket-name { font-size: 10px; }.dex-page-overview { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media (max-width:900px) {
-  .dex-details { grid-column: 2; }
+  /* Card details open as a sheet over the grid; the padding lets every pocket scroll clear of it. */
+  .dex-workspace.has-details { padding-bottom: 56dvh; }
+  .dex-details { position: fixed; z-index: 30; inset: auto 0 0; max-height: 56dvh; overflow-y: auto; overscroll-behavior: contain; border: 0; border-top: 1px solid var(--ink); }
+  .dex-details .dex-detail-hero { position: sticky; z-index: 1; top: 0; padding: 8px 12px 8px 16px; }
+  .dex-details .dex-detail-hero img { width: 48px; height: 48px; }
+  .dex-details .dex-detail-hero h2 { font-size: 19px; }
+  .pokedex-page .dex-details-close { margin: 0; align-self: center; }
   .dex-details-empty, .dex-details:has(.dex-details-empty) { display: none; }
   .dex-printings { max-height: none; }
   .dex-toolbar .dex-search { flex-basis: 100%; }
@@ -275,7 +283,6 @@
   #master-checklist .dex-checklist-controls label { flex: 1 1 130px; }
   .dex-letter-jump { flex-wrap: nowrap; overflow-x: auto; padding: 3px; scrollbar-width: thin; }
   .dex-letter-jump button { flex: none; }
-  .dex-details { scroll-margin-top: 10px; }
 }
 @media print { .dex-app,.dex-dialog,.skip-link { display: none !important; }.dex-print-only { display: block; color: black; font: 10pt Arial,sans-serif; }.dex-print-only h1 { font-size: 20pt; }.dex-print-only table { width: 100%; border-collapse: collapse; }.dex-print-only th,.dex-print-only td { border-bottom: 1px solid #ccc; text-align: left; padding: 5px; }.dex-print-only tr { break-inside: avoid; } }
 
@@ -489,7 +496,8 @@
 }
 #master-list img { width: 44px; height: 56px; object-fit: contain; }
 #master-binder-grid .dex-pocket-open small { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
-#master-pokemon-details img { width: min(36%,110px); height: auto; }
+#master-pokemon-details .dex-detail-hero img { width: min(36%,110px); height: auto; }
+@media (max-width:900px) { #master-pokemon-details .dex-detail-hero img { width: 44px; height: auto; } }
 
 .pokedex-page :is(button, select, input, a, summary):focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
 #binder-account-panel { padding: 12px 0; border-top: 1px solid var(--line); }

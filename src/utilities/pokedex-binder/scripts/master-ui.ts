@@ -1,5 +1,5 @@
 import type { SetScan } from "./scanner";
-import { binderPages, blankPocket, cardPocket, escape, orderButton } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, escape, orderButton, showDetailsSheet } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
@@ -390,7 +390,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const detail = node("master-pokemon-details");
     detail.hidden = !selected || listView;
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
-    detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(sourceSet(selected)?.code || selected.sourceSetId || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(finishLabel(selected))}</p></div></div>
+    detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(sourceSet(selected)?.code || selected.sourceSetId || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(finishLabel(selected))}</p></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(identity(selected))}">×</button></div>
       <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div><p>Sheet ${selected.sheet} · ${selected.side}</p>
       <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label><div class="dex-actions">${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}
       ${selected.category === "Extra" ? "" : '<button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button>'}</div></div>`;
@@ -681,15 +681,19 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const b = active(); if (!btn || !b) return;
     const slot = progress(b).all.find(s => s.key === (btn.dataset.setOpen ?? btn.dataset.setJump));
     if (!slot) return;
+    if (btn.dataset.setOpen && slot.key === selectedKey) { closeDetails(); return; }
     page = slot.page; selectedKey = slot.key; view.checklist = false;
     await render();
     if(btn.dataset.setJump) document.getElementById("set-open-grid-"+slot.key)?.focus();
-    else if(matchMedia("(max-width: 800px)").matches) {
-      const detail = node("master-pokemon-details");
-      detail.focus({ preventScroll: true });
-      detail.scrollIntoView({ block: "start" });
-    }
+    else showDetailsSheet(node("master-pokemon-details"), "set-open-grid-" + slot.key);
   });
+  function closeDetails() {
+    if (!selectedKey || node("master-pokemon-details").hidden) return false;
+    const key = selectedKey;
+    selectedKey = "";
+    void render().then(() => document.getElementById("set-open-grid-" + key)?.focus({ preventScroll: true })).catch(report);
+    return true;
+  }
   node("master-workspace").addEventListener("change", (event) => {
     const box = event.target as HTMLInputElement;
     const key = box.dataset.key ?? box.dataset.detailKey;
@@ -787,6 +791,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       }
     },
     showNational() { return openBinder(""); },
+    closeDetails,
     onboarding(value: typeof onboarding) {
       if (value === onboarding) return;
       onboarding = value;
