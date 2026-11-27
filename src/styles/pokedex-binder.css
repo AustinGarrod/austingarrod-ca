@@ -144,11 +144,24 @@
 .dex-card-printing .dex-card-title { font-weight: 600; }
 .dex-card-printing small { display: block; font-size: 10px; color: var(--subtle); }
 .dex-search-results { padding: 16px; border: 1px solid var(--line); background: var(--surface); margin-bottom: 20px; }
-#results-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
-.dex-result { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--line); padding: 8px 10px; }
-.dex-result strong { display: block; font-size: 12px; }
-.dex-result small { display: block; font-size: 10px; color: var(--subtle); }
-.dex-result button { font-size: 10px; min-height: 34px; padding: 6px 8px; flex: none; }
+.dex-search-results > .dex-label { margin: 0 0 8px; }
+/* Search results: one row per match with number, name, finish, page and pocket, and one action. */
+.dex-result-list { margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--line); }
+.dex-result { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 1fr) auto auto; align-items: center; gap: 4px 16px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.dex-result-number { color: var(--muted); font: 500 12px/1.4 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.dex-result-name { font-weight: 700; overflow-wrap: anywhere; }
+.dex-result-finish { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.dex-result-place { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pokedex-page .dex-result button { flex: none; }
+@media (max-width: 600px) {
+  .dex-result { grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 0; }
+  .dex-result-number { grid-area: 1 / 1; }
+  .dex-result-name { grid-area: 1 / 2; }
+  .dex-result-finish { grid-area: 2 / 1 / 3 / 3; }
+  .dex-result-place { grid-area: 3 / 1 / 4 / 3; }
+  .dex-result-finish:empty { display: none; }
+  .dex-result > button { grid-area: 1 / 3 / 4 / 4; }
+}
 .dex-checklist { border: 1px solid var(--line); background: var(--surface); padding: 16px; }
 .dex-checklist-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
 .dex-checklist-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; min-width: 0; flex: 1 1 160px; }
@@ -272,7 +285,9 @@
   .dex-workspace, .dex-workspace.has-details { display: flex; flex-direction: column; gap: 12px; }
   .dex-workspace > * { width: 100%; }
   .dex-overview .dex-section-heading { margin-bottom: 8px; }
-  .dex-page-overview { grid-template-columns: repeat(10,minmax(0,1fr)); max-height: 82px; gap: 4px; }
+  /* One row of page chips that scrolls sideways. */
+  .dex-page-overview { display: flex; gap: 4px; max-height: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .pokedex-page .dex-page-chip { flex: 0 0 44px; min-height: 40px; }
   .dex-generation-progress { display: none; }
   .dex-overview > .dex-help { margin: 6px 0 0; }
   .dex-page-heading { padding: 10px; }
@@ -464,7 +479,6 @@
 
 #master-extra-options-list label { display: flex; gap: 6px; align-items: center; }
 
-.set-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 8px; max-height: 330px; overflow-y: auto; }
 #set-overview-open[aria-pressed=true] { color: white; background: var(--ink); border-color: var(--ink); }
 .set-overview-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 0 12px; }
 .set-overview-heading h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); line-height: 1.15; }

@@ -369,9 +369,10 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const results = node("master-results");
     const listView = view.checklist;
     results.hidden = listView || (!search && status !== "ordered");
-    results.innerHTML = results.hidden ? "" : `<p class="dex-label">${filtered.length} matches</p><div class="set-results">${filtered.map(s =>
-      `<div class="dex-result"><strong>${escape(identity(s))}</strong><small>${place(s)}</small>${jump(s)}</div>`).join("")}</div>`;
-    node("master-binder-view").hidden = listView;
+    results.innerHTML = results.hidden ? "" : `<p class="dex-label" role="status">${filtered.length ? `${filtered.length} ${filtered.length === 1 ? "match" : "matches"}` : "No cards match. Try a name, collector number or finish."}</p><ol class="dex-result-list set-results">${filtered.map(s =>
+      `<li class="dex-result"><span class="dex-result-number">${escape(s.number ? "#" + s.number : "")}</span><strong class="dex-result-name">${escape(s.name)}</strong><span class="dex-result-finish">${escape(finishLabel(s))}</span><span class="dex-result-place">${place(s)}</span>${jump(s)}</li>`).join("")}</ol>`;
+    // While a search is active its results replace the page grid.
+    node("master-binder-view").hidden = listView || !!search;
     node("master-checklist").hidden = !listView;
     node("master-view-checklist").setAttribute("aria-pressed",String(listView));
     node("master-view-binder").setAttribute("aria-pressed",String(!listView));
@@ -773,6 +774,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (!slot) return;
     if (btn.dataset.setOpen && slot.key === selectedKey) { closeDetails(); return; }
     page = slot.page; selectedKey = slot.key; view.checklist = false;
+    // Leaving the search shows the page grid again.
+    if (btn.dataset.setJump) searchInput.value = "";
     await render();
     if(btn.dataset.setJump) document.getElementById("set-open-grid-"+slot.key)?.focus();
     else showDetailsSheet(node("master-pokemon-details"), "set-open-grid-" + slot.key);

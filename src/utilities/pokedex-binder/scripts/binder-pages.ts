@@ -12,19 +12,41 @@ export function binderPages(prefix: string, turn: (page: number) => void) {
   select.onchange = () => turn(Number(select.value));
   el("page-prev").onclick = () => turn(Number(select.value) - 1);
   el("page-next").onclick = () => turn(Number(select.value) + 1);
-  el("page-overview").onclick = event => {
+  const overview = el("page-overview");
+  overview.onclick = event => {
     const button = (event.target as Element).closest<HTMLButtonElement>("button[data-page]");
     if (button) turn(Number(button.dataset.page));
   };
+  // The page chips are one tab stop: arrow keys, Home and End move between them, Enter opens a page.
+  overview.onkeydown = event => {
+    const chips = [...overview.querySelectorAll<HTMLButtonElement>("button[data-page]")];
+    const index = chips.indexOf(document.activeElement as HTMLButtonElement);
+    if (index < 0) return;
+    const template = getComputedStyle(overview).gridTemplateColumns;
+    const columns = getComputedStyle(overview).display === "grid" && template !== "none" ? template.split(" ").length : 1;
+    const steps: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns, Home: -index, End: chips.length - 1 - index };
+    if (!(event.key in steps)) return;
+    event.preventDefault();
+    const next = chips[Math.max(0, Math.min(chips.length - 1, index + steps[event.key]))];
+    for (const chip of chips) chip.tabIndex = chip === next ? 0 : -1;
+    next.focus();
+  };
   return function render(currentPage: number, pages: number, settings: BinderSettings,
     pageCounts: Map<number, {total: number; owned: number}>, cells: string[]) {
-    const overview = el("page-overview"), top = overview.scrollTop;
+    const top = overview.scrollTop;
+    const focusedPage = overview.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.page : undefined;
     el("page-total").textContent = String(pages);
     el("capacity-summary").textContent = `${settings.columns} × ${settings.rows} pockets · ${settings.useBackSides ? Math.ceil(pages / 2) : pages} sheets needed · ${settings.useBackSides ? "Both sides" : "Fronts only"}`;
-    el("page-overview").innerHTML = Array.from({ length: pages }, (_, index) => {
+    overview.innerHTML = Array.from({ length: pages }, (_, index) => {
       const page = index + 1, data = pageCounts.get(page) ?? { total: 0, owned: 0 };
-      return `<button class="dex-page-chip" id="${prefix}page-chip-${page}" data-page="${page}" aria-label="Page ${page}, ${data.owned} of ${data.total} collected" ${page === currentPage ? 'aria-current="page"' : ""} style="--filled:${data.total ? data.owned / data.total * 100 : 0}%">${page}</button>`;
+      return `<button class="dex-page-chip" id="${prefix}page-chip-${page}" data-page="${page}" tabindex="${page === currentPage ? 0 : -1}" aria-label="Page ${page}, ${data.owned} of ${data.total} collected" ${page === currentPage ? 'aria-current="page"' : ""} style="--filled:${data.total ? data.owned / data.total * 100 : 0}%">${page}</button>`;
     }).join("");
+    if (focusedPage) el("page-chip-" + (Number(focusedPage) <= pages ? focusedPage : currentPage)).focus({ preventScroll: true });
+    // In the single scrolling row on phones, keep the open page's chip in view.
+    if (overview.scrollWidth > overview.clientWidth) {
+      const chip = el("page-chip-" + currentPage);
+      overview.scrollLeft = chip.offsetLeft - (overview.clientWidth - chip.offsetWidth) / 2;
+    }
     el("page-heading").textContent = `Page ${currentPage}`;
     el("sheet-label").textContent = `Sheet ${settings.useBackSides ? Math.ceil(currentPage / 2) : currentPage} · ${settings.useBackSides && currentPage % 2 === 0 ? "Back" : "Front"}`;
     const pageData = pageCounts.get(currentPage) ?? { total: 0, owned: 0 };
@@ -32,6 +54,10 @@ export function binderPages(prefix: string, turn: (page: number) => void) {
     el<HTMLButtonElement>("page-prev").disabled = currentPage === 1; el<HTMLButtonElement>("page-next").disabled = currentPage === pages;
     el<HTMLSelectElement>("page-select").innerHTML = Array.from({ length: pages }, (_, index) => `<option value="${index + 1}" ${index + 1 === currentPage ? "selected" : ""}>${index + 1} / ${pages}</option>`).join("");
     overview.scrollTop = top;
+    if (focusedPage) {
+      const chip = document.getElementById(prefix + "page-chip-" + (Number(focusedPage) <= pages ? focusedPage : currentPage));
+      for (const other of overview.querySelectorAll<HTMLButtonElement>("button[data-page]")) other.tabIndex = other === chip ? 0 : -1;
+    }
     const grid = el("binder-grid");
     grid.style.setProperty("--columns", String(settings.columns));
     grid.dataset.dense = String(settings.columns > 4);

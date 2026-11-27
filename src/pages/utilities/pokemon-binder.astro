@@ -57,7 +57,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
     <BinderToolbar>
       <label class="dex-field-inline" for="dex-generation"><span>Generation</span><select id="dex-generation" aria-label="Generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>{i+1}</option>)}</select></label>
     </BinderToolbar>
-    <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label"></p><div id="results-list"></div></section>
+    <section id="dex-results" class="dex-search-results" aria-label="Search results" hidden><p id="results-count" class="dex-label" role="status"></p><ol id="results-list" class="dex-result-list"></ol></section>
 
     <BinderPages />
 

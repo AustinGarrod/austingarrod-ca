@@ -269,7 +269,8 @@ async function initialize() {
   }
   function renderNationalView() {
     if (el("national-workspace").hidden) return;
-    el("binder-view").hidden = view.checklist;
+    // While a search is active its results replace the page grid.
+    el("binder-view").hidden = view.checklist || !!search.value.trim();
     el("checklist-view").hidden = !view.checklist;
     el("view-binder").setAttribute("aria-pressed", String(!view.checklist));
     el("view-checklist").setAttribute("aria-pressed", String(view.checklist));
@@ -281,8 +282,10 @@ async function initialize() {
     el("dex-results").hidden = !active;
     if (!active) return;
     const results = filteredSpecies();
-    el("results-count").textContent = `${results.length} Pokémon found${results.length > 60 ? " · Showing the first 60" : ""}`;
-    el("results-list").innerHTML = results.slice(0, 60).map(item => `<div class="dex-result"><div><strong>${dex(item.id)} ${escape(item.name)}</strong><small>${locationText(item.id)}</small></div><button data-goto="${item.id}">Go to page</button></div>`).join("") || '<p class="dex-help">No Pokémon match. Try a name, Pokédex number, or another filter.</p>';
+    el("results-count").textContent = results.length
+      ? `${results.length} Pokémon found${results.length > 60 ? " · Showing the first 60" : ""}`
+      : "No Pokémon match. Try a name, Pokédex number, or another filter.";
+    el("results-list").innerHTML = results.slice(0, 60).map(item => `<li class="dex-result"><span class="dex-result-number">${dex(item.id)}</span><strong class="dex-result-name">${escape(item.name)}</strong><span class="dex-result-finish"></span><span class="dex-result-place">${locationText(item.id)}</span><button data-goto="${item.id}" aria-label="Go to ${escape(item.name)} on its page">Go to page</button></li>`).join("");
   }
   let collectorRequest: Promise<CollectorNumbers> | undefined;
   function getCollectorNumbers(): Promise<CollectorNumbers> {
@@ -380,7 +383,14 @@ async function initialize() {
       if (selected === id) { loadedPrintings = data; detailLoading = false; renderPrintings(); }
     } catch { if (selected === id) { detailLoading = false; detailError = true; renderPrintings(); } }
   }
-  function goToPokemon(id: number) { currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false; void selectPokemon(id, false); el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  function goToPokemon(id: number) {
+    currentPage = locationFor(id, snapshot.state.settings, species).page; view.checklist = false;
+    // Leaving the search shows the page grid again.
+    search.value = "";
+    void selectPokemon(id, false);
+    el("page-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+    el("open-grid-" + id).focus({ preventScroll: true });
+  }
   function renderSync() {
     el("binder-account-panel").hidden = !account.enabled;
     el<HTMLAnchorElement>("binder-account-link").href = accountHref("/utilities/pokemon-binder/");
