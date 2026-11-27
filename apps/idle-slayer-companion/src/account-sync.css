@@ -1,4 +1,4 @@
-.companion-account { position: relative; flex: 0 1 auto; }
+.companion-account { position: relative; display: grid; justify-items: start; }
 .companion-account > button { white-space: normal; }
 .companion-account-panel { max-width: 640px; color: var(--ink); text-align: left; }
 .companion-account-panel h2 { margin-top: 0; }
@@ -8,4 +8,3 @@
 .companion-account-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .companion-account-actions a { padding: 8px; border: 1px solid currentColor; }
 .companion-account-actions button { white-space: normal; }
-@media (max-width: 600px) { .companion-global-actions:has(.companion-account) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountSession, RemoteDocument } from '../../../packages/accounts/client'
 import { IDBFactory } from 'fake-indexeddb'
-const mocked = vi.hoisted(() => ({ session: null as AccountSession | null, listener: null as ((value: AccountSession) => void) | null, read: vi.fn(), write: vi.fn(), stage: vi.fn(), commit: vi.fn(), bound: vi.fn(), sessionReads: vi.fn() }))
+const mocked = vi.hoisted(() => ({ session: null as AccountSession | null, listener: null as ((value: AccountSession) => void) | null, read: vi.fn(), write: vi.fn(), stage: vi.fn(), commit: vi.fn(), bound: vi.fn(), sessionReads: vi.fn(), refreshReads: vi.fn() }))
 vi.mock('../../../packages/accounts/client', async () => {
   const actual = await vi.importActual<typeof import('../../../packages/accounts/client')>('../../../packages/accounts/client')
-  return { ...actual, getSession: async () => { mocked.sessionReads(); return mocked.session }, refreshSession: async () => mocked.session, subscribeSession: (listener: (value: AccountSession) => void) => { mocked.listener = listener; return () => { mocked.listener = null } }, createAccountClient: (id: string) => { mocked.bound(id); return { getDocument: mocked.read, writeDocument: mocked.write, stageMigration: mocked.stage, commitMigration: mocked.commit } } }
+  return { ...actual, getSession: async () => { mocked.sessionReads(); return mocked.session }, refreshSession: async () => { mocked.refreshReads(); return mocked.session }, subscribeSession: (listener: (value: AccountSession) => void) => { mocked.listener = listener; return () => { mocked.listener = null } }, createAccountClient: (id: string) => { mocked.bound(id); return { getDocument: mocked.read, writeDocument: mocked.write, stageMigration: mocked.stage, commitMigration: mocked.commit } } }
 })
 import { createCompanionAccountSync, type CompanionAccountSync } from './account-sync'
 import { ACTIVE_ACCOUNT_KEY, accountKey, captureRaw, documentKeys, documents, rawForDocuments, readBundle, writeBundle, type AccountBundle, type DocumentName } from './account-storage'
@@ -158,6 +158,19 @@ describe('recoverable account migration and sync', () => {
     expect(readBundle(storage, 'A')!.remote.comparison?.revision).toBe(4)
     expect(JSON.parse(readBundle(storage, 'A')!.raw[documentKeys.comparison]!).ids).toEqual(['newer-recovery'])
     expect(controller.getState().status).toContain('older account response')
+  })
+  it('marks an unreachable account service as unavailable and clears it only after a successful retry', async () => {
+    const storage = memoryStorage(), before = captureRaw(storage)
+    mocked.sessionReads.mockImplementationOnce(() => { throw new Error('Account service returned 404') })
+    const controller = make(storage); await start(controller)
+    expect(controller.getState()).toMatchObject({ unavailable: true, loading: false, accountId: null })
+    expect(controller.getState().status).toContain('Accounts are unavailable')
+    mocked.refreshReads.mockImplementationOnce(() => { throw new Error('Still offline') })
+    await controller.retryConnection()
+    expect(controller.getState().unavailable).toBe(true); expect(controller.getState().status).toContain('still unavailable')
+    await controller.retryConnection()
+    expect(controller.getState()).toMatchObject({ unavailable: false, session: mocked.session })
+    expect(captureRaw(storage)).toEqual(before)
   })
   it('scopes recovery exports to the verified account instead of including other accounts or signed-out recoveries', async () => {
     const storage = memoryStorage(); storage.setItem(accountKey('A') + '.recovery.a', 'private-A-snapshot'); storage.setItem(accountKey('B') + '.migration.v1', 'private-B-snapshot')

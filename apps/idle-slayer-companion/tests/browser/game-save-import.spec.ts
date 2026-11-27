@@ -1,4 +1,4 @@
-import { openProgress } from './helpers/app'
+import { chooseLayout, expectLayout, exportMapBackup, historyAction, openImport } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -15,11 +15,11 @@ const quests = '6d44qruuppdrshhefq8b'
 const initial = emptyProfile(catalog.revision)
 
 async function chooseSave(page: Page, bytes: Uint8Array, _retry = false) {
-  const dialog = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   if (!await dialog.isVisible()) {
-    const trigger = page.getByRole('button', { name: 'Import game save…', exact: true })
+    const trigger = page.getByRole('button', { name: 'Import save…', exact: true })
     if (await trigger.isVisible()) await trigger.click()
-    else await page.getByRole('button', { name: 'Import save', exact: true }).click()
+    else await openImport(page)
   }
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'savedata.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) })
@@ -32,9 +32,8 @@ test('game save preview is atomic, replaces known state, updates suggestions and
   const original = { ...initial, purchases: { [quests]: { epoch: 0, active: true }, 'legacy-test-id': { epoch: 0, active: false } }, milestones: { 'legacy-item-test': true as const } }
   await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: storageKey, profile: original })
   await page.goto('./ascension/')
-  await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: 'Game Layout', exact: true }).click()
+  await chooseLayout(page, 'Game Layout')
   const before = await stored(page)
-  await openProgress(page)
   const bytes = encodeGameSaveFixture(nativeSaveFixture({ integers: { [start]: 1, [gatherer]: 1 }, strings: { 'Unrelated fixture preference': 'fixture-private-marker@example.invalid' } }))
   let dialog = await chooseSave(page, bytes)
   await expect(dialog.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
@@ -53,19 +52,16 @@ test('game save preview is atomic, replaces known state, updates suggestions and
   expect(imported.milestones).toEqual({ 'legacy-item-test': true })
   expect(imported.showSpoilers).toBe(false)
   expect(JSON.stringify(imported)).not.toContain('fixture-private-marker')
-  await expect(page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Game Layout')
   await page.getByRole('button', { name: 'Next upgrade', exact: true }).click()
   await expect(page.locator('.recommendation-main')).toHaveAttribute('data-upgrade-id', quests)
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await undo.click()
+  await historyAction(page, 'Undo')
   await expect.poll(async () => JSON.parse((await stored(page))!)).toEqual(original)
 })
 
 test('invalid, unsupported and oversized saves keep progress intact and can be retried', async ({ page }) => {
   await page.goto('./ascension/')
-  await openProgress(page)
   const before = await stored(page)
   const cases = [
     { bytes: new TextEncoder().encode('fixture-sensitive-garbage'), message: 'not a supported Idle Slayer game save' },
@@ -96,7 +92,6 @@ test('preview keeps hidden names and native account preferences out of the UI, s
     if (request.method() === 'GET' && request.postData() === null && url.origin === origin && url.pathname === '/api/v1/auth.php' && url.search === '?action=session') return
     if (request.method() !== 'GET' || url.origin !== origin || url.search) submissions.push(request.url())
   })
-  await openProgress(page)
   const dialog = await chooseSave(page, encodeGameSaveFixture(nativeSaveFixture({ epoch: '1', integers: { [hidden.id]: 1 }, strings: { 'Fixture account preference': 'fixture-account@example.invalid' } })))
   await expect(dialog).not.toContainText(hidden.title)
   await expect(dialog).not.toContainText('fixture-account')
@@ -115,7 +110,6 @@ test('phone and landscape previews remain usable and Escape cancels with focus r
   for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(viewport)
     await page.goto('./ascension/')
-    await openProgress(page)
     const dialog = await chooseSave(page, encodeGameSaveFixture(nativeSaveFixture({ integers: { [start]: 1 } })))
     await dialog.getByRole('button', { name: 'Apply snapshot', exact: true }).scrollIntoViewIfNeeded()
     await expect(dialog.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeInViewport()
@@ -124,7 +118,7 @@ test('phone and landscape previews remain usable and Escape cancels with focus r
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true)
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Import save', exact: true })).toBeFocused()
+    await expect(page.getByRole('button', { name: 'Data', exact: true })).toBeFocused()
     expect(await stored(page)).toBeNull()
     await expect(page.locator('.toolbar')).toBeVisible()
   }
@@ -142,7 +136,6 @@ test('cancelled asynchronous reads cannot reopen or apply a stale preview', asyn
     }
   })
   await page.goto('./ascension/')
-  await openProgress(page)
   const dialog = await chooseSave(page, encodeGameSaveFixture(nativeSaveFixture()))
   const readingStatus = dialog.getByRole('status').filter({ hasText: /^Reading and validating locally…$/ })
   await expect(readingStatus).toBeVisible()
@@ -166,7 +159,6 @@ test('explicit import recovers corrupt storage and failed writes retain usable p
     }
   }, storageKey)
   await page.goto('./ascension/')
-  await openProgress(page)
   const bytes = encodeGameSaveFixture(nativeSaveFixture({ integers: { [start]: 1 } }))
   let dialog = await chooseSave(page, bytes)
   expect(await stored(page)).toBe('{fixture-corrupt-profile')
@@ -177,14 +169,12 @@ test('explicit import recovers corrupt storage and failed writes retain usable p
   await expect.poll(async () => JSON.parse((await stored(page))!)).toEqual({ ...initial, purchases: { [start]: { epoch: 0, active: true } } })
 
   await page.evaluate(() => { (window as unknown as { fixtureBlockStorage: boolean }).fixtureBlockStorage = true })
-  await openProgress(page)
   dialog = await chooseSave(page, encodeGameSaveFixture(nativeSaveFixture({ integers: { [start]: 1, [gatherer]: 1 } })))
   await dialog.getByRole('button', { name: 'Apply snapshot', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Current progress remains available')
   expect(JSON.parse((await stored(page))!).purchases[gatherer]).toBeUndefined()
-  await openProgress(page)
   const downloadEvent = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   const download = await downloadEvent
   const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'))
   expect(backup.purchases[gatherer]).toEqual({ epoch: 0, active: true })

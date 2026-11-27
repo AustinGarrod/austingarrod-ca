@@ -1,5 +1,5 @@
 import { denyProfileWrites } from './helpers/profile'
-import { showSpoilers, openAction, purchaseStart } from './helpers/app'
+import { closeMapOptions, exposeMapAction, openAction, openData, openImport, openPriorAscensions, purchaseStart, showSpoilers } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -35,10 +35,10 @@ test('clean external updates invalidate a removal preview and prior undo', async
   await expect(page.getByRole('dialog', { name: 'Remove purchase?', exact: true })).toBeVisible()
   await showSpoilers(other)
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await openAction(page, 'Progress')
+  await openPriorAscensions(page)
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
   const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, undo)
   await expect(undo).toBeDisabled()
   expect(await page.evaluate(({ key, id }) => JSON.parse(window.__readMapProfileText(key)!).purchases[id], { key, id: catalog.startId })).toEqual({ epoch: 0, active: true })
 })
@@ -53,7 +53,7 @@ test('dirty conflict recovery preserves export and supports reviewed saved/local
   await expect(page.getByRole('button', { name: 'Review progress conflict', exact: true })).toBeVisible()
   await expect(page.locator('.map-summary')).toContainText('1 /')
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  const review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   const download = page.waitForEvent('download')
   await review.getByRole('button', { name: 'Export Companion progress', exact: true }).click()
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8')).ascension.purchases[catalog.startId]).toEqual({ epoch: 0, active: true })
@@ -61,8 +61,7 @@ test('dirty conflict recovery preserves export and supports reviewed saved/local
   await page.getByRole('button', { name: 'Apply snapshot', exact: true }).click()
   await expect(page.locator('.map-summary')).toContainText('0 /')
   await openAction(page, 'Undo')
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await expect(page.locator('.map-summary')).toContainText('1 /')
   await showSpoilers(other, false)
   await expect(page.getByRole('button', { name: 'Review progress conflict', exact: true })).toBeVisible()
@@ -174,23 +173,21 @@ for (const kind of ['backup', 'game-save'] as const) {
     }, kind)
     await page.goto('./ascension/')
     const other = await context.newPage(); await other.goto(page.url())
-    await openAction(page, 'Progress')
     if (kind === 'backup') {
       const backup = { ...emptyProfile(catalog.revision), epoch: 9 }
-      await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
+      await (await openData(page, { advanced: false })).getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
     } else {
-      await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
-      await page.getByRole('dialog', { name: 'Import game save', exact: true }).getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '9' }))) })
+      await (await openImport(page)).getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '9' }))) })
     }
     await expect.poll(() => page.evaluate(() => typeof (window as Window & { releaseProfileRead?: () => void }).releaseProfileRead)).toBe('function')
     await showSpoilers(other)
-    if (kind === 'backup') await expect(page.getByRole('dialog')).toHaveCount(0)
+    if (kind === 'backup') await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toHaveCount(0)
     else await expect(page.getByRole('dialog').getByRole('button', { name: 'Apply snapshot', exact: true })).toHaveCount(0)
     await page.evaluate(() => (window as Window & { releaseProfileRead?: () => void }).releaseProfileRead?.())
     await expect.poll(() => page.evaluate(() => (window as Window & { profileReadFinished?: boolean }).profileReadFinished)).toBe(true)
-    if (kind === 'backup') await expect(page.getByRole('dialog')).toHaveCount(0)
+    if (kind === 'backup') await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toHaveCount(0)
     else {
-      await expect(page.getByRole('dialog', { name: 'Import game save', exact: true })).toBeVisible()
+      await expect(page.getByRole('dialog', { name: 'Import save', exact: true })).toBeVisible()
       await expect(page.getByRole('dialog').getByRole('button', { name: 'Apply snapshot', exact: true })).toHaveCount(0)
       await expect(page.getByRole('dialog').getByText('Reading and validating locally…', { exact: true })).toHaveCount(0)
     }

@@ -2,7 +2,7 @@
 
 ## Current companion adapter (7.3.4)
 
-**Import game save** now opens the global Companion preview. A reviewed **Windows Steam 7.3.4 / build 25810322** file replaces supported native observations across Ascension, achievements, crafting/materials, regular quests, supported Village construction state, Bestiary, and Divinities with one Undo operation. The native version is a compatibility discriminator, not authentication. Missing supported native keys use only their reviewed native defaults. Unsupported Village task predicates remain unrecorded; no unsupported NPC/task completion is inferred. See [native review](companion-native-review.md).
+**Data → Import save…** opens the global Companion preview: a summary table of recorded counts per section, now and after, with per-section details collapsed. A reviewed **Windows Steam 7.3.4 / build 25810322** file replaces supported native observations across Ascension, achievements, crafting/materials, regular quests, supported Village construction state, Bestiary, and Divinities with one Undo operation. The native version is a compatibility discriminator, not authentication. Missing supported native keys use only their reviewed native defaults. Unsupported Village task predicates remain unrecorded; no unsupported NPC/task completion is inferred. See [native review](companion-native-review.md).
 
 Native preferences are decoded once and discarded after normalization. Goals, recipe quantities, layout, tracking preference and the current spoiler choice are kept. Preview identities use the recipient's **current** visibility, including when the incoming save reveals more content. Unknown normalized IDs survive catalog updates. Shared craft/Village item completion and map milestones refer to one ownership fact. Selection and effective Divinity activation remain separate. Counters use exact decimal strings.
 
@@ -20,7 +20,7 @@ The reviewed input is **Windows Steam Idle Slayer 7.2.0, build 25551532**, using
 %USERPROFILE%\AppData\LocalLow\Pablo Leban\Idle Slayer\
 ```
 
-The picker does not automatically scan that directory. Close the game before choosing the file so it is not changing while being read. A map JSON backup is a separate format and continues to use Restore JSON backup. Mobile file access and cloud-save downloads are outside this importer.
+The picker does not automatically scan that directory. Close the game before choosing the file so it is not changing while being read. A map JSON backup is a separate format; restore it with Data → Restore from a backup file, which recognises it and opens the Ascension restore preview. Mobile file access and cloud-save downloads are outside this importer.
 
 ## Supported format and bounds
 

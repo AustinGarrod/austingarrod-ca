@@ -13,11 +13,13 @@ const stateLabels = { available: 'Available · prerequisites recorded; SP balanc
 const choiceStateLabels = { available: 'Available', locked: 'Locked', purchased: 'Owned and active', pending: 'Owned · awaiting activation' }
 const cost = (value: string) => `${BigInt(value).toLocaleString('en')} SP`
 
-export function SavedComparisonPanel({ catalog, profile, getProfile, visible, session, state, initialId, onInspect, onReview }: {
+export function SavedComparisonPanel({ catalog, profile, getProfile, visible, session, state, initialId, onInspect, onReview, incoming }: {
   catalog: Catalog; profile: Profile; visible: ReturnType<typeof visibility>
   getProfile: () => Profile
   session: ReturnType<typeof createComparisonSession>; state: ComparisonState; initialId?: string
   onInspect: (id: string) => void; onReview: (route: RequirementRoute, origin: string) => void
+  /** A comparison file already chosen in Data & backup; it gets the same validation and confirmation. */
+  incoming?: { text: string; sequence: number }
 }) {
   const list = presentedComparison(state.list, catalog, visible.ids)
   const index = useMemo(() => new Map(catalog.upgrades.map((upgrade) => [upgrade.id, upgrade])), [catalog])
@@ -57,11 +59,17 @@ export function SavedComparisonPanel({ catalog, profile, getProfile, visible, se
       setFeedback('Comparison exported. This file contains no progress profile.')
     } catch { setFeedback('Comparison could not be exported. This session is unchanged.') }
   }
-  async function readFile(file: File) {
+  const handledIncoming = useRef(0)
+  useEffect(() => {
+    if (!incoming || incoming.sequence === handledIncoming.current || !state.loaded) return
+    handledIncoming.current = incoming.sequence
+    void readFile(incoming.text)
+  }, [incoming, state.loaded])
+  async function readFile(file: File | string) {
     const generation = ++readGeneration.current, snapshot = current()
     setReading(true); setRestore(null); setFeedback('')
     try {
-      const text = file.size <= MAX_COMPARISON_BYTES ? await file.text() : ''
+      const text = typeof file === 'string' ? new TextEncoder().encode(file).byteLength <= MAX_COMPARISON_BYTES ? file : '' : file.size <= MAX_COMPARISON_BYTES ? await file.text() : ''
       const latest = current()
       if (generation !== readGeneration.current || snapshot.version !== latest.version || snapshot.visibleKey !== latest.visibleKey) return
       const parsed = parseComparison(text)

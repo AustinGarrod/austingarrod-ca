@@ -1,3 +1,4 @@
+import { restoreFile } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog, Requirement } from '../../src/domain/types'
@@ -39,10 +40,7 @@ for (const title of ['Soul of The Fallen', 'Soul Climbing Boots']) {
 
     supply(node.reveal)
     expect(satisfies(node.reveal, profile)).toBe(true)
-    const progress = page.getByRole('button', { name: 'Progress', exact: true })
-    if (!await progress.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-    await progress.click()
-    await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-revealed.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
+    await restoreFile(page, { name: 'synthetic-revealed.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
     await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
     await page.getByRole('searchbox').fill(title)
     await page.locator('.search-result').filter({ hasText: title }).first().click()

@@ -8,10 +8,10 @@ The default context blocks only top-level app service-worker registration before
 
 Small public-behavior helpers live in `tests/browser/helpers/`:
 
-- `app.ts`: toolbar readiness, responsive Map options access, Progress, spoilers, layout, title selection, Undo and a confirmed start purchase. Title selection is for fixtures with an unambiguous title; identity-sensitive scenarios must select their explicit stable ID.
+- `app.ts`: toolbar readiness; `toolAction` names a map control by its visible label; `exposeMapAction` / `mapAction` reveal and click a control behind the toolbar's View, Plan or Record tools or an upgrade's Plan with this upgrade / Share this upgrade menus (searched in that order); `openData`, `openImport`, `openAccount`, `restoreFile`, `openTransfer` and `exportMapBackup` for Data & backup; `openGoals` and `openPriorAscensions`; `historyAction` for Undo/Redo (status row, or Record on short phones); `showSpoilers`, `chooseLayout` / `expectLayout` (the layout switch is in the toolbar on wide maps and under View on narrow ones), search results, title selection and a confirmed start purchase. Tracker entries are rows; scenarios expand an entry by its name button before using controls that live in the expanded entry. Title selection is for fixtures with an unambiguous title; identity-sensitive scenarios must select their explicit stable ID.
 - `profile.ts`: explicit synthetic profile seeding, an optional only-when-absent mode that preserves edits across reload, and profile-only write refusal. Use the same flag to release a simulated refusal; other storage keys retain normal behavior.
 - `geometry.ts`: page overflow, selected-node containment, control overlap, 44-pixel hit area and center hit testing.
-- `discovery-focus.ts`: focused title clearance below the discovery heading.
+- `discovery-focus.ts`: focused title clearance below the discovery heading, walking the search results with one Tab and then arrow keys (the results are a single Tab stop).
 
 Keep domain expectations, state comparisons, async-read controls, privacy assertions and special geometry in the scenario. These helpers do not choose prerequisites, fill real progress, navigate production or suppress errors. Shared navigation waits for the toolbar and uses the same public buttons on desktop and compact layouts.
 

@@ -17,6 +17,9 @@ interface CompanionReceipt {
   icons: { system: string; id: string; sha256: string }[]
 }
 
+/** UTF-8 text decoded as Windows-1252 and saved again, for example 'âœ“' for a tick, 'â€º' for a chevron or 'Ã©' for é. */
+export const MOJIBAKE = /[ÂÃâ][\u0080-¿ŒœŠšŸŽžƒˆ˜–—‘-„†-•…‰‹›€™]/
+
 // Reject links before reading any deployed files, including the notice validator's inputs.
 function inspect(directory: string): void {
   if (!lstatSync(directory).isDirectory() || lstatSync(directory).isSymbolicLink()) throw new Error('Deployment must be a regular directory.')
@@ -86,6 +89,7 @@ export function validateReleaseArtifact(root: string, directory: string, deploym
     if (checkedCSS.has(file)) return
     checkedCSS.add(file)
     const css = read(file).toString('utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    if (MOJIBAKE.test(css)) throw new Error('Built stylesheet contains mis-encoded text (UTF-8 read as Windows-1252); use CSS escapes for glyphs: ' + file)
     for (const match of css.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi)) {
       const reference = (match[1] ?? match[2] ?? match[3]).trim()
       if (/^data:/i.test(reference) || reference.startsWith('#')) continue

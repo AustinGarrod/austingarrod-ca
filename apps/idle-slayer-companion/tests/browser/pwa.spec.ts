@@ -17,7 +17,7 @@ import { upgradeReferenceURL } from '../../src/domain/upgrade-reference'
 import { CHECKPOINT_STORAGE_KEY } from '../../src/domain/checkpoints'
 import { COMPARISON_STORAGE_KEY } from '../../src/domain/saved-comparison'
 import { COMPANION_WORKSPACE_KEY as GOALS_STORAGE_KEY } from '../../src/useCompanionWorkspace'
-import { openAction, openProgress } from './helpers/app'
+import { closeMapOptions, exposeMapAction, historyAction, mapAction, openAction, openTransfer } from './helpers/app'
 
 test.use({ serviceWorkers: 'allow', appServiceWorkers: true })
 const base = '/utilities/idle-slayer-companion/'
@@ -86,7 +86,7 @@ test('a queued installation opener cannot replace a purchase or transfer preview
   await expect(page.getByRole('dialog', { name: 'Record purchase?', exact: true })).toBeVisible()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await openProgress(page); await page.getByRole('button', { name: 'Receive transfer…', exact: true }).click()
+  await openTransfer(page, 'receive')
   await page.locator('.companion-sidebar-bottom').getByRole('button', { name: 'Install & offline', exact: true, includeHidden: true }).evaluate((button: HTMLButtonElement) => button.click())
   await expect(page.getByRole('dialog', { name: 'Transfer map progress', exact: true })).toBeVisible()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
@@ -159,8 +159,7 @@ test('a private incoming transfer can be reviewed and applied offline without en
   expect(await page.evaluate((key) => localStorage.getItem(key), LAYOUT_PREFERENCE_KEY)).toBe('web')
   const cachedURLs = await page.evaluate(async () => (await Promise.all((await caches.keys()).map(async (name) => (await (await caches.open(name)).keys()).map((request) => request.url)))).flat())
   expect(cachedURLs.every((url) => !url.includes('?') && !url.includes('#') && !url.includes('private'))).toBe(true)
-  const progress = await openProgress(page)
-  await progress.getByRole('button', { name: 'Undo', exact: true }).click()
+  await historyAction(page, 'Undo')
   await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').progress?.ascension.epoch, PROFILE_STORAGE_KEY)).toBe(0)
 })
 
@@ -244,14 +243,14 @@ for (const kind of ['checkpoint', 'comparison', 'goal'] as const) {
       }
     }, key)
     if (kind === 'checkpoint') {
-      await openProgress(page); await page.getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+      await mapAction(page, 'Progress checkpoints…')
       await page.getByLabel('Name current checkpoint', { exact: true }).fill('private unsaved reference')
       await page.getByRole('button', { name: 'Capture current progress', exact: true }).click()
       await expect(page.getByRole('status', { name: 'Checkpoint storage and actions' })).toContainText('Saving failed')
     } else {
       await page.getByRole('button', { name: 'Return to start', exact: true }).click()
       const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-      await page.getByRole('button', { name: kind === 'goal' ? 'Set progression goal…' : 'Compare this upgrade…', exact: true }).click()
+      await mapAction(page, kind === 'goal' ? 'Set a goal…' : 'Compare this upgrade…')
       if (kind === 'goal') { await page.getByRole('button', { name: 'Save goal', exact: true }).click(); await expect(page.locator('.goals-panel')).toContainText('Intentions could not be saved') }
       else {
         const picker = page.locator('.saved-comparison-picker')
@@ -568,9 +567,9 @@ test('updates stay waiting for late windows, then naturally activate after all c
     // Produce unsaved progress, then exercise cancel and backup before update.
     await page.evaluate(() => { (window as Window & { denyWrites?: boolean }).denyWrites = true })
     const spoilers = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-    if (!await spoilers.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+    await exposeMapAction(page, spoilers)
     await spoilers.check()
-    if (await page.getByRole('dialog').count()) await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await openInstall(page); await page.getByRole('button', { name: 'Prepare app update…', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Prepare app update?', exact: true })).toContainText('unsaved progress')
     await page.getByRole('button', { name: 'Cancel', exact: true }).click()

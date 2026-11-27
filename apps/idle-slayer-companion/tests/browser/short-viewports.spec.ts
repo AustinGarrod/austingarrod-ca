@@ -1,3 +1,4 @@
+import { chooseLayout } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Locator } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -26,7 +27,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 375, height: 350 }
     test(`${layout} keeps map and details usable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport)
       await page.goto('./ascension/')
-      await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
+      await chooseLayout(page, layout)
       await page.getByRole('button', { name: 'Return to start', exact: true }).click()
       const details = page.getByRole('complementary', { name: 'Upgrade details', exact: true })
       await expect(details.getByRole('heading', { level: 2 })).toHaveText('Permanent Slayer')

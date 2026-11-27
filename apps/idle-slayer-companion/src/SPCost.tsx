@@ -7,12 +7,25 @@ function GroupedValue({ value }: { value: string }) {
   return groups.map((group, index) => <Fragment key={index}>{index > 0 && <wbr />}<span className="cost-digits">{group}{index < groups.length - 1 ? ',' : ''}</span></Fragment>)
 }
 
-export function SPCost({ value, full = false }: { value: string; full?: boolean }) {
+/**
+ * Exact large-number presentation: coefficient and power of ten from 13 digits, grouped digits below.
+ * Slayer Points are the default unit; companion counts pass their own unit (or none).
+ */
+export function SPCost({ value, full = false, unit = 'SP', unitName = 'Slayer Points' }: { value: string; full?: boolean; unit?: string; unitName?: string }) {
   const { exact, scientific } = presentCost(value)
   const [first, fraction] = scientific?.coefficient.split('.') ?? []
-  return <span className="sp-cost" role="math" aria-label={`${exact} Slayer Points`} title={`${exact} SP`} data-exact-cost={value}>
-    <span aria-hidden="true">{scientific && !full ? <><span className="cost-digits">{first}{fraction ? '.' : ''}</span>{fraction?.match(/.{1,3}/g)?.map((part, index) => <Fragment key={index}>{index > 0 && <wbr />}<span className="cost-digits">{part}</span></Fragment>)}{' × '}<span className="cost-power">10<sup>{scientific.exponent}</sup></span></> : <GroupedValue value={value} />}<span className="cost-unit"> SP</span></span>
+  return <span className="sp-cost" role="math" aria-label={unitName ? `${exact} ${unitName}` : exact} title={unit ? `${exact} ${unit}` : exact} data-exact-cost={value}>
+    <span aria-hidden="true">{scientific && !full ? <><span className="cost-digits">{first}{fraction ? '.' : ''}</span>{fraction?.match(/.{1,3}/g)?.map((part, index) => <Fragment key={index}>{index > 0 && <wbr />}<span className="cost-digits">{part}</span></Fragment>)}{' × '}<span className="cost-power">10<sup>{scientific.exponent}</sup></span></> : <GroupedValue value={value} />}{unit && <span className="cost-unit"> {unit}</span>}</span>
   </span>
+}
+
+/** A recorded or catalog count. Long values use the Ascension notation with the exact digits one tap away. */
+export function CompactCount({ value, unit = '' }: { value: string; unit?: string }) {
+  if (!/^\d+$/.test(value)) return <>{value}{unit && ` ${unit}`}</>
+  const canonical = BigInt(value).toString()
+  const { exact, scientific } = presentCost(canonical)
+  if (!scientific) return <>{exact}{unit && ` ${unit}`}</>
+  return <details className="compact-count"><summary><SPCost value={canonical} unit={unit} unitName={unit} /></summary><span className="compact-count-exact">Exact: <span className="cost-digits">{exact}</span>{unit && ` ${unit}`}</span></details>
 }
 
 export function ExactCostDetails({ value, upgradeId }: { value: string; upgradeId: string }) {

@@ -11,7 +11,8 @@ export function Icon({ node }: { node: Upgrade }) {
 }
 
 export function UpgradeCard({ data }: NodeProps<UpgradeNode>) {
-  return <div className={`upgrade-node nopan ${data.state}`}>
+  // No `nopan`: a drag that starts on a tile pans the map. Tiles stay fixed (nodesDraggable is off).
+  return <div className={`upgrade-node ${data.state}`}>
     <Handle type="target" position={Position.Top} id="top-in" />
     <Handle type="target" position={Position.Bottom} id="bottom-in" />
     <Handle type="target" position={Position.Left} id="left-in" />

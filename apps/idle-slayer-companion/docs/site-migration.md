@@ -12,14 +12,18 @@ The compatibility artifact contains the frozen full app at `/idle-slayer-compani
 
 ## Guided transfer
 
-Browser storage is origin-bound. Existing state cannot be read by AustinGarrod.ca, and an installed GitHub Pages app does not become the new installation automatically. Keep old browser data and all exported files until destination restore has been checked. Use these existing files, in order:
+Browser storage is origin-bound. Existing state cannot be read by AustinGarrod.ca, and an installed GitHub Pages app does not become the new installation automatically. Keep old browser data and all exported files until destination restore has been checked.
 
-1. **Companion progress:** Backup & transfer → Export Companion progress; destination Restore Companion progress. This contains supported actual progress across the map and companion systems.
-2. **Intentions:** Export intentions / Restore intentions in the same panel. This contains goals and crafting plans. Legacy-only goals are normalized by the existing workspace reader; review any recovery conflict before exporting.
-3. **Checkpoints:** Ascension → Progress → Progress checkpoints → Export/Restore checkpoints.
-4. **Saved comparison:** Ascension → Map options → Saved upgrade comparison → Export/Restore comparison.
+**Quickest path (rebuilt legacy copy):** Data → Back up everything writes one file with progress, intentions, checkpoints and the saved comparison. On the new site, Data → Restore from a backup file recognises it and reviews each part with its usual preview. Older frozen copies that predate Data & backup do not have that button; use the single files below.
 
-Comparison export and restore intentionally omit known unrevealed upgrades. Restore progress first and choose the intended destination spoiler setting before restoring comparison. Nothing silently enables spoilers. Reselect Game/Detailed Layout, spoiler visibility and tracking preferences on the new site. QR transfer is map progress/layout only. Session Undo history, recent navigation, open hypothetical plans and reference sheets do not migrate. The original map JSON format remains supported in Ascension for legacy-only users. Every import retains its existing preview, cancellation and validation.
+**Single files**, in order. The export labels are unchanged so the migration guide and older copies match. In the current layout they sit under Data → Advanced: single files; the location in older copies is given second. On the new site, every file can be restored with Data → Restore from a backup file, which detects the file type.
+
+1. **Companion progress:** Export Companion progress (older copies: Backup & transfer). This contains supported actual progress across the map and companion systems.
+2. **Intentions:** Export intentions (older copies: the same panel). This contains goals and crafting plans. Legacy-only goals are normalized by the existing workspace reader; review any recovery conflict before exporting.
+3. **Checkpoints:** Checkpoints: export or restore… → Export checkpoints (older copies: Ascension → Progress → Progress checkpoints).
+4. **Saved comparison:** Saved comparison: export or restore… → Export comparison (older copies: Ascension → Map options → Saved upgrade comparison).
+
+Comparison export and restore intentionally omit known unrevealed upgrades. Restore progress first and choose the intended destination spoiler setting before restoring comparison. Nothing silently enables spoilers. Reselect Game/Detailed Layout, spoiler visibility and tracking preferences on the new site. QR transfer is map progress/layout only. Session Undo history, recent navigation, open hypothetical plans and reference sheets do not migrate. The original map JSON format remains supported for legacy-only users: Data → Restore from a backup file recognises it and hands it to Ascension's restore preview. Every import retains its existing preview, cancellation and validation.
 
 ## Ordered production rollout
 

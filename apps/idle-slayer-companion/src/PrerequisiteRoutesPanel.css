@@ -19,5 +19,4 @@ dialog:has(.prerequisite-routes) { width: min(1000px, calc(100vw - 24px)); overf
 .route-comparisons { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .route-total { color: var(--bright-gold); font-weight: bold; }
 .route-steps li { border-top: 1px solid var(--line); padding: 8px 0; }
-.detail-secondary > .route-entry { margin-top: 12px; max-width: 100%; overflow-wrap: anywhere; font-size: .875rem; }
 @media (min-width: 64em) { .route-comparisons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

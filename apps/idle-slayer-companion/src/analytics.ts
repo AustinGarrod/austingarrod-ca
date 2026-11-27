@@ -52,6 +52,8 @@ export interface AnalyticsEnvironment {
 }
 
 let migrationLanding = false
+/** True when this visit arrived through the old site's guided link (`?migration=1`), read before URL cleanup. */
+export const isMigrationLanding = () => migrationLanding
 /** Carry an explicit migration opt-out across origin changes before URL cleanup. */
 export function honorMigrationOptOut(win: Window): void {
   if (new URL(win.location.href).searchParams.get('migration') !== '1') return

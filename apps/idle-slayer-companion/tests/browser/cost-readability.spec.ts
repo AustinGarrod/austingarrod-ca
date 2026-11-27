@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
 import { PROFILE_STORAGE_KEY } from '../../src/domain/storage'
+import { exposeMapAction, restoreFile } from './helpers/app'
 
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 const key = catalog.upgrades.find((node) => node.title === 'Astral Key' && node.cost === '1000000000000000000')!
@@ -73,6 +74,7 @@ for (const fontSize of [16, 32]) test.describe(`${fontSize}px browser font`, () 
     expect(await details.locator('.detail-cost').evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(fontSize * .8125)
     const expand = details.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
     const full = details.getByRole('region', { name: 'Exact Slayer Point cost', exact: true })
+    await exposeMapAction(page, full)
     await expect(full.getByRole('math')).toHaveAccessibleName(exact)
     await expect(full.getByRole('math')).toHaveText('1,000,000,000,000,000,000 SP')
     await expect(full).toContainText(`Upgrade ID: ${key.id}`)
@@ -103,10 +105,8 @@ for (const fontSize of [16, 32]) test.describe(`${fontSize}px browser font`, () 
     }
     await recommendations.locator('.recommendation-cost').scrollIntoViewIfNeeded(); await page.screenshot({ path: info.outputPath('exact-cost-recommendation.png') })
     await recommendations.getByRole('button', { name: 'Close dialog', exact: true }).click()
-    await page.getByRole('button', { name: 'Map options', exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Progress', exact: true }).click()
     const incoming = structuredClone(profile); incoming.purchases[key.id] = { epoch: 3, active: true }
-    await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-exact-cost.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(incoming)) })
+    await restoreFile(page, { name: 'synthetic-exact-cost.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(incoming)) })
     const restore = page.getByRole('dialog', { name: 'Restore progress?', exact: true })
     const comparison = restore.getByRole('region', { name: 'Progress differences', exact: true })
     await expect(comparison).toHaveClass(/telemetry-private rr-block/)
@@ -123,6 +123,8 @@ for (const fontSize of [16, 32]) test.describe(`${fontSize}px browser font`, () 
     await page.locator(`.search-result[data-upgrade-id="${key.id}"]`).click()
     const details = page.getByRole('complementary', { name: 'Upgrade details', exact: true })
     const expand = details.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
+    const exactCost = details.getByRole('region', { name: 'Exact Slayer Point cost', exact: true })
+    await exposeMapAction(page, exactCost)
     await details.getByRole('button', { name: 'Copy exact cost', exact: true }).click()
     await expect(details.getByRole('status')).toContainText('Copy unavailable')
     const manual = details.getByRole('textbox', { name: 'Exact cost digits', exact: true })
@@ -131,6 +133,7 @@ for (const fontSize of [16, 32]) test.describe(`${fontSize}px browser font`, () 
     expect(await details.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     const other = catalog.upgrades.find((node) => node.title === key.title && node.id !== key.id)!
     await page.getByRole('searchbox').fill('Astral Key'); await page.locator(`.search-result[data-upgrade-id="${other.id}"]`).click()
+    await exposeMapAction(page, exactCost)
     await expect(details.getByRole('textbox', { name: 'Exact cost digits', exact: true })).toHaveCount(0)
     await expect(details.getByRole('status')).toBeEmpty()
     await expect(details.locator('.detail-cost').getByRole('math')).toHaveAttribute('data-exact-cost', other.cost)

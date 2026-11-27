@@ -5,7 +5,7 @@ import { emptyProfile, type Catalog, type Profile } from '../../src/domain/types
 import { planPurchase } from '../../src/domain/rules'
 import { PROFILE_STORAGE_KEY } from '../../src/domain/storage'
 import { denyProfileWrites, seedProfile } from './helpers/profile'
-import { openAction, showSpoilers } from './helpers/app'
+import { closeMapOptions, exposeMapAction, mapAction, openAction, showSpoilers, toolAction } from './helpers/app'
 
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 const node = (title: string) => catalog.upgrades.find((upgrade) => upgrade.title === title)!
@@ -36,7 +36,7 @@ async function inspect(page: Page, title: string) {
 }
 async function analyze(page: Page, title: string) {
   await inspect(page, title)
-  await page.getByRole('button', { name: 'Analyze forward impact…', exact: true }).click()
+  await mapAction(page, 'Analyze forward impact…')
   const dialog = page.getByRole('dialog', { name: 'Forward impact', exact: true })
   await expect(dialog).toBeVisible()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
@@ -65,7 +65,7 @@ for (const stocks of [false, true]) test(`one Portals event respects the indepen
   await page.screenshot({ path: test.info().outputPath(`portals-stocks-${stocks}.png`) })
   await dialog.getByRole('button', { name: 'Return to details', exact: true }).click()
   await expect(page.locator('.details h2')).toHaveText('Portals')
-  await expect(page.getByRole('button', { name: 'Analyze forward impact…', exact: true })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Plan with this upgrade', exact: true })).toBeFocused()
   expect(await stored(page)).toEqual(before)
 })
 
@@ -148,7 +148,7 @@ test('external progress invalidates analysis and generic dirty recovery replaces
   const again = await analyze(page, 'Soul Gatherer Bundle')
   await again.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  const recovery = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  const recovery = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await expect(recovery).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Forward impact', exact: true })).toHaveCount(0)
   await recovery.getByRole('button', { name: 'Use checked saved progress', exact: true }).click()
@@ -167,14 +167,14 @@ test('compact analysis does not displace the native Purchase Tab path and keeps 
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.getByRole('searchbox').press('Enter')
   await expect(page.locator('.details h2')).toBeFocused()
-  await expect(page.getByRole('button', { name: 'Analyze forward impact…', exact: true })).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Plan with this upgrade', exact: true })).not.toBeVisible()
   let reached = false
   for (let i = 0; i < 5; i++) { await page.keyboard.press('Tab'); if (await page.getByRole('button', { name: 'Record purchase…', exact: true }).evaluate((button) => document.activeElement === button)) { reached = true; break } }
   expect(reached).toBe(true)
   const toggle = page.getByRole('button', { name: 'Show details', exact: true })
   await toggle.click()
   const before = await stored(page)
-  await page.getByRole('button', { name: 'Analyze forward impact…', exact: true }).click()
+  await mapAction(page, 'Analyze forward impact…')
   const dialog = page.getByRole('dialog', { name: 'Forward impact', exact: true })
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   const close = dialog.getByRole('button', { name: 'Return to details', exact: true })
@@ -189,22 +189,25 @@ test('analysis preserves the exact session Undo and Redo action without storing 
   await inspect(page, 'Permanent Slayer')
   await page.getByRole('button', { name: 'Record purchase…', exact: true }).click()
   await page.getByRole('button', { name: 'Apply purchases', exact: true }).click()
-  await openAction(page, 'Progress')
-  const progress = page.getByRole('dialog', { name: 'Your progress', exact: true })
-  await expect(progress.getByRole('button', { name: 'Undo', exact: true })).toContainText('Purchase')
-  await progress.getByRole('button', { name: 'Undo', exact: true }).click()
-  await expect(progress).toBeVisible()
-  await expect(progress.getByRole('button', { name: 'Redo', exact: true })).toContainText('Purchase')
-  await expect(progress.getByRole('button', { name: 'Redo', exact: true })).toBeEnabled()
-  await progress.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  // Undo and Redo name the change they reverse, in the status row or (short phones) the Record tools.
+  const history = async (direction: 'Undo' | 'Redo') => { const action = toolAction(page, direction); await exposeMapAction(page, action); return action }
+  let undo = await history('Undo')
+  await expect(undo).toContainText('Purchase')
+  await undo.click()
+  let redo = await history('Redo')
+  await expect(redo).toContainText('Purchase')
+  await expect(redo).toBeEnabled()
+  await closeMapOptions(page)
   const before = await stored(page)
   const dialog = await analyze(page, 'Permanent Slayer')
   await dialog.getByRole('button', { name: 'Return to details', exact: true }).click()
   expect(await stored(page)).toEqual(before)
-  await openAction(page, 'Progress')
-  await expect(progress.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
-  await expect(progress.getByRole('button', { name: 'Redo', exact: true })).toBeEnabled()
-  await expect(progress.getByRole('button', { name: 'Redo', exact: true })).toContainText('Purchase')
-  await progress.getByRole('button', { name: 'Redo', exact: true }).click()
+  undo = await history('Undo')
+  await expect(undo).toBeDisabled()
+  await closeMapOptions(page)
+  redo = await history('Redo')
+  await expect(redo).toBeEnabled()
+  await expect(redo).toContainText('Purchase')
+  await redo.click()
   await expect(page.locator('.map-summary')).toContainText('1 /')
 })

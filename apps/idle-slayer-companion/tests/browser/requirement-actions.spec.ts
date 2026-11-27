@@ -1,3 +1,4 @@
+import { closeMapOptions, historyAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -35,11 +36,8 @@ async function stored(page: Page) {
   return page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!) as Profile, PROFILE_STORAGE_KEY)
 }
 async function undo(page: Page) {
-  const action = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await action.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await action.click()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await historyAction(page, 'Undo')
+  await closeMapOptions(page)
 }
 
 test('Armory routes from details and a blocked purchase preserve explicit edits, return focus and fresh previews', async ({ page }) => {
@@ -134,7 +132,7 @@ test('prior ascension route focuses history and retains its confirmation, cancel
   await page.locator('.details').getByRole('button', { name: 'Record purchase…', exact: true }).click()
   const blocked = page.getByRole('dialog', { name: 'Explicit progress required', exact: true })
   await blocked.getByRole('button', { name: 'Review At least one Ultra Ascension', exact: true }).click()
-  let progress = page.getByRole('dialog', { name: 'Your progress', exact: true })
+  let progress = page.getByRole('dialog', { name: 'Previous Ultra Ascensions', exact: true })
   const history = progress.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })
   await expect(history).toBeFocused()
   await history.fill('1')
@@ -144,7 +142,7 @@ test('prior ascension route focuses history and retains its confirmation, cancel
   expect(await stored(page)).toEqual(profile)
   await page.locator('.details').getByRole('button', { name: `Return to ${astral.title}`, exact: true }).click()
   await page.locator('.details').getByRole('button', { name: 'Review At least one Ultra Ascension', exact: true }).last().click()
-  progress = page.getByRole('dialog', { name: 'Your progress', exact: true })
+  progress = page.getByRole('dialog', { name: 'Previous Ultra Ascensions', exact: true })
   await progress.getByRole('spinbutton').fill('1')
   await progress.getByRole('button', { name: 'Review history…', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Record history', exact: true }).click()

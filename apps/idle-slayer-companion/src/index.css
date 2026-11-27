@@ -40,6 +40,9 @@ button:disabled { opacity: .5; cursor: default; }
 button.primary { color: #ffffff; border-color: var(--primary); background: var(--primary); font-weight: 700; }
 button.primary:hover:not(:disabled) { color: #ffffff; background: var(--ink); }
 button.danger { color: var(--danger); border-color: var(--line); }
+/* The confirm step of a destructive action names its scope and is the only filled red control. */
+button.danger-confirm { color: #ffffff; border-color: var(--danger); background: var(--danger); font-weight: 700; }
+button.danger-confirm:hover:not(:disabled) { color: #ffffff; border-color: #8f1c13; background: #8f1c13; }
 button.full { display: block; width: 100%; margin-top: 12px; }
 a { color: var(--secondary); text-underline-offset: 3px; }
 a:hover { color: var(--ink); }
@@ -197,7 +200,7 @@ small { display: block; font-size: .8125rem; color: var(--muted); line-height: 1
 .atlas > footer { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 6px 16px; border-top: 1px solid var(--line); background: var(--surface); }
 .atlas > footer > span { margin-right: auto; color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .atlas > footer button { font-size: .8125rem; }
-.toast { position: fixed; left: 50%; bottom: 68px; z-index: 50; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(680px, calc(100vw - 24px)); padding: 6px 8px 6px 12px; border: 1px solid var(--frame); border-radius: 0; background: var(--raised); box-shadow: none; transform: translateX(-50%); font-size: .8125rem; line-height: 1.5; pointer-events: none; }
+.toast { position: absolute; left: 50%; bottom: 70px; z-index: 50; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(680px, calc(100vw - 24px)); padding: 6px 8px 6px 12px; border: 1px solid var(--frame); border-radius: 0; background: var(--raised); box-shadow: none; transform: translateX(-50%); font-size: .8125rem; line-height: 1.5; pointer-events: none; }
 .toast > button { flex: 0 0 44px; pointer-events: auto; }
 
 dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); margin: auto; padding: 20px; overflow-y: auto; border: 1px solid var(--frame); border-radius: 0; color: var(--ink); background: var(--surface); box-shadow: none; overscroll-behavior: contain; }
@@ -280,7 +283,7 @@ dialog > button { margin: 6px 8px 0 0; }
   .detail-actions { bottom: -12px; margin-top: 4px; padding: 6px 0 12px; }
   .detail-actions > button.full { font-size: .8125rem; }
   .has-details .map-summary { display: none; }
-  .toast { top: calc(var(--toolbar-height) + 8px); bottom: auto; }
+
 }
 
 /* Phones reserve actual map and inspector rows rather than covering the canvas. */
@@ -294,7 +297,6 @@ dialog > button { margin: 6px 8px 0 0; }
   .map-summary { font-size: .75rem; }
   .camera-controls { bottom: 8px; left: 8px; max-width: calc(100% - 16px); }
   .pan-controls { top: 8px; right: 8px; }
-  .dialog-heading h2 { font-size: .75rem; }
   .dialog-actions > button { flex: 1; }
 }
 
@@ -525,9 +527,6 @@ dialog:has(.purchase-confirm-actions) { overflow-wrap: anywhere; }
 .reference-sheet-panel iframe { width: 100%; height: 26rem; border: 1px solid var(--muted); background: white; }
 .reference-sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-@media (max-width: 68.75em), (max-height: 540px) {
-  .details:not(.expanded) > .detail-secondary { display: none; }
-}
 
 /* Compact labels carry the same typography as the portfolio utility shell. */
 label, dt, th, .state-label, .node-symbol, .recommendation-status, .tracking-status { font-family: 'JetBrains Mono', ui-monospace, monospace; }
@@ -537,3 +536,92 @@ input[type='checkbox'] { accent-color: var(--secondary); }
 button.danger { border-color: var(--danger); }
 .atlas .react-flow__node.selected:focus-visible .upgrade-node { outline-color: var(--primary); }
 .atlas .react-flow__node.selected:focus-visible { outline-color: var(--secondary); outline-offset: 10px; }
+
+/* Upgrades you can record now stand out without a new colour: an inverted black badge on the ink border.
+   Locked artwork is dimmed. Teal stays reserved for owned progress and focus. */
+.upgrade-node.available .node-symbol { color: #ffffff; border-color: var(--ink); background: var(--ink); }
+.upgrade-node.locked > .upgrade-icon { opacity: .45; }
+.map-summary { gap: 2px; max-width: min(600px, calc(100% - 24px)); padding: 6px 10px; }
+.map-summary-counts, .map-summary-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+.map-summary-counts > span + span, .map-summary-legend { color: var(--muted); }
+.map-summary-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend-symbol { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 2px; border: 1px solid currentColor; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .6875rem; font-style: normal; font-weight: 700; line-height: 1; }
+.legend-symbol.purchased { color: var(--complete); }
+.legend-symbol.available { color: #ffffff; border-color: var(--ink); background: var(--ink); }
+.legend-symbol.pending { color: var(--pending); border-style: dashed; }
+.legend-symbol.locked { color: var(--ink); border-style: dashed; border-color: var(--frame); }
+.legend-short { display: none; }
+@media (max-width: 759px) {
+  .map-summary .connection-hint, .map-summary-spoilers, .legend-long { display: none; }
+  .legend-short { display: inline; }
+}
+@media (forced-colors: active) { .upgrade-node.available .node-symbol, .legend-symbol.available { forced-color-adjust: none; color: Canvas; background: CanvasText; } }
+
+/* One dialog type scale: title 18px, section heading 16px semibold with 24px above, body 15px,
+   notes 13px and one button size, shared by the shell dialogs, map dialogs and upgrade details. */
+.dialog-heading h2 { font-size: 1.125rem; line-height: 1.4; }
+dialog h3 { margin: 24px 0 8px; font-size: 1rem; font-weight: 600; line-height: 1.4; }
+dialog h3:first-child, dialog .dialog-heading + h3 { margin-top: 0; }
+dialog p, dialog li { font-size: .9375rem; }
+dialog small, dialog p small { font-size: .8125rem; }
+dialog button:not(.dialog-close), .details button { font-size: .875rem; }
+.details .detail-tools > button:not(.detail-toggle) { font-size: 1.5rem; }
+
+/* Map toolbar by intent: Find (search), then Next upgrade, layout and the View, Plan and Record tools.
+   It wraps instead of hiding tools: search takes the full first row on narrow canvases. */
+.atlas .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; }
+.atlas .toolbar > .search-box { flex: 1 1 180px; min-width: 0; }
+.map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.map-tools > button, .map-tools .menu-button > button { font-size: .8125rem; white-space: nowrap; }
+.atlas .map-tools > .next-upgrade { width: auto; padding: 8px 12px; font-size: .8125rem !important; white-space: nowrap; }
+.map-tools .layout-control button { padding: 8px 10px; font-size: .8125rem; white-space: nowrap; }
+.view-layout { display: none; }
+.menu-button { position: relative; }
+.menu-button > button { display: inline-flex; align-items: center; gap: 6px; }
+.menu-button-caret { font-size: .75em; line-height: 1; }
+.menu-button > button[aria-expanded='true'] { border-color: var(--ink); background: var(--surface); }
+.menu-popup { position: absolute; top: calc(100% + 4px); right: 0; z-index: 45; display: grid; gap: 2px; min-width: 240px; max-width: min(340px, calc(100vw - 16px)); padding: 6px; border: 1px solid var(--frame); background: var(--surface); }
+.menu-popup > button, .view-popover > button { display: grid; justify-items: start; gap: 2px; width: 100%; border-color: transparent; background: transparent; text-align: left; font-size: .875rem; }
+.menu-popup > button:hover:not(:disabled), .view-popover > button:hover:not(:disabled) { border-color: var(--line); background: var(--raised); }
+.menu-popup > button small { color: var(--muted); font-size: .75rem; }
+.view-popover { display: grid; gap: 4px; }
+.view-popover .spoiler-control { white-space: normal; }
+/* Popup labels wrap rather than overflow when text is enlarged. */
+.menu-popup > button, .menu-popup .view-popover > button, .menu-popup .layout-control button { white-space: normal; overflow-wrap: anywhere; }
+.menu-popup .view-layout { flex-wrap: wrap; }
+.menu-popup .view-layout button { flex: 1 1 auto; }
+.toast { max-width: calc(100% - 24px); }
+@container (max-width: 760px) {
+  .atlas .toolbar > .search-box { flex-basis: 100%; }
+  .map-tools { width: 100%; }
+  .map-tools > .next-upgrade { flex: 1 1 auto; }
+  .toolbar-layout { display: none; }
+  .view-layout { display: flex; }
+  .view-layout button { flex: 1 1 0; }
+  /* The tools sit at the right of their row, so every popup opens from the row's right edge, below it. */
+  .map-tools { position: relative; }
+  .map-tools > .menu-button { position: static; }
+  .map-tools .menu-popup { right: 0; left: auto; }
+}
+/* Narrow phones: tighter tools fit one row at ordinary text sizes, so short screens keep a usable
+   canvas (larger text still wraps); popups take the tools' full width so none opens off-screen. */
+@container (max-width: 420px) {
+  .map-tools { gap: 4px; }
+  .map-tools .menu-popup { left: 0; min-width: 0; max-width: none; }
+  .atlas .map-tools > .next-upgrade { flex: 1 1 auto; padding: 8px 6px; }
+  .map-tools .menu-button > button { padding: 8px; }
+  .map-tools .menu-button-caret { display: none; }
+}
+/* Upgrade details: the one action first, planning and sharing behind two disclosures that open in place. */
+.detail-actions { align-items: center; }
+.details .text-action { min-height: 44px; padding: 8px 4px; border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.details .danger-text { color: var(--danger); }
+.detail-tools-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.details .menu-button { position: static; }
+.details .menu-popup { position: static; flex-basis: 100%; width: 100%; max-width: none; margin-top: 6px; }
+.details .menu-button:has(> .menu-popup) { flex-basis: 100%; }
+.detail-share-panel { display: grid; gap: 0; }
+.detail-share-panel .upgrade-reference { margin: 0; }
+.details dl.detail-retention { margin-top: 18px; }
+.details .requirement-guidance { display: block; margin: -8px 0 14px; }
+.source-notes > summary { display: list-item; min-height: 44px; padding: 10px 2px; color: var(--muted); font-weight: 600; cursor: pointer; }

@@ -1,4 +1,4 @@
-import { chooseLayout, openProgress } from './helpers/app'
+import { chooseLayout, closeMapOptions, exportMapBackup, exposeMapAction, historyAction, layoutButton, restoreFile } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -16,16 +16,21 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function expectLayout(page: Page, name: 'Game Layout' | 'Detailed Layout') {
+  // The switch sits in the toolbar on wide maps and under View on narrow ones.
+  await exposeMapAction(page, layoutButton(page, name))
   const group = page.getByRole('group', { name: 'Map layout', exact: true })
   await expect(group.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(group.getByRole('button', { name: name === 'Game Layout' ? 'Detailed Layout' : 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'false')
   if (name === 'Game Layout') await expect(page.locator('.map-game')).toBeVisible()
   else await expect(page.locator('.map-game')).toHaveCount(0)
+  await closeMapOptions(page)
 }
 
 test('fresh visits put Game Layout first and remember each user choice on reload', async ({ page }) => {
   await page.goto('./ascension/')
+  await exposeMapAction(page, layoutButton(page, 'Game Layout'))
   await expect(page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button')).toHaveText(['Game Layout', 'Detailed Layout'])
+  await closeMapOptions(page)
   await expectLayout(page, 'Game Layout')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), profileKey)).toBeNull()
   await chooseLayout(page, 'Detailed Layout')
@@ -97,26 +102,22 @@ test('profile backup, restore, clearing progress and undo keep layout preference
   const restored: Profile = { ...emptyProfile(catalog.revision), purchases: { [catalog.startId]: { epoch: 0, active: true } } }
   await page.goto('./ascension/')
   await chooseLayout(page, 'Detailed Layout')
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'profile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(restored)) })
+  await restoreFile(page, { name: 'profile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(restored)) })
   await expect(page.getByRole('dialog')).toContainText('Restore progress?')
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
   await expectLayout(page, 'Detailed Layout')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), layoutKey)).toBe('web')
-  await openProgress(page)
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  const data = await exportMapBackup(page)
   const download = await downloadPromise
   expect(JSON.parse(readFileSync((await download.path())!, 'utf8'))).toEqual(restored)
-  await page.getByRole('button', { name: 'Clear all progress…', exact: true }).click()
-  await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
+  await data.getByRole('button', { name: 'Clear Ascension progress…', exact: true }).click()
+  await page.getByRole('button', { name: 'Clear Ascension progress', exact: true }).click()
   await expectLayout(page, 'Detailed Layout')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), layoutKey)).toBe('web')
   await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), profileKey)).toEqual(emptyProfile(catalog.revision))
   await chooseLayout(page, 'Game Layout')
-  const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await undo.click()
+  await historyAction(page, 'Undo')
   await expectLayout(page, 'Game Layout')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), layoutKey)).toBe('native')
   await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), profileKey)).toEqual(restored)

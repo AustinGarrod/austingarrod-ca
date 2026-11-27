@@ -1,3 +1,4 @@
+import { closeMapOptions, exposeMapAction, mapAction, toolAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -19,12 +20,10 @@ async function add(page: Page, id: string) {
   await page.getByRole('searchbox').fill(upgrade.title)
   await page.locator(`.search-result[data-upgrade-id="${id}"]`).click()
   const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-  await page.getByRole('button', { name: 'Add to reference sheet', exact: true }).click()
+  await mapAction(page, 'Add to reference sheet')
 }
 async function open(page: Page) {
-  const menu = page.getByRole('button', { name: 'Map options', exact: true })
-  if (await menu.isVisible()) await menu.click(); else await page.getByRole('button', { name: 'Map view…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Reference sheet', exact: true }).click()
+  await mapAction(page, 'Reference sheet…')
   return page.getByRole('dialog', { name: 'Upgrade reference sheet', exact: true })
 }
 test('explicit preview matches every downloaded byte and print tab while keeping progress unchanged', async ({ page, context }, info) => {
@@ -79,21 +78,18 @@ test('a selected spoiler is pruned from counts and output after hiding and never
   await add(page, hidden.id); await add(page, catalog.startId)
   const dialog = await open(page); await dialog.getByRole('button', { name: 'Review outgoing sheet', exact: true }).click()
   await page.keyboard.press('Escape')
-  const menu = page.getByRole('button', { name: 'Map options', exact: true })
-  if (await menu.isVisible()) await menu.click(); else await page.getByRole('button', { name: 'Map view…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('checkbox', { name: 'Show spoilers', exact: true }).uncheck()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Reference sheet', exact: true }).click()
+  const spoilers = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
+  await exposeMapAction(page, spoilers); await spoilers.uncheck(); await closeMapOptions(page)
+  await open(page)
   await expect(dialog.locator('li')).toHaveCount(1)
   await expect(dialog.locator('iframe')).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Review outgoing sheet', exact: true }).click()
   const html = await dialog.locator('iframe').getAttribute('srcdoc')
   expect(html).not.toContain(hidden.id); expect(html).not.toContain(hidden.title)
   await page.keyboard.press('Escape')
-  let undo = page.locator('.companion-session-status').getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) {
-    if (await menu.isVisible()) await menu.click(); else await page.getByRole('button', { name: 'Map view…', exact: true }).click()
-    undo = page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Undo', exact: true })
-  }
+  // Undo sits in the status row, or in the Record tools on short phones.
+  const undo = toolAction(page, 'Undo')
+  await exposeMapAction(page, undo)
   await expect(undo).toContainText('Spoiler setting'); await undo.click()
   await expect(page.locator('.toast')).toContainText('Spoilers shown')
   await expect((await open(page)).locator('li')).toHaveCount(1)

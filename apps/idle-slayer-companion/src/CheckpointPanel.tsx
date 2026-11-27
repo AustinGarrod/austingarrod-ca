@@ -10,9 +10,11 @@ import { visibility } from './domain/rules'
 import { ProgressComparison } from './ProgressComparison'
 import './CheckpointPanel.css'
 
-export function CheckpointPanel({ catalog, profile, history, redoHistory, state, session, currentProfile }: {
+export function CheckpointPanel({ catalog, profile, history, redoHistory, state, session, currentProfile, incoming }: {
   catalog: Catalog; profile: Profile; history: ProfileHistoryEntry[]; redoHistory: ProfileHistoryEntry[]
   state: CheckpointState; session: ReturnType<typeof createCheckpointSession>; currentProfile: () => Profile
+  /** A collection file already chosen in Data & backup; it gets the same validation and confirmation. */
+  incoming?: { text: string; sequence: number }
 }) {
   const entries = state.vault.entries
   const [name, setName] = useState('')
@@ -54,11 +56,17 @@ export function CheckpointPanel({ catalog, profile, history, redoHistory, state,
       setFeedback('Checkpoint collection exported. This is separate from your active progress backup.')
     } catch { setFeedback('Checkpoint export failed. The collection and active progress are unchanged.') }
   }
-  async function readFile(file: File) {
+  const handledIncoming = useRef(0)
+  useEffect(() => {
+    if (!incoming || incoming.sequence === handledIncoming.current || !state.loaded) return
+    handledIncoming.current = incoming.sequence
+    void readFile(incoming.text)
+  }, [incoming, state.loaded])
+  async function readFile(file: File | string) {
     const token = ++request.current, expected = version.current
     setReading(true); setRestore(null); setFeedback('')
     try {
-      const text = file.size <= MAX_CHECKPOINT_BYTES ? await file.text() : ''
+      const text = typeof file === 'string' ? new TextEncoder().encode(file).byteLength <= MAX_CHECKPOINT_BYTES ? file : '' : file.size <= MAX_CHECKPOINT_BYTES ? await file.text() : ''
       if (token !== request.current || expected !== version.current) return
       const vault = parseCheckpoints(text, catalog.revision)
       if (vault) setRestore({ vault, version: expected })

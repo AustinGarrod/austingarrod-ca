@@ -1,3 +1,4 @@
+import { chooseLayout, expectLayout, historyAction, mapAction, openTransfer as openSharedTransfer } from './helpers/app'
 import { installProfileTestHelpers } from './fixtures'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
@@ -17,13 +18,13 @@ const source = { ...emptyProfile(catalog.revision), epoch: 8, showSpoilers: true
 const destination = { ...emptyProfile(catalog.revision), epoch: 1, purchases: { [catalog.startId]: { epoch: 1, active: true }, 'synthetic-destination-unknown': { epoch: 0, active: false } } }
 async function openAction(page: Page, name: string) {
   await expect(page.locator('.toolbar')).toBeVisible()
-  const action = page.getByRole('button', { name, exact: true })
-  if (!await action.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await action.click()
+  if (name === 'Undo' || name === 'Redo') await historyAction(page, name)
+  else await mapAction(page, name)
 }
+/** Transfer lives in Data & backup: Send map progress by QR… or Receive a transfer…. */
 async function openTransfer(page: Page, mode: 'send' | 'receive') {
-  await openAction(page, 'Progress')
-  await page.getByRole('button', { name: mode === 'send' ? 'Transfer to another device…' : 'Receive transfer…', exact: true }).click()
+  await expect(page.locator('.toolbar')).toBeVisible()
+  await openSharedTransfer(page, mode)
 }
 async function saved(page: Page) { return page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY) }
 async function sourceLink(baseURL: string) {
@@ -74,14 +75,14 @@ test('desktop snapshot opens a mobile preview, cancels safely, then applies and 
     await expect(dialog.getByRole('button', { name: 'Apply transfer', exact: true })).toBeFocused()
     await mobile.keyboard.press('Enter')
     await expect.poll(() => saved(mobile)).toEqual(source)
-    await expect(mobile.getByRole('button', { name: 'Detailed Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expectLayout(mobile, 'Detailed Layout')
     expect(await mobile.evaluate((key) => window.__readMapProfileText(key), ANALYTICS_PREFERENCE_KEY)).toBe('enabled')
     await openAction(mobile, 'Undo')
     await expect.poll(() => saved(mobile)).toEqual(destination)
-    await expect(mobile.getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expectLayout(mobile, 'Game Layout')
     await openAction(mobile, 'Redo')
     await expect.poll(() => saved(mobile)).toEqual(source)
-    await expect(mobile.getByRole('button', { name: 'Detailed Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expectLayout(mobile, 'Detailed Layout')
     expect(requests.some((url) => url.includes('transfer=') || url.includes('v1.'))).toBe(false)
     expect(await saved(page)).toEqual(source)
   } finally {
@@ -113,7 +114,7 @@ test('non-string layouts fail before preview or replacement in both transfer enc
     }
   }
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Game Layout')
 })
 
 test('malformed and unsupported links fail locally, while oversized snapshots keep an explicit backup fallback', async ({ page, baseURL }) => {
@@ -172,14 +173,14 @@ test('storage failures keep the transferred session and layout usable with recov
   }, { key: PROFILE_STORAGE_KEY, layout: LAYOUT_PREFERENCE_KEY, tracking: ANALYTICS_PREFERENCE_KEY, destination })
   await page.goto(await sourceLink(baseURL!))
   await page.getByRole('button', { name: 'Apply transfer', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Detailed Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Detailed Layout')
   await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 8')
   await expect(page.getByRole('alert')).toContainText('Companion progress could not be saved')
   expect(await saved(page)).toEqual(destination)
   expect(await page.evaluate((key) => window.__readMapProfileText(key), ANALYTICS_PREFERENCE_KEY)).toBe('disabled')
   await openAction(page, 'Undo')
   await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 1')
-  await expect(page.getByRole('button', { name: 'Game Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Game Layout')
 })
 
 test('an incoming transfer respects current spoiler preview boundaries and removes its URL payload', async ({ page, baseURL }) => {
@@ -227,11 +228,11 @@ test('a later explicit layout choice stays independent when transferred progress
   await page.goto(await sourceLink(baseURL!))
   await page.getByRole('button', { name: 'Apply transfer', exact: true }).click()
   await expect.poll(() => saved(page)).toEqual(source)
-  await page.getByRole('button', { name: 'Game Layout', exact: true }).click()
-  await page.getByRole('button', { name: 'Detailed Layout', exact: true }).click()
+  await chooseLayout(page, 'Game Layout')
+  await chooseLayout(page, 'Detailed Layout')
   await openAction(page, 'Undo')
   await expect.poll(() => saved(page)).toEqual(destination)
-  await expect(page.getByRole('button', { name: 'Detailed Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Detailed Layout')
 })
 
 for (const arrival of ['startup', 'loaded', 'loading'] as const) {

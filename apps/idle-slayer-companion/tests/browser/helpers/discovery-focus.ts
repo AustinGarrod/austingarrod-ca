@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { openSearchResults } from './app'
 
 /** A focused row can intersect the viewport while its title is covered by the header. */
 export async function focusedDiscoveryTitleIsReadable(page: Page) {
@@ -19,18 +20,21 @@ export async function focusedDiscoveryTitleIsReadable(page: Page) {
   })).toEqual({ titleClear: true, hit: true, target: true })
 }
 
+/** Native Tab reaches the results as one stop; arrows then visit every result and Shift+Tab leaves them. */
 export async function tabThroughDiscovery(page: Page, ids: string[]) {
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: 'Close search results' })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(page.getByRole('combobox', { name: 'Progress state' })).toBeFocused()
-  for (const id of ids) {
-    await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  await expect(page.locator(`.search-result[data-upgrade-id="${ids[0]}"]`)).toBeFocused()
+  await focusedDiscoveryTitleIsReadable(page)
+  for (const id of ids.slice(1)) {
+    await page.keyboard.press('ArrowDown')
     await expect(page.locator(`.search-result[data-upgrade-id="${id}"]`)).toBeFocused()
     await focusedDiscoveryTitleIsReadable(page)
   }
   await page.keyboard.press('Shift+Tab')
-  await expect(page.locator(`.search-result[data-upgrade-id="${ids.at(-2)}"]`)).toBeFocused()
-  await focusedDiscoveryTitleIsReadable(page)
+  await expect(page.getByRole('combobox', { name: 'Progress state' })).toBeFocused()
 }

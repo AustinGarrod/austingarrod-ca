@@ -22,12 +22,14 @@ export function ReadOnlyRequirement({ requirement, profile, visible }: {
   return <div className="requirement-expression">{view ? <Expression view={view} /> : 'Requirements are unrevealed.'}</div>
 }
 
-export function RequirementView({ requirement, profile, visible, onReview }: {
+export function RequirementView({ requirement, profile, visible, onReview, guidance = true }: {
   requirement: Requirement; profile: Profile; visible: ReturnType<typeof visibility>; onReview: (route: RequirementRoute) => void
+  /** Upgrade details show one shared note under both requirement lists instead of one per list. */
+  guidance?: boolean
 }) {
   const view = visibleRequirement(requirement, profile, visible)
   return <div className="requirement-view">
     <div className="requirement-expression">{view ? <Expression view={view} onReview={onReview} /> : 'Requirements are unrevealed.'}</div>
-    <small className="requirement-guidance">Only visible requirements are shown. Native gates still apply. Reviewing a requirement does not record progress or choose an OR path.</small>
+    {guidance && <small className="requirement-guidance">Only requirements you can see are listed; the game’s other rules still apply. Opening one records nothing.</small>}
   </div>
 }

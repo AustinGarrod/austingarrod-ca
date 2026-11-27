@@ -1,3 +1,4 @@
+import { mapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -38,10 +39,7 @@ for (const showSpoilers of [false, true]) {
         await expect(page.getByRole('dialog').locator('li')).toHaveCount(expected.length)
         expect(await page.getByRole('dialog').locator('li').evaluateAll((elements) => elements.map((element) => ({ id: element.getAttribute('data-upgrade-id'), cost: element.querySelector('[role=math]')?.getAttribute('aria-label') })))).toEqual(expected.map(rowLabel))
       } else {
-        const progress = page.getByRole('button', { name: 'Progress', exact: true })
-        if (!await progress.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-        await progress.click()
-        await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+        await mapAction(page, 'Record Ultra Ascension…')
         const groups = [
           ['Repeat purchases cleared', reset.cleared], ['Astral locks activated', reset.activated], ['Conditionally retained purchases', reset.conditionallyRetained],
         ] as const
@@ -53,7 +51,7 @@ for (const showSpoilers of [false, true]) {
         }
       }
       const dialog = page.getByRole('dialog')
-      await expect(dialog).toContainText(operation === 'reset' ? 'Lists show only your current visible entries' : 'The change applies to the entire profile. Lists and counts show only currently visible upgrades.')
+      await expect(dialog).toContainText(operation === 'reset' ? 'Counts and lists use only entries you can see' : 'The change applies to the entire profile. Lists and counts show only currently visible upgrades.')
       await page.getByRole('button', { name: operation === 'reset' ? 'Record companion Ultra Ascension' : 'Apply changes', exact: true }).click()
       const expected = operation === 'removal' ? removal.profile : reset.profile
       await expect.poll(() => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)).toEqual(expected)

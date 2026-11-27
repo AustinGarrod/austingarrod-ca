@@ -13,7 +13,7 @@ import { COMPANION_WORKSPACE_KEY, emptyCompanionWorkspace } from '../../src/doma
 import { CHECKPOINT_STORAGE_KEY, emptyCheckpoints } from '../../src/domain/checkpoints'
 import { COMPARISON_STORAGE_KEY, emptyComparison } from '../../src/domain/saved-comparison'
 import { visibility } from '../../src/domain/rules'
-import { openProgress } from './helpers/app'
+import { mapAction, openData } from './helpers/app'
 import type { Locator, Page } from '@playwright/test'
 
 test.use({ serviceWorkers: 'allow', appServiceWorkers: true })
@@ -104,10 +104,7 @@ async function exportedFile(page: Page, action: Locator) {
   return readFileSync(file!)
 }
 async function openComparison(page: Page) {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  const mobile = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await mobile.isVisible() ? mobile : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Saved upgrade comparison…', exact: true }).click()
+  await mapAction(page, 'Saved upgrade comparison…')
   return page.getByRole('dialog', { name: 'Saved upgrade comparison', exact: true })
 }
 
@@ -138,11 +135,11 @@ test('four guided JSON backups restore across origins without silently replacing
   const guide = page.getByRole('region', { name: 'Move Companion progress', exact: true })
   await expect(guide.getByRole('heading', { name: 'Idle Slayer Companion has moved', exact: true })).toBeVisible()
   await expect(guide.getByRole('link', { name: 'Open new utility', exact: true })).toHaveAttribute('href', 'https://austingarrod.ca/utilities/idle-slayer-companion/?migration=1#analytics=off')
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  await openData(page)
   const progressFile = await exportedFile(page, page.getByRole('button', { name: 'Export Companion progress', exact: true }))
   const intentionsFile = await exportedFile(page, page.getByRole('button', { name: 'Export intentions', exact: true }))
   await page.goto(origin + companion + 'ascension/')
-  await (await openProgress(page)).getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   const checkpointFile = await exportedFile(page, page.getByRole('button', { name: 'Export checkpoints', exact: true }))
   await page.goto(origin + companion + 'ascension/')
   const comparisonFile = await exportedFile(page, (await openComparison(page)).getByRole('button', { name: 'Export comparison', exact: true }))
@@ -157,7 +154,7 @@ test('four guided JSON backups restore across origins without silently replacing
   await page.addInitScript(({ targetOrigin, key, existing }) => { if (location.origin === targetOrigin && !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ format: 'idle-slayer-companion-storage', version: 1, legacyBaseline: null, progress: existing })) }, { targetOrigin: new URL(baseURL).origin, key: COMPANION_STORAGE_KEY, existing })
   await page.goto(baseURL + '?migration=1#analytics=off')
   const readProgress = () => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).progress, COMPANION_STORAGE_KEY)
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  await openData(page)
   await page.getByLabel('Restore Companion progress', { exact: true }).setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
   await expect(page.getByRole('region', { name: 'Review progress replacement', exact: true })).toHaveCount(0)
   expect(await readProgress()).toEqual(existing)
@@ -172,12 +169,12 @@ test('four guided JSON backups restore across origins without silently replacing
   await expect.poll(readProgress).toEqual(existing)
   await page.getByRole('button', { name: 'Redo', exact: true }).click()
   await expect.poll(readProgress).toEqual(progress)
-  await page.getByRole('button', { name: /^(Backup & transfer|Backup)$/ }).click()
+  await openData(page)
   await page.getByLabel('Restore intentions', { exact: true }).setInputFiles({ name: 'intentions.json', mimeType: 'application/json', buffer: intentionsFile })
   await page.getByRole('button', { name: 'Replace intentions', exact: true }).click()
   await expect.poll(() => page.evaluate((key) => { const raw = JSON.parse(localStorage.getItem(key)!); return raw.workspace ?? raw }, COMPANION_WORKSPACE_KEY)).toEqual(intentions)
   await page.goto(baseURL + 'ascension/')
-  await (await openProgress(page)).getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   await page.getByLabel('Progress checkpoints JSON backup', { exact: true }).setInputFiles({ name: 'checkpoints.json', mimeType: 'application/json', buffer: checkpointFile })
   await page.getByRole('button', { name: 'Replace checkpoint collection', exact: true }).click()
   await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), CHECKPOINT_STORAGE_KEY)).toEqual(checkpoints)

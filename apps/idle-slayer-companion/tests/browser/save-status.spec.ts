@@ -1,5 +1,5 @@
 import { denyProfileWrites as denyWrites } from './helpers/profile'
-import { openAction, purchaseStart } from './helpers/app'
+import { exposeMapAction, openAction, purchaseStart } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -19,8 +19,10 @@ test('failed writes have truthful status, options, About and Privacy messages an
   await expect(page.locator('.companion-session-status')).toContainText(failedText)
   expect(await page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)).toBeNull()
   await page.setViewportSize({ width: 320, height: 568 })
-  await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await expect(page.getByRole('dialog').locator('small').last()).toContainText(failedText)
+  // On a short phone the header keeps a short save note with the full status, and the status row keeps it for screen readers.
+  await expect(page.locator('.companion-save-note')).toContainText('Not saved')
+  await expect(page.locator('.companion-save-note')).toHaveAttribute('title', failedText)
+  await expect(page.locator('.companion-session-status .progress-save-status')).toHaveText(failedText)
   await openAction(page, 'About & sources')
   await expect(page.getByRole('dialog', { name: 'About & sources', exact: true })).toContainText(failedText)
   await expect(page.getByRole('dialog').getByRole('link', { name: 'Bundled software licenses', exact: true })).toHaveAttribute('href', /\/licenses\/index\.html$/)
@@ -80,7 +82,7 @@ test('an external conflict never labels the kept dirty session saved, and review
   const other = await context.newPage(); await other.goto(page.url())
   await expect(other.locator('.toolbar')).toBeVisible()
   const spoilers = other.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await spoilers.isVisible()) await other.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(other, spoilers)
   await spoilers.check()
   await expect(page.locator('.companion-session-status')).toContainText('Progress conflict. Current session is not saved on this device.')
   await expect(page.locator('.map-summary')).toContainText('1 /')

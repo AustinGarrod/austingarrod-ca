@@ -1,3 +1,4 @@
+import { closeMapOptions, exportMapBackup, historyAction, mapAction, openPriorAscensions } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -12,17 +13,18 @@ const seed: Profile = { ...emptyProfile(catalog.revision), epoch: 2, purchases: 
   [retained.id]: { epoch: 1, active: true }, 'unknown-future': { epoch: 2, active: false },
 }, milestones: { 'unknown-milestone': true } }
 
+/** Record → Previous Ultra Ascensions, or Undo and Redo wherever they live. */
 async function openAction(page: Page, name: string) {
   await expect(page.locator('.toolbar')).toBeVisible()
-  const action = page.getByRole('button', { name, exact: true })
-  if (!await action.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await action.click()
+  if (name === 'Previous Ultra Ascensions') await openPriorAscensions(page)
+  else if (name === 'Undo' || name === 'Redo') await historyAction(page, name)
+  else await mapAction(page, name)
 }
 async function saved(page: Page) {
   return page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)
 }
 async function review(page: Page, value: string) {
-  await openAction(page, 'Progress')
+  await openAction(page, 'Previous Ultra Ascensions')
   await page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true }).fill(value)
   await page.getByRole('button', { name: 'Review history…', exact: true }).click()
 }
@@ -35,9 +37,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('editing, leaving and cancelling prior history keeps progress unchanged', async ({ page }) => {
-  await openAction(page, 'Progress')
-  const progress = page.getByRole('dialog', { name: 'Your progress', exact: true })
-  await expect(progress).toContainText('Preview a new reset: clear repeat purchases')
+  await openAction(page, 'Previous Ultra Ascensions')
+  const progress = page.getByRole('dialog', { name: 'Previous Ultra Ascensions', exact: true })
+  await expect(progress).toContainText('Current purchases stay current, and nothing is reset.')
   await expect(progress).toContainText('review and confirm to record it')
   await expect(progress).toContainText('Undo in this session or an earlier JSON backup')
   const input = progress.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })
@@ -52,13 +54,13 @@ test('editing, leaving and cancelling prior history keeps progress unchanged', a
   expect(await saved(page)).toEqual(seed)
   await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await saved(page)).toEqual(seed)
-  await openAction(page, 'Progress')
+  await openAction(page, 'Previous Ultra Ascensions')
   await expect(page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })).toHaveValue('2')
 })
 
 test('invalid counts explain rejection accessibly without silently replacing the draft', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
-  await openAction(page, 'Progress')
+  await openAction(page, 'Previous Ultra Ascensions')
   const input = page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })
   for (const [value, explanation] of [
     ['', 'Enter the number'], ['-1', 'whole number'], ['2.5', 'whole number'],
@@ -89,20 +91,19 @@ test('confirmed history moves current known epochs, preserves retained state and
   await expect.poll(() => saved(page)).toEqual(expected)
   await openAction(page, 'Undo')
   await expect.poll(() => saved(page)).toEqual(seed)
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await closeMapOptions(page)
   await review(page, '1000000')
   await page.getByRole('button', { name: 'Record history', exact: true }).click()
   await expect.poll(() => saved(page)).toEqual(expected)
-  await page.reload(); await openAction(page, 'Progress')
+  await page.reload(); await openAction(page, 'Previous Ultra Ascensions')
   await expect(page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })).toHaveValue('1000000')
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   expect(JSON.parse(readFileSync((await (await download).path())!, 'utf8'))).toEqual(expected)
 })
 
 test('history drafts and confirmation counts use replay exclusion without hidden upgrade names', async ({ page }) => {
-  await openAction(page, 'Progress')
+  await openAction(page, 'Previous Ultra Ascensions')
   const form = page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true }).locator('..').locator('..')
   await expect(form).toHaveClass(/telemetry-private/)
   await expect(form).toHaveClass(/rr-block/)

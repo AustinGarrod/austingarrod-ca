@@ -1,5 +1,5 @@
 import { noPageOverflow, selectedNodeIsUsable } from './helpers/geometry'
-import { exposeMapAction, openProgress, showSpoilers, selectUpgrade, chooseLayout, undoProgress } from './helpers/app'
+import { chooseLayout, expectLayout, exportMapBackup, exposeMapAction, openPriorAscensions, openSearchResults, restoreFile, showSpoilers, selectUpgrade, undoProgress } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -42,7 +42,7 @@ test('spoilers share one boundary across nodes, search, details and totals', asy
   await expect(page.locator('.search-result').filter({ hasText: hidden.title })).toHaveCount(0)
   await showSpoilers(page, true)
   await expect(page.locator('.map-summary')).toContainText(`0 / ${catalog.upgrades.length}`)
-  await page.getByRole('searchbox').focus()
+  await openSearchResults(page)
   await page.locator('.search-result').filter({ hasText: hidden.title }).first().click()
   await expect(page.locator('.details h2')).toHaveText(hidden.title)
   await showSpoilers(page, false)
@@ -52,18 +52,17 @@ test('spoilers share one boundary across nodes, search, details and totals', asy
 
 test('backup restore is previewed and malformed input leaves current progress intact', async ({ page }) => {
   await page.goto('./ascension/')
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
-  await expect(page.getByRole('status', { name: 'Map action feedback', exact: true })).toContainText('not valid JSON')
+  await restoreFile(page, { name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
+  const data = page.getByRole('dialog', { name: 'Data & backup', exact: true })
+  await expect(data.getByRole('status').filter({ hasText: 'not valid JSON' })).toContainText('Nothing was changed.')
   const profile = { ...initial, purchases: { [start.id]: { epoch: 0, active: true }, 'unknown-future-id': { epoch: 0, active: true } } }
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
+  await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
   await expect(page.getByRole('dialog')).toContainText('Restore progress?')
   await expect(page.locator('.map-summary')).toContainText('0 /')
   await page.getByRole('button', { name: 'Apply changes', exact: true }).click()
   await expect(page.locator('.map-summary')).toContainText('1 /')
-  await openProgress(page)
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   const download = await downloadPromise
   const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'))
   expect(backup.purchases['unknown-future-id']).toEqual({ epoch: 0, active: true })
@@ -154,7 +153,7 @@ test('entering history keeps repeat purchases current and removal still cascades
   const seed = { ...initial, purchases: { [start.id]: { epoch: 0, active: true }, [child.id]: { epoch: 0, active: true } } }
   await page.addInitScript((profile) => localStorage.setItem('idle-slayer-ascension-map.profile.v1', JSON.stringify(profile)), seed)
   await page.goto('./ascension/')
-  await openProgress(page)
+  await openPriorAscensions(page)
   await page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions' }).fill('1')
   await page.getByRole('button', { name: 'Review history…', exact: true }).click()
   await page.getByRole('button', { name: 'Record history', exact: true }).click()
@@ -201,9 +200,8 @@ test('Web and Game layouts preserve selection, ownership and the spoiler boundar
   const seed = { ...initial, purchases: { [start.id]: { epoch: 0, active: true } } }
   await page.addInitScript((profile) => localStorage.setItem('idle-slayer-ascension-map.profile.v1', JSON.stringify(profile)), seed)
   await page.goto('./ascension/')
-  const layout = page.getByRole('group', { name: 'Map layout', exact: true })
   await chooseLayout(page, 'Detailed Layout')
-  await expect(layout.getByRole('button', { name: 'Detailed Layout', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expectLayout(page, 'Detailed Layout')
   await selectUpgrade(page, branch.title)
   const selectedNode = page.locator(`.react-flow__node[data-id="${branch.id}"]`)
   await expect(selectedNode).toHaveClass(/selected/)

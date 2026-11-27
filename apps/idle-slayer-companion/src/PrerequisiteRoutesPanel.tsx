@@ -74,7 +74,7 @@ export function PrerequisiteRoutesPanel({ catalog, profile, visible, goals, init
   }
   function issue(problem: RouteProblem): string {
     switch (problem.kind) {
-      case 'unrevealed': return 'An unrevealed native gate prevents proving a complete route. Browse spoilers explicitly in Map options to review additional revealed facts.'
+      case 'unrevealed': return 'An unrevealed native gate prevents proving a complete route. Turn on Show spoilers under View to review additional revealed facts.'
       case 'history': return 'A previous Ultra Ascension must be recorded. Purchasing its tree upgrade does not perform a reset or establish that history.'
       case 'activation': return profile.purchases[problem.id] ? `${index.get(problem.id)!.title} (ID: ${problem.id}) is already owned but inactive. It is not repurchased; active requirements remain blocked until verified activation or a later reset.` : `${index.get(problem.id)!.title} (ID: ${problem.id}) would remain inactive after purchase. A later Ultra Ascension is needed before an active requirement can be met.`
       case 'milestone': return `${items.get(problem.id)!.title} is not recorded. Receipt must be verified separately, or explicitly treated as an assumption below.`

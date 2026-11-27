@@ -13,9 +13,11 @@ for (const [first, second] of pairs) test(`queued ${first} then ${second} opens 
   await page.getByRole('searchbox').press('Enter')
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
+  // Planning actions live in the upgrade's Plan tools, after the purchase controls.
+  await page.locator('.details').getByRole('button', { name: 'Plan with this upgrade', exact: true }).click()
   const stored = await page.evaluate(() => Object.keys(localStorage).sort().map((key) => [key, window.__readMapProfileText(key)]))
   const connected = await page.locator('.details').evaluate((element, labels) => {
-    const buttons = [...element.querySelectorAll<HTMLButtonElement>('.detail-actions button, .detail-secondary button')]
+    const buttons = [...element.querySelectorAll<HTMLButtonElement>('.detail-actions button, .detail-plan .menu-popup button')]
     const previous = buttons.find((button) => button.textContent === labels.first)
     const next = buttons.find((button) => button.textContent === labels.second)
     if (!previous || !next) throw new Error('Both planning actions must follow the native purchase controls')

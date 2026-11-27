@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { emptyProfile, type Catalog, type Profile } from '../../src/domain/types'
 import { PROFILE_STORAGE_KEY } from '../../src/domain/storage'
 import { GOALS_STORAGE_KEY } from '../../src/domain/goals'
-import { openProgress, selectUpgrade } from './helpers/app'
+import { exposeMapAction, mapAction, openData, selectUpgrade } from './helpers/app'
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 const node = (title: string) => catalog.upgrades.find((upgrade) => upgrade.title === title)!
 const initial = emptyProfile(catalog.revision)
@@ -19,10 +19,7 @@ test.beforeEach(async ({ page }) => {
 const stored = (page: Page) => page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)
 async function seed(page: Page, profile: Profile) { await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile }) }
 async function open(page: Page) {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  const compact = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Plan hypothetical UAs…', exact: true }).click()
+  await mapAction(page, 'Plan hypothetical UAs…')
   return page.getByRole('dialog', { name: 'Hypothetical UA roadmap', exact: true })
 }
 const stage = (dialog: Locator, number: number) => dialog.locator(`[data-roadmap-stage="${number}"]`)
@@ -62,8 +59,9 @@ test('compares two deliberate sequences through two full native resets without w
   expect(await dialog.textContent()).not.toContain('UNKNOWN_PRIVATE')
   expect(await stored(page)).toBe(bytes); expect(page.url()).toBe(url)
   expect(await page.evaluate((key) => window.__readMapProfileText(key), GOALS_STORAGE_KEY)).toBeNull()
-  await page.keyboard.press('Escape'); const progress = await openProgress(page)
-  await expect(progress.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
+  await page.keyboard.press('Escape'); const undo = page.getByRole('button', { name: 'Undo', exact: true })
+  await exposeMapAction(page, undo)
+  await expect(undo).toBeDisabled()
 })
 test('each reset requires fresh eligibility and later route intentions clear after earlier edits', async ({ page }) => {
   await page.goto('./ascension/'); const dialog = await open(page)
@@ -127,11 +125,12 @@ test('recovery replaces the roadmap with exactly one native modal and preserves 
   const other = await context.newPage(); await other.goto('./ascension/'); await other.evaluate(({ key, profile }) => window.__writeExternalMapProfileText(key, JSON.stringify({ ...profile, showSpoilers: true })), { key: PROFILE_STORAGE_KEY, profile: initial })
   await expect(page.getByRole('button', { name: 'Review progress conflict', exact: true })).toBeVisible()
   const dialog = await open(page); await dialog.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  await expect(page.locator('dialog[open]')).toHaveCount(1); await expect(page.getByRole('dialog', { name: 'Backup & transfer', exact: true })).toBeVisible(); await expect(dialog).toHaveCount(0)
+  await expect(page.locator('dialog[open]')).toHaveCount(1); await expect(page.getByRole('dialog', { name: 'Data & backup', exact: true })).toBeVisible(); await expect(dialog).toHaveCount(0)
   await expect(page.locator('.map-summary')).toContainText('1 /'); await other.close()
 })
 for (const purchaseFirst of [true, false]) test(`queued connected native purchase and roadmap openers leave one dialog (${purchaseFirst})`, async ({ page }) => {
   await page.goto('./ascension/'); await selectUpgrade(page, 'Permanent Slayer'); const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
+  await page.locator('.details').getByRole('button', { name: 'Plan with this upgrade', exact: true }).click()
   const connected = await page.locator('.details').evaluate((details, purchaseFirst) => {
     const buttons = [...details.querySelectorAll<HTMLButtonElement>('button')], purchase = buttons.find((button) => button.textContent === 'Record purchase…')!, roadmap = buttons.find((button) => button.textContent === 'Plan hypothetical UAs…')!
     const first = purchaseFirst ? purchase : roadmap, second = purchaseFirst ? roadmap : purchase
@@ -142,9 +141,17 @@ for (const purchaseFirst of [true, false]) test(`queued connected native purchas
   expect(await stored(page)).toBeNull()
 })
 test('a connected opener after an actual change can only open a fresh current-scope roadmap', async ({ page }) => {
-  await page.goto('./ascension/'); await expect(page.locator('.toolbar')).toBeVisible(); const compact = page.getByRole('button', { name: 'Map options', exact: true }); await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).evaluate((dialog) => {
-    const input = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')!, button = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Plan hypothetical UAs…')!
+  await page.goto('./ascension/'); await expect(page.locator('.toolbar')).toBeVisible()
+  // Hold View (spoilers) and Plan (the opener) open together: each tool closes when focus leaves it,
+  // so focus moves are suppressed while both open, and the opener is rendered before the change.
+  await page.evaluate(() => { const win = window as Window & { nativeFocus?: typeof HTMLElement.prototype.focus }; win.nativeFocus = HTMLElement.prototype.focus; HTMLElement.prototype.focus = function () {} })
+  await page.locator('.toolbar .plan-tools > button').evaluate((button: HTMLButtonElement) => button.click())
+  await page.locator('.toolbar .view-tools > button').evaluate((button: HTMLButtonElement) => button.click())
+  await expect(page.locator('.toolbar .view-popover input[type="checkbox"]')).toBeAttached()
+  await expect(page.locator('.toolbar .plan-tools .menu-popup')).toBeAttached()
+  await page.locator('.toolbar').evaluate((toolbar) => {
+    HTMLElement.prototype.focus = (window as Window & { nativeFocus?: typeof HTMLElement.prototype.focus }).nativeFocus!
+    const input = toolbar.querySelector<HTMLInputElement>('.view-popover input[type="checkbox"]')!, button = [...toolbar.querySelectorAll<HTMLButtonElement>('.plan-tools .menu-popup button')].find((button) => button.textContent === 'Plan hypothetical UAs…')!
     input.click(); if (!button.isConnected) throw new Error('Expected old opener still connected'); button.click()
   })
   await expect(page.locator('dialog[open]')).toHaveCount(1)
@@ -159,23 +166,24 @@ test('a connected opener after an actual change can only open a fresh current-sc
   }
   await expect.poll(async () => JSON.parse((await stored(page))!).showSpoilers).toBe(true)
 })
-test('opening a roadmap invalidates a held older backup read and a late picker selection', async ({ page }) => {
+test('opening a roadmap invalidates a held older backup read and leaves no restore picker behind', async ({ page }) => {
   await page.addInitScript(() => {
     const win = window as Window & { releaseRoadmapBackup?: () => void; roadmapBackupFinished?: boolean }, native = File.prototype.text
     File.prototype.text = async function () { if (this.name !== 'held.json') return native.call(this); await new Promise<void>((resolve) => { win.releaseRoadmapBackup = resolve }); const text = await native.call(this); win.roadmapBackupFinished = true; return text }
   })
-  await page.goto('./ascension/'); await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'held.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 7 })) })
+  await page.goto('./ascension/'); const data = await openData(page, { advanced: false })
+  await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'held.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 7 })) })
   await expect.poll(() => page.evaluate(() => typeof (window as Window & { releaseRoadmapBackup?: () => void }).releaseRoadmapBackup)).toBe('function')
   await page.keyboard.press('Escape'); const dialog = await open(page); await dialog.getByRole('textbox', { name: 'Plan name', exact: true }).fill('Newer roadmap')
   await page.evaluate(() => (window as Window & { releaseRoadmapBackup?: () => void }).releaseRoadmapBackup!())
   await expect.poll(() => page.evaluate(() => (window as Window & { roadmapBackupFinished?: boolean }).roadmapBackupFinished)).toBe(true)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'late.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 8 })) })
+  // The restore control lives only in the open Data & backup dialog, so no late selection can reach it.
+  await expect(page.getByLabel('Restore from a backup file', { exact: true })).toHaveCount(0)
   await expect(page.locator('dialog[open]')).toHaveCount(1); await expect(dialog).toBeVisible(); await expect(dialog.getByRole('textbox', { name: 'Plan name', exact: true })).toHaveValue('Newer roadmap'); expect(await stored(page)).toBeNull()
 })
 test('compact details preserve the native purchase Tab path while auxiliary roadmap controls stay hidden', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 }); await page.goto('./ascension/'); await page.getByRole('searchbox').fill('Permanent Slayer'); await page.getByRole('searchbox').press('Enter')
-  await expect(page.locator('.details h2')).toBeFocused(); await expect(page.getByRole('button', { name: 'Plan hypothetical UAs…', exact: true })).not.toBeVisible(); await expect(page.locator('.detail-secondary')).toHaveCount(1)
+  await expect(page.locator('.details h2')).toBeFocused(); await expect(page.getByRole('button', { name: 'Plan with this upgrade', exact: true })).not.toBeVisible(); await expect(page.locator('.details .detail-content')).toBeHidden()
   let reached = false
   for (let index = 0; index < 5; index++) { await page.keyboard.press('Tab'); if (await page.getByRole('button', { name: 'Record purchase…', exact: true }).evaluate((button) => button === document.activeElement)) { reached = true; break } }
   expect(reached).toBe(true)

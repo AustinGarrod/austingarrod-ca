@@ -1,4 +1,4 @@
-import { openAction, openProgress } from './helpers/app'
+import { closeMapOptions, exposeMapAction, historyAction, layoutButton, mapAction, openAccount, openAction, openData, openImport, openTransfer, restoreFile, setSpoilers } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { BrowserContext, Page, Request } from '@playwright/test'
 import { createHash } from 'node:crypto'
@@ -94,9 +94,7 @@ test('saved comparison contents stay blocked in real recorder snapshots and muta
   await page.addInitScript(({ key, ids }) => localStorage.setItem(key, JSON.stringify({ kind: 'upgrade-comparison', version: 1, ids })), { key: comparisonKey, ids: [catalog.startId, unknown] })
   await page.goto(`${origin}${appMapPath}`)
   await expect(page.locator('.toolbar')).toBeVisible()
-  const mobile = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await mobile.isVisible() ? mobile : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('button', { name: 'Saved upgrade comparison…', exact: true }).click()
+  await mapAction(page, 'Saved upgrade comparison…')
   const dialog = page.getByRole('dialog', { name: 'Saved upgrade comparison', exact: true })
   await expect(dialog.locator('.saved-comparison')).toHaveClass(/telemetry-private rr-block/)
   await page.evaluate(({ publicSnapshot, privateSnapshot }) => {
@@ -130,7 +128,7 @@ test('account controls stay private in real recorder snapshots while functional 
   const capture = await installLocalRoutes(context, origin, { recorderReady })
   await serveIsolatedApplication(context, origin)
   await page.goto(`${origin}${appFixturePath}`)
-  await page.getByRole('button', { name: /^Account & sync/ }).click()
+  await openAccount(page)
   const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
   await expect(dialog).toBeVisible()
   const privateMarker = 'PRIVATE_ACCOUNT_EMAIL_CODE_AND_SAVE_487206'
@@ -144,7 +142,8 @@ test('account controls stay private in real recorder snapshots while functional 
   await waitForActive(page); releaseRecorder()
   const events = await waitForReplayEvents(capture, (values) => values.some((event) => event.type === 2 && JSON.stringify(event).includes(publicMarker)))
   expect(JSON.stringify({ submissions: capture.submissions, replay: events })).not.toContain(privateMarker)
-  expect(blockedReplayNodes(events).some((node) => node.attributes.class.includes('companion-account') && !node.childNodes?.length)).toBe(true)
+  // Account controls open from Data & backup, whose private operation area (or the account panel itself) is recorded as one empty blocked node.
+  expect(blockedReplayNodes(events).some((node) => /companion-account|companion-operation/.test(node.attributes.class) && !node.childNodes?.length)).toBe(true)
   expect(capture.unexpected).toEqual([])
 })
 
@@ -337,8 +336,8 @@ async function waitForActive(page: Page) {
 }
 
 async function chooseCompanionSave(page: Page, options: Parameters<typeof nativeSaveFixture>[0] = {}) {
-  await page.getByRole('button', { name: 'Import save', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  await openImport(page)
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: secrets.file, mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture(options))) })
   await expect(dialog.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
   return dialog
@@ -738,7 +737,7 @@ for (const startup of ['loading', 'network-error'] as const) {
       if (startup === 'loading') {
         await expect(page.locator('.startup-disclosure')).toContainText('self-hosted Umami')
         const details = page.locator('.startup-privacy')
-        await details.locator('summary').focus(); await page.keyboard.press('Enter')
+        await details.locator(':scope > summary').focus(); await page.keyboard.press('Enter')
         return details
       }
       const menu = page.getByRole('button', { name: 'Menu', exact: true })
@@ -780,16 +779,16 @@ test('startup privacy disclosure refreshes cross-tab tracking status while the c
   })
   await page.goto(`${origin}${appMapPath}`)
   await waitForActive(page)
-  const privacy = page.locator('details')
-  await privacy.locator('summary').click()
+  const privacy = page.locator('details.startup-privacy')
+  await privacy.locator(':scope > summary').click()
   await expect(privacy.getByRole('status')).toHaveText('Usage analytics and recording are enabled for this visit.')
   const otherTab = await context.newPage()
   await otherTab.goto(`${origin}${fixturePath}`)
   await otherTab.evaluate((key) => localStorage.setItem(key, 'disabled'), preferenceKey)
   await expect(privacy.getByRole('status')).toHaveText('Usage analytics and recording are disabled.')
-  await privacy.locator('summary').click()
+  await privacy.locator(':scope > summary').click()
   await otherTab.evaluate((key) => localStorage.setItem(key, 'enabled'), preferenceKey)
-  await privacy.locator('summary').click()
+  await privacy.locator(':scope > summary').click()
   await expect(privacy.getByRole('status')).toContainText('Tracking remains off in this tab')
   await expect(privacy.getByRole('button', { name: 'Enable tracking and reload', exact: true })).toBeVisible()
   releaseCatalog()
@@ -839,9 +838,7 @@ test('prerequisite route targets, queries and intentions remain blocked in real 
   const belt = catalog.upgrades.find((upgrade) => upgrade.title === 'Legendary Belt')!
   await page.goto(`${origin}${appMapPath}`)
   await expect(page.locator('.toolbar')).toBeVisible()
-  const compact = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Compare prerequisite routes…', exact: true }).click()
+  await mapAction(page, 'Compare prerequisite routes…')
   const dialog = page.getByRole('dialog', { name: 'Prerequisite routes', exact: true })
   const input = dialog.getByRole('searchbox', { name: 'Find a route target', exact: true })
   await input.fill(belt.title)
@@ -879,7 +876,7 @@ test('single-event hypothetical controls and results stay blocked in real replay
   const toggle = page.getByRole('button', { name: 'Show details', exact: true })
   if (await toggle.isVisible()) await toggle.click()
   const before = await page.evaluate((key) => window.__readMapProfileText(key), profileKey)
-  await page.getByRole('button', { name: 'Analyze forward impact…', exact: true }).click()
+  await mapAction(page, 'Analyze forward impact…')
   const dialog = page.getByRole('dialog', { name: 'Forward impact', exact: true })
   await expect(dialog.locator('.forward-impact')).toBeVisible()
   const privateSnapshot = 'PRIVATE_FORWARD_EVENT_SNAPSHOT'
@@ -918,13 +915,14 @@ test('active dialog feedback remains private in actual recorder snapshots and mu
   const readMarker = 'MODAL_PRIVATE_READ_DETAIL'
   const snapshotProof = 'DIALOG_FEEDBACK_PUBLIC_SNAPSHOT'
   const mutationProof = 'DIALOG_FEEDBACK_PUBLIC_MUTATION'
-  const invalidError = 'The backup is not valid JSON. Progress was not replaced.'
-  const readError = 'The backup could not be read. Progress was not replaced.'
+  // Restoring now goes through Data & backup's single restore control; its feedback sits in the dialog's private operation area.
+  const invalidError = 'This file is not valid JSON. Nothing was changed.'
+  const readError = 'This file could not be read. Nothing was changed.'
   await page.goto(`${origin}${appMapPath}`)
   await expect(page.locator('.toolbar')).toBeVisible()
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from(fileMarker) })
-  await expect(page.getByRole('dialog').locator('.dialog-feedback')).toContainText(invalidError)
+  await restoreFile(page, { name: 'synthetic-invalid.json', mimeType: 'application/json', buffer: Buffer.from(fileMarker) })
+  const data = page.getByRole('dialog', { name: 'Data & backup', exact: true })
+  await expect(data.locator('.companion-operation > p[role="status"]')).toContainText(invalidError)
   await page.evaluate((proof) => {
     const node = document.createElement('p'); node.id = 'dialog-feedback-public-proof'; node.textContent = proof
     document.querySelector('dialog[open]')!.appendChild(node)
@@ -932,12 +930,12 @@ test('active dialog feedback remains private in actual recorder snapshots and mu
   await waitForActive(page)
   releaseRecorder()
   const snapshot = await waitForReplayEvents(capture, (events) => events.some((event) => event.type === 2 && JSON.stringify(event).includes(snapshotProof)))
-  expect(blockedReplayNodes(snapshot).some((node) => node.attributes.class.includes('dialog-feedback') && !(node.childNodes?.length))).toBe(true)
+  expect(blockedReplayNodes(snapshot).some((node) => node.attributes.class.includes('companion-operation') && !(node.childNodes?.length))).toBe(true)
   await page.evaluate((marker) => {
     File.prototype.text = async function () { throw new Error(marker) }
   }, readMarker)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-unreadable.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
-  await expect(page.getByRole('dialog').locator('.dialog-feedback')).toContainText(readError)
+  await data.getByLabel('Restore from a backup file', { exact: true }).setInputFiles({ name: 'synthetic-unreadable.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
+  await expect(data.locator('.companion-operation > p[role="status"]')).toContainText(readError)
   await page.locator('#dialog-feedback-public-proof').evaluate((node, proof) => { node.textContent = proof }, mutationProof)
   await page.locator('#dialog-feedback-public-proof').click()
   const events = await waitForReplayEvents(capture, (events) => events.some((event) => event.type === 3 && JSON.stringify(event).includes(mutationProof)))
@@ -945,6 +943,7 @@ test('active dialog feedback remains private in actual recorder snapshots and mu
   for (const privateText of [fileMarker, readMarker, invalidError, readError]) expect(evidence).not.toContain(privateText)
   await expect(page.locator('body')).not.toContainText(fileMarker)
   await expect(page.locator('body')).not.toContainText(readMarker)
+  // Data & backup reports the failed read with its bounded reason only.
   await expect.poll(() => capture.submissions.some((item) => item.payload.name === 'backup_error' && (item.payload.data as Record<string, unknown> | undefined)?.reason === 'read')).toBe(true)
   expect(capture.unexpected).toEqual([])
 })
@@ -963,7 +962,7 @@ test('named checkpoint snapshots and edits stay excluded from actual recorder sn
     text: exportCheckpoints({ ...emptyCheckpoints(), entries: [{ id: 'stored', name: names[0], capturedRevision: catalog.revision, profile: { ...initial, purchases: { [unknown]: { epoch: 0, active: false } } } }] }, catalog.revision)!,
   })
   await page.goto(`${origin}${appMapPath}`)
-  await (await openProgress(page)).getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   const dialog = page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })
   await expect(dialog.locator('.checkpoint-list')).toContainText(names[0])
   await page.evaluate((proof) => {
@@ -1114,10 +1113,9 @@ test('actual application handlers count confirmed purchase and recommendation on
     && (submission.payload.data as Record<string, unknown>).upgrade_id === hidden.id).length
   const showSpoilers = async (enabled: boolean) => {
     const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-    if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-    await checkbox.setChecked(enabled)
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await exposeMapAction(page, checkbox)
+    await setSpoilers(page, enabled)
+    await closeMapOptions(page)
   }
   for (const expectedSelections of [1, 2]) {
     await showSpoilers(true)
@@ -1152,11 +1150,7 @@ test('search events count input edits without counting purchase or undo result r
   await expect(page.locator('.map-summary')).toContainText('1 /')
   await page.waitForTimeout(750)
   observed.push(searches().length)
-  const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await undo.click()
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await historyAction(page, 'Undo')
   await expect(page.locator('.map-summary')).toContainText('0 /')
   await page.waitForTimeout(750)
   observed.push(searches().length)
@@ -1222,6 +1216,8 @@ test('renamed layout controls retain bounded game and web analytics values', asy
   const events = (name: string) => capture.submissions.filter((submission) => submission.type === 'event' && submission.payload.name === name)
   await expect.poll(() => events('app_ready').length).toBe(1)
   expect((events('app_ready')[0].payload.data as Record<string, unknown>).layout).toBe('game')
+  // The switch sits under View on narrow maps; it stays open while the layout changes.
+  await exposeMapAction(page, layoutButton(page, 'Game Layout'))
   const layout = page.getByRole('group', { name: 'Map layout', exact: true })
   await expect(layout.getByRole('button')).toHaveText(['Game Layout', 'Detailed Layout'])
   await layout.getByRole('button', { name: 'Detailed Layout', exact: true }).click()
@@ -1284,8 +1280,8 @@ test('unsaved progress and intentions opt-out preserves cancellation and exports
   await expect(page.getByRole('alert')).toContainText('Companion progress could not be saved')
   await expect.poll(() => capture.submissions.some((submission) => submission.payload.name === 'storage_error')).toBe(true)
   expect(await page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), profileKey)).toEqual(initial)
-  await page.locator('.companion-global-actions').getByRole('button', { name: /Backup/ }).click()
-  const backups = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  await openData(page)
+  const backups = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await backups.getByLabel('Restore intentions', { exact: true }).setInputFiles({ name: 'intentions.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(intentions)) })
   await backups.getByRole('button', { name: 'Replace intentions', exact: true }).click()
   await expect(backups.getByRole('status').filter({ hasText: 'Intentions could not be saved' })).toBeVisible()
@@ -1358,8 +1354,7 @@ test('real recorder excludes transfer URL payloads, QR contents, links and repla
   const snapshot = await waitForReplayEvents(capture, (events) => events.some((event) => event.type === 2 && JSON.stringify(event).includes(snapshotProof)))
   expect(blockedReplayNodes(snapshot).some((node) => node.attributes.class.includes('progress-transfer') && !(node.childNodes?.length))).toBe(true)
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await openProgress(page)
-  await page.getByRole('button', { name: 'Transfer to another device…', exact: true }).click()
+  await openTransfer(page, 'send')
   await page.getByRole('button', { name: 'Create transfer snapshot', exact: true }).click()
   await expect(page.getByRole('img', { name: 'Progress transfer QR code', exact: true })).toBeVisible()
   const generatedLink = await page.getByRole('textbox', { name: 'Private transfer link', exact: true }).inputValue()
@@ -1522,10 +1517,9 @@ test('reference sheet selections and full outgoing document stay blocked in actu
   await page.goto(`${origin}${appMapPath}`); await expect(page.locator('.toolbar')).toBeVisible()
   await page.locator(`.react-flow__node[data-id="${catalog.startId}"]`).click()
   const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-  await page.getByRole('button', { name: 'Add to reference sheet', exact: true }).click()
-  const menu = page.getByRole('button', { name: 'Map options', exact: true })
-  if (await menu.isVisible()) await menu.click(); else await page.getByRole('button', { name: 'Map view…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Reference sheet', exact: true }).click()
+  await mapAction(page, 'Add to reference sheet')
+  await closeMapOptions(page)
+  await mapAction(page, 'Reference sheet…')
   const dialog = page.getByRole('dialog', { name: 'Upgrade reference sheet', exact: true })
   await dialog.getByRole('button', { name: 'Review outgoing sheet', exact: true }).click()
   const marker = 'REFERENCE_SHEET_PRIVATE_SNAPSHOT'
@@ -1553,9 +1547,7 @@ test('hypothetical UA names, stage choices and results stay blocked in real reco
   await serveIsolatedApplication(context, origin)
   const name = 'ROADMAP_PRIVATE_NAME_74621', query = 'ROADMAP_PRIVATE_QUERY_63928', snapshotProof = 'ROADMAP_PUBLIC_SNAPSHOT', mutationProof = 'ROADMAP_PUBLIC_MUTATION'
   await page.goto(`${origin}${appMapPath}`); await expect(page.locator('.toolbar')).toBeVisible()
-  const compact = page.getByRole('button', { name: 'Map options', exact: true })
-  await (await compact.isVisible() ? compact : page.getByRole('button', { name: 'Map view…', exact: true })).click()
-  await page.getByRole('dialog', { name: 'Map options', exact: true }).getByRole('button', { name: 'Plan hypothetical UAs…', exact: true }).click()
+  await mapAction(page, 'Plan hypothetical UAs…')
   const dialog = page.getByRole('dialog', { name: 'Hypothetical UA roadmap', exact: true })
   await dialog.getByRole('textbox', { name: 'Plan name', exact: true }).fill(name)
   const picker = dialog.locator('.roadmap-picker'); await picker.locator('summary').click(); const input = picker.getByRole('searchbox')

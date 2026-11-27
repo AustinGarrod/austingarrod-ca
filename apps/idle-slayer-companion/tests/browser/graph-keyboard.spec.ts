@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { visibility } from '../../src/domain/rules'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
-import { openAction as openCompanionAction } from './helpers/app'
+import { chooseLayout, closeMapOptions, exposeMapAction, openAction as openCompanionAction, setSpoilers } from './helpers/app'
 
 const catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8')) as Catalog
 const key = 'idle-slayer-ascension-map.profile.v1'
@@ -54,10 +54,9 @@ async function settledCameraPosition(page: Page) {
 }
 async function showSpoilers(page: Page, enabled: boolean) {
   const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-  if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await checkbox.setChecked(enabled)
-  const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-  if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await exposeMapAction(page, checkbox)
+  await setSpoilers(page, enabled)
+  await closeMapOptions(page)
 }
 async function frameVisible(page: Page, id: string) {
   await expect.poll(() => node(page, id).evaluate((element) => {
@@ -77,7 +76,7 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
   for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
     test(`${layout} enters, explores and leaves the graph efficiently at ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport); await page.goto('./ascension/')
-      await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: layout, exact: true }).click()
+      await chooseLayout(page, layout)
       const nodes = page.locator('.react-flow__node')
       await expect(nodes).toHaveCount(121)
       await expect(page.locator('.react-flow__node[tabindex="0"]')).toHaveCount(1)
@@ -150,7 +149,7 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
       test(`${layout} keyboard traverses every ${spoilers ? 'spoiler-visible' : 'default-visible'} upgrade ${start + 1}-${end} of ${visible.upgrades.length}`, async ({ page }) => {
         test.setTimeout(90_000)
         await page.goto('./ascension/')
-        await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: layout, exact: true }).click()
+        await chooseLayout(page, layout)
         if (spoilers) await showSpoilers(page, true)
         await expect(page.locator('.react-flow__node')).toHaveCount(visible.upgrades.length)
         await page.getByRole('button', { name: 'Skip upgrades to camera controls', exact: true }).focus()
@@ -176,7 +175,7 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
 
   test(`${layout} restores the visible focus universe after hiding a focused spoiler`, async ({ page }) => {
     await page.goto('./ascension/')
-    await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: layout, exact: true }).click()
+    await chooseLayout(page, layout)
     await expect(node(page, hidden.id)).toHaveCount(0)
     await expect(page.locator('.react-flow__node[tabindex="0"]')).toHaveCount(1)
     await showSpoilers(page, true)
@@ -198,7 +197,7 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
     test(`${layout} keeps keyboard upgrades and directional controls usable with expanded details at ${viewport.width}x${viewport.height} (${motion})`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: motion })
       await page.setViewportSize(viewport); await page.goto('./ascension/')
-      await page.getByRole('group', { name: 'Map layout' }).getByRole('button', { name: layout, exact: true }).click()
+      await chooseLayout(page, layout)
       await page.getByRole('button', { name: 'Return to start', exact: true }).click()
       await page.getByRole('button', { name: 'Show details', exact: true }).click()
       const navigation = page.getByRole('button', { name: 'Map navigation', exact: true })

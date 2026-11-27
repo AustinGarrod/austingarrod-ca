@@ -1,3 +1,4 @@
+import { exportMapBackup, exposeMapAction, openImport, restoreFile } from './helpers/app'
 import { readFileSync } from 'node:fs'
 import { expect, test } from './fixtures'
 import type { Page, BrowserContext } from '@playwright/test'
@@ -24,15 +25,9 @@ test.beforeEach(async ({ page }) => {
 async function seed(page: Page, profile: Profile) {
   await page.addInitScript(({ key, profile }) => localStorage.setItem(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile })
 }
-async function openProgress(page: Page) {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  const progress = page.getByRole('button', { name: 'Progress', exact: true })
-  if (!await progress.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await progress.click()
-}
 async function restore(page: Page, profile: Profile) {
-  await openProgress(page)
-  await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic-snapshot.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
+  await expect(page.locator('.toolbar')).toBeVisible()
+  await restoreFile(page, { name: 'synthetic-snapshot.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile)) })
   return page.getByRole('dialog', { name: 'Restore progress?', exact: true })
 }
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(window.__readMapProfileText(key)!), PROFILE_STORAGE_KEY)
@@ -56,7 +51,7 @@ test('same-count replacement identifies the exchange before cancel, apply and un
   await dialog.getByRole('button', { name: 'Apply changes', exact: true }).click()
   await expect.poll(() => stored(page)).toEqual(incoming)
   const undo = page.getByRole('button', { name: 'Undo', exact: true })
-  if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  await exposeMapAction(page, undo)
   await undo.click(); await expect.poll(() => stored(page)).toEqual(current)
 })
 
@@ -98,20 +93,22 @@ test('replacement details wrap on a short phone with bounded initial rows', asyn
 })
 
 test('native import reuses visible difference rows without exposing unrelated fields', async ({ page }) => {
-  await seed(page, current); await page.goto('./ascension/'); await openProgress(page)
+  await seed(page, current); await page.goto('./ascension/'); await expect(page.locator('.toolbar')).toBeVisible()
   const bytes = encodeGameSaveFixture(nativeSaveFixture({ integers: Object.fromEntries(Object.keys(incoming.purchases).map((id) => [id, 1])), strings: { 'Unrelated fixture preference': 'private-native-marker' } }))
-  await page.getByLabel('Idle Slayer game save', { exact: true }).setInputFiles({ name: 'savedata.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) })
-  const dialog = page.getByRole('dialog', { name: 'Import game progress', exact: true })
+  // Import save lives in Data & backup; its summary keeps the Ascension difference rows.
+  const dialog = await openImport(page)
+  await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'savedata.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) })
+  await dialog.locator('summary', { hasText: /^Ascension:/ }).click()
   await expect(dialog.getByRole('region', { name: 'Progress differences' })).toContainText('Soul Reaper')
   await expect(dialog).not.toContainText('private-native-marker')
   expect(await stored(page)).toEqual(current)
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Cancel preview', exact: true }).click()
 })
 
 test('export includes UTC and UA context while keeping version-one JSON compatible', async ({ page }) => {
-  await seed(page, current); await page.goto('./ascension/'); await openProgress(page)
+  await seed(page, current); await page.goto('./ascension/')
   const event = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export JSON backup', exact: true }).click()
+  await exportMapBackup(page)
   const download = await event
   expect(download.suggestedFilename()).toMatch(/^idle-slayer-progress-\d{8}T\d{6}Z-ua0\.json$/)
   expect(JSON.parse(readFileSync((await download.path())!, 'utf8'))).toEqual(current)
@@ -156,14 +153,14 @@ async function createConflict(page: Page, context: BrowserContext) {
 test('conflict review explains both replacement directions and preserves cancellation', async ({ page, context }) => {
   await createConflict(page, context)
   await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-  let review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  let review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await review.getByRole('button', { name: 'Replace checked saved progress', exact: true }).click()
   const local = page.getByRole('region', { name: 'Review progress replacement', exact: true })
   await expect(local).toContainText('Checked saved snapshot → After replacement')
   await expect(local.locator('li').filter({ hasText: 'Permanent Quests' })).toContainText('Not owned → Owned and active')
   await local.getByRole('button', { name: 'Cancel preview', exact: true }).click()
   expect(await stored(page)).toEqual(incoming)
-  review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+  review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
   await review.getByRole('button', { name: 'Use checked saved progress', exact: true }).click()
   const saved = page.getByRole('region', { name: 'Review progress replacement', exact: true })
   await expect(saved).toContainText('Current session → After replacement')
@@ -175,19 +172,19 @@ for (const direction of ['local', 'saved'] as const) {
   test(`conflict ${direction} apply gives accurate operation-specific Undo guidance`, async ({ page, context }) => {
     await createConflict(page, context)
     await page.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
-    const review = page.getByRole('dialog', { name: 'Backup & transfer', exact: true })
+    const review = page.getByRole('dialog', { name: 'Data & backup', exact: true })
     await review.getByRole('button', { name: direction === 'local' ? 'Replace checked saved progress' : 'Use checked saved progress', exact: true }).click()
     const dialog = page.getByRole('region', { name: 'Review progress replacement', exact: true })
     if (direction === 'local') {
       await expect(dialog).toContainText('Undo does not recover overwritten saved bytes')
       await expect(dialog).toContainText('export both copies before applying')
       await expect(dialog).not.toContainText('Undo is available after replacement')
-    } else await expect(dialog).toContainText('One operation with Undo for this visit.')
+    } else await expect(dialog).toContainText('One change, with Undo for this visit.')
     await page.evaluate(() => { (window as Window & { failProfileWrites?: boolean }).failProfileWrites = false })
     await dialog.getByRole('button', { name: 'Apply snapshot', exact: true }).click()
     await expect(dialog).toHaveCount(0)
     const undo = page.getByRole('button', { name: 'Undo', exact: true })
-    if (!await undo.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+    await exposeMapAction(page, undo)
     if (direction === 'local') {
       await expect(undo).toBeDisabled()
       expect(Object.keys((await stored(page)).purchases)).toHaveLength(4)

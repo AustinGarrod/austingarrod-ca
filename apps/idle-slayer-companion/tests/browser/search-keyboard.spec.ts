@@ -3,6 +3,7 @@ import { expect, test } from './fixtures'
 import { emptyProfile, type Catalog } from '../../src/domain/types'
 import { visibility } from '../../src/domain/rules'
 import { focusedDiscoveryTitleIsReadable } from './helpers/discovery-focus'
+import { openSearchResults } from './helpers/app'
 import type { Page } from '@playwright/test'
 
 async function closeAfterNativeTab(page: Page, checkDelayedFocus = false) {
@@ -86,11 +87,37 @@ test('text editing, native Tab and Space remain available alongside arrow select
   await page.keyboard.press('Tab')
   await expect(page.getByRole('combobox', { name: 'Progress state', exact: true })).toBeFocused()
   const rows = page.locator('.search-result'), secondTitle = await rows.nth(1).locator('.discovery-title').innerText()
+  // The results are one Tab stop; arrows move between candidates.
   await page.keyboard.press('Tab'); await expect(rows.nth(0)).toBeFocused()
-  await page.keyboard.press('Tab'); await expect(rows.nth(1)).toBeFocused()
+  await page.keyboard.press('ArrowDown'); await expect(rows.nth(1)).toBeFocused()
   await focusedDiscoveryTitleIsReadable(page)
   await page.keyboard.press('Space')
   await expect(page.locator('.details h2')).toHaveText(secondTitle)
+})
+
+test('focusing search alone leaves results closed, and Tab passes the results in one stop to the map tools', async ({ page }) => {
+  await page.goto('./ascension/')
+  const input = page.getByRole('searchbox')
+  await input.focus()
+  await expect(page.getByRole('region', { name: 'Visible upgrade results', exact: true })).toHaveCount(0)
+  await input.press('ArrowDown')
+  const rows = page.locator('.search-result')
+  await expect(rows.first()).toBeFocused()
+  expect(await rows.evaluateAll((elements) => elements.filter((element) => (element as HTMLElement).tabIndex === 0).length)).toBe(1)
+  await page.keyboard.press('Tab')
+  expect(await page.evaluate(() => document.activeElement?.classList.contains('search-result'))).toBe(false)
+  await expect(page.locator('#map-tools')).toBeFocused()
+})
+
+test('Skip to map tools passes the header, rail and search', async ({ page }) => {
+  await page.goto('./ascension/')
+  await expect(page.locator('.toolbar')).toBeVisible()
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  const skip = page.getByRole('link', { name: 'Skip to map tools', exact: true })
+  await expect(skip).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#map-tools')).toBeFocused()
 })
 
 test('Escape and disclosure expose closed state, then arrows reopen candidates', async ({ page }) => {
@@ -234,7 +261,7 @@ test('candidate positions and status exclude matching hidden upgrades', async ({
   await page.goto('./ascension/')
   const input = page.getByRole('searchbox')
   const status = page.getByRole('status', { name: 'Search result state', exact: true })
-  await input.focus()
+  await openSearchResults(page)
   await expect(status).toHaveText(`Search results open. ${visible.total} visible results.`)
   await expect(page.locator(`.search-result[data-upgrade-id="${hidden.id}"]`)).toHaveCount(0)
   await expect(page.locator('.discovery-identity')).toHaveCount(0)

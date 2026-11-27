@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { test, expect } from './fixtures'
+import { openAccount } from './helpers/app'
 import { emptyCompanionProgress } from '../../src/domain/companion-progress'
 import { accountKey, ACTIVE_ACCOUNT_KEY, documentKeys, documents } from '../../src/account-storage'
 import type { RemoteDocument } from '../../../../packages/accounts/client'
@@ -46,7 +47,7 @@ test('reviews and connects existing saves without changing originals, then persi
     await route.fulfill({ status: 404, json: { error: { code: 'test_route', message: 'Unexpected test request' } } })
   })
   await page.goto('./')
-  await page.getByRole('button', { name: 'Account & sync', exact: true }).click()
+  await openAccount(page)
   const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
   await dialog.getByRole('button', { name: 'Review and connect saved data', exact: true }).click()
   await expect(dialog.getByRole('group', { name: 'Companion progress', exact: true })).toBeVisible()
@@ -72,7 +73,7 @@ test('keeps invalid browser saves untouched and account actions private', async 
   let syncRequests = 0
   await page.route('**/api/v1/sync.php?**', async (route) => { syncRequests++; await route.fulfill({ json: { document: null } }) })
   await page.goto('./')
-  await page.getByRole('button', { name: 'Account & sync', exact: true }).click()
+  await openAccount(page)
   const dialog = page.getByRole('dialog', { name: 'Account & sync', exact: true })
   await dialog.getByRole('button', { name: 'Review and connect saved data', exact: true }).click()
   await expect(dialog.getByText('Saved comparison could not be validated.', { exact: true })).toBeVisible()

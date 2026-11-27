@@ -1,3 +1,4 @@
+import { chooseLayout, closeMapOptions } from './helpers/app'
 import { installProfileTestHelpers } from './fixtures'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
@@ -25,15 +26,17 @@ const camera = (page: Page) => page.locator('.react-flow__viewport').evaluate((e
 })
 const positions = (page: Page) => page.locator('.react-flow__node').evaluateAll((nodes) => nodes.map((node) => [node.getAttribute('data-id'), (node as HTMLElement).style.transform]))
 const stored = (page: Page) => page.evaluate((key) => window.__readMapProfileText(key), PROFILE_STORAGE_KEY)
+/** The View tools: layout, spoilers, overview, refocus and recent upgrades. */
+const view = (page: Page) => page.locator('.toolbar .menu-popover')
 async function options(page: Page) {
   await expect(page.locator('.toolbar')).toBeVisible()
-  const desktop = page.getByRole('button', { name: 'Map view…', exact: true })
-  if (await desktop.isVisible()) await desktop.click()
-  else await page.getByRole('button', { name: 'Map options', exact: true }).click()
+  const toggle = page.locator('.toolbar').getByRole('button', { name: 'View', exact: true })
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click()
+  await expect(view(page)).toBeVisible()
 }
 async function overview(page: Page) {
   await options(page)
-  await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click()
+  await view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click()
   await expect(page.locator('.map-summary')).toContainText('Visible map overview')
   await rendered(page)
 }
@@ -55,7 +58,7 @@ async function selectStart(page: Page) {
 }
 async function prepare(page: Page, layout: string) {
   await page.goto('./ascension/')
-  await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
+  await chooseLayout(page, layout)
   await rendered(page)
 }
 async function holdCameraFrames(page: Page) {
@@ -103,8 +106,8 @@ for (const layout of ['Game Layout', 'Detailed Layout']) {
     await page.getByRole('button', { name: 'Zoom in', exact: true }).click(); await rendered(page)
     const previous = await camera(page), profile = await stored(page)
     await options(page)
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Refocus selected upgrade', exact: true })).toBeDisabled()
-    await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click(); await rendered(page)
+    await expect(view(page).getByRole('button', { name: 'Refocus selected upgrade', exact: true })).toBeDisabled()
+    await view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click(); await rendered(page)
     await fit(page)
     await page.getByRole('button', { name: 'Return to previous view', exact: true }).click(); await rendered(page)
     expect(await camera(page)).toEqual(previous)
@@ -113,7 +116,7 @@ for (const layout of ['Game Layout', 'Detailed Layout']) {
     await page.getByRole('button', { name: 'Map navigation', exact: true }).click()
     await page.getByRole('button', { name: 'Pan map right', exact: true }).click()
     await options(page)
-    await page.getByRole('dialog').getByRole('button', { name: 'Refocus selected upgrade', exact: true }).click(); await rendered(page)
+    await view(page).getByRole('button', { name: 'Refocus selected upgrade', exact: true }).click(); await rendered(page)
     await expect(page.locator('.details h2')).toHaveText(start.title)
     expect(await stored(page)).toBe(profile)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -133,7 +136,7 @@ for (const layout of ['Game Layout', 'Detailed Layout']) {
     await other.route('https://analytics.garrod.house/**', (route) => route.abort())
     await other.route('**/catalog.json', (route) => route.fulfill({ json: changed }))
     await other.goto(new URL('ascension/', baseURL!).href)
-    await other.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
+    await chooseLayout(other, layout)
     await overview(other); await fit(other)
     expect(await camera(other)).toEqual(expected)
     await expect(other.locator('.react-flow__node')).toHaveCount(visible.total)
@@ -162,13 +165,15 @@ for (const layout of ['Game Layout', 'Detailed Layout']) {
 
 test('spoiler toggles preserve an overview camera, hide a selected identity and require a fresh fit to widen its bounds', async ({ page }) => {
   await prepare(page, 'Detailed Layout')
-  await options(page); await page.getByRole('dialog').getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
-  await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await options(page); await view(page).getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
+  await closeMapOptions(page)
   await page.getByRole('searchbox').fill('Soul Reaper III'); await page.getByRole('searchbox').press('Enter')
   await overview(page); await fit(page)
   const previous = await camera(page)
-  await options(page); await page.getByRole('dialog').getByRole('checkbox', { name: 'Show spoilers', exact: true }).uncheck()
-  await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click(); await rendered(page)
+  // Hiding the keyboard-selected upgrade closes its details and returns focus to search, which also closes View.
+  await options(page); await view(page).getByRole('checkbox', { name: 'Show spoilers', exact: true }).click()
+  await expect(page.getByRole('status', { name: 'Map action feedback', exact: true })).toHaveText('Spoilers hidden.')
+  await closeMapOptions(page); await rendered(page)
   expect(await camera(page)).toEqual(previous)
   await expect(page.locator('.react-flow__node[aria-current="true"]')).toHaveCount(0)
   await expect(page.locator('body')).not.toContainText('Soul Reaper III')
@@ -179,7 +184,7 @@ test('spoiler toggles preserve an overview camera, hide a selected identity and 
 
 test('layout, rotation and external recorded progress refit only the current visible overview', async ({ page, context }) => {
   await prepare(page, 'Game Layout'); await selectStart(page); await overview(page); await fit(page)
-  await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: 'Detailed Layout', exact: true }).click(); await rendered(page); await fit(page)
+  await chooseLayout(page, 'Detailed Layout'); await rendered(page); await fit(page)
   await page.setViewportSize({ width: 844, height: 390 }); await rendered(page); await fit(page)
   const other = await context.newPage(); await other.goto(page.url())
   await other.evaluate(({ key, profile }) => window.__writeExternalMapProfileText(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile: { ...initial, epoch: 1 } })
@@ -193,10 +198,10 @@ test('a spoiler change cancels every queued overview fit before it can move the 
   await prepare(page, 'Game Layout')
   const before = await camera(page)
   await page.evaluate(() => { (window as Window & { holdOverviewFrames?: boolean }).holdOverviewFrames = true })
-  await options(page); await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click()
+  await options(page); await view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click()
   expect(await page.evaluate(() => (window as Window & { queuedOverviewFrames?: number }).queuedOverviewFrames)).toBeGreaterThan(0)
-  await options(page); await page.getByRole('dialog').getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
-  await page.getByRole('dialog').getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await options(page); await view(page).getByRole('checkbox', { name: 'Show spoilers', exact: true }).check()
+  await closeMapOptions(page)
   await page.evaluate(() => (window as Window & { releaseOverviewFrames?: () => void }).releaseOverviewFrames?.())
   await rendered(page)
   expect(await camera(page)).toEqual(before)
@@ -208,7 +213,7 @@ test('recorded progress refreshes a pending fit even when visible geometry has n
   await prepare(page, 'Game Layout')
   const before = await camera(page)
   await page.evaluate(() => { (window as Window & { holdOverviewFrames?: boolean }).holdOverviewFrames = true })
-  await options(page); await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click()
+  await options(page); await view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click()
   const other = await context.newPage(); await other.goto(page.url())
   await other.evaluate(({ key, profile }) => window.__writeExternalMapProfileText(key, JSON.stringify(profile)), {
     key: PROFILE_STORAGE_KEY, profile: { ...initial, purchases: { [start.id]: { epoch: 0, active: true } } },
@@ -226,7 +231,7 @@ test('pointer exploration cancels a queued overview fit', async ({ page }) => {
   await prepare(page, 'Game Layout')
   const before = await camera(page)
   await page.evaluate(() => { (window as Window & { holdOverviewFrames?: boolean }).holdOverviewFrames = true })
-  await options(page); await page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click()
+  await options(page); await view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click()
   const map = await page.locator('.map').boundingBox()
   await page.mouse.move(map!.x + map!.width - 4, map!.y + map!.height / 2)
   await page.mouse.down(); await page.mouse.move(map!.x + map!.width - 54, map!.y + map!.height / 2, { steps: 3 }); await page.mouse.up()
@@ -256,7 +261,7 @@ test('overview and refocus honor live reduced-motion changes', async ({ page }) 
   }
   await prepare(page, 'Game Layout'); await selectStart(page)
   await options(page)
-  const reduced = await capture(() => page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click())
+  const reduced = await capture(() => view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click())
   expect(reduced.frames.filter((frame) => !same(frame, reduced.before)).every((frame) => same(frame, reduced.after))).toBe(true)
   expect(same(reduced.before, reduced.after)).toBe(false)
   await page.emulateMedia({ reducedMotion: 'no-preference' }); await rendered(page)
@@ -264,6 +269,6 @@ test('overview and refocus honor live reduced-motion changes', async ({ page }) 
   expect(normal.frames.some((frame) => !same(frame, normal.before) && !same(frame, normal.after))).toBe(true)
   await page.emulateMedia({ reducedMotion: 'reduce' }); await rendered(page)
   await options(page)
-  const again = await capture(() => page.getByRole('dialog').getByRole('button', { name: 'Overview visible map', exact: true }).click())
+  const again = await capture(() => view(page).getByRole('button', { name: 'Overview visible map', exact: true }).click())
   expect(again.frames.filter((frame) => !same(frame, again.before)).every((frame) => same(frame, again.after))).toBe(true)
 })

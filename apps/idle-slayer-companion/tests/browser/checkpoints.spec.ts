@@ -4,7 +4,7 @@ import { chromium, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { openProgress, purchaseStart, selectUpgrade } from './helpers/app'
+import { closeMapOptions, exposeMapAction, historyAction, mapAction, openPriorAscensions, purchaseStart, selectUpgrade } from './helpers/app'
 import { seedProfile, denyProfileWrites } from './helpers/profile'
 import type { Catalog, Profile } from '../../src/domain/types'
 import { emptyProfile } from '../../src/domain/types'
@@ -30,8 +30,7 @@ async function seedVault(page: Page, value: CheckpointVault) {
   await page.addInitScript(({ key, value }) => { if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(value)) }, { key: CHECKPOINT_STORAGE_KEY, value })
 }
 async function open(page: Page) {
-  const progress = await openProgress(page)
-  await progress.getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
+  await mapAction(page, 'Progress checkpoints…')
   const dialog = page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })
   await expect(dialog).toBeVisible(); return dialog
 }
@@ -62,21 +61,23 @@ test('current progression intentions and checkpoint references keep independent 
   await selectUpgrade(page, catalog.upgrades.find((node) => node.id === catalog.startId)!.title)
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
-  await page.getByRole('button', { name: 'Set progression goal…', exact: true }).click()
-  const progressDialog = page.getByRole('dialog', { name: 'Your progress', exact: true })
-  await progressDialog.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('rebuild')
-  await progressDialog.getByRole('button', { name: 'Save goal', exact: true }).click()
+  const startTitle = catalog.upgrades.find((node) => node.id === catalog.startId)!.title
+  await mapAction(page, 'Set a goal…')
+  const goalDialog = page.getByRole('dialog', { name: `Set a goal for ${startTitle}`, exact: true })
+  await goalDialog.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('rebuild')
+  await goalDialog.getByRole('button', { name: 'Save goal', exact: true }).click()
   const goals = await page.evaluate((key) => window.__readMapProfileText(key), GOALS_STORAGE_KEY), before = await progress(page)
-  await progressDialog.getByRole('button', { name: 'Progress checkpoints…', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Progress checkpoints', exact: true })
-  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  const dialog = await open(page)
   await expect(page.locator('dialog[open]')).toHaveCount(1)
   await capture(page, 'Recorded state before goal edit')
   expect(await page.evaluate((key) => window.__readMapProfileText(key), GOALS_STORAGE_KEY)).toBe(goals)
   const references = await stored(page)
   expect(JSON.parse(references!).entries[0].profile).toEqual(initial)
   await page.keyboard.press('Escape')
-  const returned = await openProgress(page)
+  await expect(dialog).toHaveCount(0)
+  await mapAction(page, 'Set a goal…')
+  const returned = page.getByRole('dialog', { name: `Set a goal for ${startTitle}`, exact: true })
   await returned.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('acquire')
   await returned.getByRole('button', { name: 'Save goal', exact: true }).click()
   expect(await page.evaluate((key) => window.__readMapProfileText(key), GOALS_STORAGE_KEY)).not.toBe(goals)
@@ -106,8 +107,8 @@ test('a recorded native reset explains cleared repeat purchases and lasting acti
   await seedProfile(page, resetBefore, true); await page.goto('./ascension/'); let dialog = await open(page)
   await capture(page, 'Before UA')
   await page.keyboard.press('Escape')
-  await (await openProgress(page)).getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Review companion Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
+  await mapAction(page, 'Record Ultra Ascension…')
+  await page.getByRole('dialog', { name: 'Record Ultra Ascension', exact: true }).getByRole('button', { name: 'Record companion Ultra Ascension', exact: true }).click()
   dialog = await open(page)
   await expect(dialog.getByRole('region', { name: 'Operation context', exact: true })).toContainText('uniquely match recorded operations')
   await expect(dialog.getByRole('region', { name: 'Operation context', exact: true })).toContainText('Matched native reset context cleared')
@@ -126,7 +127,7 @@ test('a recorded native reset explains cleared repeat purchases and lasting acti
 test('prior ascension history is a known app edit and never a claimed reset', async ({ page }) => {
   await seedProfile(page, initial, true); await page.goto('./ascension/'); let dialog = await open(page)
   await capture(page, 'Before history entry'); await page.keyboard.press('Escape')
-  const current = await openProgress(page)
+  const current = await openPriorAscensions(page)
   await current.locator('.prior-ascensions input').fill('1')
   await current.getByRole('button', { name: 'Review history…', exact: true }).click()
   await page.getByRole('button', { name: 'Record history', exact: true }).click()
@@ -141,16 +142,17 @@ test('read-only references preserve and explain the actual undo and redo chain',
   await capture(page, 'Before purchase'); await page.keyboard.press('Escape')
   await purchaseStart(page)
   dialog = await open(page); await capture(page, 'After purchase'); await page.keyboard.press('Escape')
-  await (await openProgress(page)).getByRole('group', { name: 'Session history' }).getByRole('button', { name: 'Undo', exact: true }).click()
-  await page.keyboard.press('Escape'); dialog = await open(page)
+  await historyAction(page, 'Undo')
+  await closeMapOptions(page); dialog = await open(page)
   await dialog.getByRole('group', { name: 'First reference' }).getByRole('radio', { name: 'After purchase · checkpoint 2', exact: true }).check()
   await expect(dialog.getByRole('region', { name: 'Operation context' })).toContainText('reverses their chronological direction')
   await expect(dialog.getByRole('region', { name: 'Operation context' })).toContainText('Purchase')
   const references = await stored(page), undone = await progress(page)
   await page.keyboard.press('Escape')
-  const progressDialog = await openProgress(page)
-  await expect(progressDialog.getByRole('button', { name: 'Redo', exact: true })).toBeEnabled()
-  await progressDialog.getByRole('button', { name: 'Redo', exact: true }).click()
+  const redo = page.getByRole('button', { name: 'Redo', exact: true })
+  await exposeMapAction(page, redo)
+  await expect(redo).toBeEnabled()
+  await redo.click()
   expect(await progress(page)).not.toBe(undone)
   expect(await stored(page)).toBe(references)
 })
@@ -280,7 +282,7 @@ test('profile recovery remains one correctly named modal and does not edit check
   await other.evaluate(({ key, profile }) => window.__writeExternalMapProfileText(key, JSON.stringify(profile)), { key: PROFILE_STORAGE_KEY, profile: { ...initial, showSpoilers: true } })
   await dialog.getByRole('button', { name: 'Review progress conflict', exact: true }).click()
   await expect(page.locator('dialog[open]')).toHaveCount(1)
-  await expect(page.getByRole('dialog', { name: 'Backup & transfer', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Data & backup', exact: true })).toBeVisible()
   expect(await stored(page)).toBe(references)
   await other.close()
 })

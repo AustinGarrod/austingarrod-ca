@@ -1,6 +1,11 @@
 .sp-cost { font-variant-numeric: tabular-nums; overflow-wrap: normal; }
 .sp-cost .cost-digits, .sp-cost .cost-power, .sp-cost .cost-unit { white-space: nowrap; }
 .sp-cost sup { font-size: .75em; line-height: 0; vertical-align: super; }
+.compact-count { display: inline-block; max-width: 100%; vertical-align: top; }
+.compact-count > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; list-style: none; text-decoration: underline dotted; text-underline-offset: 3px; }
+.compact-count > summary::-webkit-details-marker { display: none; }
+.compact-count-exact { display: block; max-width: 100%; margin-top: 4px; font-weight: 400; overflow-wrap: anywhere; }
+.compact-count-exact .cost-digits { white-space: normal; word-break: break-all; }
 .exact-cost { margin: 16px 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: .875rem; line-height: 1.5; }
 .exact-cost h3 { margin: 0 0 8px; color: var(--muted); font-size: .875rem; }
 .exact-cost p { margin: 8px 0; }

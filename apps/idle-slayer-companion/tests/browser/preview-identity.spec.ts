@@ -1,3 +1,4 @@
+import { mapAction } from './helpers/app'
 import { expect, test } from './fixtures'
 import { readFileSync } from 'node:fs'
 import type { Catalog } from '../../src/domain/types'
@@ -29,9 +30,7 @@ for (const operation of ['purchase', 'removal', 'reset'] as const) {
     await expect(page.locator('.toolbar')).toBeVisible()
     let affected: string[]
     if (operation === 'reset') {
-      await page.getByRole('button', { name: 'Map options', exact: true }).click()
-      await page.getByRole('button', { name: 'Progress', exact: true }).click()
-      await page.getByRole('button', { name: 'Ultra Ascend…', exact: true }).click()
+      await mapAction(page, 'Record Ultra Ascension…')
       const reset = planUltraAscension(catalog, profile)!
       affected = [...reset.cleared, ...reset.activated, ...reset.conditionallyRetained].filter((id) => keys.some((node) => node.id === id))
       expect(affected).toHaveLength(11)

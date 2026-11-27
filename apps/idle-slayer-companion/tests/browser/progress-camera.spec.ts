@@ -1,3 +1,4 @@
+import { chooseLayout, closeMapOptions, exposeMapAction, historyAction, mapAction, openPriorAscensions } from './helpers/app'
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -33,12 +34,11 @@ async function usableSelection(page: Page) {
   await expect(selectedNode(page)).toHaveClass(/selected/)
 }
 async function openAction(page: Page, name: string) {
-  const button = page.getByRole('button', { name, exact: true })
-  if (!await button.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
-  await button.click()
+  if (name === 'Undo' || name === 'Redo') await historyAction(page, name)
+  else await mapAction(page, name)
 }
 async function history(page: Page, epoch: string) {
-  await openAction(page, 'Progress')
+  await openPriorAscensions(page)
   const counter = page.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })
   await counter.fill(epoch)
   await page.getByRole('button', { name: 'Review history…', exact: true }).click()
@@ -48,7 +48,7 @@ async function history(page: Page, epoch: string) {
 }
 async function prepare(page: Page, layout: 'Game Layout' | 'Detailed Layout', select = true) {
   await page.goto('./ascension/')
-  await page.getByRole('group', { name: 'Map layout', exact: true }).getByRole('button', { name: layout, exact: true }).click()
+  await chooseLayout(page, layout)
   if (select) await page.getByRole('button', { name: 'Return to start', exact: true }).click()
   await rendered(page)
 }
@@ -80,8 +80,7 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
     if (layout === 'Game Layout') expect(await camera(page)).toEqual(before)
     else if (test.info().project.name === 'desktop') expect((await camera(page)).zoom).toBe(before.zoom)
     await openAction(page, 'Undo')
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 0')
     await rendered(page)
     expect(await position(page)).toEqual(originalPosition)
@@ -107,14 +106,13 @@ for (const layout of ['Game Layout', 'Detailed Layout'] as const) {
     await panAndZoom(page)
     const before = await camera(page)
     const checkbox = page.getByRole('checkbox', { name: 'Show spoilers', exact: true })
-    if (!await checkbox.isVisible()) await page.getByRole('button', { name: 'Map options', exact: true }).click()
+    await exposeMapAction(page, checkbox)
     await checkbox.setChecked(true)
-    const options = page.getByRole('dialog', { name: 'Map options', exact: true })
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await rendered(page)
     expect(await camera(page)).toEqual(before)
     await openAction(page, 'Undo')
-    if (await options.isVisible()) await options.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await closeMapOptions(page)
     await rendered(page)
     await expect(page.locator('.react-flow__node')).toHaveCount(121)
     expect(await camera(page)).toEqual(before)
