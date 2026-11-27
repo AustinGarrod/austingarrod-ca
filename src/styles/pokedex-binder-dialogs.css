@@ -102,7 +102,6 @@
 #master-bulk-cards label + label { border-top: 1px solid var(--line); }
 #master-bulk-cards label:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-#card-import-collectr-help a { text-decoration: underline; }
 #card-import-portfolios { min-width: 0; padding: 0 12px; border: 1px solid var(--line); }
 #card-import-portfolios legend { padding-inline: 4px; font-size: 13px; font-weight: 650; }
 #card-import-portfolios input[type="checkbox"] { width: 17px; margin: 0; }
