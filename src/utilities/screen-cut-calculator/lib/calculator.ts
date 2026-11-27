@@ -18,8 +18,11 @@ export interface CalculatorInput {
 }
 
 export interface CalculationError {
+  /** The field the error is shown under. */
   field: CalculatorField;
   message: string;
+  /** Other fields whose value caused the error. Editing them should not raise it mid-entry. */
+  relatedFields?: CalculatorField[];
 }
 
 export interface DimensionPair {
@@ -34,7 +37,10 @@ export interface CutMeasurement {
 
 export interface FrameCutCalculation {
   openingMm: DimensionPair;
+  /** Opening minus total clearance: the frame size the cuts aim for. */
   finishedMm: DimensionPair;
+  /** The frame the rounded cuts actually make: rounded cut plus total corner allowance. */
+  builtFrameMm: DimensionPair;
   clearanceMm: number;
   cornerExtensionPerEndMm: number;
   totalCornerAllowanceMm: number;
@@ -127,16 +133,11 @@ export function calculateFrameCuts(input: CalculatorInput): CalculationResult {
   }
   if (errors.length > 0) return { ok: false, errors };
 
-  if (input.clearanceMm >= openingMm.width) {
+  if (input.clearanceMm >= openingMm.width || input.clearanceMm >= openingMm.height) {
     errors.push({
       field: "clearanceMm",
-      message: "Total clearance must be smaller than the opening width.",
-    });
-  }
-  if (input.clearanceMm >= openingMm.height) {
-    errors.push({
-      field: "clearanceMm",
-      message: "Total clearance must be smaller than the opening height.",
+      message: `Clearance must be smaller than the opening (${formatMeasurement(openingMm.width)} × ${formatMeasurement(openingMm.height)} mm).`,
+      relatedFields: ["openingWidth", "openingHeight"],
     });
   }
   if (errors.length > 0) return { ok: false, errors };
@@ -149,37 +150,64 @@ export function calculateFrameCuts(input: CalculatorInput): CalculationResult {
   const horizontalExactMm = cleanFloatingPoint(finishedMm.width - totalCornerAllowanceMm);
   const verticalExactMm = cleanFloatingPoint(finishedMm.height - totalCornerAllowanceMm);
 
+  // The opening is what the user can see and change, so a cut that the corner
+  // allowance would use up is reported against the dimension, not the hidden setting.
+  const allowance = `${formatMeasurement(totalCornerAllowanceMm)} mm`;
   if (horizontalExactMm <= 0) {
     errors.push({
-      field: "cornerExtensionPerEndMm",
-      message: "The total corner allowance must be smaller than the finished frame width.",
+      field: "openingWidth",
+      message: `Opening width is too small for the ${allowance} corner allowance.`,
+      relatedFields: ["clearanceMm", "cornerExtensionPerEndMm"],
     });
   }
   if (verticalExactMm <= 0) {
     errors.push({
-      field: "cornerExtensionPerEndMm",
-      message: "The total corner allowance must be smaller than the finished frame height.",
+      field: "openingHeight",
+      message: `Opening height is too small for the ${allowance} corner allowance.`,
+      relatedFields: ["clearanceMm", "cornerExtensionPerEndMm"],
     });
   }
   if (errors.length > 0) return { ok: false, errors };
+
+  const horizontalPracticalMm = roundToIncrement(horizontalExactMm, input.roundingIncrementMm);
+  const verticalPracticalMm = roundToIncrement(verticalExactMm, input.roundingIncrementMm);
 
   return {
     ok: true,
     value: {
       openingMm,
       finishedMm,
+      builtFrameMm: {
+        width: cleanFloatingPoint(horizontalPracticalMm + totalCornerAllowanceMm),
+        height: cleanFloatingPoint(verticalPracticalMm + totalCornerAllowanceMm),
+      },
       clearanceMm: cleanFloatingPoint(input.clearanceMm),
       cornerExtensionPerEndMm: cleanFloatingPoint(input.cornerExtensionPerEndMm),
       totalCornerAllowanceMm,
       roundingIncrementMm: input.roundingIncrementMm,
       horizontal: {
         exactMm: horizontalExactMm,
-        practicalMm: roundToIncrement(horizontalExactMm, input.roundingIncrementMm),
+        practicalMm: horizontalPracticalMm,
       },
       vertical: {
         exactMm: verticalExactMm,
-        practicalMm: roundToIncrement(verticalExactMm, input.roundingIncrementMm),
+        practicalMm: verticalPracticalMm,
       },
     },
   };
+}
+
+/** A length in the chosen unit, for display: "777 mm" or "77.7 cm". */
+export function formatLength(valueMm: number, unit: MeasurementUnit): string {
+  return `${formatMeasurement(convertMeasurement(valueMm, "mm", unit))} ${unit}`;
+}
+
+/** Plain-text cut list for the clipboard, one line per item. */
+export function cutListText(result: FrameCutCalculation, unit: MeasurementUnit): string {
+  const opening = `${formatMeasurement(convertMeasurement(result.openingMm.width, "mm", unit))} × ${formatLength(result.openingMm.height, unit)}`;
+  return [
+    `Top and bottom: 2 × ${formatLength(result.horizontal.practicalMm, unit)}`,
+    `Left and right: 2 × ${formatLength(result.vertical.practicalMm, unit)}`,
+    `Opening ${opening}, clearance ${formatMeasurement(result.clearanceMm)} mm, corner allowance ${formatMeasurement(result.totalCornerAllowanceMm)} mm`,
+  ].join("\n");
 }

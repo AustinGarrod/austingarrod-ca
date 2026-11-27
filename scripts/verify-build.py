@@ -218,7 +218,8 @@ private_regions = {
     ],
     "/utilities/screen-cut-calculator/": [
         "opening-width", "opening-height", "custom-clearance", "corner-extension",
-        "total-corner-allowance", "result-content", "calculation-status",
+        "total-corner-allowance", "advanced-corner-allowance", "result-content", "calculation-status",
+        "cut-bar",
     ],
 }
 for route, regions in private_regions.items():
