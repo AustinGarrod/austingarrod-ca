@@ -105,11 +105,11 @@
 .companion-card-heading .companion-pin[aria-pressed='true'] { color: var(--muted); }
 .companion-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 16px 0 12px; }
 .companion-status-pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 8px; border: 1px solid var(--line); border-radius: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
-.companion-status-pill::before { content: 'â—‡'; }
+.companion-status-pill::before { content: '\25C7'; }
 .companion-status-complete { border-color: var(--line); color: var(--complete); background: var(--surface); }
-.companion-status-complete::before { content: 'âœ“'; }
+.companion-status-complete::before { content: '\2713'; }
 .companion-status-incomplete { border-color: var(--line); color: var(--muted); }
-.companion-status-incomplete::before { content: 'â—‹'; }
+.companion-status-incomplete::before { content: '\25CB'; }
 .companion-card-description { margin: 0 0 18px; color: var(--muted); font-size: .8125rem; line-height: 1.7; overflow-wrap: anywhere; }
 .companion-blocker { display: flex; gap: 8px; padding: 10px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 0; color: var(--muted); background: var(--surface); font-size: .75rem; line-height: 1.6; }
 .companion-eligibility { margin-bottom: 16px; color: var(--muted); font-size: .75rem; }
@@ -149,8 +149,8 @@
 .companion-related button { min-width: 0; padding: 6px 8px 6px 0; border-color: transparent; background: transparent; color: var(--muted); font-size: .75rem; text-align: left; }
 .companion-evidence { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
 .companion-evidence summary { display: flex; align-items: center; min-height: 44px; color: var(--muted); font-size: .75rem; cursor: pointer; }
-.companion-evidence summary::before { content: 'â€º'; margin-right: 8px; font-size: 1rem; }
-.companion-evidence[open] summary::before { content: 'âŒ„'; }
+.companion-evidence summary::before { content: '\203A'; margin-right: 8px; font-size: 1rem; }
+.companion-evidence[open] summary::before { content: '\2304'; }
 .companion-evidence small { margin: 4px 0; color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
 .companion-empty-state { padding: 48px 24px; border: 1px dashed var(--line); border-radius: 0; text-align: center; }
 .companion-empty-state > span { display: block; margin-bottom: 18px; color: var(--muted); font-size: 2.5rem; }

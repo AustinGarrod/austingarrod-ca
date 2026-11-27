@@ -55,6 +55,17 @@ test('a long module scrolls independently while desktop navigation stays reachab
   await expect(sidebar.getByRole('button', { name: 'Privacy & tracking', exact: true })).toBeFocused()
 })
 
+test('tracker cards stay inside the scrolling content, so the page itself never scrolls the shell away', async ({ page }) => {
+  await page.goto('./quests/')
+  const content = page.locator('#companion-content')
+  await expect(content.locator('[id^="companion-entity-quest-"]').first()).toBeAttached()
+  // Visually hidden legends inside each entry must not extend the document past the window.
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(1)
+  await page.keyboard.press('End')
+  await page.mouse.wheel(0, 2000)
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+})
+
 test('changing long sections starts at the new heading instead of retaining the previous scroll position', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('./achievements/')

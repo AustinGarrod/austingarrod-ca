@@ -175,6 +175,16 @@ describe('actual deployment artifact release gate', { timeout: 15_000 }, () => {
     writeFileSync(join(dist, 'assets/index-fixture.css'), '@import url("./font.woff2");')
     expect(() => validateReleaseArtifact(root, dist)).toThrow('built CSS')
   })
+  it('rejects stylesheet glyphs that were saved with the wrong text encoding, including imported sheets', () => {
+    const dist = fixture()
+    // A tick (U+2713) written as UTF-8 and read back as Windows-1252.
+    writeFileSync(join(dist, 'assets/extra.css'), ".pill::before{content:'\u00e2\u0153\u201c'}")
+    expect(() => validateReleaseArtifact(root, dist)).toThrow(/mis-encoded text/)
+    writeFileSync(join(dist, 'assets/extra.css'), ".chevron::before{content:'\u00e2\u20ac\u00ba'}")
+    expect(() => validateReleaseArtifact(root, dist)).toThrow(/mis-encoded text/)
+    writeFileSync(join(dist, 'assets/extra.css'), ".pill::before{content:'\\2713'}.label::after{content:'\u2713 caf\u00e9 \u00b7'}")
+    expect(() => validateReleaseArtifact(root, dist)).not.toThrow()
+  })
   it('rejects a wrong Pages base in HTML and private files or directories anywhere in the artifact', () => {
     const dist = fixture()
     writeFileSync(join(dist, 'index.html'), html.replaceAll(base, '/wrong-map/'))
