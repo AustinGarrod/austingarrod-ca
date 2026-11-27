@@ -557,7 +557,9 @@
 
 /* Binder app bar: back to the list, the binder's name with its status, Search cards and one menu. */
 .dex-appbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.dex-appbar-title { min-width: 0; }
+.dex-appbar-title { grid-column: 2; min-width: 0; }
+.dex-back[hidden] + .dex-appbar-title { grid-column: 1 / 3; }
+.dex-appbar-actions { grid-column: 3; }
 .dex-appbar h1 { margin: 0; font-size: clamp(23px, 3vw, 32px); line-height: 1.2; overflow-wrap: anywhere; }
 .dex-appbar .dex-eyebrow { margin: 0 0 2px; }
 .dex-appbar .dex-status { margin-top: 4px; }
@@ -605,7 +607,7 @@
   .dex-app .dex-binder-nav { margin-bottom: 8px; }
   /* One row: back, the name and status, Search cards and the menu as icons. */
   .dex-appbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 8px; margin-bottom: 8px; padding-bottom: 6px; }
-  .dex-appbar h1 { font-size: 21px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dex-appbar h1 { font-size: 20px; }
   .dex-appbar .dex-eyebrow { display: none; }
   .dex-appbar .dex-status { margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pokedex-page button.dex-back { width: 44px; padding: 0; }
