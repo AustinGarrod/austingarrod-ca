@@ -24,6 +24,17 @@ test('a first visit starts with two clear paths and no migration notice', async 
   await expect(page.locator('#companion-content')).toHaveAttribute('aria-label', 'Ascension')
 })
 
+test('the map hidden behind Overview draws no invalid SVG while its camera settles', async ({ page }) => {
+  // An animated camera move on the zero-size hidden map wrote NaN into React Flow's background.
+  const invalid: string[] = []
+  page.on('console', (message) => { if (message.type() === 'error' && message.text().includes('NaN')) invalid.push(message.text()) })
+  await page.goto('./')
+  await expect(page.getByRole('region', { name: 'Start here', exact: true })).toBeVisible()
+  // The initial camera move waits two frames, then ran a 220 ms animation. Absence needs the full window.
+  await page.waitForTimeout(800)
+  expect(invalid).toEqual([])
+})
+
 test('the migration notice appears only for a guided arrival from the old copy', async ({ page }) => {
   await page.goto('./?migration=1#analytics=off')
   await expect(page.getByRole('region', { name: 'Move Companion progress', exact: true })).toBeVisible()

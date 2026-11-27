@@ -638,7 +638,9 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
           inset = (map.height / 2 - nodeHeight * zoom / 2 - 8) / zoom
         }
       }
-      const duration = reducedMotion ? 0 : 220
+      // A hidden map (another section is open) has no size, and an animated
+      // move on a zero-size canvas interpolates through NaN. Jump instead.
+      const duration = reducedMotion || !map?.width || !map.height ? 0 : 220
       // Inspector changes can precede React Flow's cached container dimensions.
       // Both layouts center using the actual canvas rather than that stale cache.
       if (map) void flow.setViewport({
