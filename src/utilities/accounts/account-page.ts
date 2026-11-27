@@ -93,13 +93,13 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
   const note = document.createElement("p");
   const date = new Date(snapshot.createdAt);
   const label = snapshot.label === "Before sync" ? "Daily checkpoint" : snapshot.label;
-  note.textContent = `${label} · ${Number.isNaN(date.valueOf()) ? snapshot.createdAt : date.toLocaleString()}`;
+  note.textContent = `${label} · ${Number.isNaN(date.valueOf()) ? snapshot.createdAt : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`;
   if (snapshot.revision > 0) note.textContent += ` · Revision ${snapshot.revision}`;
   const actions = document.createElement("div"); actions.className = "account-actions";
   const client = createAccountClient(accountId);
-  function action(label: string, run: () => Promise<void>): void {
+  function action(label: string, run: () => Promise<void>, danger = false): void {
     const button = document.createElement("button");
-    button.type = "button"; button.className = "button compact"; button.textContent = label;
+    button.type = "button"; button.className = danger ? "button compact account-danger" : "button compact"; button.textContent = label;
     button.addEventListener("click", () => {
       if (busy || current?.user?.id !== accountId) return;
       setBusy(true);
@@ -127,7 +127,7 @@ function recoveryRow(snapshot: RecoverySnapshot, accountId: string): HTMLLIEleme
     if (!window.confirm("Permanently delete this recovery copy? This does not delete your active utility save.")) return;
     await client.deleteRecovery(snapshot.id);
     message("Recovery copy deleted."); await loadRecovery();
-  });
+  }, true);
   item.append(heading, note, actions); return item;
 }
 async function loadAssistants(session: AccountSession): Promise<void> {
@@ -148,7 +148,7 @@ async function loadAssistants(session: AccountSession): Promise<void> {
       permissions.textContent = connection.canWrite ? "Read and write" : "Read only";
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "button compact";
+      button.className = "button compact account-danger";
       button.textContent = "Revoke access";
       button.setAttribute("aria-label", "Revoke " + connection.client + " access to " + connection.utility);
       button.addEventListener("click", async () => {
@@ -223,7 +223,7 @@ function render(value: AccountSession): void {
     ++assistantGeneration; element("account-assistants").hidden = true;
     element("account-assistants-list").replaceChildren();
   }
-  if (!value.enabled) message("Account syncing is not available yet. Your local saves are unchanged.");
+  if (!value.enabled) message("");
   else if (value.requiresBootstrap) message("Your sign-in expired. Request a new email code or continue with Google to sign in again.");
   else if (verifyingGoogle) message("Verify your email address to finish connecting Google.");
   else if (firstRender || previousId !== value.user?.id) message(value.user ? "You’re signed in." : "Choose how to sign in.");
@@ -272,7 +272,12 @@ async function reload(explicitLoginRetry = false): Promise<void> {
     if (params.get("google") === "failed") message("Google sign-in could not finish. Try again or use an emailed code.", true);
     if (params.get("google") === "cancelled") message("Google sign-in was cancelled. You can choose another sign-in method.");
   }
-  catch (error) { element("account-unavailable").hidden = false; failure(error); }
+  catch (error) {
+    element("account-unavailable").hidden = false;
+    // The unavailable panel already says so; a second red line would only repeat it.
+    if (error instanceof APIError && error.code === "unavailable") message("");
+    else failure(error);
+  }
 }
 element("account-retry").addEventListener("click", () => { void reload(true); });
 void reload();

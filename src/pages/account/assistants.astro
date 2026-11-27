@@ -1,4 +1,5 @@
 ---
+import { ArrowLeft, Copy } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import "@styles/account.css";
 
@@ -8,14 +9,15 @@ const utilities = [
 ];
 ---
 
-<BaseLayout title="Connect an assistant | Austin Garrod" description="Connect ChatGPT, Codex, or Claude to Pokémon Binder Tracker or Idle Slayer Companion." noIndex privatePage>
-  <section class="page-hero">
+<BaseLayout active="utilities" title="Connect an assistant | Austin Garrod" description="Connect ChatGPT, Codex, or Claude to Pokémon Binder Tracker or Idle Slayer Companion." noIndex privatePage>
+  <section class="page-hero page-hero-compact">
     <div class="container page-hero-inner">
+      <p class="eyebrow">Utility accounts</p>
       <h1>Connect an assistant</h1>
       <p>Use your utility account to look up catalog entries, ask about synced saves, and approve changes in your conversation.</p>
     </div>
   </section>
-  <section class="container account-layout assistant-layout rr-block" data-analytics-private>
+  <section class="container account-layout assistant-setup rr-block" data-analytics-private>
     <div class="account-panel assistant-guide">
       <section>
         <h2>ChatGPT web</h2>
@@ -41,12 +43,22 @@ claude plugin install idle-slayer-companion@austingarrod-utilities</code></pre>
         <p>Open <strong>Plugins → Add → Upload plugin</strong> and upload the matching plugin ZIP. Select <strong>Finish setup</strong> on the installed plugin and connect your utility account. In the older Customize layout, use <strong>Customize → Skills</strong> to upload the standalone skill ZIP.</p>
         <p>To connect a utility manually, choose <strong>Plugins → Add → Add custom connector</strong>, paste the endpoint URL below, and choose <strong>Use Claude’s published identity</strong>. Claude Free allows one custom connector. In its permissions, set <strong>Apply the confirmed change</strong> to <strong>Always ask</strong>.</p>
       </section>
+      <a class="text-link" href="/account/"><ArrowLeft size={16} aria-hidden="true" />Back to your account</a>
+    </div>
+    <aside class="account-panel assistant-endpoints" aria-labelledby="assistant-endpoints-heading">
+      <h2 id="assistant-endpoints-heading">Endpoints and downloads</h2>
       <ul class="account-recovery-list assistant-downloads">
         {utilities.map(({ id, name }) => (
           <li>
             <h3>{name}</h3>
             <label for={id}>MCP endpoint</label>
-            <input id={id} class="text-input" readonly value={"https://austingarrod.ca/api/v1/mcp/" + id} />
+            <div class="assistant-endpoint">
+              <input id={id} class="text-input" readonly value={"https://austingarrod.ca/api/v1/mcp/" + id} />
+              <button type="button" class="button compact assistant-copy" data-copy={id} aria-label={`Copy the ${name} endpoint`}>
+                <Copy size={16} aria-hidden="true" />
+                <span>Copy</span>
+              </button>
+            </div>
             <div class="assistant-download-actions">
               <a class="button compact" href={"/account/assistant-skills/" + id + "-plugin.zip"} download>Download Claude plugin ZIP</a>
               <a class="text-link" href={"/account/assistant-skills/" + id + ".zip"} download>Download skill ZIP</a>
@@ -54,7 +66,23 @@ claude plugin install idle-slayer-companion@austingarrod-utilities</code></pre>
           </li>
         ))}
       </ul>
-      <a class="text-link" href="/account/">Back to your account</a>
-    </div>
+    </aside>
   </section>
+  <script>
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+      button.addEventListener("click", async () => {
+        const input = document.getElementById(button.dataset.copy ?? "");
+        if (!(input instanceof HTMLInputElement)) return;
+        const label = button.querySelector("span");
+        try {
+          await navigator.clipboard.writeText(input.value);
+          if (label) label.textContent = "Copied";
+        } catch {
+          input.select();
+          if (label) label.textContent = "Selected";
+        }
+        window.setTimeout(() => { if (label) label.textContent = "Copy"; }, 2000);
+      });
+    }
+  </script>
 </BaseLayout>

@@ -1,49 +1,95 @@
-.account-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 48px; padding-block: clamp(24px, 4vw, 48px) 80px; }
+/* Account pages: a compact task layout on the site's spacing and type scale. */
+
+.account-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: var(--space-12); padding-block: var(--space-12) var(--space-24); }
 .account-layout [hidden] { display: none !important; }
-.account-panel { border: 1px solid var(--line); padding: 28px; margin-bottom: 24px; background: var(--surface); }
-.account-panel h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
-.account-panel p { margin-top: 12px; }
-.account-panel pre { overflow-x: auto; margin: 16px 0; padding: 12px; border: 1px solid var(--line); }
-.account-panel form { display: grid; gap: 12px; margin-top: 24px; }
-.account-panel label { font-family: "JetBrains Mono", monospace; font-size: 0.8rem; }
-.account-panel input { min-width: 0; width: 100%; min-height: 48px; border: 1px solid var(--control-line); padding: 12px; background: var(--surface); color: var(--ink); border-radius: 0; font: inherit; }
+
+.account-panel { padding: var(--card-pad); margin-bottom: var(--space-6); background: var(--surface); border: 1px solid var(--line); }
+.account-panel:last-child { margin-bottom: 0; }
+.account-panel h2 { margin: 0 0 var(--space-3); font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
+.account-panel h2:not(:first-child) { margin-top: var(--space-8); }
+.account-panel p { max-width: 68ch; margin: var(--space-3) 0 0; }
+.account-panel h2 + p { margin-top: 0; }
+.account-panel pre { overflow-x: auto; margin: var(--space-4) 0; padding: var(--space-3); border: 1px solid var(--line); }
+.account-panel :is(pre, code) { font-family: "JetBrains Mono", monospace; font-size: 0.8125rem; }
+
+/* Sign-in forms: one width, one input style, labels like the contact form. */
+.account-panel form { display: grid; gap: var(--space-3); margin-top: var(--space-6); }
+.account-sign-in-form, .account-google { max-width: 420px; }
+.account-sign-in-form .button, .account-google { width: 100%; }
+.account-panel label { display: block; color: var(--ink); font-family: "JetBrains Mono", monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.account-panel input { min-width: 0; width: 100%; min-height: 48px; padding: var(--space-3); color: var(--ink); background: var(--surface); border: 1px solid var(--control-line); border-radius: 0; font: inherit; }
 .account-panel input:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Buttons: outlined by default, black only for the one main action, danger outlined. */
 .account-panel button { border-radius: 0; }
 .account-panel .button { justify-content: center; min-height: 44px; }
-.account-panel .button:not(.primary):not(.compact) { background: var(--surface); color: var(--ink); border-color: var(--control-line); }
-.account-panel .button.compact { width: auto; padding: 11px 16px; white-space: nowrap; }
+.account-panel .button:not(.primary) { color: var(--ink); background: var(--surface); border-color: var(--control-line); }
+.account-panel .button:not(.primary):hover { color: var(--secondary); border-color: var(--secondary); }
+.account-panel .button.compact { width: auto; padding: 10px 16px; white-space: nowrap; }
+.account-panel .button.account-danger { color: var(--danger); border-color: var(--danger); }
+.account-panel .button.account-danger:hover { color: #ffffff; background: var(--danger); border-color: var(--danger); }
 .account-panel button:disabled { opacity: 0.6; cursor: wait; }
-.account-panel .eyebrow { display: flex; align-items: center; gap: 8px; }
-.account-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 0.85rem; }
+.account-text-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-2); color: var(--ink); background: transparent; border: 0; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.account-text-button:hover { color: var(--secondary); }
+.account-panel .eyebrow { display: flex; align-items: center; gap: var(--space-2); }
+
+.account-group-heading { margin: var(--space-6) 0 0; color: var(--ink); font-family: "JetBrains Mono", monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.account-group-divided { padding-top: var(--space-6); border-top: 1px solid var(--line); }
+.account-divider { display: flex; align-items: center; gap: var(--space-3); max-width: 420px; margin: var(--space-6) 0; color: var(--muted); font-size: 0.85rem; }
 .account-divider::before, .account-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
-.account-actions, .account-utility-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
-.account-status { min-height: 1.6em; margin-bottom: 20px; }
+.account-actions, .account-utility-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
+
+/* One status line, boxed so it is noticed. */
+.account-status { margin: 0 0 var(--space-4); }
+.account-status:not(:empty) { padding: 12px 14px; color: var(--secondary); background: rgb(0 106 97 / 6%); border: 1px solid currentColor; font-weight: 700; }
+.account-status.account-error { color: var(--danger); background: rgb(180 35 24 / 6%); }
 .account-error { color: var(--danger); }
-.account-aside { padding-top: 16px; }
-.account-aside h2 { font-size: 1.2rem; }
-.account-aside p { margin-top: 16px; }
+
+.account-aside { padding-top: var(--space-4); }
+.account-aside h2 { margin: 0; font-size: 1.2rem; }
+.account-aside p { margin: var(--space-4) 0 0; }
+.account-aside a { display: inline-flex; align-items: center; min-height: 44px; }
 .account-aside svg { display: inline; vertical-align: middle; margin-right: 6px; }
-.account-recovery-heading { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
-.account-recovery-list { padding: 0; margin: 20px 0 0; list-style: none; }
-.account-recovery-list li { border-top: 1px solid var(--line); padding: 20px 0; overflow-wrap: anywhere; }
-.account-recovery-list h3 { font-size: 1rem; }
-.account-recovery-list p { font-size: 0.85rem; }
-.account-sync-history { border-top: 1px solid var(--line); margin-top: 20px; }
-.account-sync-history summary { padding: 14px 0; cursor: pointer; font-weight: 600; }
-.account-sync-history > .button { margin-top: 8px; }
-.account-return { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
-.assistant-layout { grid-template-columns: minmax(0, 52rem); padding-top: clamp(24px, 4vw, 48px); }
-.assistant-guide { display: grid; gap: clamp(24px, 4vw, 36px); }
+
+/* Recovery copies: Download and Restore together, Delete last and apart. */
+.account-recovery-heading { display: flex; flex-wrap: wrap; gap: var(--space-4); justify-content: space-between; align-items: center; }
+.account-recovery-heading h2 { margin: 0; }
+.account-recovery-list { padding: 0; margin: var(--space-4) 0 0; list-style: none; }
+.account-recovery-list li { padding: var(--space-4) 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.account-recovery-list h3 { margin: 0; font-size: 1rem; }
+.account-recovery-list p { margin-top: var(--space-1); font-size: 0.875rem; }
+.account-recovery-list .account-actions .account-danger { margin-left: auto; }
+.account-sync-history { margin-top: var(--space-4); border-top: 1px solid var(--line); }
+.account-sync-history summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 600; }
+.account-sync-history > .button { margin-top: var(--space-2); }
+.account-return { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* Single-column reading pages (privacy, consent). */
+.assistant-layout { grid-template-columns: minmax(0, 52rem); }
+
+/* Assistant setup: steps on the left, what to copy on the right. */
+.assistant-setup { grid-template-columns: minmax(0, 1fr) minmax(300px, 0.55fr); align-items: start; }
+.assistant-guide { display: grid; gap: var(--space-8); }
 .assistant-guide section { min-width: 0; }
+.assistant-guide h2 { margin: 0 0 var(--space-3); }
 .assistant-guide pre { margin-bottom: 0; }
 .assistant-guide > .text-link { justify-self: start; }
+.assistant-endpoints { position: sticky; top: 104px; }
 .assistant-downloads { margin: 0; }
-.assistant-downloads li { display: grid; gap: 8px; }
-.assistant-download-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 4px; }
+.assistant-downloads li { display: grid; gap: var(--space-2); }
+.assistant-endpoint { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.assistant-endpoint input { font-family: "JetBrains Mono", monospace; font-size: 0.8125rem; }
+.assistant-download-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-1); }
 .assistant-download-actions .button.compact { min-width: 0; max-width: 100%; white-space: normal; }
 .assistant-download-actions .text-link { display: inline-flex; align-items: center; min-height: 44px; }
-@media (max-width: 767px) {
-  .account-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .account-panel { padding: 20px; }
-  .account-panel .account-actions .button, .account-panel .account-utility-links .button { width: 100%; }
+
+@media (max-width: 900px) {
+  .assistant-setup { grid-template-columns: minmax(0, 1fr); }
+  .assistant-endpoints { position: static; order: -1; }
+}
+
+@media (max-width: 760px) {
+  .account-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); padding-block: var(--space-6) var(--space-16); }
+  .account-panel .account-utility-links .button { width: 100%; }
+  .account-recovery-list .account-actions .account-danger { flex-basis: 100%; margin-left: 0; }
 }
