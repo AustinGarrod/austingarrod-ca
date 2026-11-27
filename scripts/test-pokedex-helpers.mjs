@@ -38,7 +38,8 @@ export async function openBinder(page, name) {
 export async function newSetBinder(page) {
   await settled(page);
   const first = page.locator('#first-set');
-  if (await first.isVisible()) return first.click();
+  // First run can give way to a binder that is still opening; fall back to the home list then.
+  if (await first.isVisible() && await first.click({ timeout: 3000 }).then(() => true, () => false)) return;
   await goHome(page);
   await page.locator('#master-new').click();
 }

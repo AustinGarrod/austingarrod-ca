@@ -532,8 +532,7 @@ async function initialize() {
       if (document.querySelector("dialog[open]")) return;
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && focused !== document.body && focused.getClientRects().length) return;
-      const heading = [...document.querySelectorAll<HTMLElement>("#binders-workspace h1, #buy-cards-workspace h1")].find(node => node.getClientRects().length);
-      (menuButton.getClientRects().length ? menuButton : heading)?.focus({ preventScroll: true });
+      (menuButton.getClientRects().length ? menuButton : el("binder-view-title")).focus({ preventScroll: true });
     });
   });
   // Import and export: one dialog that leads to import, export, card lists and the JSON backup.
@@ -608,13 +607,13 @@ async function initialize() {
   for (const id of ["first-dex", "national-add"]) el(id).addEventListener("click", event => void action(async () => {
     await controller.setEnabled(true);
     await master.showNational();
-    el("national-title").focus();
+    el("binder-view-title").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("national-hide").addEventListener("click", event => void action(async () => {
     await controller.setEnabled(false);
     el<HTMLDialogElement>("layout-dialog").close();
     if (!nationalEnabled(snapshot.state)) await master.goHome();
-    el(nationalEnabled(snapshot.state) ? "national-title" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
+    el(nationalEnabled(snapshot.state) ? "binder-view-title" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("first-device").addEventListener("click", () => {
     onboardingTicket++;

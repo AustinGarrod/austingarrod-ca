@@ -32,9 +32,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       <button id="binder-back" type="button" class="dex-back" aria-label="All binders" hidden><ArrowLeft size={18} aria-hidden="true" /><span>All binders</span></button>
       <div class="dex-appbar-title">
         <p id="master-set-label" class="dex-eyebrow" hidden></p>
-        <h1 id="binder-view-title" tabindex="-1">{utility.title}</h1>
-        <h1 id="national-title" tabindex="-1" hidden>National Pokédex</h1>
-        <h1 id="master-title" tabindex="-1" hidden></h1>
+        <h1 id="binder-view-title" tabindex="-1"><span id="home-title">{utility.title}</span><span id="national-title" hidden>National Pokédex</span><span id="master-title" hidden></span><span id="buy-title">Buy cards</span></h1>
         <p id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</p>
         <p id="master-message" role="status" class="dex-status-note"></p>
       </div>

@@ -175,7 +175,7 @@ try {
 
   const retryContext = await context(1440), retryPage = await retryContext.newPage();
   await open(retryPage);
-  for (const [index, name] of ['Original 151', 'Second 151'].entries()) {
+  for (const name of ['Original 151', 'Second 151']) {
     await newSetBinder(retryPage);
     await retryPage.locator('#master-set').fill('sv03.5');
     await retryPage.locator('#master-name').fill(name);

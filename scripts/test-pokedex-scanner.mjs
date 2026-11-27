@@ -59,7 +59,10 @@ async function open(ctx, addDex = true) {
   const page = await ctx.newPage(); page.on('pageerror', error => allErrors.push(error.message.slice(0, 300)));
   await page.goto(origin + '/utilities/pokemon-binder/');
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
-  if (addDex) await page.locator('#first-dex').click();
+  if (addDex) {
+    await page.locator('#first-dex').click();
+    await expect(page.locator('#national-workspace')).toBeVisible();
+  }
   return page;
 }
 async function scanner(page) {

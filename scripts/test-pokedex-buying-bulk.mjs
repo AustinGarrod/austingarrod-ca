@@ -74,7 +74,7 @@ export async function testFullBuyCards(browser, origin) {
     const finish = buying.locator("#buy-cards-finish");
 
     await page.goto(origin + "/utilities/pokemon-binder/");
-    for (const [index, [set, name]] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]].entries()) {
+    for (const [set, name] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]]) {
       await newSetBinder(page);
       await page.locator("#master-set").fill(set);
       await page.locator("#master-name").fill(name);

@@ -6,16 +6,18 @@ function currentView(): BinderView {
 }
 
 export function binderViews() {
-  // Each view has its own h1. In Binders it is the home title or the open binder's name.
-  const visibleHeading = (workspace: HTMLElement) =>
-    [...workspace.querySelectorAll<HTMLElement>("h1")].find(heading => heading.getClientRects().length);
+  // The page has one h1. It moves to the open view's header, and data-view shows its part for that
+  // view: in Binders the home title or the open binder's name (kept by master-ui), else "Buy cards".
+  const heading = document.getElementById("binder-view-title")!;
   const views = {
     binders: {
       workspace: document.getElementById("binders-workspace")!,
+      header: document.querySelector<HTMLElement>("#binder-bar .dex-appbar-title")!,
       link: document.getElementById("binders-open")!,
     },
     "buy-cards": {
       workspace: document.getElementById("buy-cards-workspace")!,
+      header: document.getElementById("buy-cards-heading")!,
       link: document.getElementById("buy-cards-open")!,
     },
   };
@@ -37,6 +39,12 @@ export function binderViews() {
     selected = view;
     fromBinders = prior === "binders";
     document.title = view === "buy-cards" ? "Buy cards | " + binderTitle : binderTitle;
+    heading.dataset.view = view;
+    if (heading.parentElement !== views[view].header) {
+      // In Binders the h1 follows the set label; in Buy cards it leads the header.
+      if (view === "binders") document.getElementById("master-set-label")!.after(heading);
+      else views[view].header.prepend(heading);
+    }
     for (const [id, { workspace, link }] of Object.entries(views)) {
       workspace.hidden = id !== view;
       if (id === view) link.setAttribute("aria-current", "page");
@@ -46,7 +54,7 @@ export function binderViews() {
     if (prior) {
       const position = positions.get(view);
       const focus = position?.focus;
-      (focus?.isConnected && focus.getClientRects().length ? focus : visibleHeading(views[view].workspace))?.focus({ preventScroll: true });
+      (focus?.isConnected && focus.getClientRects().length ? focus : heading).focus({ preventScroll: true });
       window.scrollTo({ top: position?.scroll ?? 0, behavior: "instant" });
     }
   }

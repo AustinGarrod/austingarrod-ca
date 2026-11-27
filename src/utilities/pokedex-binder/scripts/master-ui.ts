@@ -288,8 +288,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const openingNational = showDex && national.hidden;
     national.hidden = !showDex;
     node("master-workspace").hidden = !b;
-    // The bar's heading is the open binder's name, or the utility's name on the home list.
-    node("binder-view-title").hidden = shownId !== null;
+    // The page's one h1 is the open binder's name, or the utility's name on the home list.
+    node("home-title").hidden = shownId !== null;
     node("national-title").hidden = !showDex;
     node("master-title").hidden = !b;
     if (!b) node("master-set-label").hidden = true;
@@ -759,7 +759,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const binderId = target === "national" ? "" : target;
     if (binderId === undefined || (binderId && !state.binders.some(b => b.id === binderId))) return;
     void openBinder(binderId).then(() => {
-      if (showing === "binder" && id === binderId) node(binderId ? "master-title" : "national-title").focus();
+      if (showing === "binder" && id === binderId) node("binder-view-title").focus();
     }).catch(report);
   });
   for (const [name, event] of [

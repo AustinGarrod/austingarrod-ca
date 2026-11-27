@@ -561,6 +561,8 @@
 .dex-back[hidden] + .dex-appbar-title { grid-column: 1 / 3; }
 .dex-appbar-actions { grid-column: 3; }
 .dex-appbar h1 { margin: 0; font-size: clamp(23px, 3vw, 32px); line-height: 1.2; overflow-wrap: anywhere; }
+/* One h1 names the view: Buy cards, or in Binders the home title or the open binder. */
+#binder-view-title[data-view="buy-cards"] > :not(#buy-title), #binder-view-title:not([data-view="buy-cards"]) > #buy-title { display: none; }
 .dex-appbar .dex-eyebrow { margin: 0 0 2px; }
 .dex-appbar .dex-status { margin-top: 4px; }
 .dex-status-note { margin: 2px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }

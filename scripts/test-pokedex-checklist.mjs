@@ -52,7 +52,6 @@ async function checkSetChecklist(page, width) {
   const rows = workspace.locator('.dex-checklist-row');
   const sort = workspace.getByLabel('Sort checklist');
   const search = workspace.locator('#master-search');
-  const status = workspace.locator('#master-status');
   const finish = workspace.locator('#master-checklist-finish');
   const hideCollected = workspace.getByRole('checkbox', { name: /show only missing/i });
   const clear = workspace.getByRole('button', { name: 'Clear filters', exact: true });
