@@ -30,7 +30,7 @@ test('import explains where to find the save and keeps its file field readable a
   await page.goto('./')
   const trigger = page.getByRole('button', { name: 'Import save', exact: true })
   await trigger.click()
-  const dialog = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   const location = dialog.getByRole('region', { name: 'Find your Windows save', exact: true })
   await expect(location).toContainText('Close Idle Slayer first.')
   await expect(location).toContainText('%USERPROFILE%\\AppData\\LocalLow\\Pablo Leban\\Idle Slayer\\')

@@ -116,6 +116,15 @@
 .companion-card-controls { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 16px 0 0; border: 0; border-top: 1px solid var(--line); }
 .companion-observation { display: grid; grid-template-columns: minmax(0, 1fr) minmax(125px, 1.25fr); align-items: center; gap: 10px; color: var(--muted); font-size: .75rem; line-height: 1.6; }
 .companion-observation select, .companion-observation input { width: 100%; max-width: 100%; }
+/* A recorded yes/no fact is one tap; the pressed half is black, matching the filter chips. */
+.companion-observation:has(> .companion-toggle) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.companion-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+.companion-toggle > button { min-width: 0; min-height: 44px; padding: 6px 8px; border-color: var(--frame); color: var(--ink); background: var(--surface); font-size: .8125rem; line-height: 1.3; overflow-wrap: break-word; hyphens: auto; }
+.companion-toggle > button + button { border-left-width: 0; }
+.companion-toggle > button[aria-pressed='true'] { border-color: var(--primary); color: #ffffff; background: var(--primary); font-weight: 650; }
+.companion-toggle > button[aria-pressed='true']:hover:not(:disabled) { color: #ffffff; background: var(--ink); }
+.companion-saved { margin-top: 6px; color: var(--secondary); font-size: .75rem; font-weight: 650; }
+form.companion-counter { margin: 0; }
 .companion-counter > label { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-bottom: 8px; color: var(--muted); font-size: .75rem; }
 .companion-counter label small { color: var(--muted); font-size: .75rem; }
 .companion-counter-input { display: flex; align-items: stretch; gap: 6px; }
@@ -228,7 +237,7 @@
 }
 @media (forced-colors: active) {
   .companion-counter-progress progress { border: 1px solid CanvasText; }
-  .companion-filter-chips button[aria-pressed='true'], .companion-navigation .companion-nav-active { outline: 2px solid Highlight; }
+  .companion-filter-chips button[aria-pressed='true'], .companion-toggle > button[aria-pressed='true'], .companion-navigation .companion-nav-active { outline: 2px solid Highlight; }
 }
 
 .companion-eyebrow, .companion-tag, .companion-filter-label, .companion-status-pill, .companion-result-count, .companion-shopping thead th { font-family: 'JetBrains Mono', ui-monospace, monospace; }

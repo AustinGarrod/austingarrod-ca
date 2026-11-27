@@ -22,6 +22,21 @@ Keyboard exploration uses one graph Tab stop. Arrow Right/Down browses the next 
 
 The wiki snapshot ranks 280 of 288 native upgrades and declares game 7.0.0; the catalog remains authoritative for 7.2.0 costs and gates. When no eligible upgrade has a wiki rank, suggestions explicitly use a native-cost **Catalog fallback**. General guide order does not account for SP balance, total USP, gear or personal play style. [Recommendation provenance and refresh](wiki-recommendations.md) documents source revisions, identity mapping, eight unranked upgrades and licensing. The site bundles this data locally and makes no wiki requests.
 
+## Words used in the app
+
+One word for each idea, used on every label, notice and error:
+
+| Word | Means | Not |
+| --- | --- | --- |
+| **Recorded** | Something you entered or imported. A blank entry is unrecorded, never zero or "no". | observation, baseline |
+| **Goal** | A target you pin or set. It records nothing and never changes progress. | intention, wishlist, progression intention |
+| **Game rule** | What the installed game decides (reveal, purchase, reset). The app reads these rules; it does not invent them. | native |
+| **Import save** | Read a Windows Steam save file in your browser, preview it, then apply it. | Import game save, Import game progress |
+| **Back up** | Download a file you can restore later. | export (except on the single-document exports kept for the migration guide) |
+| **Record Ultra Ascension** | Apply an Ultra Ascension you made in the game, with the reset previewed first. | Ultra Ascend |
+
+The file format names stay unchanged for compatibility: the intentions document is still called intentions in its file name and in **Export intentions** / **Restore intentions**.
+
 ## Analyze one proposed event
 
 Expand an upgrade’s details and choose **Analyze forward impact…**, or open Milestones and choose **Analyze item receipt…** beside an unrecorded visible item. The purchase must already meet native purchase and reveal requirements; a blocked proposal reports the constraint rather than filling prerequisites. A milestone proposal assumes only the required item actually received/crafted/purchased, without inventing its acquisition path.

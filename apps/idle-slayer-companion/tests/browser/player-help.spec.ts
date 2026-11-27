@@ -24,7 +24,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 320, height: 568 
     expect(await help.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await help.getByRole('button', { name: 'Open Progress', exact: true }).click()
     const progress = page.getByRole('dialog', { name: 'Your progress', exact: true })
-    await expect(progress.getByRole('button', { name: 'Import game save…', exact: true })).toBeVisible()
+    await expect(progress.getByRole('button', { name: 'Import save…', exact: true })).toBeVisible()
     await expect(progress.getByRole('spinbutton', { name: 'Previous Ultra Ascensions', exact: true })).toHaveValue('0')
     await expect(progress.getByRole('button', { name: 'Map help…', exact: true })).toHaveCount(0)
     await progress.getByRole('button', { name: 'Close dialog', exact: true }).click()

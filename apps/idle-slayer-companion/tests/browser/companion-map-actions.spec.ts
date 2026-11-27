@@ -72,7 +72,7 @@ test('reviewing Ascension references opens each real collection without changing
     await expect(collection).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(1)
     if (action.button === 'Progression goals…') {
-      const heading = collection.getByRole('heading', { name: 'Goals and rebuild checklist', exact: true })
+      const heading = collection.getByRole('heading', { name: 'Goals', exact: true })
       await expect(heading).toBeFocused()
       await expect(heading).toBeInViewport()
     }

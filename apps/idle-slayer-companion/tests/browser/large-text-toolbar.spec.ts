@@ -185,7 +185,7 @@ test('chosen progression intentions are readable at the actual 200% font without
   await page.getByRole('searchbox').fill('Permanent Slayer')
   await page.locator('.search-result').filter({ hasText: 'Permanent Slayer' }).click()
   await page.getByRole('button', { name: 'Show details', exact: true }).click()
-  await page.getByRole('button', { name: 'Set progression goal…', exact: true }).click()
+  await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
   await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('rebuild')
   await page.getByRole('button', { name: 'Save goal', exact: true }).click()
   const panel = page.locator('.goals-panel')

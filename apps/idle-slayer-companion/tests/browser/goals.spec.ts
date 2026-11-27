@@ -20,10 +20,10 @@ async function choose(page: Page, title: string, mode = 'acquire') {
   await page.locator('.search-result').filter({ has: page.locator('.discovery-title', { hasText: new RegExp('^' + title + '$') }) }).first().click()
   const toggle = page.getByRole('button', { name: 'Show details', exact: true })
   if (await toggle.isVisible()) await toggle.click()
-  await page.getByRole('button', { name: 'Set progression goal…', exact: true }).click()
+  await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
   await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption(mode)
   await page.getByRole('button', { name: 'Save goal', exact: true }).click()
-  await expect(page.locator('.goals-panel')).toContainText('Intention recorded')
+  await expect(page.locator('.goals-panel')).toContainText('Goal saved')
 }
 async function progress(page: Page) {
   await expect(page.locator('.toolbar')).toBeVisible()
@@ -36,7 +36,7 @@ const saved = (page: Page) => page.evaluate((key) => window.__readMapProfileText
 test('intentions persist independently, reorder and retire without recording purchases or entering progress backups', async ({ page }) => {
   await page.goto('./ascension/')
   await choose(page, 'Minions')
-  await expect(page.locator('.goal-list')).toContainText('Blocked by native requirements')
+  await expect(page.locator('.goal-list')).toContainText('Blocked by game requirements')
   expect(await saved(page)).toBeNull()
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await choose(page, 'Permanent Slayer', 'rebuild')
@@ -267,7 +267,7 @@ for (const action of ['save', 'retire', 'higher', 'lower'] as const) {
     await page.getByRole('searchbox').fill('Permanent Slayer')
     await page.locator(`.search-result[data-upgrade-id="${catalog.startId}"]`).click()
     const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-    await page.getByRole('button', { name: 'Set progression goal…', exact: true }).click()
+    await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
     await page.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('activate')
     await expect(page.locator('.goal-list li')).toHaveCount(2)
     const control = action === 'save' ? page.getByRole('button', { name: 'Save goal', exact: true }) :

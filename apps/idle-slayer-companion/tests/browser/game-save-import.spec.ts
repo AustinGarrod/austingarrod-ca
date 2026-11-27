@@ -15,9 +15,9 @@ const quests = '6d44qruuppdrshhefq8b'
 const initial = emptyProfile(catalog.revision)
 
 async function chooseSave(page: Page, bytes: Uint8Array, _retry = false) {
-  const dialog = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   if (!await dialog.isVisible()) {
-    const trigger = page.getByRole('button', { name: 'Import game save…', exact: true })
+    const trigger = page.getByRole('button', { name: 'Import save…', exact: true })
     if (await trigger.isVisible()) await trigger.click()
     else await page.getByRole('button', { name: 'Import save', exact: true }).click()
   }

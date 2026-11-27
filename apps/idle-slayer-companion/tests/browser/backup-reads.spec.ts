@@ -96,8 +96,8 @@ test('a file selected after Progress closes cannot start a restore preview', asy
 
 test('switching to game import cancels the pending JSON restore without replacing its dialog', async ({ page }) => {
   await selectBackup(page, 'deferred-older.json', 1)
-  await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
-  const gameImport = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  await page.getByRole('button', { name: 'Import save…', exact: true }).click()
+  const gameImport = page.getByRole('dialog', { name: 'Import save', exact: true })
   await gameImport.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '3' }))) })
   await expect(gameImport.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
   await finishRead(page, 'deferred-older.json')

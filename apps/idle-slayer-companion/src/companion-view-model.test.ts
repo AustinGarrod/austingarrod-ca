@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CompanionEntity } from './domain/companion-types'
-import { companionExactSum, companionPlannedCosts, companionRecordedStatus, companionSearchMatches, companionShoppingList, counterPercent } from './companion-view-model'
+import { companionDisplayText, companionExactSum, companionPlannedCosts, companionPlural, companionRecordedStatus, companionSearchMatches, companionShoppingList, companionStatusText, companionSystemLabels, counterPercent } from './companion-view-model'
 
 const craft = (id: string, quantity: string): CompanionEntity => ({ system: 'craft', id, title: id, description: '', category: 'Permanent', reveal: { kind: 'always' }, provenance: [], recipe: [{ materialId: 'wood', quantity }] })
 
@@ -26,5 +26,23 @@ describe('companion presentation boundaries', () => {
     expect(companionExactSum(['12', undefined])).toBeNull()
     expect(companionExactSum(['9007199254740993', '2'])).toBe('9007199254740995')
     expect(companionSearchMatches({ ...craft('native-1', '1'), title: 'Víctor’s sword' }, "victor's")).toBe(true)
+  })
+  it('replaces only the reviewed internal catalog phrases with plain wording, at render time', () => {
+    const material: CompanionEntity = { system: 'material', id: 'wood', title: 'Wood', description: 'Native material. Recorded inventory is an observation; planning does not spend it.', category: 'Materials', reveal: { kind: 'always' }, provenance: [] }
+    expect(companionDisplayText(material.description)).toBe('Crafting material. Record how many you hold; plans never spend it.')
+    expect(companionDisplayText('Excluded from native Bestiary')).toBe('Not listed in the game’s Bestiary')
+    expect(companionDisplayText('A native word inside other text stays as written.')).toBe('A native word inside other text stays as written.')
+    expect(companionDisplayText('constructor')).toBe('constructor')
+    // Search follows the displayed words, not the hidden internal ones.
+    expect(companionSearchMatches(material, 'plans never spend')).toBe(true)
+    expect(companionSearchMatches(material, 'observation')).toBe(false)
+  })
+  it('names recorded states and counts in the player’s words', () => {
+    expect(companionStatusText({ system: 'achievement', category: '' }, 'complete')).toBe('Earned')
+    expect(companionStatusText({ system: 'quest', category: 'Quest packs' }, 'incomplete')).toBe('Not owned')
+    expect(companionStatusText({ system: 'enemy', category: '' }, 'unknown')).toBe('Not recorded')
+    expect(companionSystemLabels.enemy).toBe('Bestiary')
+    expect(companionPlural(1, 'entry', 'entries')).toBe('1 entry')
+    expect(companionPlural(1200, 'entry', 'entries')).toBe('1,200 entries')
   })
 })

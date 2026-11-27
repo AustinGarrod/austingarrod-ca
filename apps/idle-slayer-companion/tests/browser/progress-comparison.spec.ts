@@ -101,7 +101,7 @@ test('native import reuses visible difference rows without exposing unrelated fi
   await seed(page, current); await page.goto('./ascension/'); await openProgress(page)
   const bytes = encodeGameSaveFixture(nativeSaveFixture({ integers: Object.fromEntries(Object.keys(incoming.purchases).map((id) => [id, 1])), strings: { 'Unrelated fixture preference': 'private-native-marker' } }))
   await page.getByLabel('Idle Slayer game save', { exact: true }).setInputFiles({ name: 'savedata.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(bytes) })
-  const dialog = page.getByRole('dialog', { name: 'Import game progress', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   await expect(dialog.getByRole('region', { name: 'Progress differences' })).toContainText('Soul Reaper')
   await expect(dialog).not.toContainText('private-native-marker')
   expect(await stored(page)).toEqual(current)

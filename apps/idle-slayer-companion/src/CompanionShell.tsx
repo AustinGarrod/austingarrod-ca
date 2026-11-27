@@ -11,7 +11,7 @@ export const companionSections = [
   { id: 'crafting', title: 'Crafting & materials', short: 'Crafting', symbol: '⚒', description: 'Items, materials, and recipes' },
   { id: 'quests', title: 'Quests & Village', short: 'Quests', symbol: '⚑', description: 'Quests and Village tasks' },
   { id: 'bestiary', title: 'Bestiary', short: 'Bestiary', symbol: '♞', description: 'Enemies, kills, and mastery' },
-  { id: 'divinities', title: 'Divinities', short: 'Divinities', symbol: '☼', description: 'Selected Divinities and wishlist' },
+  { id: 'divinities', title: 'Divinities', short: 'Divinities', symbol: '☼', description: 'Selected Divinities and goals' },
 ] as const
 
 export type CompanionSection = typeof companionSections[number]['id']

@@ -28,6 +28,6 @@ export function RequirementView({ requirement, profile, visible, onReview }: {
   const view = visibleRequirement(requirement, profile, visible)
   return <div className="requirement-view">
     <div className="requirement-expression">{view ? <Expression view={view} onReview={onReview} /> : 'Requirements are unrevealed.'}</div>
-    <small className="requirement-guidance">Only visible requirements are shown. Native gates still apply. Reviewing a requirement does not record progress or choose an OR path.</small>
+    <small className="requirement-guidance">Only requirements you can see are listed; the game’s other rules still apply. Opening one records nothing.</small>
   </div>
 }

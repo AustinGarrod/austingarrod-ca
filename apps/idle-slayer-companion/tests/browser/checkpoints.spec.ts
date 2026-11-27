@@ -62,7 +62,7 @@ test('current progression intentions and checkpoint references keep independent 
   await selectUpgrade(page, catalog.upgrades.find((node) => node.id === catalog.startId)!.title)
   const expand = page.getByRole('button', { name: 'Show details', exact: true })
   if (await expand.isVisible()) await expand.click()
-  await page.getByRole('button', { name: 'Set progression goal…', exact: true }).click()
+  await page.getByRole('button', { name: 'Set a goal…', exact: true }).click()
   const progressDialog = page.getByRole('dialog', { name: 'Your progress', exact: true })
   await progressDialog.getByRole('combobox', { name: 'Goal completion', exact: true }).selectOption('rebuild')
   await progressDialog.getByRole('button', { name: 'Save goal', exact: true }).click()

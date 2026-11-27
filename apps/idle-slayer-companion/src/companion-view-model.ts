@@ -62,5 +62,37 @@ export function companionPlannedCosts(visibleCrafts: readonly CompanionEntity[],
 
 export function companionSearchMatches(entity: CompanionEntity, query: string): boolean {
   const normalize = (value: string) => value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase().replace(/[’']/g, '')
-  return normalize(`${entity.title} ${entity.description} ${entity.category}`).includes(normalize(query.trim()))
+  return normalize(`${entity.title} ${companionDisplayText(entity.description)} ${companionDisplayText(entity.category)}`).includes(normalize(query.trim()))
+}
+
+/**
+ * Reviewed catalog text is hash-locked, so plain wording for its few internal phrases is applied
+ * only when rendering. Every other catalog string is shown unchanged.
+ */
+const displayText: Readonly<Record<string, string>> = {
+  'Native material. Recorded inventory is an observation; planning does not spend it.': 'Crafting material. Record how many you hold; plans never spend it.',
+  'No native Bestiary description is defined for this enemy.': 'The game has no Bestiary description for this enemy.',
+  'Excluded from native Bestiary': 'Not listed in the game’s Bestiary',
+}
+export function companionDisplayText(value: string): string { return Object.hasOwn(displayText, value) ? displayText[value] : value }
+
+/** Section names for internal system keys, used wherever an entry's kind is shown to the player. */
+export const companionSystemLabels: Readonly<Record<CompanionEntityRef['system'], string>> = {
+  ascension: 'Ascension', achievement: 'Achievements', craft: 'Crafting', material: 'Materials', quest: 'Quests', village: 'Village', enemy: 'Bestiary', divinity: 'Divinities',
+}
+
+/** The words for an entry's two recorded states, complete first. */
+export function companionStatusLabels(entity: Pick<CompanionEntity, 'system' | 'category'>): readonly [complete: string, incomplete: string] {
+  if (entity.system === 'quest' && entity.category === 'Quest packs') return ['Owned', 'Not owned']
+  return ({ achievement: ['Earned', 'Not earned'], craft: ['Owned', 'Not owned'], material: ['Recorded', 'Recorded'], quest: ['Claimed', 'Not claimed'], village: ['Complete', 'In progress'], enemy: ['Discovered', 'Not discovered'], divinity: ['Selected', 'Not selected'] } as const)[entity.system]
+}
+export function companionStatusText(entity: Pick<CompanionEntity, 'system' | 'category'>, status: RecordedStatus): string {
+  if (status === 'unknown') return 'Not recorded'
+  const [complete, incomplete] = companionStatusLabels(entity)
+  return status === 'complete' ? complete : incomplete
+}
+
+/** "1 entry", "2 entries": counts in labels must agree with their noun. */
+export function companionPlural(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count.toLocaleString('en')} ${count === 1 ? singular : plural}`
 }

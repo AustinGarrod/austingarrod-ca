@@ -179,8 +179,8 @@ for (const kind of ['backup', 'game-save'] as const) {
       const backup = { ...emptyProfile(catalog.revision), epoch: 9 }
       await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
     } else {
-      await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
-      await page.getByRole('dialog', { name: 'Import game save', exact: true }).getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '9' }))) })
+      await page.getByRole('button', { name: 'Import save…', exact: true }).click()
+      await page.getByRole('dialog', { name: 'Import save', exact: true }).getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '9' }))) })
     }
     await expect.poll(() => page.evaluate(() => typeof (window as Window & { releaseProfileRead?: () => void }).releaseProfileRead)).toBe('function')
     await showSpoilers(other)
@@ -190,7 +190,7 @@ for (const kind of ['backup', 'game-save'] as const) {
     await expect.poll(() => page.evaluate(() => (window as Window & { profileReadFinished?: boolean }).profileReadFinished)).toBe(true)
     if (kind === 'backup') await expect(page.getByRole('dialog')).toHaveCount(0)
     else {
-      await expect(page.getByRole('dialog', { name: 'Import game save', exact: true })).toBeVisible()
+      await expect(page.getByRole('dialog', { name: 'Import save', exact: true })).toBeVisible()
       await expect(page.getByRole('dialog').getByRole('button', { name: 'Apply snapshot', exact: true })).toHaveCount(0)
       await expect(page.getByRole('dialog').getByText('Reading and validating locally…', { exact: true })).toHaveCount(0)
     }

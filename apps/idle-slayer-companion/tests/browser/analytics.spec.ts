@@ -338,7 +338,7 @@ async function waitForActive(page: Page) {
 
 async function chooseCompanionSave(page: Page, options: Parameters<typeof nativeSaveFixture>[0] = {}) {
   await page.getByRole('button', { name: 'Import save', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Import game save', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Import save', exact: true })
   await dialog.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: secrets.file, mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture(options))) })
   await expect(dialog.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
   return dialog

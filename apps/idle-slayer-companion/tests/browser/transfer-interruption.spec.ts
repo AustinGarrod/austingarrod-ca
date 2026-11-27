@@ -85,7 +85,7 @@ async function prepareConfirmation(page: Page, state: string) {
     await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
     await expect(page.getByRole('dialog', { name: 'Restore progress?', exact: true })).toBeVisible()
   } else {
-    await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
+    await page.getByRole('button', { name: 'Import save…', exact: true }).click()
     await page.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
     await expect(page.getByRole('button', { name: 'Apply snapshot', exact: true })).toBeVisible()
   }
@@ -178,7 +178,7 @@ for (const kind of ['backup', 'game save'] as const) {
       await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2'); await openAction(page, 'Progress')
       if (kind === 'backup') await page.getByLabel('Map progress JSON backup', { exact: true }).setInputFiles({ name: 'synthetic.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...initial, epoch: 4 })) })
       else {
-        await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
+        await page.getByRole('button', { name: 'Import save…', exact: true }).click()
         await page.getByLabel('Choose game save', { exact: true }).setInputFiles({ name: 'synthetic.sav', mimeType: 'application/octet-stream', buffer: Buffer.from(encodeGameSaveFixture(nativeSaveFixture({ epoch: '4' }))) })
       }
       await expect.poll(() => page.evaluate(() => typeof (window as DeferredWindow).releaseRead)).toBe('function')
@@ -286,7 +286,7 @@ for (const state of ['conflict', 'tracking reload'] as const) {
 test('a game file selected after arrival cannot replace the receiver', async ({ page, baseURL }) => {
   await seed(page); await page.goto('./ascension/'); await expect(page.locator('.map-summary')).toContainText('Ultra Ascensions 2'); await openAction(page, 'Progress')
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
+  await page.getByRole('button', { name: 'Import save…', exact: true }).click()
   await page.getByLabel('Choose game save', { exact: true }).click()
   const selection = await chooser
   const receiver = await arrive(page, await link(baseURL!), true)

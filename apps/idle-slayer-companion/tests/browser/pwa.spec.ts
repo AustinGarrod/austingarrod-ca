@@ -251,7 +251,7 @@ for (const kind of ['checkpoint', 'comparison', 'goal'] as const) {
     } else {
       await page.getByRole('button', { name: 'Return to start', exact: true }).click()
       const expand = page.getByRole('button', { name: 'Show details', exact: true }); if (await expand.isVisible()) await expand.click()
-      await page.getByRole('button', { name: kind === 'goal' ? 'Set progression goal…' : 'Compare this upgrade…', exact: true }).click()
+      await page.getByRole('button', { name: kind === 'goal' ? 'Set a goal…' : 'Compare this upgrade…', exact: true }).click()
       if (kind === 'goal') { await page.getByRole('button', { name: 'Save goal', exact: true }).click(); await expect(page.locator('.goals-panel')).toContainText('Intentions could not be saved') }
       else {
         const picker = page.locator('.saved-comparison-picker')

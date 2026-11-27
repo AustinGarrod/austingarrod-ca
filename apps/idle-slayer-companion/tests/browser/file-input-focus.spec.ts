@@ -21,8 +21,8 @@ test('sequential keyboard navigation skips backing file inputs while visible pic
   const restore = await restorePicker
   expect(restore.isMultiple()).toBe(false)
   await restore.setFiles([])
-  await page.getByRole('button', { name: 'Import game save…', exact: true }).click()
+  await page.getByRole('button', { name: 'Import save…', exact: true }).click()
   const gamePicker = page.waitForEvent('filechooser')
-  await page.getByRole('dialog', { name: 'Import game save', exact: true }).getByLabel('Choose game save', { exact: true }).click()
+  await page.getByRole('dialog', { name: 'Import save', exact: true }).getByLabel('Choose game save', { exact: true }).click()
   expect((await gamePicker).isMultiple()).toBe(false)
 })
