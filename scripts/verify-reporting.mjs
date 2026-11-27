@@ -73,9 +73,15 @@ try {
   }
   await normal.locator("#opening-width").fill("500");
   await normal.locator("#opening-height").fill("700");
-  await normal.locator('#screen-cut-form button[type="submit"]').click();
+  // From 900px wide the cut list is live: it updates shortly after typing stops.
+  await normal.waitForFunction(() => document.querySelector("#horizontal-cut")?.textContent === "460");
+  assert.equal(await normal.locator("#vertical-cut").textContent(), "660");
   assert.ok(await normal.locator("#result-content").isVisible());
   await normal.setViewportSize({ width: 390, height: 844 });
+  // On phones a sticky bar carries the cuts and Show cut list jumps to the full list.
+  await normal.locator("#cut-bar").waitFor({ state: "visible" });
+  await normal.locator('#screen-cut-form button[type="submit"]').click();
+  await normal.waitForFunction(() => document.activeElement?.id === "cut-list-heading");
   await normal.goto(origin, { waitUntil: "networkidle" });
   await normal.locator(".menu-toggle").click();
   assert.equal(await normal.locator(".menu-toggle").getAttribute("aria-expanded"), "true");

@@ -1,5 +1,5 @@
 ---
-import { Calculator, RotateCcw } from "@lucide/astro";
+import { ArrowDown, Copy } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
 import "../../styles/screen-cut-calculator.css";
@@ -20,31 +20,37 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
 
   <div class="screen-cut-container">
     <section class="screen-cut-intro" aria-labelledby="calculator-title">
-      <p class="eyebrow">Measure once. Cut clearly.</p>
       <h1 id="calculator-title">Window Screen Frame Cut Calculator</h1>
-      <p>
-        Enter the measured window opening. The calculator subtracts total fitting clearance first,
-        then subtracts the corner-connector allowance to produce the extrusion cut lengths.
-      </p>
+      <p>Enter the measured window opening to get the four frame cut lengths.</p>
     </section>
 
     <div class="calculator-workspace">
       <form id="screen-cut-form" class="calculator-panel" novalidate>
         <div class="panel-heading">
           <div>
-            <p class="step-label">01 / Opening</p>
+            <p class="uk-step">01 / Opening</p>
             <h2>Window opening</h2>
           </div>
-          <span>Measured size</span>
+          <span class="uk-step">Measured size</span>
         </div>
 
+        <fieldset class="unit-fieldset">
+          <legend class="uk-label">Opening units</legend>
+          <div class="uk-switch">
+            <input id="opening-unit-mm" type="radio" name="opening-unit" value="mm" checked />
+            <label for="opening-unit-mm">Millimetres</label>
+            <input id="opening-unit-cm" type="radio" name="opening-unit" value="cm" />
+            <label for="opening-unit-cm">Centimetres</label>
+          </div>
+        </fieldset>
+
         <div class="dimension-grid">
-          <label class="field" for="opening-width">
-            <span>Opening width</span>
+          <div class="uk-field">
+            <label class="uk-label" for="opening-width">Opening width</label>
             <div class="input-with-unit">
               <input
                 id="opening-width"
-                class="rr-block"
+                class="uk-input rr-block"
                 data-analytics-private
                 name="openingWidth"
                 type="number"
@@ -53,19 +59,19 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="817"
-                aria-describedby="opening-width-error"
+                aria-describedby="opening-width-error unit-hint"
               />
-              <span class="input-unit" data-opening-unit>mm</span>
+              <span class="input-unit" data-opening-unit aria-hidden="true">mm</span>
             </div>
-            <small id="opening-width-error" class="field-error" role="alert" hidden></small>
-          </label>
+            <p id="opening-width-error" class="uk-error" hidden></p>
+          </div>
 
-          <label class="field" for="opening-height">
-            <span>Opening height</span>
+          <div class="uk-field">
+            <label class="uk-label" for="opening-height">Opening height</label>
             <div class="input-with-unit">
               <input
                 id="opening-height"
-                class="rr-block"
+                class="uk-input rr-block"
                 data-analytics-private
                 name="openingHeight"
                 type="number"
@@ -74,82 +80,81 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="840"
-                aria-describedby="opening-height-error"
+                aria-describedby="opening-height-error unit-hint"
               />
-              <span class="input-unit" data-opening-unit>mm</span>
+              <span class="input-unit" data-opening-unit aria-hidden="true">mm</span>
             </div>
-            <small id="opening-height-error" class="field-error" role="alert" hidden></small>
-          </label>
+            <p id="opening-height-error" class="uk-error" hidden></p>
+          </div>
+
+          <div id="unit-hint" class="unit-hint" hidden>
+            <p class="uk-hint">A window under 100 mm is unusual. Did you measure in centimetres?</p>
+            <button id="unit-hint-switch" class="sc-text-button" type="button">Use centimetres</button>
+          </div>
         </div>
 
-        <fieldset class="unit-fieldset">
-          <legend>Opening units</legend>
-          <div class="unit-switch">
-            <input id="opening-unit-mm" type="radio" name="opening-unit" value="mm" checked />
-            <label for="opening-unit-mm">Millimetres</label>
-            <input id="opening-unit-cm" type="radio" name="opening-unit" value="cm" />
-            <label for="opening-unit-cm">Centimetres</label>
-          </div>
-        </fieldset>
-
         <div class="settings-grid">
-          <label class="field" for="clearance-select">
-            <span>Fit clearance</span>
-            <select id="clearance-select" name="clearance" aria-describedby="clearance-help clearance-error">
+          <div class="uk-field">
+            <label class="uk-label" for="clearance-select">Fit clearance</label>
+            <select
+              id="clearance-select"
+              class="uk-input"
+              name="clearance"
+              aria-describedby="clearance-error clearance-help"
+            >
               <option value="0">No clearance</option>
               <option value="1">1 mm total clearance</option>
               <option value="2" selected>2 mm total clearance</option>
               <option value="3">3 mm total clearance</option>
               <option value="custom">Custom clearance</option>
             </select>
-            <small id="clearance-help">Total reduction from both width and height, not per side.</small>
-            <small id="clearance-error" class="field-error" role="alert" hidden></small>
-          </label>
+            <div id="custom-clearance-field" class="custom-clearance" hidden>
+              <label class="uk-label" for="custom-clearance">Custom total clearance</label>
+              <div class="input-with-unit">
+                <input
+                  id="custom-clearance"
+                  class="uk-input rr-block"
+                  data-analytics-private
+                  name="customClearance"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="2"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  aria-describedby="clearance-error clearance-help"
+                  disabled
+                />
+                <span class="input-unit" aria-hidden="true">mm</span>
+              </div>
+            </div>
+            <p id="clearance-error" class="uk-error" hidden></p>
+            <p id="clearance-help" class="uk-hint">Total reduction from both width and height, not per side.</p>
+          </div>
 
-          <label class="field" for="rounding-select">
-            <span>Cut rounding</span>
-            <select id="rounding-select" name="rounding" aria-describedby="rounding-error">
+          <div class="uk-field">
+            <label class="uk-label" for="rounding-select">Cut rounding</label>
+            <select id="rounding-select" class="uk-input" name="rounding" aria-describedby="rounding-error">
               <option value="0">Exact measurement</option>
               <option value="1" selected>Nearest 1 mm</option>
               <option value="0.5">Nearest 0.5 mm</option>
             </select>
-            <small id="rounding-error" class="field-error" role="alert" hidden></small>
-          </label>
-        </div>
-
-        <label id="custom-clearance-field" class="field" for="custom-clearance" hidden>
-          <span>Custom total clearance</span>
-          <div class="input-with-unit">
-            <input
-              id="custom-clearance"
-              class="rr-block"
-              data-analytics-private
-              name="customClearance"
-              type="number"
-              min="0"
-              step="any"
-              value="2"
-              inputmode="decimal"
-              autocomplete="off"
-              aria-describedby="clearance-error"
-              disabled
-            />
-            <span class="input-unit">mm</span>
+            <p id="rounding-error" class="uk-error" hidden></p>
           </div>
-        </label>
+        </div>
 
         <details id="advanced-settings" class="advanced-settings">
           <summary>
-            <span>Advanced</span>
-            <small>Corner connector allowance</small>
+            <span class="advanced-title">Advanced</span>
+            <span class="advanced-summary">Corner allowance <strong id="advanced-corner-allowance" class="rr-block" data-analytics-private>38.1 mm</strong></span>
           </summary>
           <div class="advanced-content">
-            <label class="field" for="corner-extension">
-              <span>Corner extension per end</span>
+            <div class="uk-field">
+              <label class="uk-label" for="corner-extension">Corner extension per end</label>
               <div class="input-with-unit">
                 <input
                   id="corner-extension"
-                  class="rr-block"
+                  class="uk-input rr-block"
                   data-analytics-private
                   name="cornerExtension"
                   type="number"
@@ -158,81 +163,92 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
                   value="19.05"
                   inputmode="decimal"
                   autocomplete="off"
-                  aria-describedby="corner-help corner-error"
+                  aria-describedby="corner-error corner-help"
                 />
-                <span class="input-unit">mm</span>
+                <span class="input-unit" aria-hidden="true">mm</span>
               </div>
-              <small id="corner-help">
+              <p id="corner-error" class="uk-error" hidden></p>
+              <p id="corner-help" class="uk-hint">
                 Total corner allowance: <strong id="total-corner-allowance" class="rr-block" data-analytics-private>38.1 mm</strong>
-              </small>
-              <small id="corner-error" class="field-error" role="alert" hidden></small>
-            </label>
+              </p>
+            </div>
+            <div class="settings-restore">
+              <p class="uk-hint">Units, clearance, rounding and corner extension are remembered on this device.</p>
+              <button id="restore-defaults" class="sc-text-button" type="button">Restore defaults</button>
+              <p id="settings-status" class="uk-hint" role="status"></p>
+            </div>
           </div>
         </details>
 
-        <div id="form-error-summary" class="error-summary" role="alert" aria-live="assertive" hidden></div>
+        <div id="form-error-summary" class="uk-status is-error error-summary" hidden>
+          <span id="form-error-summary-text"></span>
+          <button id="form-error-summary-open" class="sc-text-button" type="button">Open Advanced</button>
+        </div>
 
         <div class="calculator-actions">
-          <button class="calculate-button" type="submit">
-            <Calculator size={19} aria-hidden="true" />
-            Calculate
+          <button class="uk-button uk-button-primary calculate-button" type="submit">
+            <ArrowDown size={18} aria-hidden="true" />
+            Show cut list
           </button>
-          <button id="reset-calculator" class="reset-button" type="reset">
-            <RotateCcw size={18} aria-hidden="true" />
-            Reset
-          </button>
+          <button id="reset-calculator" class="sc-text-button" type="button">Clear measurements</button>
         </div>
       </form>
 
-      <section class="results-panel" aria-labelledby="cut-list-heading">
-        <div id="result-empty" class="result-empty">
-          <p class="step-label">02 / Cut list</p>
-          <h2>Ready for measurements</h2>
-          <p>Enter the opening width and height to calculate two horizontal and two vertical cuts.</p>
-          <div class="formula-order" aria-label="Calculation order">
-            <span>Opening size</span>
-            <span aria-hidden="true">→</span>
-            <span>Finished frame</span>
-            <span aria-hidden="true">→</span>
-            <span>Cut length</span>
+      <button id="cut-bar" class="cut-bar rr-block" data-analytics-private type="button" hidden>
+        <span class="sr-only">Show the full cut list.</span>
+        <span class="cut-bar-rows">
+          <span class="cut-bar-row"><span>Top and bottom</span> <strong id="cut-bar-horizontal">—</strong></span>
+          <span class="cut-bar-row"><span>Left and right</span> <strong id="cut-bar-vertical">—</strong></span>
+        </span>
+        <span class="cut-bar-action" aria-hidden="true">
+          <span class="cut-bar-action-text">Cut list</span>
+          <ArrowDown size={18} />
+        </span>
+      </button>
+
+      <section id="results-panel" class="results-panel" aria-labelledby="cut-list-heading">
+        <header class="result-heading">
+          <div>
+            <p class="uk-step">02 / Result</p>
+            <h2 id="cut-list-heading" tabindex="-1">Cut list</h2>
           </div>
-        </div>
+          <span class="uk-step">4 pieces</span>
+        </header>
 
-        <div id="result-content" class="result-content rr-block" data-analytics-private hidden>
-          <header class="result-heading">
-            <div>
-              <p class="step-label">02 / Result</p>
-              <h2 id="cut-list-heading" tabindex="-1">Cut list</h2>
-            </div>
-            <span>Quantity included</span>
-          </header>
+        <div id="result-content" class="result-content rr-block" data-analytics-private>
+          <p id="result-empty" class="result-empty">Enter the opening width and height to see the cuts.</p>
 
-          <div class="cut-list">
-            <article class="cut-item">
-              <div class="cut-label">
-                <span>Horizontal</span>
-                <strong>Top &amp; Bottom</strong>
+          <ul class="cut-list">
+            <li class="cut-row">
+              <p class="cut-name"><strong>Top and bottom</strong><span>Horizontal</span></p>
+              <div class="cut-measure">
+                <p class="cut-value"><span class="cut-qty">2 ×</span> <strong id="horizontal-cut">—</strong> <span class="cut-unit" data-result-unit>mm</span></p>
+                <p id="horizontal-secondary" class="cut-secondary" hidden></p>
+                <p id="horizontal-exact" class="exact-value" hidden></p>
               </div>
-              <p class="cut-value">2 × <strong id="horizontal-cut">—</strong> mm</p>
-              <p id="horizontal-selected-unit" class="selected-unit-value" hidden></p>
-              <p id="horizontal-exact" class="exact-value" hidden></p>
-            </article>
-
-            <article class="cut-item">
-              <div class="cut-label">
-                <span>Vertical</span>
-                <strong>Left &amp; Right</strong>
+            </li>
+            <li class="cut-row">
+              <p class="cut-name"><strong>Left and right</strong><span>Vertical</span></p>
+              <div class="cut-measure">
+                <p class="cut-value"><span class="cut-qty">2 ×</span> <strong id="vertical-cut">—</strong> <span class="cut-unit" data-result-unit>mm</span></p>
+                <p id="vertical-secondary" class="cut-secondary" hidden></p>
+                <p id="vertical-exact" class="exact-value" hidden></p>
               </div>
-              <p class="cut-value">2 × <strong id="vertical-cut">—</strong> mm</p>
-              <p id="vertical-selected-unit" class="selected-unit-value" hidden></p>
-              <p id="vertical-exact" class="exact-value" hidden></p>
-            </article>
-          </div>
+            </li>
+          </ul>
 
           <div class="finished-frame">
-            <span>Finished frame size</span>
+            <span class="uk-label">Finished frame size</span>
             <strong id="finished-frame-size">—</strong>
-            <small id="finished-frame-selected-unit" hidden></small>
+            <p id="finished-frame-note" class="uk-hint" hidden></p>
+          </div>
+
+          <div class="result-actions">
+            <button id="copy-cut-list" class="uk-button" type="button" disabled>
+              <Copy size={18} aria-hidden="true" />
+              Copy cut list
+            </button>
+            <p id="copy-status" class="uk-hint" role="status"></p>
           </div>
 
           <details class="calculation-breakdown">
@@ -268,9 +284,13 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
     </div>
 
     <aside class="terminology-note" aria-labelledby="terminology-heading">
-      <p class="step-label">Terminology</p>
+      <p class="uk-step">Terminology</p>
       <h2 id="terminology-heading">Three measurements, one clear order</h2>
       <div>
+        <p>
+          The calculator subtracts total fitting clearance first, then subtracts the corner-connector
+          allowance to produce the extrusion cut lengths.
+        </p>
         <p><strong>Opening size</strong> is what you measure at the window.</p>
         <p><strong>Finished frame size</strong> is the opening minus total fitting clearance.</p>
         <p><strong>Cut length</strong> is the finished frame dimension minus the total corner allowance.</p>
