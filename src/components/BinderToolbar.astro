@@ -16,14 +16,14 @@ const status = national ? "dex-filter" : "master-status";
   <button type="button" id={prefix + "filter-toggle"} class="dex-filter-toggle" aria-expanded="false" aria-controls={prefix + "filter-panel"} aria-label="Filter">
     <SlidersHorizontal size={17} aria-hidden="true" /><span>Filter</span><span class="dex-filter-count" hidden></span>
   </button>
-  <div class="dex-view-toggle" role="group" aria-label="View">
-    <button id={prefix + "view-binder"} aria-pressed="true"><BookOpen size={16} aria-hidden="true" /><span>Binder</span></button>
-    <button id={prefix + "view-checklist"} aria-pressed="false"><ListChecks size={16} aria-hidden="true" /><span>Checklist</span></button>
-  </div>
   <div id={prefix + "filter-panel"} class="dex-filter-panel">
     <label class="dex-field-inline" for={status}><span>Show</span>
       <select id={status}><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="ordered">Ordered</option><option value="owned">Have it</option></select>
     </label>
     <slot />
+  </div>
+  <div class="dex-view-toggle" role="group" aria-label="View">
+    <button id={prefix + "view-binder"} aria-pressed="true"><BookOpen size={16} aria-hidden="true" /><span>Binder</span></button>
+    <button id={prefix + "view-checklist"} aria-pressed="false"><ListChecks size={16} aria-hidden="true" /><span>Checklist</span></button>
   </div>
 </section>
