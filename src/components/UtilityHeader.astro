@@ -1,0 +1,40 @@
+---
+import "@styles/utility-kit.css";
+
+interface Props {
+  /** The tool's name, shown as the current page in the breadcrumb. */
+  toolName: string;
+  /** Where "Utilities" leads. Pass null for an unlisted tool: the header then shows only the brand. */
+  backHref?: string | null;
+  /** "overlay" floats the header over a full-screen workspace such as a map. */
+  variant?: "flow" | "overlay";
+}
+
+const { toolName, backHref = "/utilities/", variant = "flow" } = Astro.props;
+---
+
+<header class:list={["utility-header", variant === "overlay" && "utility-header-overlay"]}>
+  <a
+    class="utility-header-brand"
+    href="/"
+    aria-label="Austin Garrod home"
+    data-umami-event="utility-navigation"
+    data-umami-event-destination="home"
+  >Austin Garrod</a>
+  {backHref ? (
+    <nav class="utility-header-crumbs" aria-label="Utility breadcrumb">
+      <a
+        href={backHref}
+        data-umami-event="utility-navigation"
+        data-umami-event-destination="utilities"
+      ><span class="utility-header-back" aria-hidden="true">‹</span>Utilities</a>
+      <span class="utility-header-separator" aria-hidden="true">/</span>
+      <span class="utility-header-current" aria-current="page">{toolName}</span>
+    </nav>
+  ) : (
+    <span class="utility-header-crumbs" aria-hidden="true"></span>
+  )}
+  <div class="utility-header-note">
+    <slot />
+  </div>
+</header>

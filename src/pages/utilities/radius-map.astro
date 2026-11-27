@@ -2,6 +2,7 @@
 import "leaflet/dist/leaflet.css";
 import "../../styles/radius-map.css";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import UtilityHeader from "@components/UtilityHeader.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 
@@ -36,25 +37,9 @@ const description = "Draw, save, and compare radius or diameter measurements, th
   </Fragment>
 
   <div class="app-shell">
-    <header class="utility-app-header">
-      <a
-        class="utility-app-brand"
-        href="/"
-        aria-label="Austin Garrod home"
-        data-umami-event="utility-navigation"
-        data-umami-event-destination="home"
-      >Austin Garrod</a>
-      <nav aria-label="Utility breadcrumb">
-        <a
-          href="/utilities/"
-          data-umami-event="utility-navigation"
-          data-umami-event-destination="utilities"
-        >Utilities</a>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">Radius Map</span>
-      </nav>
+    <UtilityHeader toolName="Radius Map" variant="overlay">
       <p id="radius-library-location">Sign in to save</p>
-    </header>
+    </UtilityHeader>
 
     <div id="map" class="map-canvas rr-block" data-analytics-private role="region" aria-label="Interactive radius map"></div>
     <div class="map-wash" aria-hidden="true"></div>

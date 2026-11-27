@@ -1586,18 +1586,8 @@ input:focus-visible {
   }
 }
 
-.utility-app-header {
-  position: absolute;
-  z-index: 650;
-  inset: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+body.radius-map-page .utility-header {
   min-height: var(--utility-app-header-height);
-  padding: 0 24px;
-  background: rgba(248, 249, 255, 0.97);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(12px);
 }
 
 body.radius-map-page .map-hint,
@@ -1607,45 +1597,6 @@ body.radius-map-page .centre-chip {
 
 body.radius-map-page .leaflet-top {
   top: var(--utility-app-header-height);
-}
-
-.utility-app-brand {
-  width: fit-content;
-  color: var(--ink);
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.utility-app-header nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--muted);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.utility-app-header nav a:hover,
-.utility-app-brand:hover {
-  color: var(--accent-deep);
-}
-
-.utility-app-header nav [aria-current="page"] {
-  color: var(--ink);
-}
-
-.utility-app-header > p {
-  justify-self: end;
-  margin: 0;
-  color: var(--accent-deep);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
 .radius-sync-note {
@@ -1751,21 +1702,6 @@ body.radius-map-page :where(button, input, a):focus-visible {
 @media (max-width: 860px) {
   body.radius-map-page {
     --utility-app-header-height: 56px;
-  }
-
-  .utility-app-header {
-    grid-template-columns: 1fr auto;
-    padding: 0 14px;
-  }
-
-  .utility-app-header nav {
-    justify-content: flex-end;
-  }
-
-  .utility-app-header nav span[aria-hidden="true"],
-  .utility-app-header nav [aria-current="page"],
-  .utility-app-header > p {
-    display: none;
   }
 
   .control-panel {

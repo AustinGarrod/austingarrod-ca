@@ -23,6 +23,8 @@ interface Props {
   ogImageHeight?: number;
   bodyClass?: string;
   privatePage?: boolean;
+  /** Element id the skip link jumps to. Utilities point it at their first control. */
+  skipTarget?: string;
 }
 
 const defaultSchemaType: SchemaPageType = Astro.url.pathname === "/" ? "ProfilePage" : "WebPage";
@@ -43,7 +45,8 @@ const {
   ogImageWidth = 1200,
   ogImageHeight = 630,
   bodyClass,
-  privatePage = false
+  privatePage = false,
+  skipTarget = "main"
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, "https://austingarrod.ca").toString();
@@ -140,7 +143,7 @@ const analyticsEnabled = import.meta.env.PROD && !privatePage;
     )}
   </head>
   <body class={bodyClass}>
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href={`#${skipTarget}`}>Skip to content</a>
     {shell === "site" && <Header active={active} />}
     <main id="main">
       <slot />

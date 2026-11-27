@@ -9,6 +9,7 @@ import BinderCatalogSearch from "@components/BinderCatalogSearch.astro";
 import BinderPricing from "@components/BinderPricing.astro";
 import BinderBuyCards from "@components/BinderBuyCards.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import UtilityHeader from "@components/UtilityHeader.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 import "../../styles/pokedex-binder.css";
@@ -19,10 +20,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
 ---
 
 <BaseLayout shell="utility" title={utility.title + " | Austin Garrod"} description={utility.summary} breadcrumbLabel={utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
-  <header class="dex-header">
-    <a href="/" class="dex-brand" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
-    <nav aria-label="Utility breadcrumb"><a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a><span aria-hidden="true">/</span><span aria-current="page">{utility.title}</span></nav>
-  </header>
+  <UtilityHeader toolName={utility.title} />
 
   <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">

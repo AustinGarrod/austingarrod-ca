@@ -4,11 +4,7 @@
   --dex-control-padding: 12px;
   background: var(--bg);
 }
-.dex-header { display: flex; align-items: center; gap: 24px; min-height: 56px; padding: 10px 32px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.dex-brand { font-weight: 800; white-space: nowrap; }
-.dex-header nav { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
-.dex-header nav a:hover,.dex-footer a { text-decoration: underline; text-underline-offset: 3px; }
-.dex-header-note { margin-left: auto; color: var(--subtle); font-size: 12px; }
+.dex-footer a { text-decoration: underline; text-underline-offset: 3px; }
 .dex-app { max-width: 1480px; margin: 0 auto; padding: 26px 32px 24px; }
 .dex-app [hidden],.dex-dialog [hidden] { display: none !important; }
 .dex-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -242,10 +238,6 @@
   .dex-card-printing img { width: 78px; height: 109px; }
 }
 @media (max-width:600px) {
-  .dex-header { min-height: 46px; padding: 8px 12px; gap: 4px 12px; flex-wrap: wrap; }
-  .dex-header-note { display: none; }
-  .dex-header nav { font-size: 11px; gap: 8px; }
-  .dex-brand { font-size: 13px; }
   .dex-app { padding: 16px 12px 18px; }
   .dex-intro { display: block; }
   .dex-intro > .dex-actions { justify-content: start; max-width: none; margin-top: 10px; gap: 4px 6px; }
@@ -285,7 +277,7 @@
   .dex-letter-jump button { flex: none; }
   .dex-details { scroll-margin-top: 10px; }
 }
-@media print { .dex-header,.dex-app,.dex-dialog,.skip-link { display: none !important; }.dex-print-only { display: block; color: black; font: 10pt Arial,sans-serif; }.dex-print-only h1 { font-size: 20pt; }.dex-print-only table { width: 100%; border-collapse: collapse; }.dex-print-only th,.dex-print-only td { border-bottom: 1px solid #ccc; text-align: left; padding: 5px; }.dex-print-only tr { break-inside: avoid; } }
+@media print { .dex-app,.dex-dialog,.skip-link { display: none !important; }.dex-print-only { display: block; color: black; font: 10pt Arial,sans-serif; }.dex-print-only h1 { font-size: 20pt; }.dex-print-only table { width: 100%; border-collapse: collapse; }.dex-print-only th,.dex-print-only td { border-bottom: 1px solid #ccc; text-align: left; padding: 5px; }.dex-print-only tr { break-inside: avoid; } }
 
 .dex-checklist-options { display: flex; align-items: center; margin: 4px 0; }
 .dex-checklist-options label { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; font-weight: 600; cursor: pointer; }

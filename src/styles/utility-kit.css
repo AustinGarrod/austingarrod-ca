@@ -1,0 +1,383 @@
+/*
+ * Shared utility kit: the slim utility header and the control patterns the
+ * utilities share. Loaded by UtilityHeader.astro, so it is only present on
+ * utility pages. Every selector is a class, so the element rules in global.css
+ * (label, input, button) never override it regardless of stylesheet order.
+ */
+
+/* Header */
+
+.utility-header {
+  --utility-header-height: 64px;
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: var(--utility-header-height);
+  padding-inline: 24px;
+  color: var(--ink);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.utility-header-overlay {
+  position: absolute;
+  z-index: 650;
+  inset: 0 0 auto;
+  background: rgb(248 249 255 / 97%);
+  backdrop-filter: blur(12px);
+}
+
+.utility-header-brand {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.utility-header-crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.utility-header-crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.utility-header-back {
+  display: none;
+  margin-right: 6px;
+  font-size: 1rem;
+}
+
+.utility-header-current {
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utility-header-brand:hover,
+.utility-header-crumbs a:hover {
+  color: var(--secondary);
+}
+
+.utility-header-note {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.utility-header-note > * {
+  margin: 0;
+}
+
+.utility-header-note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.utility-header-note a:hover {
+  color: var(--primary);
+}
+
+.utility-header :is(a, button):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .utility-header {
+    --utility-header-height: 56px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-inline: 16px;
+  }
+
+  .utility-header-crumbs {
+    justify-content: flex-end;
+  }
+
+  .utility-header-back {
+    display: inline;
+  }
+
+  .utility-header-separator,
+  .utility-header-current,
+  .utility-header-note {
+    display: none;
+  }
+}
+
+@media print {
+  .utility-header {
+    display: none !important;
+  }
+}
+
+/* Controls */
+
+/* Step label: "01 / Opening". Mono, teal, names its step. */
+.uk-step {
+  margin: 0;
+  color: var(--secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* Field label above a control. */
+.uk-label {
+  display: block;
+  margin: 0;
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* Helper text under a control. */
+.uk-hint {
+  margin: 0;
+  color: var(--subtle);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.uk-field {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.uk-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+/* Text and number inputs, and selects. */
+.uk-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 13px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--control-line);
+  border-radius: 0;
+  font: inherit;
+  font-weight: 600;
+}
+
+select.uk-input {
+  padding-right: 38px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%230b1c30' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 8px;
+}
+
+.uk-input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.uk-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+/* Segmented switch: radio inputs followed by their labels. */
+.uk-switch {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--control-line);
+}
+
+.uk-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.uk-switch label {
+  display: grid;
+  min-height: 46px;
+  place-items: center;
+  padding: 8px 10px;
+  color: var(--muted);
+  background: var(--bg);
+  cursor: pointer;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.uk-switch label + input + label {
+  border-left: 1px solid var(--control-line);
+}
+
+.uk-switch input:checked + label {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.uk-switch input:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Buttons. Name them verb + object. */
+.uk-button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.uk-button:hover:not(:disabled) {
+  color: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.uk-button-primary {
+  color: #ffffff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.uk-button-primary:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.uk-button-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.uk-button-danger:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.uk-button-quiet {
+  border-color: transparent;
+}
+
+.uk-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.uk-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: none) {
+  .uk-button-quiet {
+    border-color: var(--line);
+  }
+}
+
+/* One status or notice line. */
+.uk-status {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--surface-low);
+  border-left: 3px solid var(--secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.uk-status:empty {
+  display: none;
+}
+
+.uk-status.is-error {
+  color: var(--danger);
+  background: rgb(180 35 24 / 6%);
+  border-left-color: var(--danger);
+}
+
+/* Dialog action row: cancel first, primary last. */
+.uk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uk-button {
+    transition: none;
+  }
+}

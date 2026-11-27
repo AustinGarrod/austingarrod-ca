@@ -1,6 +1,7 @@
 ---
 import { Calculator, RotateCcw } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import UtilityHeader from "@components/UtilityHeader.astro";
 import "../../styles/screen-cut-calculator.css";
 
 const title = "Window Screen Frame Cut Calculator | Austin Garrod";
@@ -15,15 +16,7 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
   breadcrumbLabel="Screen Cut Calculator"
   bodyClass="screen-cut-page"
 >
-  <header class="screen-cut-header">
-    <a class="screen-cut-brand" href="/" aria-label="Austin Garrod home" data-umami-event="utility-navigation" data-umami-event-destination="home">Austin Garrod</a>
-    <nav aria-label="Utility breadcrumb">
-      <a href="/utilities/" data-umami-event="utility-navigation" data-umami-event-destination="utilities">Utilities</a>
-      <span aria-hidden="true">/</span>
-      <span aria-current="page">Screen Cut Calculator</span>
-    </nav>
-    <p>Unlisted utility</p>
-  </header>
+  <UtilityHeader toolName="Screen Cut Calculator" backHref={null} />
 
   <div class="screen-cut-container">
     <section class="screen-cut-intro" aria-labelledby="calculator-title">
