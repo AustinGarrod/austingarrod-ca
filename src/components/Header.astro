@@ -64,7 +64,7 @@ const activePath = active ? (active === "home" ? "/" : `/${active}/`) : undefine
     document.querySelector<HTMLElement>("main"),
     document.querySelector<HTMLElement>("footer")
   ].filter((element): element is HTMLElement => Boolean(element));
-  const desktopQuery = window.matchMedia("(min-width: 1101px)");
+  const desktopQuery = window.matchMedia("(min-width: 761px)");
   const focusableSelector = [
     "a[href]",
     "button:not([disabled])",
