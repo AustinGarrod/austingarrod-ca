@@ -273,22 +273,29 @@ export function markSlot(b: SetBinder, key: string, owned: boolean) {
 }
 
 export function setSlotStatus(b: SetBinder, key: string, status: CardStatus) {
+  setSlotsStatus(b, [key], status);
+}
+
+export function setSlotsStatus(b: SetBinder, keys: readonly string[], status: CardStatus) {
+  if (!keys.length) return;
   const marks = new Set(b.owned), orders = new Set(b.ordered);
-  const prefix = key.slice(0, key.indexOf(":") + 1);
-  const any = key.endsWith(":*");
-  if (any) {
-    if (status !== "owned") for (const mark of marks) if (mark.startsWith(prefix)) marks.delete(mark);
-    for (const mark of orders) if (mark.startsWith(prefix)) orders.delete(mark);
-  }
-  if (status === "owned") {
-    marks.add(key);
-    if (!any) {
-      marks.delete(prefix + "*");
-      orders.delete(prefix + "*");
+  for (const key of keys) {
+    const prefix = key.slice(0, key.indexOf(":") + 1);
+    const any = key.endsWith(":*");
+    if (any) {
+      if (status !== "owned") for (const mark of marks) if (mark.startsWith(prefix)) marks.delete(mark);
+      for (const mark of orders) if (mark.startsWith(prefix)) orders.delete(mark);
     }
-  } else marks.delete(key);
-  if (status === "ordered") orders.add(key);
-  else orders.delete(key);
+    if (status === "owned") {
+      marks.add(key);
+      if (!any) {
+        marks.delete(prefix + "*");
+        orders.delete(prefix + "*");
+      }
+    } else marks.delete(key);
+    if (status === "ordered") orders.add(key);
+    else orders.delete(key);
+  }
   b.owned = [...marks].sort();
   if (orders.size) b.ordered = [...orders].sort();
   else delete b.ordered;

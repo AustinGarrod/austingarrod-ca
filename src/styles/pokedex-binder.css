@@ -93,6 +93,8 @@
 .dex-page-heading h2 { margin: 2px 0; font-size: 22px; }
 .dex-page-heading p { margin: 0; }
 .dex-page-heading > div:first-child { min-width: 0; }
+.dex-page-actions { display: flex; justify-content: flex-end; padding-inline: 4px; }
+#master-bulk-message:empty { margin: 0; }
 .dex-pagination { display: flex; flex: none; gap: 4px; align-items: center; }
 .pokedex-page .dex-pagination select { width: 6.5rem; padding-inline-start: 8px; }
 .pokedex-page .dex-pagination button { width: var(--dex-control-height); padding: 0; }

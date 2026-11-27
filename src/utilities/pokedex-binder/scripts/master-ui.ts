@@ -1,6 +1,7 @@
 import type { SetScan } from "./scanner";
 import { binderPages, blankPocket, cardPocket, escape, filterControl, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
+import { setBulkSelection } from "./set-bulk-selection";
 import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
 import { createAccountClient } from "../../../../packages/accounts/client";
@@ -15,6 +16,7 @@ import {
   setPockets,
   setSlots,
   setSlotStatus,
+  setSlotsStatus,
   validateMaster,
   type MasterState,
   type SectionPlacement,
@@ -77,6 +79,10 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   const checklist = binderChecklist("master-", statusSelect, () => void render().catch(report));
   const drawPages = binderPages("master-", n => { page = n; selectedKey = ""; void render().catch(report); });
   const showFilterCount = filterControl("master-", [statusSelect]);
+  const bulkMessage = node("master-bulk-message");
+  const bulkSelection = setBulkSelection(dialog("master-bulk-dialog"), bulkMessage);
+  const selectSet = node<HTMLButtonElement>("master-select-set");
+  const selectPage = node<HTMLButtonElement>("master-select-page");
   const active = () => state.binders.find((b) => b.id === id);
   const label = (s: SetSummary) => s.name + " (" + (s.code || s.id) + ")";
   function chosenSet() {
@@ -195,6 +201,50 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       required = all.filter((s) => s.required);
     return { pockets, all, required, owned: required.filter(s => s.owned).length, ordered: required.filter(s => s.ordered).length };
   }
+  function openBulkSelection(pageNumber: number | null) {
+    const binder = active();
+    if (!binder || !binderCardsReady(binder)) return;
+    const target = scope, binderId = binder.id;
+    const current = () => scope === target && showing === "binder" && id === binderId
+      && (pageNumber === null || (page === pageNumber && !node("master-binder-view").hidden));
+    if (!current()) return;
+    const eligible = (b: SetBinder) => setSlots(b, cachedBinderCards(b))
+      .filter(slot => pageNumber === null ? slot.required : slot.page === pageNumber);
+    const slots = eligible(binder);
+    const expected = slots.map(slot => slot.key).sort();
+    const cards = slots.filter(slot => !slot.owned).map(slot => ({
+      key: slot.key,
+      label: [
+        slot.number && "#" + slot.number, slot.name, slot.finish,
+        slot.sourceSetId && sets.find(set => set.id === slot.sourceSetId)?.name,
+        !slot.required && "Optional", slot.ordered && "Ordered",
+      ].filter(Boolean).join(" · "),
+    }));
+    const description = pageNumber === null ? "Whole set · Required cards" : `Page ${pageNumber}`;
+    const restorePageFocus = () => {
+      if (!current()) return;
+      (selectPage.disabled ? node("master-page-heading") : selectPage).focus({ preventScroll: true });
+    };
+    bulkMessage.textContent = "";
+    bulkSelection.open(`${binder.name} · ${description}`, cards, async keys => {
+      const selection = new Set(keys);
+      let marked = 0;
+      await edit(b => {
+        if (!current() || !binderCardsReady(b)) throw new Error("The binder changed. Reopen card selection.");
+        const latest = eligible(b);
+        if (!sameSave(expected, latest.map(slot => slot.key).sort())) {
+          throw new Error("The binder layout or checklist changed. Reopen card selection.");
+        }
+        const pending = latest.filter(slot => !slot.owned && selection.has(slot.key)).map(slot => slot.key);
+        setSlotsStatus(b, pending, "owned");
+        marked = pending.length;
+      });
+      if (!current()) return;
+      return marked
+        ? `Marked ${marked} ${marked === 1 ? "card" : "cards"} collected.`
+        : "The selected cards are already collected.";
+    }, pageNumber === null ? undefined : restorePageFocus);
+  }
   function clearFilters() {
     searchInput.value = "";
     statusSelect.value = "all";
@@ -268,6 +318,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const shownId = b ? b.id : showDex ? "" : null;
     if (shownId !== displayedId) {
       displayedId = shownId;
+      bulkSelection.close();
+      bulkMessage.textContent = "";
       page = 1;
       selectedKey = "";
       checklist.resetSelection();
@@ -300,12 +352,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-add-extra").hidden = !b;
     node("master-scan").hidden = !b;
     node<HTMLButtonElement>("master-scan").disabled = !!b && !binderCardsReady(b);
+    selectSet.hidden = !b;
     showFilterCount();
     if (!b) {
       if (openingNational) renderNationalView();
       return;
     }
     if (!binderCardsReady(b)) {
+      selectSet.disabled = true;
       node("master-title").textContent = b.name;
       node("master-binder-grid").replaceChildren();
       node("master-workspace").hidden = true;
@@ -325,6 +379,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     }
     const { pockets, all, required, owned, ordered } = progress(b),
       extras = all.filter((s) => !s.required);
+    selectSet.disabled = owned === required.length;
     node("master-title").textContent = b.name;
     // The set shows as a label above the name only when the binder is named something else.
     const binderSet = sets.find((s) => s.id === b.setId);
@@ -365,6 +420,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const filtered = all.filter(matches);
     const count = Math.max(1,pockets.at(-1)?.page ?? 1);
     page = Math.min(count, Math.max(1,page));
+    selectPage.disabled = !all.some(slot => slot.page === page && !slot.owned);
     const selected = all.find(s => s.key === selectedKey);
     const place = (s: typeof all[number]) => `Page ${s.page} · Row ${s.row} · Column ${s.column}`;
     const finishLabel = (s: typeof all[number]) => [s.finish, s.sourceSetId && sourceSet(s)?.name, !s.required && "Optional"].filter(Boolean).join(" · ");
@@ -771,6 +827,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-checklist-clear-filters", "click", () => { clearFilters(); finishSelect.focus(); return render(); });
   listen("master-view-checklist", "click", () => { view.checklist = true; return render(); });
   listen("master-view-binder", "click", () => { view.checklist = false; return render(); });
+  listen("master-select-set", "click", () => openBulkSelection(null));
+  listen("master-select-page", "click", () => openBulkSelection(page));
   node("master-workspace").addEventListener("error", event => {
     if (event.target instanceof HTMLImageElement) event.target.hidden = true;
   },true);
@@ -879,6 +937,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       accountVersion++;
       if (scope !== next) {
         scope = next;
+        bulkSelection.close();
+        bulkMessage.textContent = "";
         renderSetOverview([]);
         // The open binder stays open when the new scope has it (as after connecting an account);
         // otherwise render shows the home list.

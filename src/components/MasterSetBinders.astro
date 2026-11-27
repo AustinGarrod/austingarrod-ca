@@ -31,6 +31,7 @@ import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
 <SetOverview />
 <section id="master-workspace" hidden aria-labelledby="master-title">
   <section class="dex-progress" aria-label="Collection progress"><p id="master-progress-line" class="dex-progress-line"></p><div><span class="dex-label">Collected</span><strong id="master-owned"></strong></div><div><span class="dex-label">Ordered</span><strong id="master-ordered"></strong></div><div><span class="dex-label">Still to find</span><strong id="master-missing"></strong></div><div class="dex-completion"><span class="dex-label" id="master-percent"></span><progress id="master-bar" aria-labelledby="master-percent"></progress><span><span id="master-progress"></span> required · Optional extras <span id="master-optional"></span></span></div></section>
+  <p id="master-bulk-message" class="dex-help dex-status-note" role="status"></p>
   <BinderToolbar prefix="master-" />
   <section id="master-results" class="dex-search-results" aria-label="Search results" hidden></section>
   <BinderPages prefix="master-" />
@@ -38,6 +39,27 @@ import { ArrowRight, BookOpen, Layers } from "@lucide/astro";
     <label slot="filters" for="master-checklist-finish">Filter by finish<select id="master-checklist-finish"><option value="">All finishes</option></select></label>
   </BinderChecklist>
 </section>
+<dialog id="master-bulk-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="master-bulk-title" aria-describedby="master-bulk-scope master-bulk-hint">
+  <header class="dex-dialog-header">
+    <h2 id="master-bulk-title" tabindex="-1">Mark cards collected</h2>
+    <button type="button" data-close-dialog aria-label="Close card selection">×</button>
+  </header>
+  <p id="master-bulk-scope"></p>
+  <p id="master-bulk-hint" class="dex-help">Uncheck any cards you still need.</p>
+  <form id="master-bulk-form" class="dex-dialog-form">
+    <fieldset id="master-bulk-selection">
+      <legend class="sr-only">Cards to mark collected</legend>
+      <label class="dex-dialog-checkbox"><input id="master-bulk-all" type="checkbox" /> Select all</label>
+      <div id="master-bulk-cards"></div>
+    </fieldset>
+    <p id="master-bulk-count" role="status"></p>
+    <p id="master-bulk-error" class="dex-error" role="alert"></p>
+    <div class="dex-dialog-actions">
+      <button type="button" data-close-dialog>Cancel</button>
+      <button id="master-bulk-apply" class="dex-primary" type="submit">Mark collected</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="master-editor" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="master-editor-title">
   <header class="dex-dialog-header">
     <h2 id="master-editor-title">New set binder</h2>

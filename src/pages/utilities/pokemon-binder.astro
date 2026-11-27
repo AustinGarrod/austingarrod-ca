@@ -1,5 +1,5 @@
 ---
-import { ArrowDownUp, ArrowLeft, BookOpen, ChevronRight, Download, Ellipsis, FileUp, Plus, Printer, Settings2, Cloud, Camera, Check, Search, ShoppingBag } from "@lucide/astro";
+import { ArrowDownUp, ArrowLeft, BookOpen, ChevronRight, Download, Ellipsis, FileUp, Plus, Printer, Settings2, Cloud, Camera, Check, ListChecks, Search, ShoppingBag } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
@@ -43,6 +43,7 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
           <div class="dex-menu-list">
             <button id="scan-open" type="button"><Camera size={16} aria-hidden="true" /> Scan cards</button>
             <button id="master-scan" type="button" hidden><Camera size={16} aria-hidden="true" /> Scan cards</button>
+            <button id="master-select-set" type="button" aria-haspopup="dialog" hidden><ListChecks size={16} aria-hidden="true" /> Select all in set</button>
             <button id="layout-open" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
             <button id="master-settings" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
             <button id="master-add-extra" type="button" aria-haspopup="dialog" hidden><Plus size={16} aria-hidden="true" /> Add an extra card</button>

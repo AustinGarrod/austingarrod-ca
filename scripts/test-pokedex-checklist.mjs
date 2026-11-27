@@ -33,6 +33,111 @@ async function checkControlSizing(page) {
   await page.setViewportSize(viewport);
 }
 
+async function checkBulkSelections(page, documents) {
+  await openBinder(page, 'National Pokédex');
+  await expect(page.locator('#master-select-set')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#master-select-page')).toBeHidden();
+
+  const workspace = page.locator('#master-workspace');
+  const progress = workspace.locator('#master-progress');
+  const dialog = page.getByRole('dialog', { name: 'Mark cards collected' });
+  const all = dialog.getByRole('checkbox', { name: 'Select all', exact: true });
+  const choices = dialog.locator('#master-bulk-cards input');
+  const count = dialog.locator('#master-bulk-count');
+  const message = workspace.locator('#master-bulk-message');
+  const pageAction = workspace.getByRole('button', { name: 'Select all on page' });
+  const saved = name => documents.get('master-sets')?.state.binders.find(binder => binder.name === name);
+
+  await openBinder(page, '151 checklist');
+  await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
+  await workspace.locator('#master-search').fill('#001');
+  await workspace.locator('#master-checklist-finish').selectOption({ label: 'Reverse holo' });
+  await expect(workspace.locator('.dex-checklist-row')).toHaveCount(1);
+  await expect(pageAction).toBeHidden();
+  await binderAction(page, '#master-select-set');
+  await expect(dialog).toContainText('151 checklist · Whole set · Required cards');
+  await expect(choices).toHaveCount(358);
+  await expect(dialog.locator('input[value="001:reverse"]')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Mark 358 collected' })).toBeInViewport();
+  await dialog.screenshot({ path: `output/pokedex-checklist/bulk-${page.viewportSize().width}.png` });
+  await all.uncheck();
+  await expect(dialog.getByRole('button', { name: 'Mark 0 collected' })).toBeDisabled();
+  await all.check();
+  await dialog.locator('input[value="002:reverse"]').press('Space');
+  await expect(count).toHaveText('357 of 358 selected');
+  assert.equal(await all.evaluate(box => box.indeterminate), true);
+  await dialog.getByRole('button', { name: 'Mark 357 collected' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(progress).toHaveText('359 / 360');
+  await expect(message).toHaveText('Marked 357 cards collected.');
+  await expect.poll(() => saved('151 checklist')?.owned.length).toBe(359);
+  assert.ok(!saved('151 checklist').owned.includes('002:reverse'));
+  assert.equal(saved('Futsal numbers').owned.length, 3);
+
+  await newSetBinder(page);
+  await page.locator('#master-set').fill('sv03.5');
+  await page.locator('#master-name').fill('151 by number');
+  await page.locator('#master-goal').selectOption('numbers');
+  await page.locator('#master-columns').fill('3');
+  await page.locator('#master-rows').fill('2');
+  await page.locator('#master-blanks').fill('1');
+  await page.getByRole('button', { name: 'Save binder' }).click();
+  await expect(progress).toHaveText('0 / 207');
+  await binderAction(page, '#master-add-extra');
+  await page.locator('#master-extra-name').fill('Signed extra');
+  await page.locator('#master-extra-form').getByRole('button', { name: 'Add extra' }).click();
+  await expect(page.locator('#master-extra-dialog')).toBeHidden();
+  await workspace.getByRole('button', { name: 'Binder', exact: true }).click();
+  await workspace.locator('#master-page-select').selectOption('35');
+  const grid = workspace.locator('#master-binder-grid');
+  await expect(grid.locator('.dex-pocket-blank')).toHaveCount(1);
+  const expectedKeys = await grid.locator('input[data-key]').evaluateAll(inputs => inputs.map(input => input.dataset.key));
+  await grid.locator('[data-set-open]').first().click();
+  await workspace.locator('#set-detail-status-ordered').check();
+  await expect(workspace.locator('#master-ordered')).toHaveText('1');
+  await page.keyboard.press('Escape');
+  await chooseFilter(page, '#master-status', 'owned');
+  await pageAction.click();
+  await expect(dialog).toContainText('151 by number · Page 35');
+  await expect(dialog.getByRole('checkbox', { name: /Signed extra · Custom extra · Optional/ })).toBeChecked();
+  await expect(dialog.getByRole('checkbox', { name: /Any finish · Ordered/ })).toBeChecked();
+  assert.deepEqual(await choices.evaluateAll(inputs => inputs.map(input => input.value)), expectedKeys);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(pageAction).toBeFocused();
+  await expect(progress).toHaveText('0 / 207');
+  await expect(workspace.locator('#master-optional')).toHaveText('0 / 1');
+  await expect(workspace.locator('#master-ordered')).toHaveText('1');
+
+  await pageAction.click();
+  await dialog.getByRole('button', { name: 'Mark 5 collected' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(progress).toHaveText('4 / 207');
+  await expect(workspace.locator('#master-optional')).toHaveText('1 / 1');
+  await expect(workspace.locator('#master-ordered')).toHaveText('0');
+  await expect(pageAction).toBeDisabled();
+  await expect(workspace.locator('#master-page-heading')).toBeFocused();
+  await expect.poll(() => saved('151 by number')?.owned).toEqual(expectedKeys.toSorted());
+  assert.equal(saved('151 by number').ordered, undefined);
+  await workspace.locator('#master-page-select').selectOption('34');
+  await expect(grid.locator('input:checked')).toHaveCount(0);
+
+  await binderAction(page, '#master-add-extra');
+  await page.locator('#master-extra-name').fill('Another optional extra');
+  await page.locator('#master-extra-form').getByRole('button', { name: 'Add extra' }).click();
+  await expect(workspace.locator('#master-optional')).toHaveText('1 / 2');
+  await binderAction(page, '#master-select-set');
+  await expect(choices).toHaveCount(203);
+  assert.ok(await choices.evaluateAll(inputs => inputs.every(input => input.value.endsWith(':*'))));
+  await dialog.getByRole('button', { name: 'Mark 203 collected' }).click();
+  await expect(progress).toHaveText('207 / 207');
+  await expect(page.locator('#master-select-set')).toBeDisabled();
+  await expect.poll(() => saved('151 by number')?.owned.length).toBe(208);
+  await page.reload();
+  await expect(progress).toHaveText('207 / 207');
+  await expect(workspace.locator('#master-optional')).toHaveText('1 / 2');
+}
+
 async function checkSetChecklist(page, width) {
   await page.locator('#view-binder').click();
   await goHome(page);
@@ -430,8 +535,9 @@ try {
     await checkSetChecklist(page, width);
     await checkSetOverview(page, width);
     await checkAnniversaryExpansion(page, documents);
+    await checkBulkSelections(page, documents);
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`Passed National and set binder checklists, navigation, and set overview totals at ${width}px`);
+    console.log(`Passed National and set binder checklists, navigation, set overview totals, and bulk selection at ${width}px`);
   }
 } finally { await browser.close(); }
