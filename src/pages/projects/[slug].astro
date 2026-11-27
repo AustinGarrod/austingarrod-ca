@@ -26,6 +26,12 @@ export function getStaticPaths() {
 }
 
 const { project } = Astro.props;
+const updatedLabel = new Date(`${project.lastModified}T00:00:00Z`).toLocaleDateString("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC"
+});
 const projectStructuredData = createProjectCreativeWorkSchema(project);
 ---
 
@@ -114,7 +120,7 @@ const projectStructuredData = createProjectCreativeWorkSchema(project);
       </div>
       <div>
         <p class="eyebrow">Updated</p>
-        <p>{project.lastModified}</p>
+        <p><time datetime={project.lastModified}>{updatedLabel}</time></p>
       </div>
       <div>
         <p class="eyebrow">Stack</p>

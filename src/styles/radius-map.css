@@ -124,10 +124,10 @@ button {
 .eyebrow,
 .step-label {
   margin: 0;
-  color: var(--accent);
+  color: var(--accent-deep);
   font-size: 0.67rem;
   font-weight: 800;
-  letter-spacing: 0.13em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -135,7 +135,7 @@ button {
   margin: 1px 0 0;
   font-size: 1.34rem;
   line-height: 1.05;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
 }
 
 .panel-toggle {
@@ -178,7 +178,7 @@ button {
 }
 
 .workspace-tab:hover {
-  background: #f5f7fa;
+  background: var(--surface-low);
 }
 
 .workspace-tab.is-active {
@@ -194,7 +194,7 @@ button {
   padding: 0 5px;
   place-items: center;
   border-radius: 999px;
-  background: #e7ebf1;
+  background: var(--surface-mid);
   color: var(--ink);
   font-size: 0.61rem;
 }
@@ -211,7 +211,7 @@ button {
   gap: 11px;
   margin: 12px 16px 0;
   padding: 10px;
-  border: 1px solid #cfddfb;
+  border: 1px solid var(--line);
   border-radius: 15px;
   background: linear-gradient(135deg, #f1f6ff, #fff);
   box-shadow: 0 7px 20px rgba(40, 100, 220, 0.08);
@@ -279,7 +279,7 @@ button {
 .section-heading h2 {
   margin: 2px 0 0;
   font-size: 1rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .section-heading > p {
@@ -309,13 +309,14 @@ button {
 
 .search-field-wrap:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(40, 100, 220, 0.12);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .search-symbol {
   width: 13px;
   height: 13px;
-  border: 2px solid #718096;
+  border: 2px solid var(--subtle);
   border-radius: 50%;
 }
 
@@ -324,7 +325,7 @@ button {
   width: 6px;
   height: 2px;
   margin: 10px 0 0 9px;
-  background: #718096;
+  background: var(--subtle);
   content: "";
   transform: rotate(45deg);
 }
@@ -341,7 +342,7 @@ button {
 }
 
 .search-field-wrap input::placeholder {
-  color: #929caf;
+  color: var(--subtle);
 }
 
 .search-button {
@@ -357,7 +358,7 @@ button {
 }
 
 .search-button:hover {
-  background: #26314a;
+  background: var(--accent-deep);
 }
 
 .search-button:disabled,
@@ -426,15 +427,15 @@ button {
   margin-top: 9px;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: #f8fafc;
+  background: var(--bg);
   font-size: 0.8rem;
   font-weight: 720;
   cursor: pointer;
 }
 
 .location-button:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
+  border-color: var(--control-line);
+  background: var(--surface-low);
 }
 
 .locate-symbol {
@@ -443,7 +444,7 @@ button {
   height: 15px;
   border: 1.8px solid var(--accent);
   border-radius: 50%;
-  box-shadow: inset 0 0 0 4px #f8fafc;
+  box-shadow: inset 0 0 0 4px var(--bg);
   background: var(--accent);
 }
 
@@ -477,7 +478,7 @@ button {
   padding: 3px;
   border: 0;
   border-radius: 12px;
-  background: #eef1f5;
+  background: var(--surface-low);
 }
 
 .segment-group {
@@ -515,7 +516,7 @@ button {
 
 .segment-group input:focus-visible + label,
 .unit-options input:focus-visible + label {
-  outline: 3px solid rgba(40, 100, 220, 0.25);
+  outline: 2px solid var(--accent);
 }
 
 .measurement-row {
@@ -531,7 +532,7 @@ button {
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 750;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .value-field input {
@@ -549,7 +550,8 @@ button {
 
 .value-field input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(40, 100, 220, 0.11);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .value-field input[aria-invalid="true"] {
@@ -629,13 +631,13 @@ button {
 }
 
 .secondary-action:hover {
-  background: #f8fafc;
+  background: var(--bg);
 }
 
 .danger-action {
   padding: 0 16px;
-  border: 1px solid #c7352a;
-  background: #c7352a;
+  border: 1px solid var(--danger);
+  background: var(--danger);
   color: #fff;
 }
 
@@ -663,7 +665,7 @@ button {
   align-items: center;
   margin: 18px 22px 0;
   padding: 13px;
-  border: 1px solid #d8e4fb;
+  border: 1px solid var(--line);
   border-radius: 14px;
   background: linear-gradient(135deg, #f6f9ff, #edf3ff);
 }
@@ -675,7 +677,7 @@ button {
   height: 33px;
   border: 2px solid var(--accent);
   border-radius: 50%;
-  background: rgba(40, 100, 220, 0.12);
+  background: rgb(13 148 136 / 12%);
 }
 
 .summary-ring::after {
@@ -723,12 +725,12 @@ button {
 .triangulation-copy h2 {
   margin: 2px 0 0;
   font-size: 1rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .signed-out-card {
   padding: 16px;
-  border: 1px solid #d8e4fb;
+  border: 1px solid var(--line);
   border-radius: 15px;
   background: linear-gradient(145deg, #f8faff, #edf3ff);
 }
@@ -757,7 +759,8 @@ button {
 
 .library-search:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(40, 100, 220, 0.1);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .library-search input {
@@ -878,7 +881,7 @@ button {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: #d8dee8;
+  background: var(--line);
   cursor: pointer;
   transition: background 150ms ease;
 }
@@ -905,7 +908,7 @@ button {
 }
 
 .visibility-switch input:focus-visible + span {
-  outline: 3px solid rgba(40, 100, 220, 0.25);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -929,7 +932,7 @@ button {
 }
 
 .saved-item-actions button:hover {
-  background: #f2f5f8;
+  background: var(--surface-low);
   color: var(--ink);
 }
 
@@ -1160,7 +1163,7 @@ button {
 .dialog-heading h2 {
   margin: 2px 0 0;
   font-size: 1.08rem;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .dialog-mark {
@@ -1173,7 +1176,7 @@ button {
 
 .danger-heading .dialog-mark {
   border-color: var(--danger);
-  background: radial-gradient(circle, var(--danger) 0 3px, transparent 4px), #fdf0ef;
+  background: radial-gradient(circle, var(--danger) 0 3px, transparent 4px), rgb(180 35 24 / 8%);
 }
 
 .action-dialog label {
@@ -1198,7 +1201,8 @@ button {
 
 .action-dialog input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(40, 100, 220, 0.11);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .dialog-summary {
@@ -1276,7 +1280,7 @@ button {
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(40, 100, 220, 0.14);
+  box-shadow: 0 0 0 4px rgb(13 148 136 / 16%);
 }
 
 .centre-chip strong {
@@ -1299,15 +1303,19 @@ button {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgba(40, 100, 220, 0.3);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .leaflet-control-zoom {
   overflow: hidden;
-  border: 0 !important;
-  border-radius: 13px !important;
-  box-shadow: 0 8px 24px rgba(25, 39, 67, 0.16) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 0 !important;
 }
 
 .leaflet-control-zoom a {
@@ -1459,7 +1467,7 @@ input:focus-visible {
     padding: 0 11px;
     border: 1px solid var(--line);
     border-radius: 11px;
-    background: #f8fafc;
+    background: var(--bg);
     color: var(--ink);
     font-size: 0.7rem;
     font-weight: 750;
@@ -1467,7 +1475,7 @@ input:focus-visible {
   }
 
   .panel-toggle:hover {
-    background: #f1f5f9;
+    background: var(--surface-low);
   }
 
   .panel-toggle-icon {
@@ -1773,4 +1781,20 @@ body.radius-map-page :where(button, input, a):focus-visible {
 body.radius-map-page .control-panel {
   border-radius: 0;
   box-shadow: none;
+}
+
+.library-message[hidden] {
+  display: none;
+}
+
+body.radius-map-page :is(.search-field-wrap, .library-search) input:focus-visible {
+  outline: none;
+}
+
+@media (max-width: 860px) {
+  .search-field-wrap input,
+  .library-search input,
+  .action-dialog input {
+    font-size: 16px;
+  }
 }

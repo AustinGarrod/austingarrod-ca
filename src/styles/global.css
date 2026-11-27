@@ -101,7 +101,7 @@ button {
   transform: translateY(-160%);
 }
 
-.skip-link:focus {
+.skip-link:focus-visible {
   transform: translateY(0);
 }
 
@@ -466,14 +466,19 @@ button {
   gap: 28px;
 }
 
+.section-heading.split > .button,
+.cta-inner > .button {
+  flex: none;
+}
+
 .section-heading h2,
 .cta-inner h2 {
   font-size: clamp(2.2rem, 5.2vw, 4.8rem);
 }
 
 .section-heading p:not(.eyebrow),
-.page-hero p,
-.cta-inner p {
+.page-hero p:not(.eyebrow),
+.cta-inner p:not(.eyebrow) {
   color: var(--muted);
   font-size: 1.08rem;
 }
@@ -1328,6 +1333,16 @@ button {
   color: var(--secondary);
 }
 
+main p a:not([class]) {
+  color: var(--secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+main p a:not([class]):hover {
+  color: var(--primary);
+}
+
 .cta-band {
   padding-block: clamp(64px, 9vw, 104px);
   background: var(--primary-container);
@@ -1340,7 +1355,7 @@ button {
   color: #ffffff;
 }
 
-.cta-inner p {
+.cta-inner p:not(.eyebrow) {
   max-width: 720px;
   color: rgb(255 255 255 / 76%);
 }

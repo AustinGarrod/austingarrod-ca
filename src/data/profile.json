@@ -259,14 +259,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "Astro and TypeScript build static public pages from published content in Cloudflare D1, served through Cloudflare Pages.",
             "Pages Functions handle owner editing, sign-in sessions, and quote enquiries, with server-side Turnstile verification and origin checks on the enquiry endpoint."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The public website is live at junkinelectric.ca; the client source repository remains private.",
             "Publishing snapshots the saved draft and queues a rebuild. The previous live deployment remains available if the build fails."
@@ -325,14 +325,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "Astro builds the public pages, sitemap, robots file, structured data, and hashed assets into a static `dist/` directory.",
             "A Python asset script generates the Open Graph image and resume PDF from source-controlled data."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The repository includes local build checks, deployment notes, and GitHub Actions workflows for CI and cPanel upload.",
             "The public repository includes the site source, content model, asset generator, and deployment configuration."
@@ -385,14 +385,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "Kotlin Multiplatform models subscriptions, episodes, playback state, queues, playlists, bookmarks, history, and import state across the app.",
             "Native Android media integration, device-harness workflows, Android Auto checks, and release builds support repeatable validation."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The product website, waitlist, privacy policy, and support documentation are live at cadenceplayer.com while the Android app remains in development.",
             "The app is actively versioned and validated across shared code, Android devices, Android Auto, and release builds."
@@ -454,14 +454,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "React, TypeScript, and React Flow provide the interactive interface, with game rules and persistence separated from rendering.",
             "Versioned browser storage holds recorded state; selected save files and JSON backups are processed locally. Vite builds static routes and an offline shell for static hosting on this site."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The public, unofficial companion is live with Ascension, achievements, crafting, quests, Bestiary, and Divinity tools.",
             "Manual tracking, supported save imports, backups, and planning tools work within documented game-version and browser-storage limits."
@@ -520,14 +520,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "A React/Vite client talks to an Express API backed by SQLite persistence.",
             "Local MQTT integration reads Bambu Lab AMS state while Docker-friendly packaging keeps the app portable."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The local app includes AMS synchronization and NFC tag scanning.",
             "Inventory data stays in SQLite, with local MQTT providing printer state."
@@ -579,14 +579,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "Node.js and TypeScript coordinate collection, Redis-backed job state, MongoDB storage, and Docker-based local services.",
             "A React dashboard exposes live progress, queue visibility, search views, and controls for long-running sessions."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The private application is implemented with resumable discovery, configurable workers, atomic offset tracking, retries, and source-aware rate controls.",
             "Collection is limited to public Canadian charity records, with rate controls to respect source limits."
@@ -638,14 +638,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "The implemented web layer combines an Express API with a React/MUI dashboard, media-library logic, casting control, and scheduling.",
             "The remaining hardware layer covers ESP32 and PN532 integration, physical controls, status feedback, NFC cards, and the reviewed enclosure design."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The API, dashboard, media-control behavior, and enclosure work exist in the private prototype; embedded NFC hardware integration remains unfinished.",
             "Next steps cover ESP32 and PN532 integration, physical controls, and device feedback."
@@ -697,14 +697,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "React, Express, TypeScript/JavaScript, and React Native were used across web, API, and mobile applications.",
             "The architecture connected public browsing and internal maintenance to a common project model."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The public source is archived and retained as a reference for the original web, API, and mobile implementation."
           ]
@@ -755,14 +755,14 @@
           ]
         },
         {
-          "title": "System Shape",
+          "title": "System shape",
           "points": [
             "Astro and TypeScript provide the static site foundation, with React and MUI used for interactive or component-heavy surfaces.",
             "Netlify deployment supports static hosting, deploy previews, and environment-managed form concerns."
           ]
         },
         {
-          "title": "Current State",
+          "title": "Current state",
           "points": [
             "The site is deployed to Netlify from a private source repository.",
             "Reusable page sections, themes, and form definitions support ongoing content revisions."

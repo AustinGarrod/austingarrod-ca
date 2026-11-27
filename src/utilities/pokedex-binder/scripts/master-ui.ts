@@ -76,6 +76,13 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const matches = sets.filter((s) => s.name.toLowerCase() === query || s.code.toLowerCase() === query);
     return matches.length === 1 ? matches[0] : undefined;
   }
+  let suggestedName = "";
+  function suggestBinderName() {
+    const name = input("master-name"), set = chosenSet();
+    if (!set || (name.value.trim() && name.value !== suggestedName)) return;
+    suggestedName = set.name;
+    name.value = set.name;
+  }
   const report = (error: unknown) => {
     node("master-message").textContent = error instanceof Error ? error.message : "Set binder action failed.";
   };
@@ -525,6 +532,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     sectionLayout = binderSectionLayout(model.setId, model.settings.sectionLayout).map(section => ({ ...section }));
     showRelatedOption();
     input("master-name").value = model.name;
+    suggestedName = "";
     select("master-goal").value = model.goal;
     select("master-order").value = model.order;
     input("master-fillers").checked = model.settings.fillerThrough !== undefined;
@@ -604,6 +612,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   listen("master-related", "change", () => renderSectionLayout());
   listen("master-set", "input", () => {
     showRelatedOption();
+    suggestBinderName();
     input("master-filler-through").value = String(chosenSet()?.printedTotal ?? "");
     return specialties();
   });
