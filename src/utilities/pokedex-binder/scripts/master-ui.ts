@@ -75,7 +75,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   const checklist = binderChecklist("master-", statusSelect, () => void render().catch(report));
   const drawPages = binderPages("master-", n => { page = n; selectedKey = ""; void render().catch(report); });
   const active = () => state.binders.find((b) => b.id === id);
-  const label = (s: SetSummary) => s.name + " · " + (s.code || s.id) + " (" + s.id + ")";
+  const label = (s: SetSummary) => s.name + " (" + (s.code || s.id) + ")";
   function chosenSet() {
     const query = input("master-set").value.trim().toLowerCase();
     if (!query) return;
@@ -515,6 +515,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
           const from = sectionLayout.indexOf(section), to = sectionLayout.indexOf(target);
           [sectionLayout[from], sectionLayout[to]] = [sectionLayout[to], sectionLayout[from]];
           renderSectionLayout(section.id, step);
+          scheduleSummary();
         };
         actions.append(button);
       }
@@ -578,15 +579,12 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-form-error").textContent = "";
     node("master-delete-section").hidden = !b;
     await specialties();
+    void updateSummary();
     dialog("master-editor").showModal();
     input(b ? "master-name" : "master-set").focus({ preventScroll: true });
   }
-  async function saveForm() {
-    const set = chosenSet();
-    if (!set) throw new Error("Choose a set from the catalog list.");
-    const existing = editing;
-    const binderId = existing ?? crypto.randomUUID(),
-      name = input("master-name").value.trim();
+  /** Reads the binder form. Throws when a page setting is out of range. */
+  function readForm(set: SetSummary) {
     const settings: SetBinder["settings"] = validateSettings({
       columns: +input("master-columns").value,
       rows: +input("master-rows").value,
@@ -602,8 +600,49 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       const [bulk, ...individual] = group.querySelectorAll<HTMLInputElement>("input");
       return bulk.checked ? [bulk.value] : individual.filter((box) => box.checked).map((box) => box.value);
     });
-    const goal = select("master-goal").value as SetBinder["goal"],
-      order = select("master-order").value as SetBinder["order"];
+    return {
+      name: input("master-name").value.trim(), settings, specialties: spec,
+      goal: select("master-goal").value as SetBinder["goal"], order: select("master-order").value as SetBinder["order"],
+    };
+  }
+  // A live summary of what the form would build: cards, pages and sheets.
+  let summaryTicket = 0, summaryTimer: ReturnType<typeof setTimeout> | undefined;
+  const count = (value: number) => value.toLocaleString("en-CA");
+  async function updateSummary() {
+    const ticket = ++summaryTicket, summary = node("master-summary");
+    const set = chosenSet();
+    if (!set) { summary.textContent = "Choose a set to see how many cards, pages and sheets this binder needs."; return; }
+    let draft: SetBinder;
+    try {
+      const form = readForm(set), existing = state.binders.find((b) => b.id === editing);
+      draft = { ...newBinder(set.id, form.name), ...form, extras: existing?.extras ?? [] };
+      if (form.settings.fillerThrough !== undefined && !(form.settings.fillerThrough >= 1)) throw new Error("Filler cutoff");
+    } catch {
+      summary.textContent = "Enter page settings within their ranges to see the result.";
+      return;
+    }
+    try { await loadBinderCards(draft, cards); } catch {
+      if (ticket === summaryTicket) summary.textContent = "The set checklist could not load, so the size is unknown.";
+      return;
+    }
+    if (ticket !== summaryTicket) return;
+    const pockets = setPockets(draft, binderCards(draft, (setId) => cache.get(setId) ?? []));
+    const pages = Math.max(1, pockets.at(-1)?.page ?? 1), sheets = draft.settings.useBackSides ? Math.ceil(pages / 2) : pages;
+    const total = pockets.filter(isCardPocket).length;
+    summary.textContent = `${count(total)} ${total === 1 ? "card" : "cards"} · ${count(pages)} ${pages === 1 ? "page" : "pages"} · ${count(sheets)} ${sheets === 1 ? "sheet" : "sheets"}`;
+  }
+  function scheduleSummary() {
+    clearTimeout(summaryTimer);
+    summaryTimer = setTimeout(() => void updateSummary(), 150);
+  }
+  node("master-form").addEventListener("input", scheduleSummary);
+  node("master-form").addEventListener("change", scheduleSummary);
+  async function saveForm() {
+    const set = chosenSet();
+    if (!set) throw new Error("Choose a set from the catalog list.");
+    const existing = editing;
+    const binderId = existing ?? crypto.randomUUID();
+    const { name, settings, specialties: spec, goal, order } = readForm(set);
     await change((doc) => {
       let b = doc.binders.find((v) => v.id === binderId);
       if (!b) {
