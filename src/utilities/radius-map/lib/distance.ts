@@ -60,10 +60,10 @@ export function validateMeasurement(
   return null;
 }
 
+const COORDINATE_PATTERN = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))$/;
+
 export function parseCoordinateInput(value: string): Coordinates | null {
-  const match = value
-    .trim()
-    .match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))$/);
+  const match = value.trim().match(COORDINATE_PATTERN);
 
   if (!match) {
     return null;
@@ -79,6 +79,45 @@ export function parseCoordinateInput(value: string): Coordinates | null {
   return { lat, lng };
 }
 
+/**
+ * Input that is clearly a latitude and longitude pair but out of range is a
+ * typing mistake, not a place name, so it should not be sent to the geocoder.
+ */
+export function coordinateInputError(value: string): string | null {
+  const match = value.trim().match(COORDINATE_PATTERN);
+  if (!match || parseCoordinateInput(value)) return null;
+  return "Latitude must be between -90 and 90 and longitude between -180 and 180.";
+}
+
 export function formatMeasurement(value: number): string {
   return Number(value.toPrecision(8)).toString();
+}
+
+const twoDecimals = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 2 });
+
+/** A derived value for display: thousands separators and at most two decimals. */
+export function formatDerived(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  if (value !== 0 && Math.abs(value) < 0.01) return "< 0.01";
+  return twoDecimals.format(value);
+}
+
+export interface MeasurementDetails {
+  /** The same distance in the other unit. */
+  converted: { value: number; unit: DistanceUnit };
+  /** The other measurement kind in the chosen unit: the diameter for a radius and the reverse. */
+  counterpart: { value: number; kind: MeasurementKind };
+  /** Area of the circle in square units of the chosen unit. */
+  area: number;
+}
+
+export function measurementDetails(value: number, kind: MeasurementKind, unit: DistanceUnit): MeasurementDetails {
+  const otherUnit: DistanceUnit = unit === "km" ? "mi" : "km";
+  const otherKind: MeasurementKind = kind === "radius" ? "diameter" : "radius";
+  const radius = kind === "radius" ? value : value / 2;
+  return {
+    converted: { value: convertDisplayedMeasurement(value, kind, unit, kind, otherUnit), unit: otherUnit },
+    counterpart: { value: kind === "radius" ? value * 2 : value / 2, kind: otherKind },
+    area: Math.PI * radius * radius,
+  };
 }

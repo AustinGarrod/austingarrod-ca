@@ -26,6 +26,13 @@ describe("Radius Map account documents", () => {
     }))))).toThrow("4 MiB");
   });
 
+  it("lists measurements oldest first so numbers stay put when one is shown, hidden or renamed", () => {
+    const first = { ...point("z"), createdAt: "2026-11-18T10:00:00.000Z", updatedAt: "2026-11-20T10:00:00.000Z" };
+    const second = { ...point("a"), createdAt: "2026-11-18T11:00:00.000Z", updatedAt: "2026-11-18T11:00:00.000Z" };
+    const tie = { ...point("b"), createdAt: "2026-11-18T11:00:00.000Z", updatedAt: "2026-11-19T11:00:00.000Z" };
+    expect(toSavedMeasurements(library(second, tie, first)).map(item => item.id)).toEqual(["z", "a", "b"]);
+  });
+
   it("combines different first saves from two devices sharing an empty account library", () => {
     expect(mergeLibraries(library(), library(point("a")), library(point("b")))).toEqual({
       document: library(point("a"), point("b")),

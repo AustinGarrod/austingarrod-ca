@@ -47,6 +47,8 @@ export interface RadiusAccountView {
 const database = "austingarrod.radius-map.accounts.v1";
 const empty: MeasurementsDocument = { version: 1, measurements: [] };
 const signedOutStatus = "Sign in to save and sync measurements.";
+/** Statuses that mean nothing is waiting, so Sync now can step back. */
+export const SETTLED_STATUSES: readonly string[] = ["Account library synced.", "Account library available offline."];
 const reviewChanged = "The library changed during review. Open the latest review before applying your choices.";
 const authErrors = ["login_required", "csrf_failed", "account_changed", "session_changed"];
 
@@ -132,7 +134,7 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
     }
     if (active.conflictBase) return "Changes on another device need review.";
     if (active.pending || !sameLibrary(active.working, active.baseline?.state ?? empty)) return "Saved on this device. Waiting to sync.";
-    return online() ? "Account library synced." : "Account library available offline.";
+    return online() ? SETTLED_STATUSES[0] : SETTLED_STATUSES[1];
   }
 
   function readView(id: string): void {
@@ -279,9 +281,14 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
     if (online()) timer = setTimeout(() => { void sync(); }, 300);
   }
 
+  /**
+   * Create, update or delete one measurement. `restore` brings a deleted
+   * measurement back under its original id and creation time (undo).
+   */
   async function change(
     input: SavedMeasurementInput | null,
     original?: SavedMeasurement,
+    restore?: { id: string; createdAt: string },
   ): Promise<void> {
     const id = identity, ticket = generation;
     if (!id || !active) throw new Error("The active library changed. Open the measurement again.");
@@ -293,8 +300,12 @@ export function createRadiusAccountLibrary(render: (view: RadiusAccountView) => 
       if (original && (!existing || !sameMeasurement(original, existing) || original.updatedAt !== existing.updatedAt)) {
         throw new Error("This measurement changed. Open it again to edit the latest version.");
       }
+      if (!original && restore && measurements.some(item => item.id === restore.id)) {
+        throw new Error("That measurement is already in your library.");
+      }
       const remaining = measurements.filter(item => item.id !== original?.id);
-      if (input) remaining.push(saveMeasurement(input, original?.id ?? crypto.randomUUID(), new Date().toISOString(), original?.createdAt));
+      const measurementId = original?.id ?? restore?.id ?? crypto.randomUUID();
+      if (input) remaining.push(saveMeasurement(input, measurementId, new Date().toISOString(), original?.createdAt ?? restore?.createdAt));
       library.working = toMeasurementsDocument(remaining);
       // Deletions must remain available if a merge combined two libraries over the limit.
       if (input) requireDocumentFits(library.working);

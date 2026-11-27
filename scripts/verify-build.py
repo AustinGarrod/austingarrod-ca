@@ -213,7 +213,8 @@ private_regions = {
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
-        "saved-list", "library-status", "app-status", "centre-chip", "triangulation-result",
+        "saved-list", "app-status", "centre-chip", "triangulation-result", "triangulation-inputs",
+        "edit-banner", "location-chosen",
         "save-dialog", "delete-dialog", ".library-search",
     ],
     "/utilities/screen-cut-calculator/": [

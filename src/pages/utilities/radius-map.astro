@@ -11,6 +11,7 @@ if (!utility) throw new Error("Radius Map utility metadata is missing.");
 
 const title = "Radius Map — Draw a radius anywhere";
 const description = "Draw, save, and compare radius or diameter measurements, then calculate a best-fit point from visible circles.";
+const signInHref = "/account/?returnTo=%2Futilities%2Fradius-map%2F";
 ---
 
 <BaseLayout
@@ -26,6 +27,7 @@ const description = "Draw, save, and compare radius or diameter measurements, th
   ogImageWidth={1731}
   ogImageHeight={909}
   bodyClass="radius-map-page"
+  skipTarget="radius-panel"
 >
   <Fragment slot="head">
     <meta name="application-name" content="Radius Map" />
@@ -38,285 +40,302 @@ const description = "Draw, save, and compare radius or diameter measurements, th
 
   <div class="app-shell">
     <UtilityHeader toolName="Radius Map" variant="overlay">
-      <p id="radius-library-location">Sign in to save</p>
+      <a id="radius-library-location" href={signInHref}>Sign in</a>
     </UtilityHeader>
 
-    <div id="map" class="map-canvas rr-block" data-analytics-private role="region" aria-label="Interactive radius map"></div>
-    <div class="map-wash" aria-hidden="true"></div>
-
-    <section class="control-panel" aria-labelledby="app-title">
-      <header class="brand-header">
-        <span class="brand-mark" aria-hidden="true"><span></span></span>
-        <div class="brand-copy">
-          <p class="eyebrow">Measure anywhere</p>
+    <section id="radius-panel" class="control-panel" aria-labelledby="app-title" tabindex="-1">
+      <header class="panel-header">
+        <div class="panel-title">
           <h1 id="app-title">Radius Map</h1>
+          <p id="panel-intro" class="uk-hint">Drawing is free. Saving needs a free account.</p>
         </div>
         <button
           id="panel-toggle"
-          class="panel-toggle"
+          class="uk-button uk-button-quiet panel-toggle"
           type="button"
           aria-expanded="true"
           aria-controls="panel-content"
         >
-          <span class="panel-toggle-label">Hide controls</span>
+          <span class="panel-toggle-label">Collapse</span>
           <span class="panel-toggle-icon" aria-hidden="true"></span>
         </button>
       </header>
 
-      <div id="panel-content" class="panel-content">
-        <div class="workspace-tabs" role="tablist" aria-label="Radius Map workspace">
-          <button
-            id="create-tab"
-            class="workspace-tab is-active"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            aria-controls="create-panel"
-          >Create</button>
-          <button
-            id="saved-tab"
-            class="workspace-tab"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="saved-panel"
-          >Saved <span id="saved-count" class="tab-count">0</span></button>
-        </div>
+      <div class="workspace-tabs" role="tablist" aria-label="Radius Map workspace">
+        <button id="create-tab" class="workspace-tab" type="button" role="tab" aria-selected="true" aria-controls="create-panel">Draw</button>
+        <button id="saved-tab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="saved-panel" tabindex="-1">
+          Saved <span id="saved-count" class="tab-count">0</span>
+        </button>
+        <button id="bestfit-tab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="bestfit-panel" tabindex="-1">Best fit</button>
+      </div>
 
+      <div class="status-slot">
+        <p id="app-status" class="uk-status app-status rr-block" data-analytics-private role="status" aria-live="polite">
+          Search, use your location or tap the map to choose a centre.
+        </p>
+        <button id="status-undo" class="uk-button status-undo" type="button" hidden>Undo</button>
+      </div>
+
+      <div id="panel-content" class="panel-content">
         <aside id="install-app-card" class="install-app-card" aria-label="Install Radius Map" hidden>
-          <img src="/utilities/radius-map/icons/icon-192.png" width="44" height="44" alt="" />
+          <img src="/utilities/radius-map/icons/icon-192.png" width="40" height="40" alt="" />
           <div>
             <strong>Install Radius Map</strong>
             <span>Keep it one tap away on this device.</span>
           </div>
-          <button id="install-app-button" type="button" data-umami-event="radius-map-install">Install</button>
+          <button id="install-app-button" class="uk-button" type="button" data-umami-event="radius-map-install">Install</button>
         </aside>
 
-        <div id="create-panel" role="tabpanel" aria-labelledby="create-tab">
-          <section class="control-section location-section" aria-labelledby="location-heading">
-            <div class="section-heading">
-              <div>
-                <p class="step-label">01</p>
-                <h2 id="location-heading">Choose a centre</h2>
-              </div>
-              <p>Search, locate, or tap the map</p>
-            </div>
+        <div id="create-panel" class="tab-panel" role="tabpanel" aria-labelledby="create-tab">
+          <div id="edit-banner" class="edit-banner rr-block" data-analytics-private hidden>
+            <p>Editing <strong id="edit-banner-name"></strong></p>
+            <button id="cancel-edit-button" class="uk-button uk-button-quiet" type="button">Cancel</button>
+          </div>
 
-            <form id="location-form" class="search-form" novalidate>
-              <label for="location-search" class="sr-only">Search for a place or enter latitude and longitude</label>
-              <div class="search-field-wrap">
-                <span class="search-symbol" aria-hidden="true"></span>
-                <input
-                  id="location-search"
-                  class="rr-block"
-                  data-analytics-private
-                  name="location"
-                  type="search"
-                  placeholder="City, address, or 43.65, -79.38"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <button id="search-button" class="search-button" type="submit" data-umami-event="radius-map-search">Find</button>
-              </div>
-            </form>
+          <section class="rm-step location-step" aria-labelledby="location-heading">
+            <h2 id="location-heading" class="uk-step">01 / Centre</h2>
 
-            <ul id="search-results" class="search-results rr-block" data-analytics-private aria-label="Location search results" hidden></ul>
-
-            <button id="locate-button" class="location-button" type="button" data-umami-event="radius-map-geolocation">
-              <span class="locate-symbol" aria-hidden="true"></span>
-              <span>Use my location</span>
-            </button>
-          </section>
-
-          <section class="control-section measurement-section" aria-labelledby="measurement-heading">
-            <div class="section-heading compact-heading">
-              <div>
-                <p class="step-label">02</p>
-                <h2 id="measurement-heading">Set the distance</h2>
-              </div>
-            </div>
-
-            <fieldset class="segment-group" aria-label="Measurement type">
-              <legend class="sr-only">Measurement type</legend>
-              <input id="kind-radius" type="radio" name="measurement-kind" value="radius" checked />
-              <label for="kind-radius">Radius</label>
-              <input id="kind-diameter" type="radio" name="measurement-kind" value="diameter" />
-              <label for="kind-diameter">Diameter</label>
-            </fieldset>
-
-            <div class="measurement-row">
-              <div class="value-field">
-                <label id="measurement-label" for="measurement-value">Radius</label>
-                <input
-                  id="measurement-value"
-                  class="rr-block"
-                  data-analytics-private
-                  type="number"
-                  value="10"
-                  min="0"
-                  step="any"
-                  inputmode="decimal"
-                  aria-describedby="measurement-error"
-                />
-              </div>
-
-              <fieldset class="unit-group" aria-label="Distance unit">
-                <legend>Unit</legend>
-                <div class="unit-options">
-                  <input id="unit-km" type="radio" name="distance-unit" value="km" checked />
-                  <label for="unit-km">km</label>
-                  <input id="unit-mi" type="radio" name="distance-unit" value="mi" />
-                  <label for="unit-mi">mi</label>
+            <div id="location-picker" class="location-picker">
+              <form id="location-form" class="uk-field" novalidate>
+                <label for="location-search" class="uk-label">Place or coordinates</label>
+                <div class="search-row">
+                  <div class="search-field">
+                    <input
+                      id="location-search"
+                      class="uk-input rr-block"
+                      data-analytics-private
+                      name="location"
+                      type="search"
+                      placeholder="City or 43.65, -79.38"
+                      autocomplete="off"
+                      spellcheck="false"
+                      aria-describedby="location-error"
+                    />
+                    <button id="search-button" class="uk-button uk-button-primary search-button" type="submit" data-umami-event="radius-map-search">Find</button>
+                  </div>
+                  <button
+                    id="locate-button"
+                    class="uk-button locate-button"
+                    type="button"
+                    title="Use my location"
+                    data-umami-event="radius-map-geolocation"
+                  >
+                    <span class="locate-symbol" aria-hidden="true"></span>
+                    <span class="sr-only">Use my location</span>
+                  </button>
                 </div>
-              </fieldset>
+              </form>
+              <p id="location-error" class="uk-error" hidden></p>
+              <ul id="search-results" class="search-results rr-block" data-analytics-private aria-label="Location search results" hidden></ul>
             </div>
-            <p id="measurement-error" class="field-error" role="alert" hidden></p>
+
+            <div id="location-chosen" class="location-chosen rr-block" data-analytics-private hidden>
+              <span class="chosen-mark" aria-hidden="true"></span>
+              <p id="location-chosen-label">Selected centre</p>
+              <div class="chosen-actions">
+                <button id="location-change" class="uk-button uk-button-quiet" type="button">Change</button>
+                <button id="location-clear" class="uk-button uk-button-quiet" type="button">Clear</button>
+              </div>
+            </div>
           </section>
 
-          <div class="measurement-summary rr-block" data-analytics-private aria-live="polite">
-            <span class="summary-ring" aria-hidden="true"></span>
-            <div>
-              <p id="summary-value">10 km radius</p>
-              <span id="summary-centre">Choose a centre to draw the circle</span>
+          <section class="rm-step distance-step" aria-labelledby="measurement-heading">
+            <h2 id="measurement-heading" class="uk-step">02 / Distance</h2>
+            <div class="distance-fields">
+              <div class="uk-field">
+                <label id="measurement-label" class="uk-label" for="measurement-value">Distance</label>
+                <div class="value-with-unit">
+                  <input
+                    id="measurement-value"
+                    class="uk-input rr-block"
+                    data-analytics-private
+                    type="number"
+                    value="10"
+                    min="0"
+                    step="any"
+                    inputmode="decimal"
+                    aria-describedby="measurement-error"
+                  />
+                  <fieldset class="uk-switch unit-switch">
+                    <legend class="sr-only">Unit</legend>
+                    <input id="unit-km" type="radio" name="distance-unit" value="km" checked />
+                    <label for="unit-km">km</label>
+                    <input id="unit-mi" type="radio" name="distance-unit" value="mi" />
+                    <label for="unit-mi">mi</label>
+                  </fieldset>
+                </div>
+              </div>
+              <div class="uk-field kind-field">
+                <span class="uk-label" aria-hidden="true">Measure</span>
+                <fieldset class="uk-switch kind-switch">
+                  <legend class="sr-only">Measure the distance as</legend>
+                  <input id="kind-radius" type="radio" name="measurement-kind" value="radius" checked />
+                  <label for="kind-radius">Radius</label>
+                  <input id="kind-diameter" type="radio" name="measurement-kind" value="diameter" />
+                  <label for="kind-diameter">Diameter</label>
+                </fieldset>
+              </div>
             </div>
+            <p id="measurement-error" class="uk-error" hidden></p>
+          </section>
+
+          <div class="measurement-summary rr-block" data-analytics-private>
+            <div class="summary-copy">
+              <p id="summary-value">10 km radius</p>
+              <p id="summary-detail">6.21 mi · 20 km diameter · 314.16 km² area</p>
+              <p id="summary-centre">Choose a centre to draw the circle</p>
+            </div>
+            <button id="copy-summary-button" class="uk-button uk-button-quiet" type="button" disabled>Copy</button>
+            <button id="peek-save-button" class="uk-button uk-button-primary peek-save" type="button" disabled>Save</button>
           </div>
 
           <div class="save-actions">
-            <a id="radius-sign-in-to-save" class="primary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
             <button
               id="save-measurement-button"
-              class="primary-action"
+              class="uk-button uk-button-primary"
               type="button"
               disabled
               data-umami-event="radius-map-save"
             >Save measurement</button>
-            <button id="cancel-edit-button" class="text-action" type="button" hidden>Cancel editing</button>
           </div>
-
-          <p id="app-status" class="app-status rr-block" data-analytics-private role="status" aria-live="polite">
-            Tap anywhere on the map to get started.
-          </p>
         </div>
 
-        <div id="saved-panel" role="tabpanel" aria-labelledby="saved-tab" hidden>
+        <div id="saved-panel" class="tab-panel" role="tabpanel" aria-labelledby="saved-tab" hidden>
           <section class="saved-section" aria-labelledby="saved-heading">
-            <h2 id="saved-heading">Saved measurements</h2>
+            <h2 id="saved-heading" class="sr-only">Saved measurements</h2>
+
+            <div id="library-signed-out" class="library-message" hidden>
+              <strong>Saved measurements live in your account.</strong>
+              <span>Sign in to keep circles and see them on any device. Drawing stays free.</span>
+              <a id="radius-sign-in" class="uk-button uk-button-primary" href={signInHref} hidden>Sign in</a>
+            </div>
 
             <div class="radius-account rr-block" data-analytics-private>
-              <p id="radius-sync-status" class="radius-sync-note" role="status">Sign in to save and sync measurements.</p>
-              <div class="radius-account-actions">
-                <a id="radius-sign-in" class="secondary-action" href="/account/?returnTo=%2Futilities%2Fradius-map%2F" hidden>Sign in to save</a>
-                <button id="radius-review" class="secondary-action" type="button" hidden>Review sync changes</button>
-                <button id="radius-sync-now" class="secondary-action" type="button" hidden>Sync now</button>
-                <a id="radius-manage-account" href="/account/" hidden>Manage account</a>
+              <div class="sync-line">
+                <p id="radius-sync-status" role="status">Sign in to save and sync measurements.</p>
+                <button id="radius-sync-now" class="sync-now" type="button" hidden>Sync now</button>
+                <a id="radius-manage-account" class="sync-link" href="/account/" hidden>Manage account</a>
               </div>
+              <button id="radius-review" class="uk-button" type="button" hidden>Review sync changes</button>
             </div>
-            <label class="library-search rr-block" data-analytics-private for="library-search">
+
+            <label class="library-search rr-block" data-analytics-private for="library-search" hidden>
+              <span class="sr-only">Search saved measurements</span>
               <span class="search-symbol" aria-hidden="true"></span>
               <input id="library-search" type="search" placeholder="Search saved measurements" autocomplete="off" />
             </label>
 
             <div id="library-empty" class="library-message" hidden>
               <strong>No saved measurements yet</strong>
-              <span>Create a circle, then save it here for later.</span>
+              <span>Draw a circle, then save it to see it here.</span>
             </div>
             <div id="library-no-results" class="library-message" hidden>No measurements match that search.</div>
-            <div id="saved-list" class="saved-list rr-block" data-analytics-private aria-live="polite"></div>
-            <p id="library-status" class="app-status library-status rr-block" data-analytics-private role="status" aria-live="polite"></p>
+            <div id="saved-list" class="saved-list rr-block" data-analytics-private></div>
           </section>
+        </div>
 
-          <section class="triangulation-section" aria-labelledby="triangulation-heading">
-            <div class="triangulation-copy">
-              <span class="triangulation-mark" aria-hidden="true">△</span>
-              <div>
-                <h2 id="triangulation-heading">Find the best-fit point</h2>
-                <p id="triangulation-hint">Show at least 3 circles to calculate a centre.</p>
-              </div>
+        <div id="bestfit-panel" class="tab-panel" role="tabpanel" aria-labelledby="bestfit-tab" hidden>
+          <section class="bestfit-section" aria-labelledby="triangulation-heading">
+            <h2 id="triangulation-heading" class="uk-step">Best-fit point</h2>
+            <p class="uk-hint">Estimates the one point that best matches the edges of three or more visible circles, such as distances to the same place measured from different towns.</p>
+            <div id="triangulation-circles" class="bestfit-circles" hidden>
+              <p class="uk-label" id="triangulation-circles-label">Circles on the map</p>
+              <ol id="triangulation-inputs" class="bestfit-inputs rr-block" data-analytics-private aria-labelledby="triangulation-circles-label"></ol>
             </div>
+            <p id="triangulation-hint" class="bestfit-hint">Best fit needs 3 saved circles. Sign in to save them.</p>
+            <a id="bestfit-sign-in" class="uk-button" href={signInHref} hidden>Sign in to save circles</a>
             <button
               id="triangulate-button"
-              class="primary-action"
+              class="uk-button uk-button-primary"
               type="button"
               disabled
               data-umami-event="radius-map-triangulate"
             >Find best-fit point</button>
+            <p id="triangulation-status" class="uk-error" role="alert" hidden></p>
 
-            <div id="triangulation-result" class="triangulation-result rr-block" data-analytics-private aria-live="polite" hidden>
-              <div class="result-heading">
-                <span class="result-symbol" aria-hidden="true"></span>
-                <div>
-                  <strong>Estimated point</strong>
-                  <span id="result-coordinates"></span>
-                </div>
+            <div id="triangulation-result" class="triangulation-result rr-block" data-analytics-private tabindex="-1" hidden>
+              <p class="uk-label">Estimated point</p>
+              <p id="result-coordinates" class="result-coordinates"></p>
+              <dl class="result-stats">
+                <div><dt>Circles used</dt><dd id="result-input-count">0</dd></div>
+                <div><dt>Average error</dt><dd id="result-error">—</dd></div>
+              </dl>
+              <div class="result-actions">
+                <button id="copy-result-button" class="uk-button" type="button">Copy coordinates</button>
+                <button id="use-result-button" class="uk-button uk-button-primary" type="button">Use as centre</button>
               </div>
-              <div class="result-stats">
-                <span><strong id="result-input-count">0</strong> circles</span>
-                <span><strong id="result-error">—</strong> average error</span>
-              </div>
-              <button id="use-result-button" class="secondary-action" type="button">Use as centre</button>
             </div>
-            <p id="triangulation-status" class="field-error" role="alert" hidden></p>
           </section>
         </div>
       </div>
     </section>
 
-    <div id="map-hint" class="map-hint">
-      <span class="hint-pin" aria-hidden="true"></span>
-      <span>Tap the map to place your centre</span>
-    </div>
+    <div id="map" class="map-canvas rr-block" data-analytics-private role="region" aria-label="Interactive radius map"></div>
 
-    <div id="centre-chip" class="centre-chip rr-block" data-analytics-private hidden>
-      <span aria-hidden="true"></span>
-      <strong id="centre-chip-label">Selected centre</strong>
+    <div class="map-overlay-top">
+      <div id="map-hint" class="map-hint" aria-hidden="true">
+        <span class="hint-pin" aria-hidden="true"></span>
+        <span id="map-hint-text">Tap the map to place your centre</span>
+      </div>
+      <div id="centre-chip" class="centre-chip rr-block" data-analytics-private hidden>
+        <span class="chip-mark" aria-hidden="true"></span>
+        <strong id="centre-chip-label">Selected centre</strong>
+        <button id="centre-chip-clear" type="button" aria-label="Clear circle">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
     </div>
   </div>
+
+  <dialog id="sign-in-dialog" class="action-dialog" aria-labelledby="sign-in-dialog-title">
+    <div class="action-dialog-body">
+      <p class="uk-step">Save measurement</p>
+      <h2 id="sign-in-dialog-title">Saving needs a free account</h2>
+      <p id="sign-in-dialog-copy" class="dialog-summary">Your circle will be kept while you sign in, and saving opens when you come back.</p>
+      <div class="uk-actions dialog-actions">
+        <button id="sign-in-dialog-cancel" class="uk-button" type="button">Keep drawing</button>
+        <a id="radius-sign-in-to-save" class="uk-button uk-button-primary" href={signInHref} hidden>Sign in to save</a>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="radius-review-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="radius-review-title">
     <form id="radius-review-form" method="dialog">
       <h2 id="radius-review-title">Review sync changes</h2>
       <div id="radius-review-choices"></div>
-      <p id="radius-review-status" class="field-error" role="alert" hidden></p>
-      <div class="dialog-actions">
-        <button id="radius-review-cancel" class="secondary-action" type="button">Cancel</button>
-        <button id="radius-review-apply" class="primary-action" type="submit">Apply choices</button>
+      <p id="radius-review-status" class="uk-error" role="alert" hidden></p>
+      <div class="uk-actions dialog-actions">
+        <button id="radius-review-cancel" class="uk-button" type="button">Cancel</button>
+        <button id="radius-review-apply" class="uk-button uk-button-primary" type="submit">Apply choices</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="save-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="save-dialog-title">
     <form id="save-form" method="dialog">
-      <div class="dialog-heading">
-        <span class="dialog-mark" aria-hidden="true"></span>
-        <div>
-          <h2 id="save-dialog-title">Save measurement</h2>
-        </div>
+      <h2 id="save-dialog-title">Save measurement</h2>
+      <div class="uk-field">
+        <label class="uk-label" for="measurement-name">Name</label>
+        <input id="measurement-name" class="uk-input" name="name" type="text" maxlength="80" autocomplete="off" required />
       </div>
-      <label for="measurement-name">Name</label>
-      <input id="measurement-name" name="name" type="text" maxlength="80" autocomplete="off" required />
       <p id="save-dialog-summary" class="dialog-summary"></p>
-      <p id="save-dialog-error" class="field-error" role="alert" hidden></p>
-      <div class="dialog-actions">
-        <button id="save-dialog-cancel" class="secondary-action" type="button">Cancel</button>
-        <button id="save-dialog-submit" class="primary-action" type="submit">Save</button>
+      <p id="save-dialog-error" class="uk-error" role="alert" hidden></p>
+      <div class="uk-actions dialog-actions">
+        <button id="save-dialog-cancel" class="uk-button" type="button">Cancel</button>
+        <button id="save-dialog-submit" class="uk-button uk-button-primary" type="submit">Save</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="delete-dialog" class="action-dialog rr-block" data-analytics-private aria-labelledby="delete-dialog-title">
     <form id="delete-form" method="dialog">
-      <div class="dialog-heading danger-heading">
-        <span class="dialog-mark" aria-hidden="true"></span>
-        <div>
-          <p class="step-label">Remove measurement</p>
-          <h2 id="delete-dialog-title">Delete this measurement?</h2>
-        </div>
-      </div>
+      <p class="uk-step danger-step">Delete measurement</p>
+      <h2 id="delete-dialog-title">Delete this measurement?</h2>
       <p id="delete-dialog-copy" class="dialog-summary"></p>
-      <p id="delete-dialog-error" class="field-error" role="alert" hidden></p>
-      <div class="dialog-actions">
-        <button id="delete-dialog-cancel" class="secondary-action" type="button">Cancel</button>
-        <button id="delete-dialog-submit" class="danger-action" type="submit">Delete</button>
+      <p id="delete-dialog-error" class="uk-error" role="alert" hidden></p>
+      <div class="uk-actions dialog-actions">
+        <button id="delete-dialog-cancel" class="uk-button" type="button">Cancel</button>
+        <button id="delete-dialog-submit" class="uk-button uk-button-danger" type="submit">Delete</button>
       </div>
     </form>
   </dialog>

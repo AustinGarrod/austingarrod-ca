@@ -184,33 +184,53 @@ const retiredRadiusSave = JSON.stringify({
 const readRetiredRadiusSave = page => page.evaluate(key => localStorage.getItem(key), retiredRadiusKey);
 const radiusRows = page => page.locator('#saved-list .saved-item');
 const radiusRow = (page, name) => radiusRows(page).filter({ has: page.getByText(name, { exact: true }) });
+// Below 600px the panel is a bottom sheet that rests at a peek without tabs.
+async function expandRadius(page) {
+  const toggle = page.locator('#panel-toggle');
+  if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+}
 async function openRadius(page) {
   await page.goto(origin + radiusPath);
+  await expandRadius(page);
   await page.locator('#saved-tab').click();
 }
-async function saveRadius(page, name, centre) {
-  await page.locator('#create-tab').click();
-  await page.locator('#location-search').fill(centre);
+// Once a centre is chosen the search collapses to one row; Change reopens it.
+async function searchRadius(page, query) {
+  await expandRadius(page);
+  if (await page.locator('#location-change').isVisible()) await page.locator('#location-change').click();
+  await page.locator('#location-search').fill(query);
   await page.locator('#search-button').click();
+}
+async function saveRadius(page, name, centre) {
+  await expandRadius(page);
+  await page.locator('#create-tab').click();
+  await searchRadius(page, centre);
+  await expandRadius(page);
   await page.locator('#save-measurement-button').click();
   await page.locator('#measurement-name').fill(name);
   await page.locator('#save-dialog-submit').click();
   await expect(page.locator('#save-dialog')).toBeHidden();
+  await expandRadius(page);
   await page.locator('#saved-tab').click();
   await expect(radiusRow(page, name)).toBeVisible();
 }
+async function radiusRowAction(page, name, action) {
+  await radiusRow(page, name).getByRole('button', { name: `More actions for ${name}`, exact: true }).click();
+  await radiusRow(page, name).getByRole('button', { name: action, exact: true }).click();
+}
 async function renameRadius(page, original, next) {
-  await radiusRow(page, original).getByRole('button', { name: 'Rename', exact: true }).click();
+  await radiusRowAction(page, original, 'Rename');
   await page.locator('#measurement-name').fill(next);
   await page.locator('#save-dialog-submit').click();
   await expect(page.locator('#save-dialog')).toBeHidden();
   await expect(radiusRow(page, next)).toBeVisible();
 }
 async function deleteRadius(page, name) {
-  await radiusRow(page, name).getByRole('button', { name: 'Delete', exact: true }).click();
+  await radiusRowAction(page, name, 'Delete');
   await page.locator('#delete-dialog-submit').click();
   await expect(page.locator('#delete-dialog')).toBeHidden();
   await expect(radiusRow(page, name)).toHaveCount(0);
+  await expect(page.locator('#app-status')).toHaveText(`Deleted ${name}.`);
 }
 try {
   databaseCommand('create'); created = true;
@@ -228,11 +248,13 @@ try {
     await expect(page.locator('#radius-sign-in')).toBeVisible();
     await expect(radiusRows(page)).toHaveCount(0);
     await page.locator('#create-tab').click();
-    await page.locator('#location-search').fill('43.65, -79.38');
-    await page.locator('#search-button').click();
+    await searchRadius(page, '43.65, -79.38');
     await expect(page.locator('#app-status')).toContainText('entered coordinates');
     await expect(page.locator('#radius-sign-in-to-save')).toHaveAttribute('href', '/account/?returnTo=%2Futilities%2Fradius-map%2F');
-    await expect(page.locator('#save-measurement-button')).toBeHidden();
+    await page.locator('#save-measurement-button').click();
+    await expect(page.locator('#sign-in-dialog')).toContainText('Your circle will be kept');
+    await expect(page.locator('#radius-sign-in-to-save')).toBeVisible();
+    await page.locator('#sign-in-dialog-cancel').click();
     await openBinder(page); await page.locator('#first-dex').click(); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
     await page.locator('#master-new').click();
     await page.locator('#master-set').fill('sv03.5');
@@ -346,8 +368,7 @@ try {
     const geocoder = '**/utilities/radius-map/api/geocode.php?*';
     await desktop.route(geocoder, route => route.fulfill({ json: { results: [{ id: 'fixture', label: 'Test park', lat: 43.65, lng: -79.38 }] } }));
     try {
-      await page.locator('#location-search').fill('Test park');
-      await page.locator('#search-button').click();
+      await searchRadius(page, 'Test park');
       await page.locator('#search-results').getByRole('button', { name: 'Test park' }).click();
       await expect(page.locator('#summary-centre')).toHaveText('Test park');
     } finally {
@@ -355,6 +376,7 @@ try {
     }
     await desktop.grantPermissions(['geolocation'], { origin });
     await desktop.setGeolocation({ latitude: 43.67, longitude: -79.36 });
+    await page.locator('#location-change').click();
     await page.locator('#locate-button').click();
     await expect(page.locator('#app-status')).toContainText('centred on your current location');
     await page.locator('#map').click({ position: { x: 850, y: 430 } });
@@ -368,12 +390,16 @@ try {
     await saveRadius(page, 'Ridge', '43.65, -79.38');
     await saveRadius(page, 'Shared', '43.69, -79.35');
     await saveRadius(page, 'Trail', '43.63, -79.33');
+    await page.locator('#bestfit-tab').click();
+    await expect(page.locator('#triangulation-inputs li')).toHaveCount(3);
     await page.locator('#triangulate-button').click();
     await expect(page.locator('#triangulation-result')).toBeVisible();
+    await expect(page.locator('#triangulation-result')).toBeFocused();
     await expect(page.locator('#radius-sync-status')).toHaveText('Account library synced.');
     await mapMobile.setOffline(false);
     await expect(radiusRows(mapPhone)).toHaveCount(4);
     await expect(mapPhone.locator('#radius-sync-status')).toHaveText('Account library synced.');
+    await page.locator('#saved-tab').click();
     await page.locator('#radius-sync-now').click();
     await expect(radiusRows(page)).toHaveCount(4);
     assert.equal(await mapPhone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Radius Map horizontal overflow');
@@ -482,7 +508,7 @@ try {
     await manage.goto(origin + '/account/');
     await manage.locator('#account-logout').click();
     await expect(manage.locator('#account-signed-out')).toBeVisible();
-    await expect(mapPhone.locator('#radius-library-location')).toHaveText('Sign in to save');
+    await expect(mapPhone.locator('#radius-library-location')).toHaveText('Sign in');
     await expect(radiusRows(mapPhone)).toHaveCount(0);
     await mapMobile.setOffline(true);
     await openRadius(mapPhone);
