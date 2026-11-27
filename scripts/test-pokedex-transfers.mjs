@@ -117,12 +117,12 @@ try {
     await page.locator('#master-switch').selectOption(await set151.getAttribute('value'));
     await page.locator('#master-view-checklist').click();
     const regular = page.locator('[data-checklist-row="001:normal"]');
-    await regular.getByRole('button', { name: 'Mark ordered for #001 · Bulbasaur · Regular' }).click();
+    await page.getByRole('radiogroup', { name: 'Status of #001 · Bulbasaur · Regular' }).getByRole('radio', { name: 'Ordered' }).check();
     await expect(page.locator('#master-ordered')).toHaveText('1');
     await page.locator('#master-status').selectOption('missing');
     await expect(regular).toHaveCount(0);
     await page.locator('#master-status').selectOption('ordered');
-    await expect(regular).toContainText('Ordered');
+    await expect(regular.getByRole('radio', { name: 'Ordered' })).toBeChecked();
     assert.equal(await page.locator('#master-checklist').evaluate(section => section.scrollWidth > section.clientWidth + 1), false, 'Checklist overflow');
     await page.locator('#export-cards').click();
     await page.locator('#card-export-list').selectOption('ordered');
@@ -134,10 +134,10 @@ try {
     assert.match(orderedCsv, /001,Bulbasaur,normal/);
     assert.doesNotMatch(orderedCsv, /001,Bulbasaur,reverse/);
     await page.keyboard.press('Escape');
-    await regular.getByRole('checkbox').check();
+    await regular.getByRole('radio', { name: 'Have it' }).click(); // The ordered filter hides the row once it is collected.
     await expect(page.locator('#master-ordered')).toHaveText('0');
     await page.locator('#master-status').selectOption('owned');
-    await expect(regular.getByRole('checkbox')).toBeChecked();
+    await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
 
     await preview(page, '#import-cards', incoming, 'dex');
     await expect(page.locator('#card-review-summary')).toContainText('3 to add');
@@ -147,10 +147,10 @@ try {
     await expect(page.locator('#owned-count')).toHaveText('3');
     await page.locator('#view-checklist').click();
     const squirtle = page.locator('#checklist-list [data-checklist-row="7"]');
-    await squirtle.getByRole('button', { name: 'Mark ordered for Squirtle' }).click();
+    await squirtle.getByRole('radiogroup', { name: 'Status of Squirtle' }).getByRole('radio', { name: 'Ordered' }).check();
     await page.locator('#dex-filter').selectOption('ordered');
     await expect(page.locator('#ordered-count')).toHaveText('1');
-    await expect(squirtle).toContainText('Ordered');
+    await expect(squirtle.getByRole('radio', { name: 'Ordered' })).toBeChecked();
     await page.locator('#position-list').selectOption('ordered');
     const positionPromise = page.waitForEvent('download');
     await page.locator('#export-csv').click();

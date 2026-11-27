@@ -60,12 +60,18 @@ export function cardPocket(p: Pocket) {
   const id = escape(p.id), ns = p.set ? "set-" : "";
   const title = escape(p.name), number = escape(p.number), finish = escape(p.finish ?? "");
   const art = p.image ? `<img src="${escape(p.image)}" width="64" height="64" loading="lazy" alt=""/>` : "";
+  const tag = p.ordered && !p.owned ? `<span class="dex-pocket-tag">Ordered</span>` : "";
+  const state = p.owned ? "collected" : p.ordered ? "ordered" : "missing";
   return `<div class="dex-pocket ${p.owned ? "owned" : p.ordered ? "ordered" : ""} ${p.selected ? "selected" : ""} ${p.dimmed ? "dimmed" : ""}">
-    <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, row ${p.row}, column ${p.column}. View card references" aria-pressed="${p.selected}">
-      <span class="dex-pocket-number">${number}</span>${art}<span class="dex-pocket-name">${title}</span>${finish ? `<small>${finish}</small>` : ""}</button>
-    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Own ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>${p.owned ? "Collected" : p.ordered ? "Ordered" : "Missing"}</span></label></div>`;
+    <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, ${state}, row ${p.row}, column ${p.column}. View card details" aria-pressed="${p.selected}">
+      <span class="dex-pocket-number">${number}</span>${art}<span class="dex-pocket-name">${title}</span>${finish ? `<small>${finish}</small>` : ""}${tag}</button>
+    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Have ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>Have it</span></label></div>`;
 }
 
-export function orderButton(id: string | number, ordered: boolean, isSet = false) {
-  return `<button type="button" id="${isSet ? "set-" : ""}detail-order" class="dex-order-button" data-${isSet ? "set-" : ""}order="${escape(id)}" data-ordered="${ordered}">${ordered ? "Clear order" : "Mark ordered"}</button>`;
+/** One control for a card's three states: Missing, Ordered and Have it. */
+export function statusControl(key: string | number, status: "missing" | "ordered" | "owned", label: string, isSet = false) {
+  const options = [["missing", "Missing"], ["ordered", "Ordered"], ["owned", "Have it"]] as const;
+  const prefix = isSet ? "set-detail-status-" : "detail-status-";
+  return `<div class="dex-status-control dex-detail-status" role="radiogroup" aria-label="Status of ${escape(label)}">${options.map(([value, text]) =>
+    `<label class="dex-status-option"><input type="radio" id="${prefix}${value}" name="${prefix.slice(0, -1)}" value="${value}" data-${isSet ? "set" : "dex"}-status="${escape(key)}" ${value === status ? "checked" : ""} /><span>${text}</span></label>`).join("")}</div>`;
 }

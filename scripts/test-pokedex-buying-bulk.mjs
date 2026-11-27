@@ -82,8 +82,8 @@ export async function testFullBuyCards(browser, origin) {
       await expect(page.locator("#master-title")).toContainText(name);
       if (set !== "sv03.5") continue;
       if (await page.locator("#master-checklist").isHidden()) await page.locator("#master-view-checklist").click();
-      await page.locator('[data-checklist-row="003:*"]').getByRole("checkbox").check();
-      await page.locator('[data-checklist-row="006:*"]').getByRole("button", { name: /Mark ordered/ }).click();
+      await page.locator('[data-checklist-row="003:*"]').getByRole("radio", { name: "Have it" }).check();
+      await page.locator('[data-checklist-row="006:*"]').getByRole("radio", { name: "Ordered" }).check();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
 

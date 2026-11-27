@@ -39,16 +39,16 @@ const id = (part: string) => prefix + "checklist-" + part;
   <div id={isSet ? "master-list" : id("list")}></div>
   <template id={id("row-template")}>
     <div class="dex-checklist-row">
-      <label class="dex-checklist-mark"><input type="checkbox" /></label>
       <span class="dex-checklist-art"><img width="48" height="48" loading="lazy" alt="" hidden /></span>
       <div class="dex-checklist-identity">
         <span class="dex-label"></span>
         <button type="button" class="dex-checklist-name" aria-pressed="false"></button>
         <span class="dex-label dex-checklist-card-numbers" hidden></span>
-        <div class="dex-checklist-state">
-          <span class="dex-collection-state"></span>
-          <button type="button" class="dex-order-button dex-quiet"></button>
-        </div>
+      </div>
+      <div class="dex-status-control" role="radiogroup">
+        <label class="dex-status-option"><input type="radio" value="missing" /><span>Missing</span></label>
+        <label class="dex-status-option"><input type="radio" value="ordered" /><span>Ordered</span></label>
+        <label class="dex-status-option"><input type="radio" value="owned" /><span>Have it</span></label>
       </div>
       <div class="dex-checklist-location">
         <span>Page <strong></strong></span><span>Row <strong></strong></span><span>Column <strong></strong></span>

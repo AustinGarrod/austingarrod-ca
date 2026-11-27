@@ -50,7 +50,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   list.addEventListener("click", event => {
     const target = event.target as Element;
     const row = target.closest<HTMLElement>("[data-checklist-row]");
-    if (!row || target.closest(".dex-checklist-mark, .dex-checklist-jump, .dex-order-button")) return;
+    if (!row || target.closest(".dex-status-control, .dex-checklist-jump")) return;
     const previous = list.querySelector<HTMLElement>(".selected");
     if (previous && previous !== row) highlight(previous, false);
     selectedKey = row.dataset.checklistRow!;
@@ -80,18 +80,23 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
       row = template.content.firstElementChild!.cloneNode(true) as HTMLElement;
       row.id = rowId;
       row.dataset.checklistRow = key;
-      const box = row.querySelector("input")!;
-      box.id = (isSet ? "set-list-" : "owned-list-") + key;
-      box.dataset[isSet ? "key" : "owned"] = key;
+      for (const radio of row.querySelectorAll<HTMLInputElement>(".dex-status-control input")) {
+        radio.name = (isSet ? "set-list-status-" : "list-status-") + key;
+        // "Have it" keeps the id and data attribute of the checkbox it replaced.
+        radio.id = radio.value === "owned" ? (isSet ? "set-list-" : "owned-list-") + key : (isSet ? "set-list-" : "list-") + radio.value + "-" + key;
+        radio.dataset[isSet ? "setStatus" : "dexStatus"] = key;
+        if (radio.value === "owned") radio.dataset[isSet ? "key" : "owned"] = key;
+      }
       row.querySelector<HTMLButtonElement>(".dex-checklist-jump")!.dataset[isSet ? "setJump" : "goto"] = key;
     }
     row.classList.toggle("owned", entry.owned);
     row.classList.toggle("ordered", entry.ordered);
     highlight(row, selectedKey === key);
     const actionLabel = entry.actionLabel ?? entry.name;
-    const box = row.querySelector("input")!;
-    box.checked = entry.owned;
-    box.setAttribute("aria-label", "Own " + actionLabel);
+    const status = entry.owned ? "owned" : entry.ordered ? "ordered" : "missing";
+    for (const radio of row.querySelectorAll<HTMLInputElement>(".dex-status-control input")) radio.checked = radio.value === status;
+    const group = row.querySelector(".dex-status-control")!;
+    if (group.getAttribute("aria-label") !== "Status of " + actionLabel) group.setAttribute("aria-label", "Status of " + actionLabel);
     const name = row.querySelector(".dex-checklist-name")!;
     setText(name, entry.name);
     name.setAttribute("aria-label", "Highlight " + actionLabel);
@@ -99,15 +104,6 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     const detail = row.querySelector<HTMLElement>(".dex-checklist-card-numbers")!;
     setText(detail, entry.detail ?? "");
     detail.hidden = !entry.detail;
-    const label = row.querySelector<HTMLElement>(".dex-collection-state")!;
-    setText(label, entry.owned ? "Collected" : entry.ordered ? "Ordered" : "Missing");
-    const order = row.querySelector<HTMLButtonElement>(".dex-order-button")!;
-    order.hidden = entry.owned;
-    order.dataset[isSet ? "setOrder" : "order"] = key;
-    order.dataset.ordered = String(entry.ordered);
-    const orderAction = entry.ordered ? "Clear order" : "Mark ordered";
-    setText(order, orderAction);
-    order.setAttribute("aria-label", orderAction + " for " + actionLabel);
     const image = row.querySelector("img")!;
     if (image.getAttribute("src") !== (entry.image ?? null)) {
       if (entry.image) image.setAttribute("src", entry.image);

@@ -72,10 +72,10 @@ async function checkSetChecklist(page, width) {
   await expect(rows).toHaveCount(2);
   const location = reverse.locator('.dex-checklist-location');
   await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
-  await regular.getByRole('checkbox').check();
+  await regular.getByRole('radio', { name: 'Have it' }).check();
   await status.selectOption('owned');
   await expect(rows).toHaveCount(1);
-  await expect(regular.getByRole('checkbox')).toBeChecked();
+  await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
   await status.selectOption('missing');
   await expect(rows).toHaveCount(1);
   await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
@@ -85,7 +85,7 @@ async function checkSetChecklist(page, width) {
   await finish.selectOption({ label: 'Reverse holo' });
   await expect(rows).toHaveCount(1);
   await hideCollected.check();
-  await reverse.getByRole('checkbox').click();
+  await reverse.getByRole('radio', { name: 'Have it' }).click();
   await expect(rows).toHaveCount(0);
   await expect(workspace.locator('#master-list')).toContainText('No cards match');
   await clear.click();
@@ -95,8 +95,8 @@ async function checkSetChecklist(page, width) {
   await expect(rows).toHaveCount(100);
   await search.fill('#001');
   await expect(rows).toHaveCount(2);
-  await expect(regular.getByRole('checkbox')).toBeChecked();
-  await expect(reverse.getByRole('checkbox')).toBeChecked();
+  await expect(regular.getByRole('radio', { name: 'Have it' })).toBeChecked();
+  await expect(reverse.getByRole('radio', { name: 'Have it' })).toBeChecked();
   await expect(location).toHaveAttribute('aria-label', 'Page 1 · Row 1, column 2');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Set checklist fits the viewport');
   await page.screenshot({ path: `output/pokedex-checklist/set-${width}.png` });
@@ -132,7 +132,7 @@ async function checkSetOverview(page, width) {
     await page.locator('#master-extra-form').getByRole('button', { name: 'Add extra' }).click();
     await expect(page.locator('#master-extra-dialog')).toBeHidden();
   }
-  await workspace.getByRole('checkbox', { name: /Own.*Signed copy/ }).check();
+  await workspace.getByRole('radiogroup', { name: /Signed copy/ }).getByRole('radio', { name: 'Have it' }).check();
   await workspace.locator('[data-key="1:*"]').check();
   await expect(page.locator('#master-progress')).toHaveText('1 / 6');
   await expect(page.locator('#master-optional')).toHaveText('1 / 1');
@@ -176,7 +176,7 @@ async function checkSetOverview(page, width) {
   await expect(overview).toBeHidden();
   await expect(page.locator('#master-title')).toContainText('Futsal numbers');
   await workspace.getByRole('button', { name: 'Checklist', exact: true }).click();
-  await workspace.getByRole('checkbox', { name: /Own.*Prize card/ }).check();
+  await workspace.getByRole('radiogroup', { name: /Prize card/ }).getByRole('radio', { name: 'Have it' }).check();
   await expect(page.locator('#master-progress')).toHaveText('2 / 6');
   await openOverview.click();
   await expectBinder('151 checklist', 2, 360);
@@ -206,7 +206,7 @@ async function checkAnniversaryExpansion(page, documents) {
     'src', 'https://assets.tcgdex.net/en/me/30th/001/low.webp');
   await workspace.locator(`[data-key="${mainKey}"]`).check();
   await workspace.locator(`[data-set-open="${orderedKey}"]`).click();
-  await workspace.getByRole('button', { name: 'Mark ordered', exact: true }).click();
+  await page.locator('#master-pokemon-details').getByRole('radio', { name: 'Ordered' }).check();
   await expect(ordered).toHaveText('1');
   await page.locator('#master-settings').click();
   await full.check();
@@ -354,7 +354,7 @@ try {
     holdPatch = new Promise(resolve => { releasePatch = resolve; });
     await page.locator('#owned-list-63').check();
     await expect(abra).toHaveClass(/owned/);
-    await expect(abra.getByText('Collected', { exact: true })).toBeVisible();
+    await expect(abra.getByRole('radio', { name: 'Have it' })).toBeChecked();
     await expect(page.locator('#dex-status')).not.toHaveText('Synced · Saved on this device');
     await abra.locator('.dex-checklist-name').evaluate(node => {
       const range = document.createRange(); range.selectNodeContents(node);
@@ -406,7 +406,7 @@ try {
     await expect(page.locator('#open-grid-63')).toHaveAttribute('aria-label', /row 4, column 3/);
     await page.locator('#view-checklist').click();
     await expect(page.locator('#checklist-set')).toHaveValue('mew');
-    await page.locator('#owned-list-63').uncheck();
+    await page.locator('#list-missing-63').check();
     await page.locator('#checklist-set').fill('151 (MEW)');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, 'No horizontal overflow');
     await page.screenshot({ path: `output/pokedex-checklist/${width}.png` });

@@ -1,5 +1,5 @@
 import type { SetScan } from "./scanner";
-import { binderPages, blankPocket, cardPocket, escape, orderButton, showDetailsSheet } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, escape, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { renderSetOverview, type OverviewBinder } from "./set-overview";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
@@ -412,8 +412,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     node("master-binder-view").classList.toggle("has-details", !detail.hidden);
     detail.innerHTML = detail.hidden || !selected ? "" : `<div class="dex-detail-hero">${image(selected)}<div><p class="dex-eyebrow">${escape(sourceSet(selected)?.code || selected.sourceSetId || b.setId)} · ${escape(selected.number)}</p><h2>${escape(selected.name)}</h2><p>${escape(finishLabel(selected))}</p></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(identity(selected))}">×</button></div>
       <div class="dex-detail-body"><div class="dex-location">${[["Page",selected.page],["Row",selected.row],["Column",selected.column],["Sheet",selected.sheet + " · " + (selected.side === "back" ? "Back" : "Front")]].map(([label,value])=>`<div><span class="dex-label">${label}</span><strong>${value}</strong></div>`).join("")}</div>
-      <label class="dex-owned-label"><input type="checkbox" id="set-detail-owned" data-detail-key="${escape(selected.key)}" ${selected.owned ? "checked" : ""}> I have this printing</label><div class="dex-actions">${selected.owned ? "" : orderButton(selected.key, selected.ordered, true)}
-      ${selected.category === "Extra" ? "" : '<button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button>'}</div></div>`;
+      ${statusControl(selected.key, selected.status, identity(selected), true)}
+      ${selected.category === "Extra" ? "" : '<div class="dex-actions"><button id="set-card-prices" type="button" aria-haspopup="dialog">Prices and offers</button></div>'}</div>`;
     if (focused && document.activeElement === document.body) document.getElementById(focused)?.focus({preventScroll:true});
   }
   async function specialties() {
@@ -728,15 +728,6 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       });
       return;
     }
-    const order = (event.target as Element).closest<HTMLButtonElement>("[data-set-order]");
-    if (order) {
-      order.disabled = true;
-      try {
-        await edit(b => setSlotStatus(b, order.dataset.setOrder!, order.dataset.ordered === "true" ? "missing" : "ordered"));
-      } catch (error) { report(error); }
-      finally { order.disabled = false; }
-      return;
-    }
     const btn = (event.target as Element).closest<HTMLElement>("[data-set-open],[data-set-jump]");
     const b = active(); if (!btn || !b) return;
     const slot = progress(b).all.find(s => s.key === (btn.dataset.setOpen ?? btn.dataset.setJump));
@@ -756,7 +747,12 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   }
   node("master-workspace").addEventListener("change", (event) => {
     const box = event.target as HTMLInputElement;
-    const key = box.dataset.key ?? box.dataset.detailKey;
+    const statusKey = box.dataset.setStatus;
+    if (statusKey) {
+      if (box.checked) void edit((b) => setSlotStatus(b, statusKey, box.value as CardStatus)).catch(error => { report(error); void render(); });
+      return;
+    }
+    const key = box.dataset.key;
     if (!key) return;
     const checked = box.checked;
     void edit((b) => markSlot(b, key, checked)).catch((e) => {

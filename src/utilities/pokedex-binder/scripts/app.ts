@@ -1,10 +1,10 @@
 import { combinedCsv, nationalCsv, setListCsv, type BinderList } from "../lib/list-export";
 import { printLists } from "./print-list";
-import { binderPages, blankPocket, cardPocket, orderButton, showDetailsSheet } from "./binder-pages";
+import { binderPages, blankPocket, cardPocket, showDetailsSheet, statusControl } from "./binder-pages";
 import { binderChecklist } from "./binder-checklist";
 import { createMasterUI } from "./master-ui";
 import { validateMaster } from "../lib/master";
-import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type Species } from "../lib/model";
+import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type CardStatus, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
 import { accountHref } from "../../../../packages/accounts/client";
@@ -341,10 +341,7 @@ async function initialize() {
     const item = species.find(candidate => candidate.id === selected);
     if (!item) return;
     const loc = locationFor(item.id, snapshot.state.settings, species);
-    details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(item.name)}">×</button></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div><div><span class="dex-label">Sheet</span><strong>${loc.sheet} · ${titleCase(loc.side)}</strong></div></div><label class="dex-owned-label"><input id="detail-owned" type="checkbox" data-owned="${item.id}" ${snapshot.state.ownedDexIds.includes(item.id) ? "checked" : ""} /> I have a card for this slot</label><h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
-    if (!snapshot.state.ownedDexIds.includes(item.id)) {
-      details.querySelector(".dex-owned-label")?.insertAdjacentHTML("afterend", orderButton(item.id, snapshot.state.orderedDexIds?.includes(item.id) ?? false));
-    }
+    details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(item.name)}">×</button></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div><div><span class="dex-label">Sheet</span><strong>${loc.sheet} · ${titleCase(loc.side)}</strong></div></div>${statusControl(item.id, cardStatus(snapshot.state.ownedDexIds.includes(item.id), snapshot.state.orderedDexIds?.includes(item.id) ?? false), item.name)}<h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
     renderPrintings();
   }
   function renderPrintings() {
@@ -462,7 +459,7 @@ async function initialize() {
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
 
   document.addEventListener("click", event => {
-    const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-close-details],[data-order]");
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-close-details]");
     if (!button) return;
     if (button.hasAttribute("data-pokemon")) {
       const id = Number(button.dataset.pokemon);
@@ -473,7 +470,6 @@ async function initialize() {
     }
     if (button.hasAttribute("data-goto")) goToPokemon(Number(button.dataset.goto));
     if (button.hasAttribute("data-close-dialog")) button.closest("dialog")?.close();
-    if (button.dataset.order) void action(() => controller.setStatus(Number(button.dataset.order), button.dataset.ordered === "true" ? "missing" : "ordered"), button);
   });
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape" || event.defaultPrevented || document.querySelector("dialog[open]")) return;
@@ -484,6 +480,10 @@ async function initialize() {
   });
   document.addEventListener("change", event => {
     const input = event.target as HTMLInputElement;
+    if (input.matches("[data-dex-status]")) {
+      if (input.checked) void action(() => controller.setStatus(Number(input.dataset.dexStatus), input.value as CardStatus));
+      return;
+    }
     if (input.matches("[data-owned]")) void action(() => controller.setOwned(Number(input.dataset.owned), input.checked));
   });
   details.addEventListener("input", event => { if ((event.target as HTMLElement).id === "printing-search") { printingQuery = (event.target as HTMLInputElement).value; renderPrintings(); } });

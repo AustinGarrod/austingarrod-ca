@@ -224,8 +224,8 @@ try {
       await page.getByRole("button", { name: "Save binder", exact: true }).click();
       await expect(page.locator("#master-title")).toContainText(name);
       if (await page.locator("#master-checklist").isHidden()) await page.locator("#master-view-checklist").click();
-      await page.locator('[data-checklist-row="001:normal"]').getByRole("checkbox").check();
-      await page.locator('[data-checklist-row="001:reverse"]').getByRole("button", { name: /Mark ordered/ }).click();
+      await page.locator('[data-checklist-row="001:normal"]').getByRole("radio", { name: "Have it" }).check();
+      await page.locator('[data-checklist-row="001:reverse"]').getByRole("radio", { name: "Ordered" }).check();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
     const buying = page.locator("#buy-cards-workspace");
