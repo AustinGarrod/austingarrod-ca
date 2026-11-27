@@ -113,10 +113,12 @@ interface MapAppProps {
   onCompanionTrackingChange?: (enabled: boolean) => void
   onReferenceGuard?: (guard: () => boolean) => void
   onCompanionRecovery?: () => void
+  /** Called when Install & offline closes, so a shell that opened it from another section can return there. */
+  onInstallClosed?: () => void
   /** Checkpoint and comparison sessions are owned by the shell so Data & backup can include them. */
   references: MapReferenceSessions
 }
-function Atlas({ catalog, transferInbox, active = true, embedded = false, onActions, requestedUpgrade, onCompanionImport, onCompanionReset, onCompanionExport, onCompanionTrackingChange, onReferenceGuard, onCompanionRecovery, references }: MapAppProps) {
+function Atlas({ catalog, transferInbox, active = true, embedded = false, onActions, requestedUpgrade, onCompanionImport, onCompanionReset, onCompanionExport, onCompanionTrackingChange, onReferenceGuard, onCompanionRecovery, references, onInstallClosed }: MapAppProps) {
   const { session: profileSession, state: sessionState, loaded } = useProfileSession(catalog.revision, {
     onState: (state) => { currentProfile.current = state.profile },
     onErrorChange: (state, recovered) => {
@@ -405,6 +407,8 @@ function Atlas({ catalog, transferInbox, active = true, embedded = false, onActi
     if (next) setMessage('')
     if (previous === 'privacy' && next !== 'privacy') trackingChangeRequest.current++
     if (previous === 'install' && next !== 'install') cancelAppReload()
+    // Closing Install & offline returns the shell to the section it was opened from.
+    if (previous === 'install' && next === null) onInstallClosed?.()
     if (previous && previous !== 'reference-sheet') trackEvent('panel_closed', { panel: previous })
     if (next && next !== 'reference-sheet') trackEvent('panel_opened', { panel: next })
     if (next === 'recommendations') trackEvent('recommendations_viewed', { reason: recommendationStatus === 'fallback' ? 'catalog-fallback' : recommendationStatus })

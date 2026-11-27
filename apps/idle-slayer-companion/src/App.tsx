@@ -24,7 +24,9 @@ import { SessionHistoryControls } from './SessionHistoryControls'
 import { PrivacyPanel, startupDisclosure } from './PrivacyPanel'
 import { Dialog } from './MapDialog'
 import { InstallPanel } from './InstallPanel'
-import { ANALYTICS_PREFERENCE_KEY, getTrackingStatus, setTrackingPreference, trackEvent } from './analytics'
+import { ANALYTICS_PREFERENCE_KEY, getTrackingStatus, isMigrationLanding, setTrackingPreference, trackEvent } from './analytics'
+import { recommendUpgrades } from './domain/recommendations'
+import { schemaVersion as wikiSchemaVersion, source as wikiSource, rows as wikiRows } from './data/wiki-priorities.json'
 import { repairOffline } from './pwa'
 import type { ProgressTransferInbox } from './progress-transfer-inbox'
 import { getUpgradeReference, subscribeUpgradeReference } from './upgrade-reference-receiver'
@@ -107,6 +109,7 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   const [undoHighlight, setUndoHighlight] = useState(false)
   useEffect(() => { if (!undoHighlight) return; const timer = window.setTimeout(() => setUndoHighlight(false), 6000); return () => window.clearTimeout(timer) }, [undoHighlight])
   const mapActions = useRef<MapActions | null>(null)
+  const installReturn = useRef<CompanionSection | null>(null)
   // A shell request that runs once the mounted map is the active section.
   const [mapRequest, setMapRequest] = useState<{ run: (actions: MapActions) => boolean } | null>(null)
   // Checkpoints and the saved comparison live with the shell so Data & backup can include them.
@@ -151,6 +154,17 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   const previewBefore = preview?.kind === 'local-recovery' && state.conflict?.kind === 'valid' ? state.conflict.progress : state.progress
   const resetTree = map && preview?.kind === 'reset' ? planUltraAscension(map, state.profile) : null
   const uaEligible = map ? planUltraAscension(map, state.profile) !== null : false
+  // The guided arrival from the old GitHub Pages copy, read once at startup.
+  const [migrationArrival] = useState(isMigrationLanding)
+  // Overview summary: visible-only Ascension totals and the same next suggestion the map offers.
+  const recommendation = useMemo(() => map ? recommendUpgrades(map, state.profile, { schemaVersion: wikiSchemaVersion, source: wikiSource, rows: wikiRows }, { limit: 1 }) : null, [map, state.profile])
+  const ascensionSummary = map && visibleMap ? {
+    owned: visibleMap.upgrades.filter((upgrade) => Object.hasOwn(state.profile.purchases, upgrade.id)).length,
+    total: visibleMap.upgrades.length,
+    next: recommendation?.suggestions[0] ? { id: recommendation.suggestions[0].upgrade.id, title: recommendation.suggestions[0].upgrade.title, cost: recommendation.suggestions[0].cost, basis: recommendation.suggestions[0].basis === 'wiki' ? `Wiki priority · ${recommendation.suggestions[0].tier}` : 'Catalog order (no wiki rank)' } : undefined,
+    status: recommendation?.status ?? 'blocked',
+    source: { label: wikiSource.label, url: wikiSource.revisionUrl, license: wikiSource.license },
+  } : undefined
   function navigate(next: CompanionSection, ref?: CompanionEntityRef) {
     reportingAction('navigation', { section: next })
     if (!cancelRepair()) return
@@ -172,7 +186,8 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
       setFeedback('Finish or cancel the current dialog before opening Install & offline.')
       return
     }
-    if (map) openMapTool('openInstall')
+    // Install & offline is a settings-style dialog: remember where it was opened and return there on close.
+    if (map) { installReturn.current = section === 'ascension' ? null : section; openMapTool('openInstall') }
     else open('install')
   }
   function open(next: Panel) { if (next && !panel) openedFrom.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; if (!cancelRepair()) return; if (panel === 'import' && next !== 'import') trackEvent('game_import_cancelled'); if (next === 'import' && panel !== 'import') trackEvent('game_import_started'); if (next === 'settings') setTracking(getTrackingStatus()); window.dispatchEvent(new Event('companion-panel')); request.current++; if (next !== 'settings') setReferencesBlocked(false); setPreview(null); setWorkspaceReview(null); setWorkspaceRestore(null); setReloadAction(null); setFeedback(''); setBusy(false); setPanel(next) }
@@ -390,10 +405,10 @@ function Companion({ catalogs, transferInbox, initialMapIntent, accountControls 
   </>
 
   return <CompanionProfileContext.Provider value={session}><CompanionMapGoalsContext.Provider value={goalController}>
-    <CompanionShell section={section} onNavigate={navigate} onData={() => open('data')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} saveNote={saveNote} notice={runtimeDeployment.target === 'legacy-migration' || section === 'overview' ? <MigrationGuide /> : undefined}
-      ascension={map ? <MapApp embedded onActions={(actions) => { mapActions.current = actions }} catalog={map} transferInbox={transferInbox} active={section === 'ascension'} requestedUpgrade={inspection?.ref.system === 'ascension' ? { id: inspection.ref.id, sequence: inspection.sequence } : undefined} onCompanionImport={() => open('import')} onCompanionReset={startReset} onCompanionExport={exportProgress} onCompanionRecovery={() => open('data')} references={mapReferences} onCompanionTrackingChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} onReferenceGuard={(guard) => { referenceGuard.current = guard }} /> : <div className="loading"><h2>Ascension catalog unavailable</h2><p>The reviewed tree could not be loaded. Other companion sections remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalog</button></div>}>
+    <CompanionShell section={section} onNavigate={navigate} onData={() => open('data')} onSettings={() => open('settings')} onHelp={() => open('help')} onInstall={openInstallation} status={status} saveNote={saveNote} notice={runtimeDeployment.target === 'legacy-migration' || (section === 'overview' && migrationArrival) ? <MigrationGuide /> : undefined}
+      ascension={map ? <MapApp embedded onActions={(actions) => { mapActions.current = actions }} catalog={map} transferInbox={transferInbox} active={section === 'ascension'} requestedUpgrade={inspection?.ref.system === 'ascension' ? { id: inspection.ref.id, sequence: inspection.sequence } : undefined} onCompanionImport={() => open('import')} onCompanionReset={startReset} onCompanionExport={exportProgress} onCompanionRecovery={() => open('data')} references={mapReferences} onInstallClosed={() => { const back = installReturn.current; installReturn.current = null; if (back) navigate(back) }} onCompanionTrackingChange={(enabled) => { void requestReload({ kind: 'tracking', enabled }) }} onReferenceGuard={(guard) => { referenceGuard.current = guard }} /> : <div className="loading"><h2>Ascension catalog unavailable</h2><p>The reviewed tree could not be loaded. Other companion sections remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalog</button></div>}>
       {!companion ? <section className="loading"><h2>Companion data unavailable</h2><p>The reviewed companion catalog could not be loaded. Stored progress and Ascension remain available.</p><button onClick={() => { void requestReload({ kind: 'catalog' }) }}>Retry catalogs</button></section> : <>
-        <CompanionModules busy={state.pending} section={section === 'ascension' ? 'overview' : section} entities={entities} progress={state.progress} onRecord={record} onTrack={(system, tracked) => session.command(state.version, (progress) => ({ ...progress, modules: { ...progress.modules, [system]: { ...progress.modules[system], tracked } } }), 'companion_record')} pinnedRefs={pinnedRefs} onPinGoal={(ref) => { const goals = workspace.workspace.goals; workspace.edit({ ...workspace.workspace, goals: pinnedRefs.has(entityKey(ref)) ? goals.filter((goal) => entityKey(goal.ref) !== entityKey(ref)) : [...goals, { ref, mode: ref.system === 'ascension' ? 'acquire' : ref.system === 'divinity' ? 'select' : ref.system === 'enemy' ? 'mastery' : 'complete' }] }) }} onNavigate={navigate} recipePlans={workspace.workspace.recipePlans} onRecipePlan={(id, quantity) => { const recipePlans = { ...workspace.workspace.recipePlans }; if (!quantity || quantity === '0') delete recipePlans[id]; else recipePlans[id] = quantity; workspace.edit({ ...workspace.workspace, recipePlans }) }} referenceEntries={references} goalEntries={goalEntries} entityStates={entityStates} focusedRef={inspection?.ref} ultraAscension={map ? { count: state.profile.epoch, eligible: uaEligible, onRecord: startReset } : undefined} spoilers={{ shown: state.profile.showSpoilers, onChange: (shown) => session.applyProfile({ ...state.profile, showSpoilers: shown }, false, "spoilers") }} />
+        <CompanionModules busy={state.pending} section={section === 'ascension' ? 'overview' : section} entities={entities} progress={state.progress} onRecord={record} onTrack={(system, tracked) => session.command(state.version, (progress) => ({ ...progress, modules: { ...progress.modules, [system]: { ...progress.modules[system], tracked } } }), 'companion_record')} pinnedRefs={pinnedRefs} onPinGoal={(ref) => { const goals = workspace.workspace.goals; workspace.edit({ ...workspace.workspace, goals: pinnedRefs.has(entityKey(ref)) ? goals.filter((goal) => entityKey(goal.ref) !== entityKey(ref)) : [...goals, { ref, mode: ref.system === 'ascension' ? 'acquire' : ref.system === 'divinity' ? 'select' : ref.system === 'enemy' ? 'mastery' : 'complete' }] }) }} onNavigate={navigate} recipePlans={workspace.workspace.recipePlans} onRecipePlan={(id, quantity) => { const recipePlans = { ...workspace.workspace.recipePlans }; if (!quantity || quantity === '0') delete recipePlans[id]; else recipePlans[id] = quantity; workspace.edit({ ...workspace.workspace, recipePlans }) }} referenceEntries={references} goalEntries={goalEntries} entityStates={entityStates} focusedRef={inspection?.ref} ultraAscension={map ? { count: state.profile.epoch, eligible: uaEligible, onRecord: startReset } : undefined} spoilers={{ shown: state.profile.showSpoilers, onChange: (shown) => session.applyProfile({ ...state.profile, showSpoilers: shown }, false, "spoilers") }} onImport={() => open("import")} ascensionSummary={ascensionSummary} />
       </>}
     </CompanionShell>
     {panel && <Dialog key={panel} dismissDisabled={repairLocked} closeOnBackdrop={panel === 'help' || (panel === 'settings' && reloadAction === null) || (panel === 'install' && !repairing)} returnFocus={() => openedFrom.current?.isConnected && openedFrom.current !== document.body ? openedFrom.current : document.querySelector<HTMLButtonElement>('.companion-data-button')} title={panel === 'import' ? 'Import save' : panel === 'data' ? 'Data & backup' : panel === 'clear' ? 'Clear all recorded progress' : panel === 'settings' ? 'Privacy & tracking' : panel === 'install' ? 'Install & offline' : panel === 'reset' ? 'Review companion Ultra Ascension' : panel === 'correction' ? 'Review shared item correction' : 'About & sources'} close={() => open(null)}><div className="companion-operation telemetry-private rr-block">
