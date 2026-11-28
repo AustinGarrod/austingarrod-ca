@@ -25,7 +25,7 @@ import {
   type SetSummary,
 } from "../lib/master";
 import type { BinderAccountState } from "../lib/accounts";
-import { conflictInvolvesDelete, type MasterStore } from "../lib/master-store";
+import { conflictInvolvesDelete, type MasterStore, type SetSave } from "../lib/master-store";
 import { validateSettings, type CardStatus } from "../lib/model";
 import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
 import { binderCards, binderSetIds, loadBinderCards, relatedSets, setCardKey } from "../lib/binder-catalog";
@@ -149,40 +149,49 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     event.preventDefault();
     event.returnValue = true;
   }
-  async function change(fn: (doc: MasterState) => void) {
+  async function change(fn: (doc: MasterState) => void, signal?: AbortSignal) {
     const target = scope;
     const generation = accountVersion;
     let changed = false;
+    let saved: SetSave;
     if (++pendingEdits === 1) window.addEventListener("beforeunload", waitForLocalSave);
     try {
-      await store.update(target, (save) => {
+      saved = await store.update(target, (save) => {
         const before = target === "guest" ? structuredClone(save.state) : null;
         fn(save.state);
         changed = before !== null && !sameSave(before, save.state);
-      });
+      }, signal);
       if (changed && generation === accountVersion) pricing.guestEditSaved();
     } finally {
       if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
     }
     if (target === scope) {
-      await refresh();
+      if (signal) {
+        // The committed transaction already returned the saved state. The scanner can
+        // continue without another database read or waiting for binder rendering.
+        readVersion++;
+        void showSave(saved, target).catch(report);
+      } else await refresh();
       schedule();
     }
     channel?.postMessage(target);
   }
-  function edit(fn: (b: SetBinder) => void) {
+  function edit(fn: (b: SetBinder) => void, signal?: AbortSignal) {
     const binderId = id;
     return change((doc) => {
       const b = doc.binders.find((b) => b.id === binderId);
       if (!b) throw new Error("Reopen the set binder.");
       fn(b);
-    });
+    }, signal);
   }
   async function refresh() {
     const ticket = ++readVersion,
       target = scope,
       save = await store.read(target);
     if (ticket !== readVersion || target !== scope) return;
+    await showSave(save, target);
+  }
+  async function showSave(save: SetSave, target: string) {
     const changed = !sameSave(state, save.state);
     state = save.state;
     if (changed) pricing.bindersChanged();
@@ -921,12 +930,12 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     return openScan({
       printedTotal: sets.find(s => s.id === current()?.setId)?.printedTotal ?? null,
       slots() { const b = current(); return b ? progress(b).all : []; },
-      mark(key) {
+      mark(key, signal) {
         if (!current()) throw new Error("Reopen the scanner for this binder.");
         return edit(b => {
           if (!setSlots(b, cachedBinderCards(b)).some(s => s.key === key)) throw new Error("Printing changed.");
           markSlot(b,key,true);
-        });
+        }, signal);
       },
     });
   });

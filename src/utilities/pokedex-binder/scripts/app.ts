@@ -129,7 +129,7 @@ async function initialize() {
   function closeScanner() { scanner?.close(); }
   function openScanner(target?: SetScan) {
     try {
-      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => tracked(() => recordEdit(() => controller.setOwned(id, true))) });
+      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: (id, signal) => tracked(() => recordEdit(() => controller.setOwned(id, true, signal))) });
       scanner.open(target);
     } catch {
       scanDialog.dataset.phase = "load-error";

@@ -1,4 +1,5 @@
 import { defaultState, record, validateSettings, validateState, type BinderSettings, type BinderState, type Species } from "./model";
+import { abortWriteOnSignal } from "./abort-write";
 
 export interface InFlightMutation { sequence: number; baseRevision: number; baseline: BinderState; state: BinderState; operationId?: string; preservePrevious?: true }
 export interface SyncSession {
@@ -146,7 +147,8 @@ export class BinderStore {
     if (raw !== undefined) { this.current = validateDocument(raw, this.options.species); this.lastPersisted = copyDocument(this.current); this.changeNumber++; }
     this.emit(false); return this.read();
   }
-  async update(change: (doc: StoredBinder) => StoredBinder, broadcast = true, requirePersistence = false): Promise<StoredBinder> {
+  async update(change: (doc: StoredBinder) => StoredBinder, broadcast = true, requirePersistence = false, signal?: AbortSignal): Promise<StoredBinder> {
+    if (signal?.aborted) throw signal.reason;
     if (!this.database) {
       if (requirePersistence) throw new Error("Browser storage is unavailable. Reopen the binder and try again.");
       this.current = validateDocument(change(copyDocument(this.current)), this.options.species);
@@ -158,6 +160,7 @@ export class BinderStore {
     try {
       await new Promise<void>((resolve, reject) => {
         const tx = this.database!.transaction("binder", "readwrite"), store = tx.objectStore("binder"), request = store.get("main");
+        abortWriteOnSignal(tx, signal);
         request.onsuccess = () => {
           try {
             const doc = request.result === undefined ? copyDocument(this.current) : validateDocument(request.result, this.options.species);
@@ -173,6 +176,7 @@ export class BinderStore {
       this.current = next!;
       this.lastPersisted = copyDocument(this.current); this.changeNumber++;
     } catch {
+      if (signal?.aborted) throw signal.reason;
       if (rejectedChange) throw rejectedChange;
       this.database?.close(); this.database = null;
       // Never replace unreadable persisted bytes with a fresh default document.

@@ -8,11 +8,11 @@ import { scanCardId } from "../lib/scan-set";
 import { bindScanFlash } from "./scan-flash";
 import { reportFailure, reportState } from "../../../reporting/browser";
 
-interface ScannerOptions { species: Species[]; getSnapshot(): BinderSnapshot; markOwned(id: number): Promise<void> }
+interface ScannerOptions { species: Species[]; getSnapshot(): BinderSnapshot; markOwned(id: number, signal: AbortSignal): Promise<void> }
 export interface SetScan {
   printedTotal: number | null;
   slots(): (Slot & PocketLocation)[];
-  mark(key: string): Promise<void>;
+  mark(key: string, signal: AbortSignal): Promise<void>;
 }
 export interface CardScanner { open(set?: SetScan): void; close(): void; refresh(): void; isNational(): boolean }
 type Phase = "closed" | "starting" | "scanning" | "recognizing" | "result" | "paused" | "error";
@@ -27,18 +27,19 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   const attachFlash = bindScanFlash(node<HTMLButtonElement>("scan-flash"), node("scan-flash-notice"));
   let phase: Phase = "closed", generation = 0, timer: ReturnType<typeof setTimeout> | null = null;
   let stream: MediaStream | null = null, recognizer: CardRecognizer | null = null, gate = new CaptureGate();
-  let selected: number | null = null, saving = false, failures = 0;
+  let selected: number | null = null, saving: { finish?: string } | null = null, failures = 0;
   let resumeAfterManual = false;
   let set: SetScan | undefined;
   const setQuery = node<HTMLInputElement>("master-scan-search");
   let candidateIds: string[] = [], selectedCard: string | undefined;
+  let finishButtons = "";
   function showSetResult(ids: string[]) {
     setPhase("result");
-    node("scan-notice").textContent = "";
+    resultNotice = "";
     candidateIds = ids;
     selectedCard = ids.length === 1 ? ids[0] : undefined;
     setQuery.value = "";
-    refreshSet();
+    refresh();
     say(selectedCard ? node("set-scan-name").textContent || "Card identified." : "Choose a card.");
     if (!ids.length) setQuery.focus();
     else (node("set-scan-result").querySelector<HTMLButtonElement>("[data-finish]:enabled, [data-scan-card]") ?? node("set-scan-next")).focus({ preventScroll: true });
@@ -59,19 +60,22 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       return `<button type="button" data-finish="${escape(s.key)}" data-collected="${s.owned}" ${saving || s.owned ? "disabled" : ""} class="${single ? "dex-primary" : ""}">
         <span class="dex-scan-finish-name"><strong>${escape(s.finish)}</strong>${s.ordered ? "<small>Ordered</small>" : ""}</span>
         <small class="dex-scan-finish-location">Page ${s.page} · Row ${s.row} · Column ${s.column}</small>
-        <span class="dex-scan-finish-action">${s.owned ? "Already collected" : "Mark collected"}</span></button>`;
+        <span class="dex-scan-finish-action">${saving?.finish === s.key ? "Saving…" : s.owned ? "Already collected" : "Mark collected"}</span></button>`;
     }).join("");
-    node("set-scan-finishes").innerHTML = buttons;
+    if (finishButtons !== buttons) {
+      finishButtons = buttons;
+      node("set-scan-finishes").innerHTML = buttons;
+    }
     node("set-scan-search-panel").hidden = !!selectedCard && !!first;
     node("set-scan-correct").hidden = !node("set-scan-search-panel").hidden;
-    node<HTMLButtonElement>("set-scan-correct").disabled = setQuery.disabled = saving;
+    node<HTMLButtonElement>("set-scan-correct").disabled = setQuery.disabled = !!saving;
     const choices = node("set-scan-choices");
     choices.innerHTML = first ? "" : [...cards.entries()].slice(0, 30).map(([id, slot]) =>
       `<button type="button" data-scan-card="${escape(id)}"><span>${escape(slot.number)}</span> ${escape(slot.name)}</button>`).join("");
     if (!cards.size) choices.textContent = "No matching cards in this binder.";
     else if (!first && cards.size > 30) choices.insertAdjacentHTML("beforeend", "<p>Type to narrow the list.</p>");
     const next = node<HTMLButtonElement>("set-scan-next");
-    next.disabled = saving;
+    next.disabled = !!saving;
     next.classList.toggle("dex-primary", finishes.length > 0 && finishes.every(slot => slot.owned));
   }
   let retryAfter = 0, resultNotice = "";
@@ -104,7 +108,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     const engine = recognizer; recognizer = null; if (engine) void engine.terminate().catch(() => {});
     sampleContext.clearRect(0, 0, sample.width, sample.height); gate = new CaptureGate(); retryAfter = 0;
     resumeAfterManual = false;
-    releaseImages(); saving = false;
+    releaseImages(); saving = null;
   }
   function close() { setPhase("closed"); stopResources(); gate = new CaptureGate(); selected = null; if (dialog.open) dialog.close(); }
   function pause(message: string) { stopResources(); setPhase("paused"); say(message); }
@@ -214,7 +218,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     if (manual) schedule(token);
   }
   function showResult(matches: ScanMatch[], hasPhoto: boolean) {
-    setPhase("result"); saving = false; resultNotice = "";
+    setPhase("result"); saving = null; resultNotice = "";
     const ids = [...new Set(matches.flatMap(match => match.dexIds))].filter(id => options.species.some(item => item.id === id));
     selected = ids.length === 1 ? ids[0] : null;
     const likely = selected !== null && !matches.some(match => match.certain);
@@ -240,11 +244,11 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   }
   function refresh() {
     if (!dialog.open) return;
-    if (set) { if (phase === "result") refreshSet(); return; }
-    const snapshot = options.getSnapshot();
-    const notice = [snapshot.storageWarning, snapshot.error, resultNotice, snapshot.layoutConflict ? "Layout sync conflict: locations use this device’s current layout." : null].filter(Boolean).join(" ");
+    const snapshot = set ? null : options.getSnapshot();
+    const notice = [snapshot?.storageWarning, snapshot?.error, resultNotice, snapshot?.layoutConflict ? "Layout sync conflict: locations use this device’s current layout." : null].filter(Boolean).join(" ");
     if (node("scan-notice").textContent !== notice) node("scan-notice").textContent = notice;
     if (phase !== "result") return;
+    if (!snapshot) { refreshSet(); return; }
     const item = options.species.find(item => item.id === selected);
     node("scan-result-hero").hidden = !item && node("scan-preview").hidden;
     node("scan-result-details").hidden = !item;
@@ -254,8 +258,10 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     const mark = node<HTMLButtonElement>("scan-mark"), next = node<HTMLButtonElement>("scan-next");
     const status = (id: number) => snapshot.state.ownedDexIds.includes(id) ? "Already collected"
       : snapshot.state.orderedDexIds?.includes(id) ? "Ordered" : "Missing";
-    mark.hidden = !item || snapshot.state.ownedDexIds.includes(item.id); mark.disabled = saving;
-    next.disabled = saving; next.classList.toggle("dex-primary", mark.hidden);
+    mark.hidden = !item || snapshot.state.ownedDexIds.includes(item.id); mark.disabled = !!saving;
+    const label = saving ? "Saving…" : "Mark collected";
+    if (node("scan-mark-label").textContent !== label) node("scan-mark-label").textContent = label;
+    next.disabled = !!saving; next.classList.toggle("dex-primary", mark.hidden);
     for (const button of node("scan-candidates").querySelectorAll<HTMLElement>("[data-scan-species]")) {
       const id = Number(button.dataset.scanSpecies), loc = locationFor(id, snapshot.state.settings, options.species);
       button.setAttribute("aria-pressed", String(id === selected));
@@ -278,29 +284,47 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
     const results = searchSpecies(options.species, query).slice(0, 15);
     node("scan-search-results").innerHTML = results.map(item => `<button type="button" data-scan-species="${item.id}"><span>#${String(item.id).padStart(4, "0")}</span> ${escape(item.name)}</button>`).join("") || '<p>No Pokémon match that name or number.</p>';
   }
-  function nextCard() { releaseImages(); selected = null; failures = 0; retryAfter = 0; setPhase("scanning"); say("Show the next card. Scanning automatically…"); schedule(); }
+  function nextCard() { releaseImages(); selected = null; failures = 0; retryAfter = 0; setPhase("scanning"); refresh(); say("Show the next card. Scanning automatically…"); schedule(); }
   function afterSave() {
     if (stream && recognizer) nextCard();
     else if (resumeAfterManual) void start();
     else pause("Marked collected. Resume the camera to scan another card.");
   }
-  async function markCollected() {
-    if (!selected || saving) return;
-    const id = selected, token = generation; saving = true; refresh();
+  async function saveMark(mark: (signal: AbortSignal) => Promise<void>, finish?: string) {
+    if (saving || phase !== "result") return;
+    const token = generation;
+    const write = new AbortController();
+    const timeout = setTimeout(() => write.abort(), 8000);
+    saving = { finish };
+    resultNotice = "";
     try {
-      await options.markOwned(id);
+      say("Saving to this device…");
+      refresh();
+      await mark(write.signal);
       if (token !== generation || phase !== "result") return;
-      saving = false;
-      if (options.getSnapshot().storageWarning) { resultNotice = "Marked in this page only. Download a backup before leaving. Choose Scan next to continue."; refresh(); say(resultNotice); return; }
-      afterSave();
-    } catch { if (token === generation) { saving = false; resultNotice = "Could not save this mark. Try again; this result is still here."; refresh(); say(resultNotice); } }
+      if (!set && options.getSnapshot().storageWarning) {
+        resultNotice = "Marked in this page only. Download a backup before leaving. Choose Scan next to continue.";
+        say(resultNotice);
+      } else afterSave();
+    } catch {
+      if (token !== generation) return;
+      resultNotice = write.signal.aborted ? "Saving took too long. Try again or choose Scan next."
+        : "Could not save this mark. Try again or choose Scan next.";
+      say(resultNotice);
+    } finally {
+      clearTimeout(timeout);
+      if (token === generation) { saving = null; refresh(); }
+    }
   }
   node("scan-close").addEventListener("click", event => { event.preventDefault(); close(); });
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   node("scan-resume").addEventListener("click", () => { void start(); });
   node("scan-capture").addEventListener("click", () => { void recognize(true); });
   node("scan-next").addEventListener("click", () => { if (stream && recognizer) nextCard(); else void start(); });
-  node("scan-mark").addEventListener("click", () => { void markCollected(); });
+  node("scan-mark").addEventListener("click", () => {
+    const id = selected;
+    if (id !== null) void saveMark(signal => options.markOwned(id, signal));
+  });
   node("scan-rescan").addEventListener("click", () => { gate.rescan(); retryAfter = 0; say("Ready to scan this card again."); });
   const searchManually = () => {
     if (phase === "starting" || phase === "recognizing") {
@@ -324,7 +348,7 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
   setQuery.oninput = refreshSet;
   node("set-scan-correct").onclick = () => { showSetResult([]); };
   node("set-scan-next").onclick = () => { if (!saving) { if (stream && recognizer) nextCard(); else void start(); } };
-  node("set-scan-result").addEventListener("click", async event => {
+  node("set-scan-result").addEventListener("click", event => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
     if (!button || saving || button.disabled) return;
     if (button.dataset.scanCard) {
@@ -333,16 +357,9 @@ export function createCardScanner(options: ScannerOptions, factory = createCardR
       (node("set-scan-finishes").querySelector<HTMLButtonElement>("button:enabled") ?? node("set-scan-next")).focus();
       return;
     }
-    const target = set, key = button.dataset.finish, token = generation;
+    const target = set, key = button.dataset.finish;
     if (!target || !key) return;
-    node("scan-notice").textContent = "";
-    saving = true; refreshSet();
-    try {
-      await target.mark(key);
-      if (token !== generation || set !== target) return;
-      saving = false; afterSave();
-    } catch { if (token === generation) node("scan-notice").textContent = "Could not save this mark. Check the binder and try again."; }
-    finally { if (token === generation && phase === "result") { saving = false; refreshSet(); } }
+    void saveMark(signal => target.mark(key, signal), key);
   });
   node<HTMLInputElement>("master-photo").onchange = async event => {
     const input = event.target as HTMLInputElement, file = input.files?.[0];

@@ -346,7 +346,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     masters, restoreScope, restoreCollections, previousRestore, pendingRestore, resumeRestore, start, snapshot, accountState, accountHasBinders, previewMigration, migrate, resumeMigration, recheckConnection,
     subscribe(listener: (value: BinderSnapshot) => void) { listeners.add(listener); listener(snapshot()); return () => listeners.delete(listener); },
     subscribeAccount(listener: (value: BinderAccountState) => void) { accountListeners.add(listener); listener(accountState()); return () => accountListeners.delete(listener); },
-    setOwned: (id: number, owned: boolean) => editable().setOwned(id, owned), setSettings: (settings: BinderState["settings"]) => editable().setSettings(settings), replaceState: (state: BinderState) => editable().replaceState(state),
+    setOwned: (id: number, owned: boolean, signal?: AbortSignal) => editable().setOwned(id, owned, signal), setSettings: (settings: BinderState["settings"]) => editable().setSettings(settings), replaceState: (state: BinderState) => editable().replaceState(state),
     setStatus: (id: number, status: CardStatus) => editable().setStatus(id, status),
     setEnabled: (enabled: boolean) => editable().setEnabled(enabled),
     importSpecies(ids: readonly number[], expected: BinderState, isCurrent: () => boolean) {

@@ -84,6 +84,37 @@ async function card(page, name) {
   await page.evaluate(name => window.__setCard(name), name);
   await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'result', { timeout: 15000 });
 }
+async function holdBinderWrites(page, name) {
+  await page.evaluate(async name => {
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const transaction = database.transaction(database.objectStoreNames[0], 'readwrite');
+    const store = transaction.objectStore(database.objectStoreNames[0]);
+    let holding = true;
+    const done = new Promise(resolve => { transaction.oncomplete = resolve; });
+    window.__releaseBinderWrites = async key => {
+      holding = false;
+      await done;
+      try {
+        return await new Promise((resolve, reject) => {
+          const request = database.transaction(store.name).objectStore(store.name).get(key);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      } finally { database.close(); }
+    };
+    await new Promise(resolve => {
+      function keepOpen() {
+        if (holding) store.get('scanner-test-lock').onsuccess = keepOpen;
+        resolve();
+      }
+      store.get('scanner-test-lock').onsuccess = keepOpen;
+    });
+  }, name);
+}
 async function scenario(name, run) { await run(); completed.push(name); console.log(`Passed: ${name}`); }
 try {
   await scenario('retired scanner module offers reload and preserves the open binder on cancel', async () => {
@@ -279,7 +310,25 @@ try {
     await page.locator('#scan-next').click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
     await page.locator('#scan-close').click(); await ctx.close();
   });
-  await scenario('set cards open directly and mark exactly one finish, including after a failed save', async () => {
+  await scenario('a stalled National Dex write keeps the result retryable and never saves late', async () => {
+    const ctx = await context(), page = await open(ctx);
+    await scanner(page); await card(page, 'Pikachu');
+    await page.clock.install();
+    await holdBinderWrites(page, 'austingarrod.utilities.pokedex-binder.v1');
+    const mark = page.locator('#scan-mark');
+    await mark.click(); await expect(mark).toBeDisabled();
+    const pendingLabel = (await mark.textContent()).trim();
+    await page.clock.fastForward(9000);
+    await expect(page.locator('#scan-notice')).toContainText('took too long');
+    assert.equal(pendingLabel, 'Saving…');
+    await expect(mark).toBeEnabled(); await expect(page.locator('#scan-pokemon-name')).toHaveText('Pikachu');
+    const persisted = await page.evaluate(() => window.__releaseBinderWrites('main'));
+    assert.deepEqual(persisted.state.ownedDexIds, []);
+    await mark.click(); await expect(page.locator('#scan-dialog')).toHaveAttribute('data-phase', 'scanning');
+    await expect(page.locator('#owned-count')).toHaveText('1');
+    await ctx.close();
+  });
+  await scenario('set cards open directly and mark exactly one finish, including after a failed or stalled save', async () => {
     const ctx = await context(), page = await open(ctx);
     const dialog = page.locator('#scan-dialog');
     await newSetBinder(page);
@@ -301,8 +350,27 @@ try {
       };
     });
     await reverse.click(); await expect(page.locator('#scan-notice')).toContainText('Could not save');
-    await expect(reverse).toBeEnabled(); await reverse.click();
+    await expect(reverse).toBeEnabled();
+    await page.clock.install();
+    await holdBinderWrites(page, 'austingarrod.utilities.pokedex-binder.recovery.v1');
+    await reverse.click(); await expect(reverse).toContainText('Saving…');
+    await page.clock.fastForward(9000);
+    await expect(page.locator('#scan-notice')).toContainText('took too long');
+    await expect(reverse).toBeEnabled();
+    const persisted = await page.evaluate(() => window.__releaseBinderWrites('sets:guest'));
+    assert.ok(!persisted.state.binders.some(binder => binder.owned.includes('001:reverse')));
+    // The scanner should succeed even when a follow-up read of the committed write would fail.
+    await page.evaluate(() => {
+      const transact = IDBDatabase.prototype.transaction;
+      window.__restoreBinderReads = () => { IDBDatabase.prototype.transaction = transact; };
+      IDBDatabase.prototype.transaction = function(stores, mode, ...rest) {
+        if (this.name.endsWith('pokedex-binder.recovery.v1') && mode === 'readonly') throw new Error('Unexpected post-save read');
+        return transact.call(this, stores, mode, ...rest);
+      };
+    });
+    await reverse.click();
     await expect(dialog).toHaveAttribute('data-phase', 'scanning');
+    await page.evaluate(() => window.__restoreBinderReads());
     await expect(page.locator('[data-key="001:reverse"]')).toBeChecked();
     await expect(page.locator('[data-key="001:normal"]')).not.toBeChecked();
     assert.equal(await page.evaluate(() => window.__cameraCount), 1);

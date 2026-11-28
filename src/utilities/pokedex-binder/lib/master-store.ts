@@ -131,13 +131,13 @@ export class MasterStore {
       if (scope !== "guest") save.preservePrevious = true;
     });
   }
-  update(scope: string, apply: (s: SetSave) => void) {
+  update(scope: string, apply: (s: SetSave) => void, signal?: AbortSignal) {
     return this.db.update<SetSave>("sets:" + scope, (current) => {
       const save = current ?? fresh();
       apply(save);
       validateMaster(save.state);
       return save;
-    });
+    }, signal);
   }
   async sync(scope: string, client: AccountClient, active: () => boolean) {
     if (scope === "guest" || !active()) return;

@@ -225,7 +225,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
         <button id="scan-correct" class="dex-scan-correct">Change Pokémon</button>
         <div id="scan-search-panel" hidden><label for="scan-search">Search Pokémon name or Pokédex number</label><input id="scan-search" type="search" autocomplete="off" placeholder="Name or #0001" /><div id="scan-search-results" class="dex-scan-search-results"></div></div>
       </div>
-      <footer class="dex-scan-result-actions"><button id="scan-mark" class="dex-primary" hidden><Check size={17} aria-hidden="true" /> Mark collected</button><button id="scan-next">Scan next <ChevronRight size={17} aria-hidden="true" /></button></footer>
+      <footer class="dex-scan-result-actions"><button id="scan-mark" class="dex-primary" hidden><Check size={17} aria-hidden="true" /> <span id="scan-mark-label">Mark collected</span></button><button id="scan-next">Scan next <ChevronRight size={17} aria-hidden="true" /></button></footer>
     </section>
     <section id="scan-recovery" class="dex-scan-recovery" hidden><div class="dex-scan-actions"><button id="scan-resume" class="dex-primary">Resume camera</button><button id="scan-recovery-search">Search manually</button></div></section>
   </dialog>

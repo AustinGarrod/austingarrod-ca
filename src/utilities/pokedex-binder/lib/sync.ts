@@ -235,7 +235,7 @@ export function createBinderController(options: BinderControllerOptions) {
     finally { busy = false; emit(); }
   }
   async function sync(): Promise<void> { if (!started || stopped) return; await serialized(runSync); }
-  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false, requirePersistence = false): Promise<boolean> {
+  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false, requirePersistence = false, signal?: AbortSignal): Promise<boolean> {
     let changed = false;
     await store.update(doc => {
       const next = validateState(change(cloneState(doc.state)), options.species);
@@ -246,11 +246,11 @@ export function createBinderController(options: BinderControllerOptions) {
       doc.state = next;
       if (doc.layoutConflict) doc.layoutConflict.local = { ...doc.state.settings };
       return doc;
-    }, true, requirePersistence);
+    }, true, requirePersistence, signal);
     emit(); schedule();
     return changed && store.persistent;
   }
-  async function setStatus(id: number, status: CardStatus): Promise<boolean> {
+  async function setStatus(id: number, status: CardStatus, signal?: AbortSignal): Promise<boolean> {
     if (!options.species.some(item => item.id === id)) throw new Error("This Pokémon is not in the catalog.");
     return edit(state => {
       state.ownedDexIds = state.ownedDexIds.filter(value => value !== id);
@@ -259,9 +259,9 @@ export function createBinderController(options: BinderControllerOptions) {
       if (status === "ordered") ordered.push(id);
       if (ordered.length || state.orderedDexIds) state.orderedDexIds = ordered;
       return state;
-    });
+    }, false, false, signal);
   }
-  const setOwned = (id: number, owned: boolean) => setStatus(id, owned ? "owned" : "missing");
+  const setOwned = (id: number, owned: boolean, signal?: AbortSignal) => setStatus(id, owned ? "owned" : "missing", signal);
   async function setSettings(settings: BinderSettings): Promise<boolean> {
     const validated = validateSettings(settings);
     return edit(state => ({ ...state, settings: validated }));
