@@ -357,6 +357,17 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
       });
     },
     resolveLayout: (choice: "local" | "remote") => active.resolveLayout(choice), sync: async () => { await switching; return active.sync(); },
+    async syncedBinderRevision(id: string): Promise<number> {
+      await switching;
+      requireAccount(id);
+      if (mode !== "account" || id !== accountId || !verifiedSession || retainedAccount || pendingMigration) return 0;
+      const store = activeStore;
+      await active.sync();
+      requireAccount(id);
+      const saved = store.read();
+      return store === activeStore && verifiedSession && snapshot().status === "synced"
+        ? (saved.session?.revision ?? 0) : 0;
+    },
     async recoveryBackups(): Promise<string> {
       // Portable recovery intentionally omits private keys and authentication metadata.
       const id = requireAccount();

@@ -93,6 +93,76 @@ const binder = (ownedDexIds = []) => ({ schemaVersion: 1, settings: { columns: 3
 const app = 'pokedex-binder', document = 'binder';
 const write = (state, baseRevision, clientId, mutationSequence = 1) => ({ app, document, schemaVersion: 1, state, baseRevision, clientId, mutationSequence, operationId: randomUUID() });
 
+async function testBinderSharing(other) {
+  const owner = browser(), viewer = browser();
+  const manage = (client, body, query, headers) => request(client, 'sync', 'binder-share', body, query, headers);
+  const read = token => request(viewer, 'binder-share', '', undefined, {}, { 'X-Binder-Share-Token': token });
+  await login(owner, 'sharing@example.test');
+  const client = randomUUID();
+  const national = { ...binder([1]), orderedDexIds: [2] };
+  const publishNational = { binder: 'national', action: 'publish', version: 0, documentRevision: 1 };
+  assert.equal((await manage(viewer, publishNational)).status, 401);
+  assert.equal((await manage(owner, publishNational)).data.error.code, 'binder_not_synced');
+  assert.equal((await request(owner, 'sync', 'write', write(national, 0, client))).status, 200);
+  assert.equal((await manage(owner, publishNational, {}, { 'X-CSRF-Token': 'wrong' })).status, 403);
+  assert.equal((await manage(owner, publishNational, {}, { Origin: 'https://external.example.test' })).status, 403);
+  const published = await manage(owner, publishNational);
+  assert.equal(published.status, 200);
+  assert.match(published.data.token, /^pbs_[a-f0-9]{64}$/);
+  const nationalToken = published.data.token;
+  assert.deepEqual((await manage(other, undefined, { binder: 'national' })).data, { version: 0, token: null });
+  assert.equal((await manage(other, undefined, { binder: 'national' }, { 'X-Account-ID': owner.session.user.id })).status, 409);
+  const shared = await read(nationalToken);
+  assert.equal(shared.status, 200);
+  assert.equal(shared.headers.get('set-cookie'), null);
+  assert.equal(shared.headers.get('referrer-policy'), 'no-referrer');
+  assert.deepEqual(shared.data, { kind: 'national', settings: national.settings, ownedDexIds: [1], orderedDexIds: [2] });
+  assert.equal((await request(viewer, 'binder-share', '', {}, {}, { 'X-Binder-Share-Token': nationalToken })).status, 405);
+  assert.equal((await read('missing')).status, 404);
+
+  const updated = { ...national, ownedDexIds: [1, 3] };
+  assert.equal((await request(owner, 'sync', 'write', write(updated, 1, client, 2))).status, 200);
+  assert.deepEqual((await read(nationalToken)).data.ownedDexIds, [1, 3]);
+  const revoke = { binder: 'national', action: 'revoke', version: published.data.version };
+  assert.equal((await manage(owner, revoke)).status, 200);
+  assert.equal((await read(nationalToken)).status, 404);
+  assert.equal((await manage(owner, publishNational)).data.error.code, 'share_changed');
+  assert.equal((await manage(owner, { ...publishNational, version: 2 })).data.error.code, 'binder_changed');
+  const second = await manage(owner, { ...publishNational, version: 2, documentRevision: 2 });
+  assert.equal(second.status, 200);
+  assert.notEqual(second.data.token, nationalToken);
+  assert.equal((await request(owner, 'sync', 'write', write({ ...updated, enabled: false }, 2, client, 3))).status, 200);
+  assert.equal((await request(owner, 'sync', 'write', write({ ...updated, enabled: true }, 3, client, 4))).status, 200);
+  assert.equal((await read(second.data.token)).status, 404);
+
+  const extra = { id: randomUUID(), name: 'Binder <Friends> & Family', number: 'P01', required: false };
+  const set = { id: randomUUID(), name: 'Shared 151', setId: 'sv03.5', goal: 'numbers', order: 'together',
+    settings: national.settings, extras: [extra], owned: ['001:normal'], ordered: ['002:reverse', 'extra:' + extra.id], specialties: [] };
+  const setWrite = (binders, revision) => ({
+    ...write({ schemaVersion: 1, binders }, revision, client, revision + 1), document: 'master-sets',
+  });
+  const sibling = { ...set, id: randomUUID(), name: 'Private sibling' };
+  assert.equal((await request(owner, 'sync', 'write', setWrite([set, sibling], 0))).status, 200);
+  const publishSet = { ...publishNational, binder: set.id };
+  assert.equal((await manage(other, publishSet)).data.error.code, 'binder_not_synced');
+  const sharedSet = await manage(owner, publishSet);
+  assert.equal(sharedSet.status, 200);
+  const publicSet = await read(sharedSet.data.token);
+  const { id: _omitted, ...publicFields } = set;
+  assert.deepEqual(publicSet.data, { ...publicFields, kind: 'set', owned: ['001:*'], ordered: ['002:*', 'extra:1'],
+    extras: [{ ...extra, id: '1' }] });
+  assert.equal((await request(owner, 'sync', 'write', setWrite([sibling], 1))).status, 200);
+  assert.equal((await read(sharedSet.data.token)).status, 404);
+  const recovery = await request(owner, 'sync', 'recovery-list', undefined, { app });
+  const snapshot = recovery.data.snapshots.find(item => item.document === 'master-sets');
+  assert.ok(snapshot, 'The pre-deletion set binder should have a recovery copy.');
+  assert.equal((await request(owner, 'sync', 'recovery-restore',
+    { id: snapshot.id, baseRevision: 2, clientId: client, operationId: randomUUID() })).status, 200);
+  assert.equal((await read(sharedSet.data.token)).status, 404);
+  assert.deepEqual((await manage(owner, undefined, { binder: set.id })).data, { version: 2, token: null });
+  console.log('Binder sharing: owner controls, cookie-free projection, live sync, revocation, and restoration passed.');
+}
+
 async function testBinderStockAlerts(other) {
   const subscriber = browser();
   const action = 'binder-stock-alerts';
@@ -246,6 +316,7 @@ try {
   assert.equal((await request(a, 'auth', 'email-verify', proof)).status, 401, 'OTP replay must fail after session rotation');
   await login(b, 'two@example.test');
   const stockAlertsUserId = await testBinderStockAlerts(b);
+  await testBinderSharing(b);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId }, { 'X-Account-ID': b.session.user.id })).status, 409);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document, null);
   const first = write(binder([1]), 0, clientId); let response = await request(a, 'sync', 'write', first); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.document.revision, 1);

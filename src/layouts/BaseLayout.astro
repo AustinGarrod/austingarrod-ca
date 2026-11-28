@@ -74,6 +74,7 @@ const analyticsEnabled = import.meta.env.PROD && !privatePage;
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    {privatePage && <meta name="portfolio-telemetry" content="disabled" />}
     <script>
       import "../reporting/browser";
     </script>

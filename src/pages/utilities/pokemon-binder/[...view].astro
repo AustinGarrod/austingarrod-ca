@@ -1,5 +1,5 @@
 ---
-import { ArrowDownUp, ArrowLeft, BookOpen, ChevronRight, Download, Ellipsis, FileUp, Plus, Printer, Settings2, Cloud, Camera, Check, ListChecks, Search, ShoppingBag } from "@lucide/astro";
+import { ArrowDownUp, ArrowLeft, BookOpen, ChevronRight, Download, Ellipsis, FileUp, Plus, Printer, Settings2, Cloud, Camera, Check, ListChecks, Search, Share2, ShoppingBag } from "@lucide/astro";
 import BinderChecklist from "@components/BinderChecklist.astro";
 import BinderPages from "@components/BinderPages.astro";
 import BinderToolbar from "@components/BinderToolbar.astro";
@@ -9,6 +9,7 @@ import BinderCatalogSearch from "@components/BinderCatalogSearch.astro";
 import BinderPricing from "@components/BinderPricing.astro";
 import BinderBuyCards from "@components/BinderBuyCards.astro";
 import BinderViewHeading from "@components/BinderViewHeading.astro";
+import BinderShare from "@components/BinderShare.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
 import { utilities } from "@data/profile";
@@ -46,6 +47,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
       </div>
       <div class="dex-appbar-actions">
         <button id="catalog-search-open" type="button" aria-haspopup="dialog" aria-label="Search cards" disabled><Search size={17} aria-hidden="true" /><span>Search cards</span></button>
+        <button id="binder-share-open" type="button" aria-haspopup="dialog" hidden><Share2 size={17} aria-hidden="true" /><span>Share binder</span></button>
         <details id="binder-menu" class="dex-menu">
           <summary aria-label="Binder actions"><Ellipsis size={18} aria-hidden="true" /><span>Menu</span></summary>
           <div class="dex-menu-list">
@@ -55,6 +57,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
             <button id="layout-open" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
             <button id="master-settings" type="button" aria-haspopup="dialog" hidden><Settings2 size={16} aria-hidden="true" /> Binder settings</button>
             <button id="master-add-extra" type="button" aria-haspopup="dialog" hidden><Plus size={16} aria-hidden="true" /> Add an extra card</button>
+            <button id="binder-share-menu" type="button" aria-haspopup="dialog" hidden><Share2 size={16} aria-hidden="true" /> Share binder</button>
             <button id="transfer-open" type="button" aria-haspopup="dialog"><ArrowDownUp size={16} aria-hidden="true" /> Import and export</button>
             <button id="sync-open" type="button" aria-haspopup="dialog"><Cloud size={16} aria-hidden="true" /> Sync and backup</button>
           </div>
@@ -109,6 +112,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
   <BinderTransfers />
   <BinderCatalogSearch />
   <BinderPricing />
+  <BinderShare />
 
   <dialog id="layout-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="layout-title">
     <form id="layout-form">

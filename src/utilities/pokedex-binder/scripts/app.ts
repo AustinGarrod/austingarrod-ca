@@ -16,6 +16,7 @@ import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
 import { createStockAlerts } from "./stock-alerts";
 import { binderViews } from "./binder-views";
+import { createBinderSharing } from "./share-binder";
 import { createCatalogSearch, type MarkTarget } from "./catalog-search";
 import { catalogArtwork, type CatalogPrinting } from "../lib/catalog-search";
 import { addSetImports, groupSetImport, type TransferMatch } from "../lib/card-transfer";
@@ -109,11 +110,22 @@ async function initialize() {
   const master = createMasterUI(controller.masters, openScanner, closeScanner, view, renderNationalView, catalog.sets, {
     openPrinting(target) { pricing.openPrinting(target); },
     bindersChanged() { dashboard.bindersChanged(); },
+    binderChanged() { sharing.contextChanged(); },
     confirm: confirmAction,
     deleted() {
       const target = ["set-overview-title", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
       target?.focus();
     },
+  });
+  const sharing = createBinderSharing({
+    binder() {
+      if (!master.inBinder()) return null;
+      const key = master.currentId();
+      return { key: key || "national", name: el(key ? "master-title" : "national-title").textContent ?? "" };
+    },
+    account: () => account,
+    reconnect: controller.recheckConnection,
+    sync: (id, binder) => binder === "national" ? controller.syncedBinderRevision(id) : master.syncedBinderRevision(id, binder),
   });
   const dashboard = createBuyCards({
     collection: master.collection,
@@ -507,7 +519,7 @@ async function initialize() {
       pricing.scopeChanged();
       dashboard.scopeChanged();
     }
-    account = value; master.account(value); stockAlerts.account(value); renderSync();
+    account = value; sharing.contextChanged(); master.account(value); stockAlerts.account(value); renderSync();
     if (changed) dashboard.bindersChanged();
     if (onboardingReady && changed) void updateOnboarding();
   });

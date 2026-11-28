@@ -45,6 +45,7 @@ async function json<T>(file: string): Promise<T> {
 export interface MasterOptions {
   openPrinting(target: PricingTarget): void;
   bindersChanged(): void;
+  binderChanged(): void;
   /** Asks before a destructive action. The dialog also offers a backup download. */
   confirm(title: string, text: string, label: string, tone?: "danger"): Promise<boolean>;
   /** Called after the open binder was deleted, so focus can move somewhere useful. */
@@ -319,6 +320,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     const shownId = b ? b.id : showDex ? "" : null;
     if (shownId !== displayedId) {
       displayedId = shownId;
+      pricing.binderChanged();
       bulkSelection.close();
       bulkMessage.textContent = "";
       page = 1;
@@ -332,6 +334,8 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (atHome) renderHome(ticket);
     node("set-overview").hidden = !atHome;
     node("binder-back").hidden = shownId === null;
+    node("binder-share-open").hidden = shownId === null;
+    node("binder-share-menu").hidden = shownId === null;
     node("binder-onboarding").hidden = !ready || hasBinders || onboarding !== "device";
     node("binder-account-onboarding").hidden = !ready || hasBinders || onboarding !== "account";
     node("missing-list-controls").hidden = !ready || shownId === null;
@@ -1030,6 +1034,15 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
       channel?.postMessage(scope);
     },
     sync,
+    async syncedBinderRevision(accountId: string, binderId: string): Promise<number> {
+      if (!online || scope !== accountId) return 0;
+      const version = accountVersion;
+      await sync();
+      const saved = await store.read(accountId);
+      if (!online || scope !== accountId || version !== accountVersion || saved.conflict || saved.flight) return 0;
+      const binder = saved.state.binders.find(item => item.id === binderId);
+      return binder && sameSave(binder, saved.baseline.binders.find(item => item.id === binderId)) ? saved.revision : 0;
+    },
     close() {
       clearTimeout(timer);
       online = false;

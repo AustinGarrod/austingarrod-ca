@@ -9,8 +9,8 @@ function withoutGeocodeQuery<T>(value: T): T {
 
 const binderPage = /^\/utilities\/(?:pokemon|pokedex)-binder\//.test(location.pathname);
 
-// Login and recovery pages must not initialize diagnostics or record credentials.
-const enabled = !location.pathname.startsWith("/account/")
+// Account and shared binder views must not initialize diagnostics.
+const enabled = !location.pathname.startsWith("/account/") && !document.querySelector('meta[name="portfolio-telemetry"][content="disabled"]')
   && (import.meta.env.PROD || import.meta.env.PUBLIC_REPORTING_ENABLED === "true");
 if (enabled && !Sentry.getClient()) {
   Sentry.init({

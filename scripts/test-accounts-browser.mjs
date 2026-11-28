@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
-import { binderAction as pokedexAction, homeCard, homeCards, newSetBinder, openBinder as openPokedexBinder, transferAction } from './test-pokedex-helpers.mjs';
+import { binderAction as pokedexAction, chooseFilter, homeCard, homeCards, newSetBinder, openBinder as openPokedexBinder, openMenu, transferAction } from './test-pokedex-helpers.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
@@ -262,6 +262,11 @@ try {
     await expect(page.locator('#radius-sign-in-to-save')).toBeVisible();
     await page.locator('#sign-in-dialog-cancel').click();
     await openBinder(page); await page.locator('#first-dex').click(); await page.locator('#owned-grid-1').check(); await expect(page.locator('#owned-count')).toHaveText('1');
+    await page.locator('#binder-share-open').click();
+    await expect(page.locator('#binder-share-sign-in')).toBeVisible();
+    await expect(page.locator('#binder-share-publish')).toBeHidden();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#binder-share-open')).toBeFocused();
     await newSetBinder(page);
     await page.locator('#master-set').fill('sv03.5');
     await page.locator('#master-name').fill('My 151');
@@ -349,6 +354,156 @@ try {
     await pokedexAction(page, '#sync-open'); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
     await openPokedexBinder(page, 'My 151');
     await expect(page.locator('[data-key="002:reverse"]')).toBeChecked();
+  });
+  await scenario('a signed-in owner shares both binders with signed-out desktop and mobile viewers', async () => {
+    const path = '/utilities/pokemon-binder/shared/';
+    const guestDesktop = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' });
+    const guestPhone = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    contexts.push(guestDesktop, guestPhone);
+    const guestRequests = [];
+    const capture = (target, name, owner = false) => target.screenshot({
+      path: join(output, 'share-' + name + '.png'), fullPage: false,
+      ...(owner ? { mask: [target.locator('#binder-share-link')], maskColor: '#e5eeff' } : {}),
+    });
+    for (const guest of [guestDesktop, guestPhone]) {
+      await guest.route('**/*', async route => {
+        const request = route.request();
+        const url = new URL(request.url());
+        guestRequests.push(url);
+        if (url.origin !== origin) return route.abort();
+        if (url.pathname === '/api/v1/binder-share.php') {
+          const headers = await request.allHeaders();
+          assert.equal(headers.cookie, undefined);
+          assert.equal(headers.referer, undefined);
+          assert.equal(url.search, '');
+        }
+        await route.continue();
+      });
+      guest.on('page', target => target.on('pageerror', error => pageErrors.push({ scenario: active, message: error.message })));
+    }
+    const large = await guestDesktop.newPage(), small = await guestPhone.newPage();
+    await openPokedexBinder(page, 'National Pokédex');
+    await capture(page, 'owner-desktop-entry');
+    await page.locator('#binder-share-open').click();
+    await expect(page.locator('#binder-share-publish')).toBeVisible();
+    await capture(page, 'owner-desktop-private');
+    await page.locator('#binder-share-publish').click();
+    await expect(page.locator('#binder-share-link')).toHaveValue(/\/shared\/#pbs_[a-f0-9]{64}$/);
+    await capture(page, 'owner-desktop-link', true);
+    const nationalLink = await page.locator('#binder-share-link').inputValue();
+    await page.evaluate(() => Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true, value: () => Promise.reject(new Error('Clipboard disabled for this test')),
+    }));
+    await page.locator('#binder-share-copy').click();
+    await expect(page.locator('#binder-share-link')).toBeFocused();
+    await expect(page.locator('#binder-share-message')).toContainText('Link selected');
+
+    await openPokedexBinder(phone, 'My 151');
+    await openMenu(phone);
+    await capture(phone, 'owner-mobile-entry');
+    await phone.locator('#binder-share-menu').click();
+    await phone.locator('#binder-share-publish').click();
+    await expect(phone.locator('#binder-share-link')).toHaveValue(/\/shared\/#pbs_[a-f0-9]{64}$/);
+    await capture(phone, 'owner-mobile-link', true);
+    const setLink = await phone.locator('#binder-share-link').inputValue();
+    for (const [url, name, slug, count, prefix] of [
+      [nationalLink, 'National Pokédex', 'national', '2', ''],
+      [setLink, 'My 151', 'set', '3', 'master-'],
+    ]) {
+      for (const [target, size] of [[large, 'desktop'], [small, 'mobile']]) {
+        await target.goto(url);
+        await expect(target.getByRole('heading', { level: 1, name })).toBeVisible();
+        await expect(target.locator('#shared-owned')).toHaveText(count);
+        await expect(target.getByText('Read only', { exact: true })).toBeVisible();
+        await expect(target.locator('input[type=checkbox], input[type=radio], #binder-menu, #buy-cards-open, #sync-open, #master-select-page, #binder-share-open')).toHaveCount(0);
+        assert.equal(await target.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Shared binder horizontal overflow');
+        await capture(target, `${slug}-${size}-pages`);
+        await target.locator('#' + prefix + 'view-checklist').click();
+        await expect(target.locator('.dex-shared-checklist:visible .dex-read-status').first()).toHaveText('Collected');
+        await capture(target, `${slug}-${size}-checklist`);
+        if (slug === 'national') {
+          await target.getByRole('link', { name: 'Skip to content' }).focus();
+          await target.keyboard.press('Enter');
+          await expect(target.locator('#main')).toBeFocused();
+          assert.equal(target.url(), url);
+          await target.locator('#dex-search').fill('1');
+          await expect(target.locator('#checklist-list .dex-checklist-row')).toHaveCount(1);
+          await expect(target.locator('#checklist-list .dex-checklist-name')).toHaveText('Bulbasaur');
+        }
+      }
+    }
+    await small.locator('#master-search').fill('Ivysaur');
+    await chooseFilter(small, '#master-status', 'owned');
+    await expect(small.locator('#master-list .dex-checklist-row')).toHaveCount(1);
+    await small.locator('#master-list .dex-checklist-jump').click();
+    await expect(small.locator('#master-pokemon-details')).toContainText('Ivysaur');
+    await capture(small, 'set-mobile-details');
+    await small.keyboard.press('Escape');
+    await expect(small.locator('#master-pokemon-details')).toBeHidden();
+    assert.match(await small.locator(':focus').getAttribute('id'), /^set-open-grid-/);
+    await small.setViewportSize({ width: 320, height: 844 });
+    await expect(small.locator('#master-search')).toHaveAttribute('placeholder', 'Find a card');
+    assert.equal(await small.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Narrow filtered binder horizontal overflow');
+    await capture(small, 'set-narrow-filtered');
+    await small.locator('#master-page-next').click();
+    await expect(small.locator('#master-page-heading')).toHaveText('Page 2');
+    assert.deepEqual(await guestDesktop.cookies(), []);
+    assert.deepEqual(await guestPhone.cookies(), []);
+    assert.ok(guestRequests.some(url => url.pathname === '/api/v1/binder-share.php'));
+    assert.ok(guestRequests.every(url => !url.hash && !/analytics|reports/.test(url.hostname)));
+    assert.ok(guestRequests.filter(url => url.pathname === path).every(url => !url.search));
+
+    await page.locator('#binder-share-stop').click();
+    await expect(page.locator('#binder-share-message')).toContainText('Sharing stopped');
+    await large.goto(nationalLink);
+    await expect(large.locator('#shared-message')).toContainText('This shared binder is unavailable');
+    await capture(large, 'unavailable-desktop');
+    const manage = url => url.pathname === '/api/v1/sync.php' && url.searchParams.get('action') === 'binder-share';
+    let started = false, release;
+    const held = new Promise(resolve => { release = resolve; });
+    const holdPublish = async route => {
+      if (route.request().method() === 'POST' && route.request().postDataJSON()?.action === 'publish') {
+        started = true;
+        await held;
+      }
+      await route.continue();
+    };
+    await page.route(manage, holdPublish);
+    try {
+      await page.locator('#binder-share-publish').click();
+      await expect.poll(() => started).toBe(true);
+      await page.keyboard.press('Escape');
+      await page.locator('#binder-share-open').click();
+      await expect(page.locator('#binder-share-message')).toHaveText('Checking sharing…');
+      release();
+      await expect(page.locator('#binder-share-link')).toBeVisible();
+    } finally {
+      release();
+      await page.unroute(manage, holdPublish);
+    }
+    assert.notEqual(await page.locator('#binder-share-link').inputValue(), nationalLink);
+    await page.locator('#binder-share-stop').click();
+    await phone.locator('#binder-share-stop').click();
+    await expect(phone.locator('#binder-share-message')).toContainText('Sharing stopped');
+    await phone.keyboard.press('Escape');
+    await expect(phone.locator('#binder-menu summary')).toBeFocused();
+    await page.keyboard.press('Escape');
+    const discover = url => url.pathname === '/api/v1/auth.php' && url.searchParams.get('action') === 'session';
+    const dropDiscovery = route => route.abort();
+    await page.route(discover, dropDiscovery);
+    try {
+      await openBinder(page);
+      await openPokedexBinder(page, 'National Pokédex');
+      await page.locator('#binder-share-open').click();
+      await expect(page.locator('#binder-share-message')).toContainText('Reconnect to the internet');
+    } finally {
+      await page.unroute(discover, dropDiscovery);
+    }
+    await page.locator('#binder-share-retry').click();
+    await expect(page.locator('#binder-share-publish')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await guestDesktop.close();
+    await guestPhone.close();
   });
   let mapMobile, mapPhone;
   await scenario('Radius Map opens the shared account and merges separate first saves', async () => {

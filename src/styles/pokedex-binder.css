@@ -331,14 +331,14 @@
 .dex-letter-jump { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0; }
 .pokedex-page .dex-letter-jump button { min-width: 36px; min-height: 36px; padding: 6px; font-family: 'JetBrains Mono',monospace; }
 .dex-checklist-row { border-left: 2px solid transparent; cursor: pointer; scroll-margin-top: 16px; }
-.dex-checklist-row:hover { background: var(--surface-low); }
+.dex-checklist-row:where(:not(.dex-shared-checklist *)):hover { background: var(--surface-low); }
 .dex-checklist-row.owned { background: #f4faf8; border-left-color: var(--secondary); }
 .dex-checklist-row.selected { outline: 2px solid var(--secondary); outline-offset: -2px; background: var(--surface-low); }
 .dex-checklist-row.selected.owned { background: #dfefe9; }
 .dex-checklist-identity { min-width: 0; }
 .dex-checklist-card-numbers { display: block; color: var(--muted); overflow-wrap: anywhere; }
 .pokedex-page .dex-checklist-name { display: block; min-height: 28px; padding: 2px 0; border: 0; background: transparent; font-size: 15px; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
-.pokedex-page .dex-checklist-name:hover { background: transparent; text-decoration: underline; }
+.pokedex-page button.dex-checklist-name:hover { background: transparent; text-decoration: underline; }
 .dex-checklist-location { display: flex; flex-wrap: wrap; gap: 0 6px; color: var(--muted); font-size: 12px; }
 .dex-checklist-location span { white-space: nowrap; }
 .dex-checklist-location span + span::before { content: "·"; margin-inline-end: 6px; }
@@ -597,6 +597,18 @@
 .dex-status-note { margin: 2px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .dex-status-note:empty { display: none; }
 .dex-appbar-actions { display: flex; align-items: center; gap: 8px; }
+#binder-share-menu:not([hidden]) { display: none; }
+.pokedex-page .dex-share-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--dex-control-height);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: var(--dex-control-line-height);
+}
+#binder-share-name { margin: 0 0 8px; font-weight: 600; overflow-wrap: anywhere; }
 .pokedex-page button.dex-back { min-height: 44px; margin: 0; padding: 0 12px 0 6px; border-color: var(--line); background: var(--surface); color: var(--ink); font-size: 14px; }
 .pokedex-page button.dex-back:hover:not(:disabled) { border-color: var(--ink); background: var(--surface-low); color: var(--ink); }
 .dex-menu { position: relative; }
@@ -634,6 +646,8 @@
   .dex-toolbar .dex-search { flex: 1 1 12rem; }
 }
 @media (max-width: 600px) {
+  #binder-share-open { display: none; }
+  #binder-share-menu:not([hidden]) { display: flex; }
   .dex-app { padding-top: 8px; }
   .dex-app .dex-binder-nav { margin-bottom: 8px; }
   /* One row: back, the name and status, Search cards and the menu as icons. */

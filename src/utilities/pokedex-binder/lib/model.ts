@@ -5,6 +5,7 @@ export interface BinderSettings { columns: number; rows: number; useBackSides: b
 export interface BinderState { schemaVersion: 1; settings: BinderSettings; ownedDexIds: number[]; orderedDexIds?: number[]; enabled?: boolean }
 export type CardStatus = "missing" | "ordered" | "owned";
 export const cardStatus = (owned: boolean, ordered: boolean): CardStatus => owned ? "owned" : ordered ? "ordered" : "missing";
+export const cardStatusLabel: Record<CardStatus, string> = { owned: "Collected", ordered: "Ordered", missing: "Missing" };
 export type Settings = BinderSettings;
 export type State = BinderState;
 export interface PocketLocation { page: number; sheet: number; side: "front" | "back"; pocket: number; row: number; column: number }

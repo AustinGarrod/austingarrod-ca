@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require_once __DIR__.'/_validators.php';
+require_once __DIR__.'/_binder-shares.php';
 function accounts_lock_user(PDO $db, string $user): void
 {
     accounts_query($db, 'SELECT id FROM accounts_users WHERE id=? FOR UPDATE', [$user])->fetch();
@@ -86,6 +87,9 @@ function accounts_save_document(PDO $db, string $user, string $app, string $docu
         $id = accounts_uuid();
         accounts_query($db, 'INSERT INTO accounts_documents(id,user_id,app,document,schema_version,revision,state_json) VALUES(?,?,?,?,?,1,?)', [$id, $user, $app, $document, $version, $json]);
     } else {
+        if ($app === 'pokedex-binder') {
+            binder_shares_revoke_removed($db, $user, $document, $row['state_json'], $json);
+        }
         accounts_query($db, 'UPDATE accounts_documents SET schema_version=?,revision=revision+1,state_json=? WHERE id=?', [$version, $json, $row['id']]);
     }
 

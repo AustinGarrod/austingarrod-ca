@@ -1,5 +1,6 @@
 import expansions from "../../../../public/utilities/pokedex-binder/binder-expansions.json";
 import type { SetBinder, SetCard } from "./master";
+type BinderSet = Pick<SetBinder, "setId" | "settings">;
 
 interface RelatedSet {
   setId: string;
@@ -13,13 +14,13 @@ export function relatedSets(setId: string): readonly RelatedSet[] {
   return Object.hasOwn(catalog, setId) ? catalog[setId] : [];
 }
 
-export function binderSetIds(binder: SetBinder, includeRelated: boolean = binder.settings.includeRelated === true) {
+export function binderSetIds(binder: BinderSet, includeRelated: boolean = binder.settings.includeRelated === true) {
   const related = includeRelated ? relatedSets(binder.setId) : [];
   return [binder.setId, ...related.map(set => set.setId)];
 }
 
 export function binderCards(
-  binder: SetBinder,
+  binder: BinderSet,
   cards: (setId: string) => readonly SetCard[],
   includeRelated: boolean = binder.settings.includeRelated === true,
 ): SetCard[] {
@@ -34,7 +35,7 @@ export function binderCards(
 }
 
 export async function loadBinderCards(
-  binder: SetBinder,
+  binder: BinderSet,
   cards: (setId: string) => Promise<SetCard[]>,
   includeRelated: boolean = binder.settings.includeRelated === true,
 ) {

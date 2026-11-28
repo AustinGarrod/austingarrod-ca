@@ -1,24 +1,25 @@
 ---
 import { BookOpen, ListChecks, Search, SlidersHorizontal } from "@lucide/astro";
 
-interface Props { prefix?: "master-" }
-const { prefix = "" } = Astro.props;
+interface Props { prefix?: "" | "master-"; readOnly?: boolean }
+const { prefix = "", readOnly = false } = Astro.props;
 const national = !prefix;
 const search = national ? "dex-search" : "master-search";
 const status = national ? "dex-filter" : "master-status";
+const placeholder = national ? (readOnly ? "Find a Pokémon" : "Find a Pokémon or #0001") : (readOnly ? "Find a card" : "Find a card or number");
 ---
 <section class="dex-toolbar" aria-label={national ? "Find Pokémon" : "Find set cards"}>
   <label class="dex-search" for={search}>
     <Search size={19} aria-hidden="true" />
     <span class="sr-only">{national ? "Search Pokémon name or Pokédex number" : "Search card name, collector number, or finish"}</span>
-    <input id={search} type="search" placeholder={national ? "Find a Pokémon or #0001" : "Find a card or number"} autocomplete="off" />
+    <input id={search} type="search" placeholder={placeholder} autocomplete="off" />
   </label>
   <button type="button" id={prefix + "filter-toggle"} class="dex-filter-toggle" aria-expanded="false" aria-controls={prefix + "filter-panel"} aria-label="Filter">
     <SlidersHorizontal size={17} aria-hidden="true" /><span>Filter</span><span class="dex-filter-count" hidden></span>
   </button>
   <div id={prefix + "filter-panel"} class="dex-filter-panel">
     <label class="dex-field-inline" for={status}><span>Show</span>
-      <select id={status}><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="ordered">Ordered</option><option value="owned">Have it</option></select>
+      <select id={status}><option value="all">{national ? "All Pokémon" : "All cards"}</option><option value="missing">Missing</option><option value="ordered">Ordered</option><option value="owned">{readOnly ? "Collected" : "Have it"}</option></select>
     </label>
     <slot />
   </div>

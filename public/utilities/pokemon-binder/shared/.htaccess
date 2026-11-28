@@ -1,0 +1,7 @@
+<IfModule mod_headers.c>
+  Header always set Cache-Control "no-store"
+  Header onsuccess unset Referrer-Policy
+  Header always set Referrer-Policy "no-referrer"
+  Header set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: https://assets.tcgdex.net https://tcgplayer-cdn.tcgplayer.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'"
+</IfModule>

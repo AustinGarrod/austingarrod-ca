@@ -92,7 +92,8 @@ public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
 buy_cards_route = "/utilities/pokemon-binder/buy-cards/"
-unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
+shared_binder_route = "/utilities/pokemon-binder/shared/"
+unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, shared_binder_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
@@ -120,6 +121,7 @@ for route in routes:
         flags=re.DOTALL,
     )
     ids = re.findall(r'\sid="([^"]+)"', markup)
+    private_view = route.startswith("/account/") or route == shared_binder_route
 
     check(len(re.findall(r"<h1(?:\s|>)", markup)) == 1, f"{route} must contain exactly one h1")
     check(len(re.findall(r"<main(?:\s|>)", markup)) == 1, f"{route} must contain exactly one main")
@@ -127,22 +129,23 @@ for route in routes:
     if canonical_match:
         check(canonical_match.group(1) == expected_canonical, f"{route} has the wrong canonical URL")
     check(len(ids) == len(set(ids)), f"{route} contains duplicate ids")
-    if route.startswith("/account/"):
-        check(ANALYTICS_SCRIPT not in markup and ANALYTICS_RECORDER not in markup, "Account pages must not load analytics or recordings")
-        check('name="robots" content="noindex"' in markup, "Account pages must not be indexed")
-        check('data-analytics-private' in markup and 'rr-block' in markup, "Account views must be private")
+    if private_view:
+        check(ANALYTICS_SCRIPT not in markup and ANALYTICS_RECORDER not in markup, f"{route} must not load analytics or recordings")
+        check('name="robots" content="noindex"' in markup, f"{route} must not be indexed")
+        check('data-analytics-private' in markup and 'rr-block' in markup, f"{route} must exclude content from recording")
+        check('name="portfolio-telemetry" content="disabled"' in markup, f"{route} must disable browser diagnostics")
     else:
         check(markup.count(ANALYTICS_SCRIPT) == 1, f"{route} must load Umami exactly once in production")
     check(
-        route.startswith("/account/") or 'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
+        private_view or 'data-domains="austingarrod.ca,www.austingarrod.ca"' in markup,
         f"{route} must restrict Umami to production domains",
     )
-    check(route.startswith("/account/") or 'data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
-    check(route.startswith("/account/") or 'data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
-    check(route.startswith("/account/") or markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
-    check(route.startswith("/account/") or 'data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
-    check(route.startswith("/account/") or 'getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
-    check(route.startswith("/account/") or 'data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
+    check(private_view or 'data-performance="true"' in markup, f"{route} must enable Umami performance tracking")
+    check(private_view or 'data-do-not-track="true"' in markup, f"{route} must respect browser Do Not Track")
+    check(private_view or markup.count(ANALYTICS_RECORDER) == 1, f"{route} must configure Umami recording exactly once")
+    check(private_view or 'data-before-send="umamiBeforeSend"' in markup, f"{route} must exclude embedded previews from analytics")
+    check(private_view or 'getItem("umami.disabled")' in markup, f"{route} must apply the recorder opt-out")
+    check(private_view or 'data-exclude-hash="true"' in markup, f"{route} must exclude URL fragments from ordinary analytics")
     check(json_ld_match is not None, f"{route} is missing JSON-LD")
     if json_ld_match:
         try:
@@ -269,7 +272,10 @@ untracked_download_links = re.findall(
     r'<a\b(?=[^>]*\bdownload(?:=|\s|>))(?![^>]*\bdata-umami-event="file-download")[^>]*>',
     combined_html,
 )
-check(not untracked_external_links, "Built HTML contains untracked external links")
+for link in untracked_external_links:
+    # The same-site preview is populated with an unlisted URL at runtime.
+    check('id="binder-share-preview"' in link and 'rel="noopener noreferrer"' in link,
+          "Built HTML contains untracked external links")
 expected_private_downloads = {
     f'/account/assistant-skills/{name}{suffix}.zip'
     for name in ("pokedex-binder", "idle-slayer-companion")
@@ -680,7 +686,8 @@ for name in ("pokedex-binder", "idle-slayer-companion"):
                     check(entry in archive.namelist() and archive.read(entry) == (bundle_source / entry).read_bytes(),
                           f"{entry} in {filename} differs from its plugin source")
 
-for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess", "utilities/pokedex-binder/api/reports.php"]:
+for required in ["reporting/bootstrap.php", "reporting/build.php", "reporting/vendor/autoload.php", "reporting/.htaccess", "utilities/pokedex-binder/api/reports.php",
+                 "api/v1/binder-share.php", "api/v1/_binder-shares.php", "utilities/pokemon-binder/shared/.htaccess"]:
     check((DIST / required).is_file(), f"Missing PHP reporting deployment file: {required}")
 for config in [DIST / ".htaccess", DIST / "utilities/radius-map/.htaccess"]:
     check("https://reports.garrod.house" in config.read_text(encoding="utf-8"), f"Reporting is blocked by CSP in {config}")

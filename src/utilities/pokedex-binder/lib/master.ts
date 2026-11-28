@@ -202,7 +202,7 @@ type SetPocket = PocketContents & PocketLocation;
 export function isCardPocket(pocket: SetPocket): pocket is Slot & PocketLocation {
   return "key" in pocket;
 }
-export function setPockets(b: SetBinder, cards: SetCard[]): SetPocket[] {
+export function setPockets(b: Omit<SetBinder, "id">, cards: SetCard[]): SetPocket[] {
   const marks = new Set(b.owned), orders = new Set(b.ordered),
     main: (Slot | Filler)[] = [],
     parallel: Slot[] = [], related = new Map<string, Slot[]>();

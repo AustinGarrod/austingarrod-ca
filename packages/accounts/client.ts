@@ -244,6 +244,12 @@ export function requestUtilityAdmin<T>(accountId: string, action: string, fields
   return request<T>("admin", action, { body: { ...fields, action }, accountId });
 }
 
+export interface BinderShareStatus {
+  version: number;
+  token: string | null;
+}
+type BinderShareChange = { action: "publish"; documentRevision: number } | { action: "revoke" };
+
 export function createAccountClient(accountId: string) {
   if (!accountId) throw new Error("An account ID is required.");
   return {
@@ -279,6 +285,12 @@ export function createAccountClient(accountId: string) {
     },
     saveBinderStockAlerts(revision: string, alerts: Pick<BinderStockAlert, "store" | "minimum">[]): Promise<BinderStockAlerts> {
       return request("sync", "binder-stock-alerts", { accountId, body: { revision, alerts } });
+    },
+    getBinderShare(binder: string): Promise<BinderShareStatus> {
+      return request("sync", "binder-share", { accountId, query: { binder } });
+    },
+    changeBinderShare(binder: string, version: number, change: BinderShareChange): Promise<BinderShareStatus> {
+      return request("sync", "binder-share", { accountId, body: { binder, version, ...change } });
     },
   };
 }

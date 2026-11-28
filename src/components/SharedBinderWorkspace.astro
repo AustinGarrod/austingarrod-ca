@@ -1,0 +1,20 @@
+---
+import BinderChecklist from "./BinderChecklist.astro";
+import BinderPages from "./BinderPages.astro";
+import BinderToolbar from "./BinderToolbar.astro";
+
+interface Props { set?: boolean }
+const { set = false } = Astro.props;
+const prefix = set ? "master-" : "";
+---
+<section id={prefix + "shared-workspace"} aria-label="Shared collection" hidden>
+  <BinderToolbar prefix={prefix} readOnly>
+    {set ? (
+      <label class="dex-field-inline" for="shared-finish"><span>Finish</span><select id="shared-finish"><option value="all">All finishes</option></select></label>
+    ) : (
+      <label class="dex-field-inline" for="shared-generation"><span>Generation</span><select id="shared-generation"><option value="all">All generations</option>{Array.from({length:9},(_,i)=><option value={i+1}>Generation {i+1}</option>)}</select></label>
+    )}
+  </BinderToolbar>
+  <BinderPages prefix={prefix} readOnly />
+  <BinderChecklist prefix={prefix} readOnly />
+</section>

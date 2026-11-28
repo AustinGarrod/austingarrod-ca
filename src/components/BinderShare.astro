@@ -1,0 +1,27 @@
+---
+import { ArrowUpRight, Copy } from "@lucide/astro";
+---
+<dialog id="binder-share-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="binder-share-title" aria-describedby="binder-share-name">
+  <header class="dex-dialog-header">
+    <h2 id="binder-share-title" tabindex="-1">Share binder</h2>
+    <button type="button" data-close-dialog aria-label="Close sharing">×</button>
+  </header>
+  <p id="binder-share-name"></p>
+  <p id="binder-share-message" class="dex-help" role="status"></p>
+  <p id="binder-share-error" class="dex-error" role="alert" hidden></p>
+  <div id="binder-share-link-panel" hidden>
+    <label for="binder-share-link">Share link</label>
+    <input id="binder-share-link" type="url" readonly spellcheck="false" />
+  </div>
+  <div id="binder-share-actions" class="dex-dialog-actions" hidden>
+    <a id="binder-share-sign-in" class="text-link" hidden>Sign in</a>
+    <button id="binder-share-connect" type="button" hidden>Sync and backup</button>
+    <button id="binder-share-retry" type="button" hidden>Retry</button>
+    <button id="binder-share-publish" class="dex-primary" type="button" hidden>Make public</button>
+    <a id="binder-share-preview" class="text-link dex-share-preview" target="_blank" rel="noopener noreferrer" hidden>Open shared view <ArrowUpRight size={16} aria-hidden="true" /></a>
+    <button id="binder-share-copy" class="dex-primary" type="button" hidden><Copy size={16} aria-hidden="true" /> Copy link</button>
+  </div>
+  <div id="binder-share-stop-panel" class="dex-dialog-danger" hidden>
+    <button id="binder-share-stop" class="dex-danger" type="button">Stop sharing</button>
+  </div>
+</dialog>

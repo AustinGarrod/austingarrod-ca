@@ -1,4 +1,5 @@
 import type { PocketLocation } from "../lib/model";
+import { cardStatus, cardStatusLabel } from "../lib/model";
 
 interface ChecklistRow extends Pick<PocketLocation, "page" | "row" | "column"> {
   key: string | number;
@@ -16,7 +17,7 @@ function setText(node: Element, text: string) {
   if (node.textContent !== text) node.textContent = text;
 }
 
-export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElement, onChange: () => void) {
+export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElement, onChange: () => void, readOnly = false) {
   const isSet = prefix === "master-";
   const id = (suffix: string) => prefix + "checklist-" + suffix;
   const element = <T extends HTMLElement = HTMLElement>(suffix: string) => document.getElementById(id(suffix)) as T;
@@ -24,7 +25,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   const count = document.getElementById(isSet ? "master-list-count" : id("count"))!;
   const template = element<HTMLTemplateElement>("row-template");
   const sort = element<HTMLSelectElement>("sort");
-  const hideCollected = element<HTMLInputElement>("hide-collected");
+  const hideCollected = document.getElementById(id("hide-collected")) as HTMLInputElement | null;
   const letters = element("letters");
   const more = element<HTMLButtonElement>("more");
   const pageSize = 100;
@@ -38,7 +39,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     onChange();
   }
   sort.addEventListener("change", filterChanged);
-  hideCollected.addEventListener("change", () => {
+  hideCollected?.addEventListener("change", () => {
     status.value = hideCollected.checked ? "missing" : "all";
     filterChanged();
   });
@@ -48,6 +49,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     row.querySelector(".dex-checklist-name")!.setAttribute("aria-pressed", String(selected));
   }
   list.addEventListener("click", event => {
+    if (readOnly) return;
     const target = event.target as Element;
     const row = target.closest<HTMLElement>("[data-checklist-row]");
     if (!row || target.closest(".dex-status-control, .dex-checklist-jump")) return;
@@ -66,7 +68,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     }
     const row = list.children[index];
     row.scrollIntoView({ block: "center" });
-    row.querySelector<HTMLButtonElement>(".dex-checklist-name")!.focus({ preventScroll: true });
+    row.querySelector<HTMLElement>(".dex-checklist-name")!.focus({ preventScroll: true });
   });
   more.addEventListener("click", () => {
     limit += pageSize;
@@ -91,15 +93,19 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
     }
     row.classList.toggle("owned", entry.owned);
     row.classList.toggle("ordered", entry.ordered);
-    highlight(row, selectedKey === key);
     const actionLabel = entry.actionLabel ?? entry.name;
-    const status = entry.owned ? "owned" : entry.ordered ? "ordered" : "missing";
-    for (const radio of row.querySelectorAll<HTMLInputElement>(".dex-status-control input")) radio.checked = radio.value === status;
-    const group = row.querySelector(".dex-status-control")!;
-    if (group.getAttribute("aria-label") !== "Status of " + actionLabel) group.setAttribute("aria-label", "Status of " + actionLabel);
+    const status = cardStatus(entry.owned, entry.ordered);
     const name = row.querySelector(".dex-checklist-name")!;
     setText(name, entry.name);
-    name.setAttribute("aria-label", "Highlight " + actionLabel);
+    if (readOnly) {
+      setText(row.querySelector(".dex-read-status")!, cardStatusLabel[status]);
+    } else {
+      highlight(row, selectedKey === key);
+      for (const radio of row.querySelectorAll<HTMLInputElement>(".dex-status-control input")) radio.checked = radio.value === status;
+      const group = row.querySelector(".dex-status-control")!;
+      if (group.getAttribute("aria-label") !== "Status of " + actionLabel) group.setAttribute("aria-label", "Status of " + actionLabel);
+      name.setAttribute("aria-label", "Highlight " + actionLabel);
+    }
     setText(row.querySelector(".dex-label")!, entry.number);
     const detail = row.querySelector<HTMLElement>(".dex-checklist-card-numbers")!;
     setText(detail, entry.detail ?? "");
@@ -124,7 +130,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   }
 
   function render<T extends { name: string }>(items: readonly T[], describe: (item: T) => ChecklistRow) {
-    hideCollected.checked = status.value === "missing";
+    if (hideCollected) hideCollected.checked = status.value === "missing";
     letters.hidden = sort.value !== "name" && sort.value !== "name-desc";
     firstByLetter.clear();
     if (!letters.hidden) {
@@ -164,6 +170,7 @@ export function binderChecklist(prefix: "" | "master-", status: HTMLSelectElemen
   }
   return {
     sort,
+    filterChanged,
     resetLimit() { limit = pageSize; },
     resetSelection() { selectedKey = null; },
     render,

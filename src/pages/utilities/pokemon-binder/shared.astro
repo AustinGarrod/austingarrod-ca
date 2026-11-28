@@ -1,0 +1,38 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import UtilityHeader from "@components/UtilityHeader.astro";
+import SharedBinderWorkspace from "@components/SharedBinderWorkspace.astro";
+import "../../../styles/pokedex-binder.css";
+import "../../../styles/pokedex-binder-share.css";
+---
+<BaseLayout shell="utility" title="Shared Pokémon binder | Austin Garrod" description="View a shared Pokémon binder." bodyClass="pokedex-page shared-binder-page" noIndex privatePage>
+  <meta slot="head" name="referrer" content="no-referrer" />
+  <UtilityHeader toolName="Pokémon Binder" />
+  <div class="dex-app rr-block" data-analytics-private>
+    <header class="dex-shared-header">
+      <div>
+        <p id="shared-set-label" class="dex-eyebrow" hidden></p>
+        <h1 id="shared-title">Shared binder</h1>
+      </div>
+      <span id="shared-read-only" class="dex-read-only-label" hidden>Read only</span>
+    </header>
+    <div id="shared-notice" class="dex-notice" role="status">
+      <p id="shared-message">Loading shared binder…</p>
+      <button id="shared-retry" type="button" hidden>Try again</button>
+    </div>
+    <section id="shared-progress" class="dex-progress" aria-label="Collection progress" hidden>
+      <p id="shared-progress-line" class="dex-progress-line"></p>
+      <div><span class="dex-label">Collected</span><strong id="shared-owned"></strong></div>
+      <div><span class="dex-label">Ordered</span><strong id="shared-ordered"></strong></div>
+      <div><span class="dex-label">Still to find</span><strong id="shared-missing"></strong></div>
+      <div class="dex-completion"><span id="shared-percent" class="dex-label"></span><progress id="shared-bar" aria-labelledby="shared-percent"></progress><span id="shared-goal"></span></div>
+    </section>
+    <SharedBinderWorkspace />
+    <SharedBinderWorkspace set />
+    <footer class="dex-footer">
+      <p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Data from <a href="https://pokeapi.co/">PokéAPI</a> and <a href="https://tcgdex.net/">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt">Data and artwork notices</a>.</p>
+    </footer>
+  </div>
+  <noscript><p class="container">Enable JavaScript to view this shared binder.</p></noscript>
+  <script>import "../../../utilities/pokedex-binder/scripts/shared-binder";</script>
+</BaseLayout>

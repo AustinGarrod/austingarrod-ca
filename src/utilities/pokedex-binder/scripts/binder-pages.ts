@@ -1,4 +1,4 @@
-import type { BinderSettings } from "../lib/model";
+import { cardStatus, cardStatusLabel, type BinderSettings } from "../lib/model";
 const element = <T extends HTMLElement = HTMLElement>(id: string) => {
   const node = document.getElementById(id);
   if (!node) throw new Error("A binder control is missing. Refresh the page.");
@@ -103,18 +103,19 @@ export function blankPocket(position: number, label: string, filler = false) {
 }
 interface Pocket {
   id: string | number; number: string; name: string; finish?: string; image?: string | null;
-  owned: boolean; ordered: boolean; selected: boolean; dimmed: boolean; row: number; column: number; set?: boolean;
+  owned: boolean; ordered: boolean; selected: boolean; dimmed: boolean; row: number; column: number; set?: boolean; readOnly?: boolean;
 }
 export function cardPocket(p: Pocket) {
   const id = escape(p.id), ns = p.set ? "set-" : "";
   const title = escape(p.name), number = escape(p.number), finish = escape(p.finish ?? "");
   const art = p.image ? `<img src="${escape(p.image)}" width="64" height="64" loading="lazy" alt=""/>` : "";
-  const tag = p.ordered && !p.owned ? `<span class="dex-pocket-tag">Ordered</span>` : "";
-  const state = p.owned ? "collected" : p.ordered ? "ordered" : "missing";
+  const state = cardStatusLabel[cardStatus(p.owned, p.ordered)];
+  const tag = p.readOnly ? `<span class="dex-read-status">${state}</span>` : p.ordered && !p.owned ? '<span class="dex-pocket-tag">Ordered</span>' : "";
+  const edit = p.readOnly ? "" : `<label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Have ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>Have it</span></label>`;
   return `<div class="dex-pocket ${p.owned ? "owned" : p.ordered ? "ordered" : ""} ${p.selected ? "selected" : ""} ${p.dimmed ? "dimmed" : ""}">
-    <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, ${state}, row ${p.row}, column ${p.column}. View card details" aria-pressed="${p.selected}">
+    <button id="${ns}open-grid-${id}" class="dex-pocket-open" ${p.set ? "data-set-open" : "data-pokemon"}="${id}" aria-label="${title}, ${number} ${finish}, ${state.toLowerCase()}, row ${p.row}, column ${p.column}. View card details" aria-pressed="${p.selected}">
       <span class="dex-pocket-number">${number}</span>${art}<span class="dex-pocket-name">${title}</span>${finish ? `<small>${finish}</small>` : ""}${tag}</button>
-    <label class="dex-pocket-check"><input id="${ns}owned-grid-${id}" type="checkbox" ${p.set ? "data-key" : "data-owned"}="${id}" ${p.owned ? "checked" : ""} aria-label="Have ${title}${finish ? " " + finish : ""}${p.ordered ? " (ordered)" : ""}"/><span>Have it</span></label></div>`;
+    ${edit}</div>`;
 }
 
 /** One control for a card's three states: Missing, Ordered and Have it. */

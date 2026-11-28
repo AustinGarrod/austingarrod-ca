@@ -1,0 +1,39 @@
+.dex-shared-header {
+  display: flex;
+  align-items: end;
+  gap: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin: 0 0 14px;
+}
+.dex-shared-header h1 { margin: 0; font-size: clamp(23px, 3vw, 32px); line-height: 1.2; overflow-wrap: anywhere; }
+.dex-shared-header .dex-eyebrow { margin: 0 0 2px; }
+.dex-read-only-label { flex: none; margin-block-end: 3px; color: var(--secondary); font-size: 12px; font-weight: 600; }
+#shared-notice p:last-of-type { margin-bottom: 0; }
+#shared-notice button { margin-top: 10px; }
+.dex-read-status { color: var(--muted); font-size: 12px; }
+:is(.dex-pocket, .dex-checklist-row, .dex-detail-body).owned .dex-read-status { color: var(--secondary); }
+:is(.dex-pocket, .dex-checklist-row, .dex-detail-body).ordered .dex-read-status { color: #795218; }
+.dex-pocket .dex-read-status { margin-top: auto; padding-top: 3px; text-align: center; }
+.dex-shared-checklist .dex-checklist-row { cursor: auto; }
+.dex-shared-checklist .dex-checklist-name { cursor: auto; }
+.dex-shared-checklist .dex-checklist-controls { margin-bottom: 12px; }
+
+@media (min-width: 601px) {
+  .dex-shared-checklist .dex-checklist-controls label { max-width: 16rem; }
+}
+@media (max-width: 900px) {
+  .dex-shared-checklist .dex-checklist-row { grid-template-columns: 48px minmax(0, 1fr) auto; }
+}
+@media (max-width: 600px) {
+  .dex-shared-header { margin-bottom: 8px; padding-bottom: 8px; }
+  .dex-shared-header h1 { font-size: 20px; }
+  .dex-shared-checklist .dex-checklist-row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; }
+  .dex-shared-checklist .dex-checklist-row > .dex-read-status { grid-column: 2; grid-row: 2; justify-self: end; }
+  .dex-shared-checklist .dex-checklist-row > .dex-checklist-location { grid-column: 1; grid-row: 2; }
+  .dex-pocket .dex-read-status { font-size: 10px; overflow-wrap: anywhere; }
+}
+@media (max-width: 360px) {
+  .shared-binder-page .dex-toolbar .dex-search { flex-basis: 100%; }
+  .shared-binder-page .dex-view-toggle { margin-inline-start: auto; }
+}
