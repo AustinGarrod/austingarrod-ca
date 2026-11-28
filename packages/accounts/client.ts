@@ -1,5 +1,8 @@
 /** Same-origin account client shared by Astro and the independently built companion. */
 export interface AccountUser { id: string; email: string }
+export interface BinderStockAlert { store: string; minimum: number; lastCheckedAt: string | null }
+export interface BinderStockAlerts { alerts: BinderStockAlert[]; revision: string; hasSyncedBinders: boolean }
+export const binderStockAlertsPath = "/utilities/pokemon-binder/?view=buy-cards&alerts=1";
 export interface AccountSession {
   enabled: boolean;
   migrationEnabled: boolean;
@@ -227,6 +230,7 @@ export function signOut(everywhere = false) { return authenticated(everywhere ? 
 /** Local utility/app entry routes only; new adapters do not need new login logic. */
 export function safeReturnTo(value: string | null | undefined): string {
   if (value === "/account/assistant-consent/") return value;
+  if (value === binderStockAlertsPath) return value;
   if (value && /^\/(?:utilities|apps)\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(value)) return value;
   return "/utilities/";
 }
@@ -264,6 +268,12 @@ export function createAccountClient(accountId: string) {
       return result.document;
     },
     deleteRecovery(id: string): Promise<{ deleted: boolean }> { return request("sync", "recovery-delete", { accountId, body: { id } }); },
+    getBinderStockAlerts(): Promise<BinderStockAlerts> {
+      return request("sync", "binder-stock-alerts", { accountId });
+    },
+    saveBinderStockAlerts(revision: string, alerts: Pick<BinderStockAlert, "store" | "minimum">[]): Promise<BinderStockAlerts> {
+      return request("sync", "binder-stock-alerts", { accountId, body: { revision, alerts } });
+    },
   };
 }
 export type AccountClient = ReturnType<typeof createAccountClient>;

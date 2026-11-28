@@ -1,7 +1,8 @@
 ---
 import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
 import BinderCatalogSearch from "./BinderCatalogSearch.astro";
-import { SlidersHorizontal } from "@lucide/astro";
+import BinderStockAlerts from "./BinderStockAlerts.astro";
+import { Bell, SlidersHorizontal } from "@lucide/astro";
 import "../styles/pokedex-buying.css";
 ---
 <section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden>
@@ -10,7 +11,11 @@ import "../styles/pokedex-buying.css";
   </header>
   <BinderCatalogSearch inline />
   <section id="buy-cards-missing" class="dex-buying-missing" aria-labelledby="buy-cards-missing-title">
-    <h2 id="buy-cards-missing-title">Missing from your binders</h2>
+    <header class="dex-buying-missing-header">
+      <h2 id="buy-cards-missing-title">Missing from your binders</h2>
+      <button id="stock-alerts-toggle" type="button" aria-expanded="false" aria-controls="stock-alerts-panel"><Bell size={16} aria-hidden="true" /> Stock alerts</button>
+    </header>
+    <BinderStockAlerts />
     <div id="buy-cards-binder-filters" class="dex-buying-binder-filters" hidden>
       <div class="dex-buying-filter-bar">
         <label class="dex-buying-search">Filter missing cards

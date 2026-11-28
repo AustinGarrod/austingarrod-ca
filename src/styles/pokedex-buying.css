@@ -60,6 +60,88 @@
   line-height: 1.3;
 }
 
+.dex-buying-missing-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.dex-buying-missing-header h2 { margin: 0; }
+
+.pokedex-page #stock-alerts-toggle[aria-expanded="true"] {
+  border-color: var(--secondary);
+  background: var(--surface-low);
+  color: var(--secondary);
+}
+
+.dex-stock-alerts {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.dex-stock-alerts h3 { margin: 0; font-size: 16px; }
+.dex-stock-alerts p { margin: 8px 0 0; }
+.dex-stock-alerts p:empty { display: none; }
+.dex-stock-alerts a { text-decoration: underline; text-underline-offset: 3px; }
+.dex-stock-alerts fieldset { max-width: 720px; min-width: 0; padding: 0; margin: 12px 0; border: 0; }
+.dex-stock-alerts > button { margin-top: 8px; }
+
+.dex-stock-alert-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.dex-stock-alerts .dex-stock-alert-store {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--dex-control-height);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.dex-stock-alert-store small {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dex-stock-alert-store small:empty { display: none; }
+
+.dex-stock-alerts .dex-stock-alert-minimum {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.dex-stock-alerts label span {
+  font: inherit;
+  text-transform: none;
+}
+
+.dex-stock-alerts .dex-stock-alert-store input { width: 17px; }
+.dex-stock-alerts .dex-stock-alert-minimum input { width: 72px; }
+.dex-stock-alerts .dex-stock-alert-row:has(input[type="checkbox"]:not(:checked)) .dex-stock-alert-minimum { display: none; }
+.dex-stock-alert-row:has(input[type="checkbox"]:not(:checked)) { padding-block: 0; }
+
+@media (max-width: 500px) {
+  .dex-buying-missing-header { gap: 8px; }
+  .dex-stock-alerts { padding: 12px; }
+  .dex-stock-alert-row { column-gap: 8px; }
+  .dex-stock-alerts .dex-stock-alert-store { font-size: 13px; }
+  .dex-stock-alerts .dex-stock-alert-minimum input { width: 60px; }
+}
+
 .buy-catalog-search .catalog-search-filters {
   max-width: 720px;
   align-items: end;

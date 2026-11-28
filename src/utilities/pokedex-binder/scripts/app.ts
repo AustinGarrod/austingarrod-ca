@@ -14,6 +14,7 @@ import { reportFailure } from "../../../reporting/browser";
 import { createTransfers } from "./transfers";
 import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
+import { createStockAlerts } from "./stock-alerts";
 import { binderViews } from "./binder-views";
 import { createCatalogSearch, type MarkTarget } from "./catalog-search";
 import { catalogArtwork, type CatalogPrinting } from "../lib/catalog-search";
@@ -133,13 +134,16 @@ async function initialize() {
     cards: master.collection().cards,
     openPrinting: target => dashboard.inspectCatalog(target, () => buyCatalogSearch.focus()),
   });
+  const stockAlerts = createStockAlerts(controller.recheckConnection);
   navigation.subscribe((selected, fromBinders) => {
     if (selected === "buy-cards") {
       closeScanner();
       for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog[open]")) dialog.close();
       dashboard.enter(fromBinders);
+      stockAlerts.enter();
     } else {
       dashboard.leave();
+      stockAlerts.leave();
       // The Binders tab shows the binder kept in history.state, or the home list.
       void master.fromHistory();
     }
@@ -503,7 +507,7 @@ async function initialize() {
       pricing.scopeChanged();
       dashboard.scopeChanged();
     }
-    account = value; master.account(value); renderSync();
+    account = value; master.account(value); stockAlerts.account(value); renderSync();
     if (changed) dashboard.bindersChanged();
     if (onboardingReady && changed) void updateOnboarding();
   });

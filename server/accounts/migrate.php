@@ -20,11 +20,12 @@ try {
 
     $db = accounts_database($config, false);
     // DDL is deliberately explicit and CLI-only; runtime credentials need no DDL.
-    foreach (explode(';', file_get_contents(__DIR__.'/schema.sql')) as $sql) {
-        if (trim($sql) !== '') {
-            $db->exec($sql);
+    foreach ([__DIR__.'/schema.sql', __DIR__.'/../pokedex-binder/stock-alerts.sql'] as $file) {
+        foreach (explode(';', file_get_contents($file)) as $sql) {
+            if (trim($sql) !== '') {
+                $db->exec($sql);
+            }
         }
-
     }
 
     fwrite(STDOUT, "Accounts schema ready; existing data preserved.\n");

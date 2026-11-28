@@ -39,7 +39,10 @@ try {
         accounts_fail(405, 'method_not_allowed', 'This request method is unsupported.');
     }
 
-    if ($action === 'read' && $method === 'GET') {
+    if ($action === 'binder-stock-alerts') {
+        require_once __DIR__.'/_binder-stock-alerts.php';
+        $result = $mutation ? binder_stock_save($db, $id, $session, $body) : binder_stock_settings($db, $id);
+    } elseif ($action === 'read' && $method === 'GET') {
         [$app,$name] = accounts_document_pair($_GET['app'] ?? null, $_GET['document'] ?? null);
         $client = accounts_id($_GET['clientId'] ?? null);
         $result = ['document' => accounts_remote($db, accounts_document($db, $id, $app, $name), $client)];

@@ -38,7 +38,7 @@ try {
     if ($action === 'create') {
         $db->exec('CREATE DATABASE `'.$name.'` CHARACTER SET utf8mb4');
         $db->exec('USE `'.$name.'`');
-        foreach (['server/pokedex-binder/schema.sql', 'server/accounts/schema.sql'] as $file) {
+        foreach (['server/pokedex-binder/schema.sql', 'server/accounts/schema.sql', 'server/pokedex-binder/stock-alerts.sql'] as $file) {
             foreach (explode(';', file_get_contents(dirname(__DIR__, 2).'/'.$file)) as $sql) {
                 if (trim($sql) !== '') {
                     $db->exec($sql);

@@ -1,0 +1,37 @@
+---
+import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
+import { accountHref, binderStockAlertsPath } from "../../packages/accounts/client";
+---
+<section id="stock-alerts-panel" class="dex-stock-alerts" aria-labelledby="stock-alerts-title" hidden>
+  <h3 id="stock-alerts-title">Back-in-stock emails</h3>
+  <p class="dex-help">Get an email when a store has enough missing cards to place an order. Alerts use all your synced set binders and skip cards already ordered.</p>
+  <p id="stock-alerts-guest" hidden><a href={accountHref(binderStockAlertsPath)}>Sign in to set up stock alerts</a></p>
+  <form id="stock-alerts-form" hidden>
+    <p id="stock-alerts-email" class="dex-help"></p>
+    <p id="stock-alerts-no-binders" class="dex-help" hidden>Alerts start after you sync a set binder. <a href="/utilities/pokemon-binder/" data-binder-view="binders">Go to Binders</a></p>
+    <fieldset id="stock-alerts-fields">
+      <legend class="sr-only">Store alerts</legend>
+      {buyingStores.map((store, index) => (
+        <div class="dex-stock-alert-row" data-alert-store={store}>
+          <label class="dex-stock-alert-store">
+            <input type="checkbox" aria-labelledby={`stock-store-name-${index}`} aria-describedby={`stock-store-status-${index}${isCrossBorder(store) ? ` stock-store-region-${index}` : ""}`} />
+            <span>
+              <span id={`stock-store-name-${index}`}>{store}</span>
+              {isCrossBorder(store) && <small id={`stock-store-region-${index}`}>Cross-border</small>}
+              <small id={`stock-store-status-${index}`} data-alert-status></small>
+            </span>
+          </label>
+          <label class="dex-stock-alert-minimum">
+            <span>Minimum cards</span>
+            <input type="number" min="1" max="100" step="1" value="1" required aria-label={`Minimum missing cards at ${store}`} />
+          </label>
+        </div>
+      ))}
+    </fieldset>
+    <div class="dex-actions">
+      <button id="stock-alerts-save" class="dex-primary" type="submit">Save alerts</button>
+    </div>
+  </form>
+  <p id="stock-alerts-status" class="dex-help" role="status"></p>
+  <button id="stock-alerts-retry" type="button" hidden>Retry</button>
+</section>

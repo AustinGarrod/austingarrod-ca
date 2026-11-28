@@ -19,7 +19,7 @@ function accounts_link_google(PDO $db, string $subject, string $user): void
     accounts_query($db, "INSERT INTO accounts_identities(provider,subject,user_id) VALUES('google',?,?) ON DUPLICATE KEY UPDATE subject=subject", [$subject, $user]);
 }
 
-function accounts_send_code(array $config, string $webroot, string $email, string $code): void
+function accounts_mailer(array $config, string $webroot, string $email): PHPMailer\PHPMailer\PHPMailer
 {
     accounts_vendor($webroot);
     $smtp = $config['smtp'] ?? null;
@@ -52,6 +52,12 @@ function accounts_send_code(array $config, string $webroot, string $email, strin
     $mail->CharSet = 'UTF-8';
     $mail->setFrom((string)$smtp['from'], (string)($smtp['name'] ?? 'AustinGarrod.ca'));
     $mail->addAddress($email);
+    return $mail;
+}
+
+function accounts_send_code(array $config, string $webroot, string $email, string $code): void
+{
+    $mail = accounts_mailer($config, $webroot, $email);
     $mail->Subject = 'Your AustinGarrod.ca sign-in code';
     $message = accounts_code_email($code);
     $mail->isHTML(true);

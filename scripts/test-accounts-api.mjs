@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn, execFileSync, execFile } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdirSync, mkdtempSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 // Real production PHP handlers, isolated localhost MySQL, and a loopback SMTP sink.
 // Authentication always verifies an actual mailed code. No bypass exists in the API.
@@ -91,6 +92,74 @@ async function login(client, email) {
 const binder = (ownedDexIds = []) => ({ schemaVersion: 1, settings: { columns: 3, rows: 3, useBackSides: true, leadingBlankPockets: 0 }, ownedDexIds });
 const app = 'pokedex-binder', document = 'binder';
 const write = (state, baseRevision, clientId, mutationSequence = 1) => ({ app, document, schemaVersion: 1, state, baseRevision, clientId, mutationSequence, operationId: randomUUID() });
+
+async function testBinderStockAlerts(other) {
+  const subscriber = browser();
+  const action = 'binder-stock-alerts';
+  assert.equal((await request(subscriber, 'sync', action)).status, 401);
+  await login(subscriber, 'alerts@example.test');
+  const userId = subscriber.session.user.id;
+  const initial = await request(subscriber, 'sync', action);
+  assert.equal(initial.status, 200);
+  assert.equal(initial.data.hasSyncedBinders, false);
+  assert.deepEqual(initial.data.alerts, []);
+  const settings = { revision: initial.data.revision, alerts: [{ store: '401 Games', minimum: 2 }] };
+  assert.equal((await request(subscriber, 'sync', action, settings, {}, { 'X-CSRF-Token': 'wrong' })).status, 403);
+  assert.equal((await request(other, 'sync', action, undefined, {}, { 'X-Account-ID': userId })).status, 409);
+  for (const alerts of [
+    [{ store: 'Other store', minimum: 2 }], [{ store: '401 Games', minimum: 0 }],
+    [{ store: '401 Games', minimum: 1.5 }], [...settings.alerts, ...settings.alerts],
+  ]) assert.equal((await request(subscriber, 'sync', action, { ...settings, alerts })).status, 422);
+  const saved = await request(subscriber, 'sync', action, settings);
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.data.alerts, [{ ...settings.alerts[0], lastCheckedAt: null }]);
+  assert.equal((await request(subscriber, 'sync', action, { ...settings, alerts: [] })).status, 409);
+  assert.deepEqual((await request(other, 'sync', action)).data.alerts, []);
+
+  const cards = JSON.parse(readFileSync(join(root, 'public/utilities/pokedex-binder/catalog/master-sets/sv03.5.json')));
+  const setBinder = {
+    id: randomUUID(), name: '151', setId: 'sv03.5', goal: 'numbers', order: 'together',
+    settings: { columns: 3, rows: 3, useBackSides: true, leadingBlankPockets: 0 },
+    owned: cards.slice(3).map(card => card.number + ':*'), ordered: ['003:*'], specialties: [], extras: [],
+  };
+  const collection = { schemaVersion: 1, binders: [setBinder, { ...setBinder, id: randomUUID(), name: 'Second binder' }] };
+  const collectionWrite = { ...write(collection, 0, randomUUID()), document: 'master-sets' };
+  assert.equal((await request(subscriber, 'sync', 'write', collectionWrite)).status, 200);
+  assert.equal((await request(subscriber, 'sync', action)).data.hasSyncedBinders, true);
+
+  const run = async phase => (await promisify(execFile)(php, [
+    ...flags, join(root, 'tests/pokedex-binder/stock-alerts-fixture.php'), userId, phase,
+  ], { env })).stdout.trim();
+  const before = messages.length;
+  assert.equal(await run('one-card'), 'checked');
+  assert.equal(messages.length, before, 'Two finishes or two binders must not satisfy a two-card minimum for one wildcard slot.');
+  assert.equal(await run('two-cards'), 'sent');
+  assert.equal(messages.length, before + 1);
+  assert.match(messages.at(-1), /To: alerts@example\.test/);
+  assert.match(messages.at(-1), /Subject: 2 missing cards in stock at 401 Games/);
+  assert.match(messages.at(-1), /view=buy-cards&alerts=1/);
+  assert.ok((await request(subscriber, 'sync', action)).data.alerts[0].lastCheckedAt);
+  assert.equal(await run('elapsed'), 'checked', 'The same stock must not resend after the daily cooldown.');
+  assert.equal(await run('unavailable'), 'checked');
+  assert.equal(await run('two-cards'), 'checked', 'A failed lookup must not look like a restock.');
+  assert.equal(await run('sold-out'), 'checked');
+  assert.equal(await run('binder-change'), 'binder-changed', 'A changed synced binder must invalidate the pending email.');
+  assert.equal(await run('two-cards'), 'sent', 'A confirmed sold-out card can trigger a new email when it returns.');
+  assert.equal(messages.length, before + 2);
+  const paused = await request(subscriber, 'sync', action, { revision: saved.data.revision, alerts: [] });
+  assert.equal(paused.status, 200);
+  assert.equal(await run('two-cards'), 'idle');
+  const resumed = await request(subscriber, 'sync', action, { revision: paused.data.revision, alerts: settings.alerts });
+  assert.equal(resumed.status, 200);
+  assert.equal(await run('sold-out'), 'checked');
+  assert.equal(await run('two-cards'), 'checked', 'Re-enabling a store must preserve the daily email limit.');
+  assert.equal(messages.length, before + 2);
+  const cafe = await request(subscriber, 'sync', action, { revision: resumed.data.revision, alerts: [{ store: 'Swirl Café & Games', minimum: 3 }] });
+  assert.equal(cafe.status, 200);
+  assert.equal(cafe.data.alerts[0].store, 'Swirl Café & Games');
+  console.log('Binder stock alerts: scoped settings, minimum, exact lookups, restocks, duplicate suppression and SMTP passed.');
+}
+
 try {
   execFileSync(process.execPath, [join(root, 'scripts/test-accounts-smtp-tls.mjs')], {
     env: { ...env, PHP_BINARY: php }, stdio: ['ignore', 'inherit', 'pipe'],
@@ -175,6 +244,7 @@ try {
   assert.equal(a.cookies.get('__Host-ag-session'), currentCookie, 'Rejected old POSTs must leave the current account cookie intact');
   assert.equal((await request(a, 'auth', 'email-verify', proof)).status, 401, 'OTP replay must fail after session rotation');
   await login(b, 'two@example.test');
+  await testBinderStockAlerts(b);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId }, { 'X-Account-ID': b.session.user.id })).status, 409);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document, null);
   const first = write(binder([1]), 0, clientId); let response = await request(a, 'sync', 'write', first); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.document.revision, 1);

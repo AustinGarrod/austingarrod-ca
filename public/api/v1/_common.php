@@ -469,6 +469,7 @@ function accounts_email(mixed $value): string
 
 function accounts_return(mixed $value): string
 {
+    if ($value === '/utilities/pokemon-binder/?view=buy-cards&alerts=1') return $value;
     if (!is_string($value) || !str_starts_with($value, '/') || str_starts_with($value, '//') || str_contains($value, '\\') || preg_match('/[\x00-\x20\x7f?#%]/', $value) || strlen($value) > 1024) {
         return '/account/';
     }

@@ -8,6 +8,20 @@ Run `npm run test:pokedex:api` with a loopback `POKEDEX_TEST_DSN` and optional `
 
 The [Cardmarket snapshot guide](market-prices.md) covers the private cache and its daily refresh.
 
+## Stock alert worker
+
+Buy cards offers opt-in emails for each supported store. The worker reads the current synced set binders and checks required missing cards. Each exact printing counts once across binders, and an any-finish slot can count once if a different eligible printing can fill it. Already collected or ordered cards and custom extras are skipped. The store minimum applies across all synced set binders. After the first qualifying check, a store emails again when a new or restocked match is observed and the minimum is met, up to once every 24 hours.
+
+Apply [stock-alerts.sql](stock-alerts.sql) as an additive accounts migration. The account runtime user needs SELECT, INSERT, UPDATE and DELETE on both new tables. The existing account SMTP configuration delivers the email.
+
+Schedule the following command once a minute through cPanel using the site's PHP 8.4 CLI. The entry point also lives behind the API's web deny rule and refuses HTTP execution. Keep output in the private directory. The worker locks out overlapping runs, checks one store subscription and up to ten printings per run, and shares observations across accounts. It uses the existing unauthenticated lookup budget and store cooldowns. Failed lookups are retried without treating them as sold out.
+
+```sh
+umask 077; /opt/alt/php84/usr/bin/php "$HOME/public_html/api/v1/_binder-stock-cron.php" > "$HOME/private/binder-stock-alerts-status.log" 2>&1
+```
+
+Run the same PHP command with `--check` to verify the installed runtime, private account settings and schema without polling stores or sending email. A normal run reports `idle`, `checked` or `sent` without account or card details. Remove or pause the cPanel job to pause delivery.
+
 ## Store offers in CAD
 
 The pricing endpoint uses Shopify’s read-only Storefront Catalog. The browser and PHP share the retailer list in `public/utilities/pokemon-binder/retailers.json`. It includes 401 Games, Deck Out Gaming, Skyfox Games, Danireon, Dungeon Comics & Cards, Le Coin du Jeu, Space Social, Swirl Café & Games, and US-based Pokemon Plug. Lookups use the Canadian market and accept CAD quotes. The card view links to the in-stock variant for the quoted condition. PHP 8.4 and cURL are required. APCu is optional and caches each store's response for nine minutes. [Shopify Storefront Catalog](https://shopify.dev/docs/agents/catalog/storefront-catalog)

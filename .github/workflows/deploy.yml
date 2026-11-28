@@ -112,6 +112,7 @@ jobs:
           npm run test:pokedex:scanner
           npm run test:pokedex:transfers
           POKEDEX_PRICING_ORIGIN=http://127.0.0.1:4331 npm run test:pokedex:pricing
+          node scripts/test-pokedex-stock-alerts.mjs
           PLAYWRIGHT_BASE_URL=http://127.0.0.1:4321/utilities/idle-slayer-companion/ npm run test:companion:e2e -- --workers=3 --retries=1
       - name: Retain browser failure diagnostics
         if: failure() && env.RUN_BROWSER_CHECKS == 'true'
@@ -122,6 +123,7 @@ jobs:
             output/accounts-browser/
             output/accounts-large-browser/
             output/pokedex-scanner/
+            output/pokedex-stock-alerts/
             apps/idle-slayer-companion/playwright-report/
             apps/idle-slayer-companion/test-results/
           retention-days: 5
