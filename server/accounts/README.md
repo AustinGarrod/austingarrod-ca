@@ -68,3 +68,17 @@ The browser adapter must retain originals, keep an immutable in-flight request u
 Idle Slayer account documents, outboxes, migration journals and recovery records use IndexedDB. Guest localStorage records keep their existing keys and formats. Account edits and their frozen outbox share one record and one transaction; the UI acknowledges a device save only after transaction completion and readback. Keep these records out of localStorage: several recovery copies of a valid 4 MiB document exceed its ordinary quota. Storage failure must leave the open visit exportable and must not authorize an upload or a switch to another account.
 
 Authentication discovery and mutations share a same-origin Web Lock across tabs to prevent a stale response from replacing a newly authenticated cookie. Account sign-in/sync requires a browser with Web Locks on HTTPS; unsupported browsers keep guest saves and backups available.
+
+## Utility admin
+
+Open `/account/admin/` with an authorized utility account. The dashboard counts account registrations, live sessions, and current saves. Recent utility activity counts accounts with a changed save in the last 30 days. The directory opens an account's sign-in metadata, current saves, client counts, recovery copies, and Binder stock-alert preferences and send attempts when available. JSON downloads contain the complete stored save. Guest saves, unsynced edits and Screen Cut Calculator settings remain on their original devices.
+
+The API opens only with live accounts and a private allowlist. It uses the existing account database and requires no schema change. Provision access after verifying the existing operator's account UUID against their verified email:
+
+1. In the same private directory as the active `accounts.php`, create an empty `utility-admin-audit.jsonl` owned by the PHP runtime's account and writable by that owner. Preserve the contents if the file already exists.
+2. Create `utility-admin.json` with `{"operators":["<existing account UUID>"]}`. Keep both files outside the webroot and set their permissions to `0600`.
+3. Recheck the deployed page while signed out and with an unlisted account. Verify the allowlisted account can open the overview and an authorized test save. The API checks the account UUID, same-origin POST, session and CSRF token for every request.
+
+Each successful read records its UTC timestamp, operator UUID and action, plus the account and save UUIDs where applicable. The audit excludes search terms, email addresses, and save content. Keep the audit file private. To rotate it, prepare an empty owner-writable file with mode `0600` in the same private directory, move the old log to its archive name, and rename the prepared file into place. Access pauses if the audit path is absent. To disable admin access, remove the allowlist or set its operators to an empty list. The next request reads the changed file.
+
+The accounts API and browser suites exercise utility admin with local accounts and a disposable database. Browser screenshots use synthetic data under ignored `output/accounts-browser/`.

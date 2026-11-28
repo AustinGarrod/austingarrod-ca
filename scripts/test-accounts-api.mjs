@@ -158,6 +158,7 @@ async function testBinderStockAlerts(other) {
   assert.equal(cafe.status, 200);
   assert.equal(cafe.data.alerts[0].store, 'Swirl Café & Games');
   console.log('Binder stock alerts: scoped settings, minimum, exact lookups, restocks, duplicate suppression and SMTP passed.');
+  return userId;
 }
 
 try {
@@ -244,7 +245,7 @@ try {
   assert.equal(a.cookies.get('__Host-ag-session'), currentCookie, 'Rejected old POSTs must leave the current account cookie intact');
   assert.equal((await request(a, 'auth', 'email-verify', proof)).status, 401, 'OTP replay must fail after session rotation');
   await login(b, 'two@example.test');
-  await testBinderStockAlerts(b);
+  const stockAlertsUserId = await testBinderStockAlerts(b);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId }, { 'X-Account-ID': b.session.user.id })).status, 409);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document, null);
   const first = write(binder([1]), 0, clientId); let response = await request(a, 'sync', 'write', first); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.document.revision, 1);
@@ -386,6 +387,78 @@ try {
   assert.equal(radiusCopies.data.snapshots.length, 1);
   const copy = await request(a, 'sync', 'recovery-read', undefined, { id: radiusCopies.data.snapshots[0].id });
   assert.deepEqual(copy.data.snapshot.state, validWrite.state);
+
+  {
+    const allowlist = join(temporary, 'utility-admin.json');
+    const auditPath = join(temporary, 'utility-admin-audit.jsonl');
+    const operatorId = b.session.user.id, userId = a.session.user.id;
+    const admin = (client, action, fields = {}, headers = {}) => request(client, 'admin', '', { action, ...fields }, {}, {
+      'X-Account-ID': client.session?.user?.id || '', ...headers,
+    });
+    assert.equal((await admin(b, 'overview')).status, 503, 'Admin defaults to disabled');
+    writeFileSync(allowlist, JSON.stringify({ operators: [operatorId] }), { mode: 0o600 });
+    assert.equal((await admin(b, 'overview')).status, 503, 'Access requires a private audit file');
+    writeFileSync(auditPath, '', { mode: 0o600 });
+    assert.equal((await request(b, 'admin', 'overview')).status, 405);
+    assert.equal((await admin(browser(), 'overview')).status, 401);
+    assert.equal((await admin(a, 'account', { userId })).status, 403);
+    assert.equal((await admin(b, 'overview', {}, { Origin: 'https://other.example' })).status, 403);
+    assert.equal((await admin(b, 'overview', {}, { 'X-CSRF-Token': '' })).status, 403);
+    assert.equal((await admin(b, 'overview', {}, { 'X-Account-ID': userId })).status, 409);
+    assert.equal(readFileSync(auditPath, 'utf8'), '');
+    const overview = await admin(b, 'overview');
+    assert.equal(overview.status, 200, JSON.stringify(overview.data));
+    assert.equal(overview.data.apps['radius-map'].accounts, 1);
+    assert.equal(overview.data.apps['radius-map'].recentlySynced, 1);
+    assert.equal(overview.headers.get('referrer-policy'), 'no-referrer');
+    const directory = await admin(b, 'users', { app: 'radius-map' });
+    assert.deepEqual(directory.data.users.map(user => user.id), [userId]);
+    assert.deepEqual((await admin(b, 'users', { search: userId.toUpperCase() })).data.users.map(user => user.id), [userId]);
+    assert.deepEqual((await admin(b, 'users', { search: '%' })).data.users, []);
+    const account = await admin(b, 'account', { userId });
+    assert.equal(account.data.account.id, userId);
+    assert.deepEqual(account.data.stockAlerts, []);
+    const saved = account.data.saves.find(save => save.app === 'radius-map');
+    assert.equal(saved.revision, 2);
+    assert.equal(Object.hasOwn(saved, 'json'), false);
+    const historyIds = new Set();
+    let cursor = {};
+    for (;;) {
+      const history = await admin(b, 'recovery', { userId, ...cursor });
+      assert.equal(history.status, 200);
+      assert.ok(history.data.snapshots.length <= 15);
+      for (const { id } of history.data.snapshots) {
+        assert.ok(!historyIds.has(id), 'Paged history must not repeat recovery copies');
+        historyIds.add(id);
+      }
+      if (!history.data.more) break;
+      const last = history.data.snapshots.at(-1);
+      assert.ok(last, 'A page with additional history must have a cursor');
+      cursor = { beforeId: last.id, beforeDate: last.date };
+    }
+    assert.ok(historyIds.has(copy.data.snapshot.id));
+    assert.deepEqual(JSON.parse((await admin(b, 'save', { userId, id: saved.id })).data.json), radius([]));
+    assert.deepEqual(JSON.parse((await admin(b, 'snapshot', { userId, id: copy.data.snapshot.id })).data.json), validWrite.state);
+    assert.equal((await admin(b, 'save', { userId: operatorId, id: saved.id })).status, 404);
+    assert.equal((await admin(b, 'snapshot', { userId: operatorId, id: copy.data.snapshot.id })).status, 404);
+    assert.equal((await admin(b, 'restore', { userId, id: copy.data.snapshot.id })).status, 404);
+    const { data: alertAccount } = await admin(b, 'account', { userId: stockAlertsUserId });
+    assert.deepEqual(alertAccount.stockAlerts.map(({ store, enabled, minimum }) => ({ store, enabled, minimum })), [
+      { store: 'Swirl Café & Games', enabled: true, minimum: 3 },
+      { store: '401 Games', enabled: false, minimum: 2 },
+    ]);
+    assert.ok(alertAccount.stockAlerts[1].lastSendAttemptAt);
+    assert.deepEqual(Object.keys(alertAccount.stockAlerts[1]).sort(), ['enabled', 'lastCheckedAt', 'lastSendAttemptAt', 'minimum', 'store']);
+    const events = readFileSync(auditPath, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+    assert.deepEqual(events.slice(0, 5).map(event => event.action), ['overview', 'users', 'users', 'users', 'account']);
+    assert.ok(events.slice(5, -3).every(event => event.action === 'recovery'));
+    assert.deepEqual(events.slice(-3).map(event => event.action), ['save', 'snapshot', 'account']);
+    assert.ok(events.every(event => event.operator === operatorId && !JSON.stringify(event).includes('@')));
+    assert.equal(events.at(-2).record, copy.data.snapshot.id);
+    writeFileSync(allowlist, '{"operators":[]}');
+    assert.equal((await admin(b, 'overview')).status, 503, 'Removing the private allowlist takes effect on the next request');
+  }
+
   async function startGoogle(client = a) {
     const main = client.cookies.get('__Host-ag-session');
     const oauth = await request(client, 'auth', 'google-start', { returnTo: '//external.example/' });

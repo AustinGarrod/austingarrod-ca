@@ -1,0 +1,149 @@
+---
+import { ArrowLeft, ArrowRight, BookOpen, Download, MapPin, RefreshCw, ShieldCheck, Swords, X } from "@lucide/astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { accountHref } from "../../../../packages/accounts/client";
+import "@styles/utility-admin.css";
+
+const apps = [
+  { id: "pokedex-binder", title: "Pokémon Binder Tracker", Icon: BookOpen },
+  { id: "idle-slayer-companion", title: "Idle Slayer Companion", Icon: Swords },
+  { id: "radius-map", title: "Radius Map", Icon: MapPin },
+];
+const signIn = accountHref("/account/admin/");
+---
+
+<BaseLayout title="Utility admin | Austin Garrod" description="Account and sync support for AustinGarrod.ca utilities." shell="utility" noIndex privatePage>
+  <header class="admin-header">
+    <div class="container admin-header-inner">
+      <a href="/account/admin/" class="admin-brand"><ShieldCheck size={20} aria-hidden="true" />Utility admin</a>
+      <a href="/account/" class="admin-account-link">Utility account <ArrowRight size={16} aria-hidden="true" /></a>
+    </div>
+  </header>
+
+  <div class="container admin-workspace rr-block" data-analytics-private>
+    <section class="admin-panel admin-gate" id="admin-gate" aria-labelledby="admin-gate-heading">
+      <h1 id="admin-gate-heading">Utility admin</h1>
+      <p id="admin-gate-status" role="status">Checking admin access…</p>
+      <a class="button primary" id="admin-sign-in" href={signIn} hidden>Sign in</a>
+      <button class="button secondary" id="admin-retry" type="button" hidden>Try again</button>
+      <a class="button secondary" id="admin-switch" href="/account/" hidden>Manage sign-in</a>
+    </section>
+
+    <div id="admin-dashboard" class="admin-view" hidden>
+      <div class="admin-titlebar">
+        <div>
+          <h1 tabindex="-1" id="admin-dashboard-heading">Utility overview</h1>
+          <p>Account activity and save history across your utilities.</p>
+        </div>
+        <div class="admin-actions">
+          <a class="button secondary" href="#admin-users-heading">Find an account</a>
+          <button class="button secondary" id="admin-refresh" type="button"><RefreshCw size={16} aria-hidden="true" />Refresh</button>
+        </div>
+      </div>
+      <dl class="admin-metrics" aria-label="Account totals">
+        <div><dt>Accounts</dt><dd id="admin-total">—</dd></div>
+        <div><dt>New accounts · 30 days</dt><dd id="admin-new">—</dd></div>
+        <div><dt>Accounts with live sessions</dt><dd id="admin-active">—</dd></div>
+        <div><dt>Synced saves</dt><dd id="admin-saves">—</dd></div>
+      </dl>
+
+      <section class="admin-panel" aria-labelledby="admin-apps-heading">
+        <div class="admin-section-heading">
+          <h2 id="admin-apps-heading">Utility activity</h2>
+          <p>Based on account saves. Screen Cut Calculator and guest data stay on the device.</p>
+        </div>
+        <ul class="admin-apps">
+          {apps.map(({ id, title, Icon }) => (
+            <li data-admin-app={id} data-title={title}>
+              <h3><Icon size={18} aria-hidden="true" />{title}</h3>
+              <dl>
+                <div><dt>Accounts</dt><dd data-accounts>—</dd></div>
+                <div><dt>Saves</dt><dd data-saves>—</dd></div>
+                <div><dt>Accounts that saved · 30 days</dt><dd data-recent>—</dd></div>
+              </dl>
+              <button class="admin-link" type="button" data-filter-app={id}>View accounts <ArrowRight size={16} aria-hidden="true" /></button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="admin-users-heading">
+        <div class="admin-section-heading"><h2 id="admin-users-heading" tabindex="-1">Accounts</h2></div>
+        <form id="admin-search-form" class="admin-filters">
+          <label>Email or account ID<input type="search" id="admin-search" maxlength="254" autocomplete="off" placeholder="Search accounts" /></label>
+          <label>Utility<select id="admin-app-filter">
+            <option value="">All utilities</option>
+            {apps.map(({ id, title }) => <option value={id}>{title}</option>)}
+          </select></label>
+          <button class="button primary" type="submit">Search</button>
+        </form>
+        <div class="admin-directory-columns" aria-hidden="true"><span>Account</span><span>Created</span><span>Saves</span><span>Last saved</span><span></span></div>
+        <ul class="admin-directory" id="admin-users"></ul>
+        <div class="admin-pagination">
+          <p id="admin-users-status" role="status"></p>
+          <div class="admin-actions">
+            <button class="button secondary" id="admin-previous" type="button" hidden><ArrowLeft size={16} aria-hidden="true" />Previous</button>
+            <button class="button secondary" id="admin-next" type="button" hidden>Next <ArrowRight size={16} aria-hidden="true" /></button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="admin-view" id="admin-detail" hidden>
+      <button class="admin-link admin-back" id="admin-back" type="button"><ArrowLeft size={17} aria-hidden="true" />Back to accounts</button>
+      <div class="admin-titlebar">
+        <div><h1 id="admin-user-email" tabindex="-1">Account details</h1><p class="admin-id" id="admin-user-id"></p></div>
+        <button class="button secondary" id="admin-detail-refresh" type="button"><RefreshCw size={16} aria-hidden="true" />Refresh</button>
+      </div>
+      <p class="admin-notice" id="admin-detail-status" role="status" hidden></p>
+      <div class="admin-view" id="admin-detail-content" hidden>
+        <section class="admin-panel" aria-labelledby="admin-session-heading">
+          <div class="admin-section-heading"><h2 id="admin-session-heading">Account activity</h2></div>
+          <dl class="admin-facts">
+            <div><dt>Account created</dt><dd id="admin-user-created"></dd></div>
+            <div><dt>Sign-in methods</dt><dd id="admin-user-providers"></dd></div>
+            <div><dt>Last retained session</dt><dd id="admin-user-seen"></dd></div>
+            <div><dt>Active sessions</dt><dd id="admin-user-sessions"></dd></div>
+          </dl>
+        </section>
+        <section class="admin-panel" aria-labelledby="admin-documents-heading">
+          <div class="admin-section-heading">
+            <h2 id="admin-documents-heading">Current saves</h2>
+            <p>Open a save to inspect its synced data or download its JSON.</p>
+          </div>
+          <div id="admin-documents"></div>
+        </section>
+        <section class="admin-panel" id="admin-stock-alerts" aria-labelledby="admin-stock-alerts-heading" hidden>
+          <div class="admin-section-heading"><h2 id="admin-stock-alerts-heading">Binder stock alerts</h2></div>
+          <ul class="admin-records admin-alerts" id="admin-stock-alert-list"></ul>
+        </section>
+        <section class="admin-panel" aria-labelledby="admin-recovery-heading">
+          <div class="admin-section-heading"><h2 id="admin-recovery-heading">Recovery history</h2></div>
+          <ul class="admin-records" id="admin-recovery"></ul>
+          <div class="admin-pagination">
+            <p role="status" id="admin-recovery-status"></p>
+            <button class="button secondary" type="button" id="admin-recovery-more" hidden>Show older copies</button>
+          </div>
+        </section>
+      </div>
+    </div>
+    <p class="admin-notice admin-error" id="admin-error" role="alert" hidden></p>
+  </div>
+
+  <dialog id="admin-inspector" class="admin-inspector rr-block" data-analytics-private aria-labelledby="admin-inspector-title">
+    <div class="admin-inspector-body">
+      <div class="admin-inspector-header">
+        <div><h2 id="admin-inspector-title">Saved data</h2><p id="admin-inspector-context"></p><p id="admin-inspector-meta"></p></div>
+        <button class="button secondary admin-close" type="button" id="admin-inspector-close" aria-label="Close saved data"><X size={20} aria-hidden="true" /></button>
+      </div>
+      <p id="admin-inspector-status" role="status"></p>
+      <pre tabindex="0" aria-label="Saved JSON" id="admin-inspector-json" hidden></pre>
+      <div class="admin-inspector-actions">
+        <button class="button primary" type="button" id="admin-download" hidden><Download size={17} aria-hidden="true" />Download JSON</button>
+      </div>
+    </div>
+  </dialog>
+  <script>
+    import "../../../utilities/accounts/admin-page";
+  </script>
+</BaseLayout>

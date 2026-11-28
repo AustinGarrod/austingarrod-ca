@@ -156,6 +156,24 @@ combined_client = combined_html + "\n" + "\n".join(
     path.read_text(encoding="utf-8") for path in (DIST / "_astro").glob("*.js")
 )
 
+admin_path = route_file("/account/admin/")
+check(admin_path.is_file(), "Missing utility admin page")
+if admin_path.is_file():
+    markup = admin_path.read_text(encoding="utf-8")
+    check('name="robots" content="noindex"' in markup and 'data-analytics-private' in markup and 'rr-block' in markup,
+          "Utility admin must be private and unindexed")
+    check(ANALYTICS_SCRIPT not in markup and ANALYTICS_RECORDER not in markup, "Utility admin must not load analytics or recordings")
+
+admin_headers = admin_path.parent / ".htaccess"
+check(admin_headers.is_file(), "Missing utility admin response headers")
+if admin_headers.is_file():
+    directives = admin_headers.read_text(encoding="utf-8")
+    for expected in ['Cache-Control "no-store, private"', 'Referrer-Policy "no-referrer"', "frame-ancestors 'none'"]:
+        check(expected in directives, f"Utility admin is missing {expected}")
+
+for filename in ("admin.php", "_admin.php"):
+    check((DIST / "api" / "v1" / filename).is_file(), f"Missing utility admin API file {filename}")
+
 # OCR models/workers must be complete, pinned and same-origin. Camera access is utility-scoped.
 scanner_assets = DIST / "utilities/pokedex-binder/scanner-assets/v1"
 scanner_manifest = scanner_assets / "assets.json"

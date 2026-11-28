@@ -147,10 +147,15 @@ async function adoptBinder(page, chooseAccount) {
 }
 async function openSlayer(page) {
   await page.goto(origin + '/utilities/idle-slayer-companion/');
-  await expect(page.getByRole('button', { name: /^Account & sync/ })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Data', exact: true })).toBeVisible({ timeout: 20_000 });
   // Session discovery can replace the cached offline account workspace. Wait
   // for that initial reconciliation before interacting with its new controls.
   await page.waitForLoadState('networkidle');
+  await openSlayerAccountControls(page);
+}
+async function openSlayerAccountControls(page) {
+  const data = page.getByRole('dialog', { name: 'Data & backup', exact: true });
+  if (!await data.isVisible()) await page.getByRole('button', { name: 'Data', exact: true }).click();
   await page.getByRole('button', { name: /^Account & sync/ }).click();
   await expect(page.getByRole('dialog', { name: 'Account & sync', exact: true })).toBeVisible();
 }
@@ -167,7 +172,7 @@ async function adoptSlayer(page, useAccount) {
   await expect.poll(() => page.evaluate(() => localStorage.getItem('idle-slayer-companion.accounts.active.v1'))).not.toBe(null);
   // Activating the account remounts the workspace; reopen its controls if that
   // remount closed the previous native dialog.
-  if (!await dialog.isVisible()) await page.getByRole('button', { name: /^Account & sync/ }).click();
+  if (!await dialog.isVisible()) await openSlayerAccountControls(page);
   await expect(dialog.getByRole('button', { name: 'Sync now', exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(dialog).toContainText(/Connected and verified|Account changes synced/);
 }
@@ -237,7 +242,7 @@ try {
   databaseCommand('create'); created = true;
   server = spawn(php, [...flags, '-d', 'display_errors=0', '-d', 'log_errors=1', '-S', `127.0.0.1:${port}`, '-t', dist], { env, stdio: ['ignore', 'ignore', 'pipe'] });
   server.stderr.on('data', chunk => { phpOutput += chunk.toString(); });
-  for (let i = 0; i < 100; i++) { try { const response = await fetch(origin + '/account/'); if (response.ok) break; } catch { /* This loopback process only. */ } await new Promise(resolve => setTimeout(resolve, 50)); }
+  for (let i = 0; i < 100; i++) { try { const response = await fetch(origin + '/account/', { method: 'HEAD' }); if (response.ok) break; } catch { /* This loopback process only. */ } await new Promise(resolve => setTimeout(resolve, 50)); }
   browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
   const desktop = await makeContext('desktop', { width: 1440, height: 1000 });
   const page = await desktop.newPage(); const email = `browser-${randomBytes(4).toString('hex')}@example.test`;
@@ -595,6 +600,91 @@ try {
     assert.deepEqual(await Promise.all(resources.map(([app, name]) => remote(desktop, app, name))), beforeDocuments);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: join(output, 'google-link-verified.png'), fullPage: false });
+  });
+  await scenario('utility admin inspects cross-utility saves and recovery on desktop and mobile', async () => {
+    const customer = await session(desktop);
+    const alertsUrl = origin + '/api/v1/sync.php?action=binder-stock-alerts';
+    const customerHeaders = { 'X-Account-ID': customer.user.id };
+    const existingAlerts = await desktop.request.get(alertsUrl, { headers: customerHeaders });
+    assert.equal(existingAlerts.status(), 200);
+    const { revision } = await existingAlerts.json();
+    const updatedAlerts = await desktop.request.post(alertsUrl, {
+      headers: { ...customerHeaders, Origin: origin, 'X-CSRF-Token': customer.csrfToken },
+      data: { revision, alerts: [{ store: '401 Games', minimum: 2 }] },
+    });
+    assert.equal(updatedAlerts.status(), 200);
+
+    const operatorContext = await makeContext('desktop', { width: 1440, height: 1000 });
+    const operatorPage = await operatorContext.newPage();
+    await login(operatorPage, 'support-operator@example.test');
+    const operator = (await session(operatorContext)).user.id;
+    writeFileSync(join(temporary, 'utility-admin.json'), JSON.stringify({ operators: [operator] }), { mode: 0o600 });
+    writeFileSync(join(temporary, 'utility-admin-audit.jsonl'), '', { mode: 0o600 });
+
+    const adminUrl = origin + '/account/admin/';
+    await page.goto(adminUrl);
+    await expect(page.locator('#admin-gate-status')).toContainText('does not have utility admin access');
+    await operatorPage.goto(adminUrl);
+    const overview = operatorPage.getByRole('heading', { name: 'Utility overview' });
+    const openUser = operatorPage.getByRole('button', { name: `Open ${email}` });
+    await expect(overview).toBeVisible();
+    await expect(openUser).toBeVisible();
+    await operatorPage.screenshot({ path: join(output, 'admin-desktop-overview.png'), fullPage: true });
+    const emailSearch = operatorPage.getByRole('searchbox', { name: 'Email or account ID' });
+    await emailSearch.fill(email);
+    await operatorPage.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(operatorPage.locator('#admin-users li')).toHaveCount(1);
+    await openUser.click();
+    for (const name of ['Pokémon Binder Tracker', 'Idle Slayer Companion', 'Radius Map']) {
+      await expect(operatorPage.getByRole('heading', { name, exact: true })).toBeVisible();
+    }
+    const stockAlerts = operatorPage.getByRole('region', { name: 'Binder stock alerts' });
+    await expect(stockAlerts).toContainText('401 Games');
+    await expect(stockAlerts).toContainText('Minimum 2 cards');
+    const viewSave = operatorPage.getByRole('button', { name: 'View Measurements save', exact: true });
+    const viewCopy = operatorPage.getByRole('button', { name: /recovery copy, revision/ }).first();
+    await expect(viewCopy).toBeVisible();
+    await operatorPage.screenshot({ path: join(output, 'admin-desktop-account.png'), fullPage: true });
+    await viewSave.click();
+    const savedJson = operatorPage.locator('#admin-inspector-json');
+    await expect(savedJson).toContainText('measurements');
+    await expect(operatorPage.locator('#admin-inspector-context')).toHaveText('Radius Map · Current save');
+    const downloadEvent = operatorPage.waitForEvent('download');
+    await operatorPage.getByRole('button', { name: 'Download JSON' }).click();
+    const downloaded = await downloadEvent;
+    assert.deepEqual(JSON.parse(readFileSync(await downloaded.path(), 'utf8')),
+      (await remote(desktop, 'radius-map', 'measurements')).state);
+    await operatorPage.screenshot({ path: join(output, 'admin-desktop-save.png') });
+    await operatorPage.keyboard.press('Escape');
+    await expect(savedJson).toBeEmpty();
+    await expect(viewSave).toBeFocused();
+
+    await operatorPage.setViewportSize({ width: 390, height: 844 });
+    const mobileActions = await operatorPage.locator('#admin-detail .button:visible').evaluateAll(buttons => buttons.map(button => ({
+      width: button.clientWidth, height: button.getBoundingClientRect().height, content: button.scrollWidth,
+    })));
+    assert.ok(mobileActions.every(({ width, height, content }) => height >= 44 && width >= content), 'Mobile action labels must fit inside their tap targets');
+    await viewCopy.click();
+    await expect(savedJson).not.toBeEmpty();
+    await expect(operatorPage.locator('#admin-inspector-context')).not.toContainText('Current save');
+    await operatorPage.screenshot({ path: join(output, 'admin-mobile-save.png') });
+    await operatorPage.getByRole('button', { name: 'Close saved data' }).click();
+    await operatorPage.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await operatorPage.screenshot({ path: join(output, 'admin-mobile-account.png'), fullPage: true });
+    await operatorPage.getByRole('button', { name: 'Back to accounts' }).click();
+    await expect(openUser).toBeFocused();
+    await expect(emailSearch).toHaveValue(email);
+    await operatorPage.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await operatorPage.screenshot({ path: join(output, 'admin-mobile-overview.png'), fullPage: true });
+    assert.equal(await operatorPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+
+    const signOutPage = await operatorContext.newPage();
+    await signOutPage.goto(origin + '/account/');
+    await signOutPage.locator('#account-logout').click();
+    await expect(operatorPage.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+    await expect(operatorPage.locator('#admin-users')).toBeEmpty();
+    await expect(operatorPage.locator('#admin-user-email')).toBeEmpty();
+    await operatorPage.screenshot({ path: join(output, 'admin-mobile-sign-in.png') });
   });
   await scenario('signing out restores each browser guest view and retains originals', async () => {
     for (const [currentPage, context, expectedRaw, count] of [[page, desktop, desktopOriginals, '1'], [phone, mobile, mobileOriginals, '1']]) {

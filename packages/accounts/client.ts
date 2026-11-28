@@ -111,7 +111,7 @@ function validSession(value: unknown): value is AccountSession {
       || (typeof item.user?.id === "string" && typeof item.user?.email === "string"));
 }
 
-async function request<T>(file: "auth" | "sync", action: string, options: {
+async function request<T>(file: "auth" | "sync" | "admin", action: string, options: {
   body?: unknown; query?: Record<string, string>; accountId?: string; legacyKey?: string;
 } = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -133,7 +133,7 @@ async function request<T>(file: "auth" | "sync", action: string, options: {
   const send = async (): Promise<T> => {
     let response: Response;
     try {
-      response = await fetch(`/api/v1/${file}.php?${query}`, {
+      response = await fetch(file === "admin" ? "/api/v1/admin.php" : `/api/v1/${file}.php?${query}`, {
       method: options.body === undefined ? "GET" : "POST", headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: "same-origin", mode: "same-origin", cache: "no-store", redirect: "error", referrerPolicy: "no-referrer",
@@ -229,13 +229,16 @@ export function signOut(everywhere = false) { return authenticated(everywhere ? 
 
 /** Local utility/app entry routes only; new adapters do not need new login logic. */
 export function safeReturnTo(value: string | null | undefined): string {
-  if (value === "/account/assistant-consent/") return value;
-  if (value === binderStockAlertsPath) return value;
+  if (value === "/account/assistant-consent/" || value === "/account/admin/" || value === binderStockAlertsPath) return value;
   if (value && /^\/(?:utilities|apps)\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(value)) return value;
   return "/utilities/";
 }
 export function accountHref(returnTo?: string): string {
   return `/account/?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`;
+}
+
+export function requestUtilityAdmin<T>(accountId: string, action: string, fields: Record<string, unknown> = {}): Promise<T> {
+  return request<T>("admin", action, { body: { ...fields, action }, accountId });
 }
 
 export function createAccountClient(accountId: string) {

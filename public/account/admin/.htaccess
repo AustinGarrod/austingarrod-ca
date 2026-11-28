@@ -1,0 +1,9 @@
+Options -Indexes
+<IfModule mod_headers.c>
+  Header always set Cache-Control "no-store, private"
+  Header always set X-Robots-Tag "noindex, nofollow"
+  Header onsuccess unset Referrer-Policy
+  Header always set Referrer-Policy "no-referrer"
+  Header onsuccess unset Content-Security-Policy
+  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+</IfModule>
