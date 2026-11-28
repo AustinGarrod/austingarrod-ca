@@ -1,0 +1,11 @@
+{
+  "401 Games": { "host": "store.401games.ca", "hosts": ["store.401games.ca"], "country": "CA" },
+  "Deck Out Gaming": { "host": "deckoutgaming.ca", "hosts": ["deckoutgaming.ca", "www.deckoutgaming.ca"], "country": "CA" },
+  "Skyfox Games": { "host": "skyfoxgames.com", "hosts": ["skyfoxgames.com", "www.skyfoxgames.com"], "country": "CA" },
+  "Danireon": { "host": "www.danireon.com", "hosts": ["www.danireon.com", "danireon.com"], "country": "CA" },
+  "Dungeon Comics & Cards": { "host": "www.dungeoncomicsandcards.ca", "hosts": ["www.dungeoncomicsandcards.ca", "dungeoncomicsandcards.ca"], "country": "CA" },
+  "Le Coin du Jeu": { "host": "www.lecoindujeu.ca", "hosts": ["www.lecoindujeu.ca", "lecoindujeu.ca"], "country": "CA" },
+  "Space Social": { "host": "spacesocialtcg.com", "hosts": ["spacesocialtcg.com", "www.spacesocialtcg.com"], "country": "CA" },
+  "Swirl Café & Games": { "host": "swirlyeg.com", "hosts": ["swirlyeg.com", "www.swirlyeg.com"], "country": "CA" },
+  "Pokemon Plug": { "host": "pokemonplug.com", "hosts": ["pokemonplug.com", "www.pokemonplug.com"], "country": "US" }
+}

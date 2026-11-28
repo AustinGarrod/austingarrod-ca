@@ -6,11 +6,13 @@ require_once __DIR__ . '/_shopify-auth.php';
 require_once __DIR__ . '/_offer-cache.php';
 require_once __DIR__ . '/_offer-batch.php';
 
-const BINDER_OFFER_STORES = [
-    ['name' => '401 Games', 'host' => 'store.401games.ca', 'hosts' => ['store.401games.ca']],
-    ['name' => 'Deck Out Gaming', 'host' => 'deckoutgaming.ca', 'hosts' => ['deckoutgaming.ca', 'www.deckoutgaming.ca']],
-    ['name' => 'Skyfox Games', 'host' => 'skyfoxgames.com', 'hosts' => ['skyfoxgames.com', 'www.skyfoxgames.com']],
-];
+function binder_offer_registry(): array
+{
+    $stores = json_decode((string) file_get_contents(__DIR__ . '/../retailers.json'), true, 8, JSON_THROW_ON_ERROR);
+    return array_map(static fn(string $name, array $store): array => ['name' => $name, ...$store], array_keys($stores), array_values($stores));
+}
+
+define('BINDER_OFFER_STORES', binder_offer_registry());
 const BINDER_OFFER_PROFILE = 'https://austingarrod.ca/utilities/pokemon-binder/shopify-profile.json';
 const BINDER_OFFER_TTL = 540;
 const BINDER_OFFER_RATE_LIMIT = 24;
@@ -61,7 +63,11 @@ function binder_offer_set_text(string $name): string
     if (!str_contains($name, 'promo')) {
         $name = (string) preg_replace('/^(?:scarlet and violet|sword and shield|sun and moon|black and white)\s+/', '', $name);
     }
-    return $name;
+    return match ($name) {
+        'mega evolution 30th celebration' => '30th celebration',
+        'diamond and pearl base set' => 'diamond and pearl',
+        default => $name,
+    };
 }
 
 function binder_offer_number(string $value): string
@@ -86,13 +92,16 @@ function binder_offer_condition(array $variant): ?array
     $labels = [];
     foreach (is_array($variant['options'] ?? null) ? $variant['options'] : [] as $option) {
         if (is_array($option) && is_string($option['name'] ?? null) && is_string($option['label'] ?? null)
-            && in_array(binder_offer_text($option['name']), ['condition', 'title'], true)) {
+            && in_array(binder_offer_text($option['name']), ['condition', 'title', 'grading'], true)) {
             $labels[] = binder_offer_text($option['label']);
         }
     }
     if (is_string($variant['title'] ?? null)) {
-        $labels[] = binder_offer_text($variant['title']);
+        foreach (explode('/', $variant['title']) as $label) {
+            $labels[] = binder_offer_text($label);
+        }
     }
+    $conditions = [];
     foreach ($labels as $label) {
         foreach ([
             'Near Mint' => [0, 'near mint|nm'],
@@ -103,11 +112,12 @@ function binder_offer_condition(array $variant): ?array
             'Damaged' => [4, 'damaged|dmg'],
         ] as $condition => [$rank, $pattern]) {
             if (preg_match('/^(?:' . $pattern . ')(?:$| )/', $label)) {
-                return ['condition' => $condition, 'conditionRank' => $rank];
+                $conditions[$rank] ??= ['condition' => $condition, 'conditionRank' => $rank];
+                break;
             }
         }
     }
-    return null;
+    return count($conditions) === 1 ? reset($conditions) : null;
 }
 
 function binder_offer_matches(array $target, array $product, array $variant): bool
@@ -149,7 +159,12 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
             $sets[] = $source[1];
         }
     }
-    if (!$sets) {
+    $productLabel = binder_offer_text(substr($title, $match[1][1]));
+    if (!$sets && $set['id'] === '30th' && $denominator !== ''
+        && preg_match('/\b(?:me|mega evolution) 30th celebration\b/', $productLabel)) {
+        $sets[] = $set['name'];
+    }
+    if (!$sets && $set['id'] !== '30th') {
         foreach (is_array($product['collections'] ?? null) ? $product['collections'] : [] as $collection) {
             if (is_array($collection) && is_string($collection['title'] ?? null)) {
                 $sets[] = $collection['title'];
@@ -162,10 +177,11 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
 
     $basePrinting = explode('+', $target['variant']['id']);
     $expectedFinish = array_shift($basePrinting);
-    $productLabel = binder_offer_text(substr($title, $match[1][1]));
-    $variantLabel = is_string($variant['title'] ?? null) ? binder_offer_text($variant['title']) : '';
+    $expectsAnniversaryStamp = $set['id'] === '30th' && in_array('stamp=30th-anniversary', $basePrinting, true);
+    $variantTitle = is_string($variant['title'] ?? null) ? $variant['title'] : '';
+    $variantLabel = binder_offer_text($variantTitle);
     $optionLabels = [];
-    $finishLabels = [$variantLabel];
+    $finishLabels = explode('/', $variantTitle);
     foreach (is_array($variant['options'] ?? null) ? $variant['options'] : [] as $option) {
         if (!is_array($option) || !is_string($option['name'] ?? null) || !is_string($option['label'] ?? null)) {
             continue;
@@ -175,11 +191,17 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
         if ($field === 'language' && !in_array($label, ['en', 'english'], true)) {
             return false;
         }
-        if (in_array($field, ['title', 'finish', 'printing', 'edition', 'language'], true)) {
+        if ($expectsAnniversaryStamp && $field === 'stamp') {
+            if (!preg_match('/^(?:stamp(?:ed)? )?30th anniversary(?: stamp(?:ed)?)?$/', $label)) {
+                return false;
+            }
+            $optionLabels[] = '30th anniversary stamp';
+        }
+        if (in_array($field, ['title', 'finish', 'foiling', 'printing', 'edition', 'language'], true)) {
             $optionLabels[] = $label;
         }
-        if (in_array($field, ['title', 'finish', 'printing'], true)) {
-            $finishLabels[] = $label;
+        if (in_array($field, ['title', 'finish', 'foiling', 'printing'], true)) {
+            array_push($finishLabels, ...explode('/', $option['label']));
         }
     }
     if (preg_match('/\bLanguage\s*:\s*([a-z]+)/i', $descriptionText, $language)
@@ -187,6 +209,13 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
         return false;
     }
     $identifiers = implode(' ', [$productLabel, $variantLabel, ...$optionLabels]);
+    if ($set['id'] === '30th' && preg_match('/\b(?:classic collection|promo)\b/', $identifiers)) {
+        return false;
+    }
+    if ($expectsAnniversaryStamp
+        && preg_match('/\b(?:un ?stamped|(?:non|no|not|without)(?: a| the)?(?: 30th)?(?: anniversary)? stamp(?:ed)?)\b/', $identifiers)) {
+        return false;
+    }
     if (preg_match('/\b(?:japan(?:ese)?|jpn|jp|simplified|traditional|chinese|korean|thai|indonesian|french|german|spanish|italian|portuguese|dutch|japanese version|foreign|psa|cgc|bgs|graded|jumbo|oversized|sealed|lot|bundle|proxy|orica|replica|misprint|error)\b/', $identifiers)) {
         return false;
     }
@@ -207,6 +236,7 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
         'stamp=gamestop' => '/\bgamestop\b/',
         'stamp=best-buy' => '/\bbest buy\b/',
         'stamp=eb-games' => '/\beb games\b/',
+        'stamp=30th-anniversary' => '/\b(?:30th anniversary stamp(?:ed)?|stamp(?:ed)? 30th anniversary)\b/',
     ];
     $expectsVintageEdition = false;
     foreach ($card['variants'] as $printing) {
@@ -224,6 +254,10 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
             $identifiers = (string) preg_replace($pattern, '', $identifiers);
         }
     }
+    // Exact numbered 30th singles may omit the stamp from an otherwise unambiguous listing.
+    if ($expectsAnniversaryStamp && count($card['variants']) === 1 && !in_array('stamp=30th-anniversary', $seenMarkers, true)) {
+        $seenMarkers[] = 'stamp=30th-anniversary';
+    }
     sort($seenMarkers);
     sort($basePrinting);
     if ($seenMarkers !== $basePrinting || preg_match('/\b(?:stamped|stamp|exclusive|league|prize pack|world championships|collector edition|alt art|celebrations classic collection|rainbow|gold foil|shiny vault|texture|textured)\b/', $identifiers)) {
@@ -236,7 +270,7 @@ function binder_offer_matches(array $target, array $product, array $variant): bo
     // A reverse listing can have a Holo Rare rarity. Compare actual finish labels independently.
     $finishLabels[] = (string) preg_replace('/\bholo(?:foil)? rare\b/', ' ', $productLabel);
     if (preg_match('/\bFinish\s*:\s*([^\r\n]{1,65}?)(?=\s+(?:Artist|Card Text|Language|Rarity)\s*:|\R|$)/i', $descriptionText, $label)) {
-        $finishLabels[] = $label[1];
+        array_push($finishLabels, ...explode('/', $label[1]));
     }
     $finishes = array_unique(array_filter(array_map('binder_offer_finish', $finishLabels)));
     if (!$finishes) {
@@ -324,6 +358,9 @@ function binder_offer_query(array $target): string
         $number .= '/' . $set['printedTotal'];
     }
     $name = $set['id'] === 'sv03.5' ? 'Scarlet & Violet 151' : $set['name'];
+    if ($set['id'] === '30th') {
+        return $target['card']['name'] . ' ' . $number . ' ' . $name;
+    }
     $label = $target['variant']['label'];
     return $target['card']['name'] . ' ' . $number . ' ' . $name . ' ' . $label;
 }
@@ -560,7 +597,7 @@ function binder_offer_stores(mixed $requested): ?array
     if ($requested === null) {
         return BINDER_OFFER_STORES;
     }
-    if (!is_string($requested) || strlen($requested) > 80) {
+    if (!is_string($requested) || strlen($requested) > strlen(implode(',', array_column(BINDER_OFFER_STORES, 'name')))) {
         return null;
     }
     $names = explode(',', $requested);

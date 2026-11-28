@@ -1,12 +1,12 @@
 ---
-import { buyingStores } from "../utilities/pokedex-binder/lib/buying-offers";
+import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
 import BinderCatalogSearch from "./BinderCatalogSearch.astro";
 import { SlidersHorizontal } from "@lucide/astro";
 import "../styles/pokedex-buying.css";
 ---
 <section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden>
   <header id="buy-cards-heading" class="dex-buying-heading">
-    <p>Store prices are in CAD before shipping and tax. Authenticated store checks send your IP address to Shopify.</p>
+    <p>Store prices are in CAD before shipping, taxes, and duties. For cross-border listings, select Canada on the retailer’s site if it opens in another currency. Authenticated store checks send your IP address to Shopify.</p>
   </header>
   <BinderCatalogSearch inline />
   <section id="buy-cards-missing" class="dex-buying-missing" aria-labelledby="buy-cards-missing-title">
@@ -39,10 +39,10 @@ import "../styles/pokedex-buying.css";
         </label>
       </div>
       <details id="buy-cards-offer-filters" class="dex-buying-refine">
-        <summary>Store, price, and condition</summary>
+        <summary>Store, price, and condition <small id="buy-cards-offer-filter-count" hidden></small></summary>
         <div class="dex-buying-filters">
           <label>Store <select id="buy-cards-store">
-            <option value="">All stores</option>{buyingStores.map(name => <option>{name}</option>)}
+            <option value="">All stores</option>{buyingStores.map(name => <option value={name}>{name}{isCrossBorder(name) ? " (cross-border)" : ""}</option>)}
           </select></label>
           <label>Maximum price (CAD) <input id="buy-cards-max-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Any price" /></label>
           <label>Minimum condition <select id="buy-cards-condition">
@@ -56,10 +56,10 @@ import "../styles/pokedex-buying.css";
     </div>
     <div class="dex-buying-summary">
       <p id="buy-cards-status" role="status">Loading your set binders…</p>
+      <button id="buy-cards-clear" class="dex-quiet" type="button" hidden>Clear filters</button>
       <div id="buy-cards-binder-actions" class="dex-actions" hidden>
-        <button id="buy-cards-clear" class="dex-quiet" type="button" hidden>Clear filters</button>
         <button id="buy-cards-check" type="button" disabled>Check this page</button>
-        <button id="buy-cards-check-all" class="dex-primary" type="button" disabled>Check all store prices</button>
+        <button id="buy-cards-check-all" class="dex-primary" type="button" disabled>Check all missing cards</button>
         <button id="buy-cards-cancel" class="dex-quiet" type="button" hidden>Stop checking</button>
       </div>
     </div>

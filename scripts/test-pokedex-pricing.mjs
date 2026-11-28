@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { chromium, expect } from "@playwright/test";
+import retailers from "../public/utilities/pokemon-binder/retailers.json" with { type: "json" };
 import { testFullBuyCards } from "./test-pokedex-buying-bulk.mjs";
 import { binderAction, newSetBinder } from "./test-pokedex-helpers.mjs";
 
@@ -15,8 +18,16 @@ const market = { asOf: date, prices: [
   { number: "002", variant: "reverse", cents: 105, observedAt: date },
 ] };
 const points = [{ date: "2026-11-19", cents: 122 }, { date: "2026-11-21", cents: 130 }, { date, cents: 123 }];
-const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
+const stores = Object.keys(retailers);
+const screenshotDir = process.env.POKEDEX_PRICING_SCREENSHOTS;
+if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
 const account = { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", email: "buying@example.test" };
+
+async function screenshot(page, width, state, anchor) {
+  if (!screenshotDir || width === 320) return;
+  if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: "start" }));
+  await page.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled" });
+}
 
 async function notifySessionChange(page) {
   await page.evaluate(() => {
@@ -29,7 +40,7 @@ async function notifySessionChange(page) {
 function retailerFixture(number, variant, now, skyfoxPrice) {
   const quote = (store, priceCents, condition, conditionRank, age = 0) => ({
     store, priceCents, currency: "CAD", condition, conditionRank,
-    checkedAt: new Date(now - age).toISOString(), url: "https://skyfoxgames.com/products/test-printing?variant=" + conditionRank,
+    checkedAt: new Date(now - age).toISOString(), url: `https://${retailers[store].host}/products/test-printing?variant=${conditionRank}`,
   });
   const samplePrinting = number === "001" || number === "002" && variant === "normal";
   const unavailableStores = samplePrinting ? ["401 Games"] : [];
@@ -40,6 +51,7 @@ function retailerFixture(number, variant, now, skyfoxPrice) {
     quote("Skyfox Games", skyfoxPrice, "Near Mint", 0),
     quote("Skyfox Games", 195, "Heavily Played", 3),
     quote("Skyfox Games", 15, "Near Mint", 0, 601_000),
+    quote("Pokemon Plug", 410, "Heavily Played", 3),
   ] : number === "002" ? [] : [
     quote("401 Games", 2500 - Number(number), "Near Mint", 0),
   ];
@@ -320,9 +332,26 @@ try {
     await expect(rows.first()).toContainText("$2.50");
     await expect(rows.first()).not.toContainText("$0.15");
     assert.deepEqual(lookups.slice(lookupCount), [{ set: "sv03.5", number: "002", variant: "normal" }]);
+    const compare = rows.first().getByText("Compare stores", { exact: false });
+    await expect(compare).toContainText("8 of 9 checked · 1 couldn’t be checked");
+    await expect(rows.first().locator(".dex-buying-best")).toContainText("Skyfox Games");
+    await expect(rows.first().locator(".dex-buying-best")).toContainText("Best condition");
+    await expect(rows.first().locator(".dex-buying-offers")).toBeHidden();
+    await screenshot(page, width, "collapsed", width < 600 ? buying.locator("#buy-cards-list") : undefined);
+    await compare.click();
+    await expect(rows.first().locator(".dex-buying-offers")).toBeVisible();
+    await expect(rows.first().locator(".dex-buying-offers")).toContainText("Cross-border");
+    await expect(rows.first().locator(".dex-buying-offers")).toContainText("Couldn’t check");
+    await expect(rows.first().getByRole("link", { name: /Pokemon Plug listing for \$4\.10 CAD/ })).toBeVisible();
+    if (screenshotDir && width !== 320) {
+      await rows.first().screenshot({ path: join(screenshotDir, `expanded-${width}.png`), animations: "disabled" });
+    }
+    await compare.click();
 
     await availability.selectOption("stock");
     await buying.locator("#buy-cards-offer-filters summary").click();
+    await expect(store.locator("option").filter({ hasText: "Pokemon Plug" })).toHaveText("Pokemon Plug (cross-border)");
+    await screenshot(page, width, "filters", width < 600 ? buying.locator("#buy-cards-offer-filters") : undefined);
     await store.selectOption("Deck Out Gaming");
     await expect(rows.first()).toContainText("$1.80");
     await maxPrice.fill("1.79");
@@ -334,6 +363,7 @@ try {
     await condition.selectOption("");
     await maxPrice.fill("");
     await store.selectOption("Skyfox Games");
+    await expect(buying.locator("#buy-cards-offer-filters summary")).toContainText("1 applied");
     await expect(rows).toHaveCount(1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
 
@@ -342,14 +372,18 @@ try {
     await expect(inlineDetails).toBeVisible();
     await expect(inlineDetails.getByRole("heading", { name: "Ivysaur" })).toBeFocused();
     await expect(inlineDetails.locator("#card-market-chart-region")).toBeVisible();
-    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
+    await expect(inlineDetails.locator("#card-retail-offers")).toContainText("In stock · Cross-border");
+    if (screenshotDir && width !== 320) {
+      await inlineDetails.screenshot({ path: join(screenshotDir, `pricing-${width}.png`), animations: "disabled" });
+    }
     assert.equal(lookups.length, beforeCompare, "Opening a partially successful check should reuse fresh quotes.");
     retailerFailure = true;
     await inlineDetails.locator("#card-retail-refresh").click();
     await expect.poll(() => lookups.length).toBe(beforeCompare + 1);
     await expect(inlineDetails.locator("#card-retail-refresh")).toBeEnabled();
     assert.deepEqual(requestedStores.at(-1), ["401 Games"], "Refresh should retry only the retailer without a fresh check.");
-    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+    await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
     retailerFailure = false;
     await expect(page.locator("dialog[open]")).toHaveCount(0);
     await expect(search).toBeVisible();
@@ -405,12 +439,16 @@ try {
     assert.equal(lookups.length, beforePage, "Changing pages must not fetch retailer offers.");
     await checkPage.click();
     await expect.poll(() => lookups.length - beforePage).toBe(24);
+    await expect(checkPage).toBeEnabled();
     const pageRequests = lookups.slice(beforePage);
     assert.equal(new Set(pageRequests.map(lookup => JSON.stringify(lookup))).size, 24);
     assert.ok(pageRequests.every(({ set, number }) => set === "sv03.5" && visibleCards.some(text => text.includes("#" + number))));
     await sort.selectOption("retail");
     await expect(rows.first()).toContainText("Ivysaur");
     await expect(rows.first()).toContainText("$1.80");
+    await expect(rows.first().locator(".dex-buying-best")).toContainText("$1.80");
+      await expect(rows.first().locator(".dex-buying-best")).toContainText("Lowest price");
+    await rows.first().locator("summary").click();
     const cheapestSkyfox = rows.first().getByRole("link", { name: /Skyfox Games listing for \$1\.95/ });
     await expect(cheapestSkyfox).toHaveAttribute("href", /variant=3$/);
     await sort.selectOption("retail-desc");
@@ -421,9 +459,11 @@ try {
     await search.fill("Ivysaur 002");
     await availability.selectOption("stock");
     await expect(rows).toHaveCount(1);
+    await rows.first().locator(".dex-buying-offers").getByRole("link", { name: /Deck Out Gaming listing/ }).focus();
     await page.clock.fastForward(301_000);
     await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Deck Out Gaming" })).not.toContainText("$1.80");
     await expect(rows.first().locator(".dex-buying-offers > div").filter({ hasText: "Skyfox Games" })).toContainText("$2.50");
+    await expect(rows.first().locator("[data-buy-card]")).toBeFocused();
     await page.clock.fastForward(300_000);
     await expect(rows).toHaveCount(0);
     await availability.selectOption("");
@@ -462,7 +502,7 @@ try {
       await expect(rows.first().locator(".dex-buying-market")).toContainText("Loading");
       await rows.first().locator("[data-buy-card]").click();
       await expect(inlineDetails).toBeVisible();
-      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
       await inlineDetails.locator("#card-pricing-back").click();
       releaseMarket();
       await expect(rows.first().locator(".dex-buying-market")).toContainText("$3.49");
@@ -509,7 +549,7 @@ try {
       await rows.first().locator("[data-buy-check]").click();
       await expect(rows.first()).toContainText("$2.80");
       await rows.first().locator("[data-buy-card]").click();
-      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(3);
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
 
       user = null;
       await notifySessionChange(page);

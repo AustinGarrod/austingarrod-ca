@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
+import retailers from "../public/utilities/pokemon-binder/retailers.json" with { type: "json" };
 import { newSetBinder } from "./test-pokedex-helpers.mjs";
 
-const stores = ["401 Games", "Deck Out Gaming", "Skyfox Games"];
+const stores = Object.keys(retailers);
 const smallCatalog = new Map(await Promise.all([["sv03.5", 9], ["sv01", 1], ["base1", 12]].map(async ([set, count]) => {
   const file = new URL("../public/utilities/pokedex-binder/catalog/master-sets/" + set + ".json", import.meta.url);
   const cards = JSON.parse(await readFile(file, "utf8")).slice(0, count);
@@ -180,10 +181,10 @@ export async function testFullBuyCards(browser, origin) {
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText("$2.50");
     const beforeCachedChecks = requests.length;
-    // A checked row offers Compare offers only; the page check covers it.
+    // A checked row opens Price details. The page check can refresh it.
     await expect(rows.first().locator("[data-buy-check]")).toHaveCount(0);
     await buying.locator("#buy-cards-check").click();
-    await expect(progress).toContainText("Checked 1 of 1 printings");
+    await expect(progress).toContainText("Checked 1 of 1 printing.");
     assert.equal(requests.length, beforeCachedChecks, "A fresh price and fresh empty retailer checks must satisfy a page check.");
     const beforeExpiry = lookups.length;
     observed += 606_000;

@@ -55,16 +55,20 @@ function createStorage() {
   let opening: Promise<IDBDatabase> | undefined;
   function open() {
     opening ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open("austingarrod.utilities.pokemon-binder.offers", 2);
+      const request = indexedDB.open("austingarrod.utilities.pokemon-binder.offers", 3);
       request.onupgradeneeded = event => {
         if (event.oldVersion < 1) {
           const store = request.result.createObjectStore(storeName, { keyPath: ["scope", "key", "store"] });
           store.createIndex("scope", "scope");
           store.createIndex("expiresAt", "expiresAt");
+        } else {
+          request.transaction!.objectStore(storeName).clear();
         }
-        const interests = request.result.createObjectStore(interestStore, { keyPath: ["scope", "key"] });
-        interests.createIndex("scope", "scope");
-        interests.createIndex("expiresAt", "expiresAt");
+        if (event.oldVersion < 2) {
+          const interests = request.result.createObjectStore(interestStore, { keyPath: ["scope", "key"] });
+          interests.createIndex("scope", "scope");
+          interests.createIndex("expiresAt", "expiresAt");
+        }
       };
       request.onsuccess = () => {
         request.result.onversionchange = () => { request.result.close(); opening = undefined; };

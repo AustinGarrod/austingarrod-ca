@@ -3,7 +3,9 @@ import { existsSync, mkdtempSync, readdirSync, rmdirSync, rmSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import retailers from "../../public/utilities/pokemon-binder/retailers.json";
 
+const storeNames = Object.keys(retailers);
 const php = process.env.PHP_BINARY || "php";
 const phpVersion = spawnSync(php, ["-r", "echo PHP_VERSION_ID;"], { encoding: "utf8" });
 
@@ -46,6 +48,7 @@ const offeredPrint = {
   variants: [printing, {
     ...printing,
     id: "gid://shopify/ProductVariant/23456",
+    title: "Lightly Played",
     availability: { available: false },
     options: [{ name: "Condition", label: "Lightly Played" }],
   }],
@@ -85,6 +88,90 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     expect(offers([skyfox], 2, vintage)).toEqual([expect.objectContaining({ store: "Skyfox Games", conditionRank: 2 })]);
     expect(offers([skyfox], 2, { ...vintage, variant: "holo+stamp=1st-edition" })).toEqual([]);
     expect(offers([{ ...skyfox, title: skyfox.title.replace("Unlimited", "1st Edition") }], 2, vintage)).toEqual([]);
+  });
+
+  it("matches the numbered 30th Celebration printing when the retailer omits the anniversary stamp", () => {
+    const card = { set: "30th", number: "027", variant: "holo+stamp=30th-anniversary" };
+    const swirl = {
+      title: "Pikachu (027/128) [ME: 30th Celebration]",
+      url: "https://swirlyeg.com/products/pikachu-027-128-me-30th-celebration",
+      variants: [{
+        ...printing,
+        title: "Foil / Near Mint",
+        options: [{ name: "Foiling", label: "Foil" }, { name: "Grading", label: "Near Mint" }],
+      }],
+    };
+    const store = storeNames.indexOf("Swirl Café & Games");
+    expect(offers([swirl], store, card)).toEqual([expect.objectContaining({
+      store: "Swirl Café & Games",
+      condition: "Near Mint",
+      url: swirl.url + "?variant=12345",
+    })]);
+    const dungeon = {
+      ...swirl,
+      title: "Pikachu (037/128) [Mega Evolution: 30th Celebration]",
+      url: "https://www.dungeoncomicsandcards.ca/products/pikachu-037-128-mega-evolution-30th-celebration",
+      variants: [{ ...printing, title: "Near Mint Holofoil", options: [] }],
+    };
+    expect(offers([dungeon], storeNames.indexOf("Dungeon Comics & Cards"), { ...card, number: "037" }))
+      .toEqual([expect.objectContaining({ store: "Dungeon Comics & Cards" })]);
+    const danireon = {
+      ...dungeon,
+      title: "Pikachu ex - 053/128 - ME: 30th Celebration - Holofoil",
+      url: "https://www.danireon.com/products/pikachu-ex-053-128-53-me-30th-celebration-holofoil",
+    };
+    expect(offers([danireon], storeNames.indexOf("Danireon"), { ...card, number: "053" }))
+      .toEqual([expect.objectContaining({ store: "Danireon" })]);
+    const wrongTitles = [
+      "Pikachu (028/128) [30th Celebration]",
+      "Pikachu (027/165) [30th Celebration]",
+      "Pikachu (027/128) [30th Celebration Classic Collection]",
+      "Pikachu (027/128) [30th Celebration] Classic Collection",
+      "Pikachu (027/128) ME 30th Celebration Classic Collection",
+      "Pikachu (027/128) [30th Celebration] Unstamped",
+      "Pikachu (027/128) [30th Celebration] Non 30th Anniversary Stamped",
+      "Pikachu (027/128) [30th Celebration] Without a 30th Anniversary Stamp",
+      "Pikachu (027/128) [30th Celebration] Not 30th Anniversary Stamped",
+      "Pikachu (027/128) [30th Celebration Promo] Holofoil",
+      "Pikachu (027/128) ME 30th Celebration Promo Holofoil",
+      "Pikachu (027/128) [30th Celebration] Staff",
+      "Pikachu (027/128) [30th Celebration] Japanese",
+      "Pikachu ex (027/128) [30th Celebration]",
+    ];
+    expect(offers(wrongTitles.map(title => ({ ...swirl, title, collections: [{ title: "30th Celebration" }] })), store, card)).toEqual([]);
+    expect(offers([{
+      ...swirl, title: "Pikachu (027/128)", collections: [{ title: "30th Celebration" }],
+    }], store, card)).toEqual([]);
+    expect(offers([{ ...swirl, variants: [{ ...swirl.variants[0], title: "Unstamped Foil / Near Mint" }] }], store, card)).toEqual([]);
+    const explicitStamp = (label: string) => ({ ...swirl, variants: [{
+      ...swirl.variants[0], options: [...swirl.variants[0].options, { name: "Stamp", label }],
+    }] });
+    expect(offers([explicitStamp("30th Anniversary")], store, card)).toHaveLength(1);
+    expect(offers([explicitStamp("Unstamped"), explicitStamp("None")], store, card)).toEqual([]);
+    expect(offers([{ ...swirl, variants: [{ ...swirl.variants[0], title: "Foil / Near Mint / Heavily Played" }] }], store, card)).toEqual([]);
+    expect(offers([{ ...swirl, variants: [{ ...printing, title: "Non Foil / Near Mint", options: [] }] }], store, card)).toEqual([]);
+    const egg = { ...card, number: "001", variant: "normal+stamp=30th-anniversary" };
+    const eggListing = { ...swirl, title: "Exeggcute (001/128) [30th Celebration]" };
+    expect(offers([{ ...eggListing, variants: [{ ...printing, title: "Non Foil / Near Mint", options: [] }] }], store, egg)).toHaveLength(1);
+    expect(offers([{ ...eggListing, variants: [{ ...printing, title: "Foil / Non Foil / Near Mint", options: [] }] }], store, egg)).toEqual([]);
+    expect(runPhp("binder_offer_target('public', $input)", { ...card, variant: "holo" })).toBeNull();
+    expect(runPhp("binder_offer_query(binder_offer_target('public', $input))", card)).toBe("Pikachu 027/128 30th Celebration");
+  });
+
+  it("quotes the Canadian market listing from an eligible US store", () => {
+    const weavile = { set: "dp1", number: "40", variant: "reverse" };
+    const pokemonPlug = {
+      title: "Weavile (40/130) [Diamond & Pearl: Base Set]",
+      url: "https://pokemonplug.com/products/weavile-40-130-diamond-pearl-base-set-2",
+      variants: [{ ...printing, title: "Heavily Played Reverse Holofoil", options: [] }],
+    };
+    const store = storeNames.indexOf("Pokemon Plug");
+    expect(offers([pokemonPlug], store, weavile)).toEqual([expect.objectContaining({
+      store: "Pokemon Plug", currency: "CAD", condition: "Heavily Played", url: pokemonPlug.url + "?variant=12345",
+    })]);
+    expect(offers([{
+      ...pokemonPlug, variants: [{ ...pokemonPlug.variants[0], price: { amount: 300, currency: "USD" } }],
+    }], store, weavile)).toEqual([]);
   });
 
   it("rejects near-miss printings, conflicting data, and unavailable quotes", () => {
@@ -152,7 +239,7 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     const result = runPhp(`binder_offer_result(${cachedStores})`, checks);
     expect(result).toEqual({
       offers: [offer],
-      unavailableStores: ["Skyfox Games"],
+      unavailableStores: storeNames.slice(2),
       checkedStores: {
         "401 Games": offer.checkedAt,
         "Deck Out Gaming": new Date(1770999700 * 1000).toISOString().replace(".000Z", "+00:00"),
@@ -165,7 +252,7 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     });
     expect(runPhp("binder_offer_result([])")).toEqual({
       offers: [],
-      unavailableStores: ["401 Games", "Deck Out Gaming", "Skyfox Games"],
+      unavailableStores: storeNames,
       checkedStores: {},
     });
   });
@@ -211,7 +298,8 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
   it("accepts only exact retailer names and reports only the requested stores", () => {
     const expression = "array_column(binder_offer_stores($input), 'name')";
     expect(runPhp(expression, "401 Games,Skyfox Games")).toEqual(["401 Games", "Skyfox Games"]);
-    expect(runPhp(expression)).toEqual(["401 Games", "Deck Out Gaming", "Skyfox Games"]);
+    expect(runPhp(expression)).toEqual(storeNames);
+    expect(runPhp(expression, storeNames.join(","))).toEqual(storeNames);
     for (const selection of ["", "https://example.org", "401 Games,401 Games", "401 Games,wrong", ["401 Games"]]) {
       expect(runPhp("binder_offer_stores($input)", selection)).toBeNull();
     }
@@ -293,7 +381,7 @@ describe.skipIf(Number(phpVersion.stdout || 0) < 80400)("Shopify card offers", (
     const selected = { ...target, stores: ["Skyfox Games"] };
     expect(runPhp(parse, { targets: [selected, secondTarget] })).toMatchObject([
       { target: { card: { number: "135" } }, stores: [{ name: "Skyfox Games" }] },
-      { target: { card: { number: "025" } }, stores: [{ name: "401 Games" }, { name: "Deck Out Gaming" }, { name: "Skyfox Games" }] },
+      { target: { card: { number: "025" } }, stores: storeNames.map(name => ({ name })) },
     ]);
     for (const input of [[], [target, target], Array(11).fill(target), [{ ...target, stores: [] }],
       [{ ...target, stores: ["401 Games,Deck Out Gaming"] }], [{ ...target, stores: ["401 Games", "401 Games"] }]]) {

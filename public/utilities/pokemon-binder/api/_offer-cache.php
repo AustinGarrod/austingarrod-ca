@@ -12,7 +12,7 @@ function binder_offer_printing_key(array $target): string
 
 function binder_offer_cache_key(string $printing, string $host, bool $reference = false): string
 {
-    return ($reference ? 'pokemon-binder-references:v1:' : 'pokemon-binder-offers:v1:') . $host . ':' . $printing;
+    return ($reference ? 'pokemon-binder-references:v2:' : 'pokemon-binder-offers:v2:') . $host . ':' . $printing;
 }
 
 // Fixed slots bound disk usage on hosts without a shared APCu cache. Each slot verifies its full key before reuse.

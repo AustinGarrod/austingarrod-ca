@@ -1,4 +1,5 @@
 import type { SetCard, SetSummary } from "../lib/master";
+import { buyingStores, isCrossBorder, matchesByStore } from "../lib/buying-offers";
 import { catalogArtwork } from "../lib/catalog-search";
 import {
   cad, calendarDate, freshOffers, marketPrices, offerLifetime, pricingRequest, type PriceHistory,
@@ -112,7 +113,7 @@ export function createPricingUI(options: Options) {
     const version = cardVersion, ticket = retailVersion;
     const current = () => active(version) && ticket === retailVersion;
     if (!refresh) retailerList.replaceChildren();
-    retailerStatus.textContent = "Checking Canadian stores…";
+    retailerStatus.textContent = "Checking stores…";
     refreshOffers.disabled = true;
     try {
       const printing = target!;
@@ -123,19 +124,23 @@ export function createPricingUI(options: Options) {
           try { return new URL(offer.url).protocol === "https:"; } catch { return false; }
         });
         retailerList.innerHTML = offers.map(offer =>
-          `<li><div><strong>${escape(offer.store)}</strong><span>${escape(offer.condition)} · Available online</span>
+          `<li><div><strong>${escape(offer.store)}</strong><span>${escape(offer.condition)} · In stock${isCrossBorder(offer.store) ? " · Cross-border" : ""}</span>
           <small>Checked ${escape(offerTime.format(new Date(offer.checkedAt)))}</small></div>
           <div><strong>${cad(offer.priceCents)} CAD</strong><a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer"
             aria-label="Open ${escape(offer.store)} listing (opens in new tab)">View listing</a></div></li>`).join("");
         const messages = [];
-        if (checking) messages.push("Checking Canadian stores…");
+        if (checking) messages.push("Checking stores…");
         if (data.retryAfter) messages.push(`Store checks are busy. Try again in about ${data.retryAfter} seconds.`);
         const waitingStores = Object.keys(data.storeRetryAfter ?? {});
         if (waitingStores.length) messages.push(`Waiting to check ${waitingStores.join(", ")}. Refresh offers to retry.`);
+        const allUnavailable = buyingStores.every(store => data.unavailableStores.includes(store));
+        const checked = matchesByStore(data, buyingStores, now, Infinity, Infinity)
+          .filter(store => store.checkedAt || store.offer).length;
+        if (checked) messages.push(`${checked} of ${buyingStores.length} stores checked.`);
         if (!checking && !offers.length && !data.retryAfter && !waitingStores.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
-          : data.unavailableStores.length >= 3 ? "Canadian stores are temporarily unavailable."
-          : "No exact in-stock offers found.");
-        if (data.unavailableStores.length && data.unavailableStores.length < 3) {
+          : allUnavailable ? "Stores are temporarily unavailable."
+          : checked < buyingStores.length ? "No exact in-stock offers so far." : "No exact in-stock offers found.");
+        if (data.unavailableStores.length && !allUnavailable) {
           messages.push(`Couldn’t check ${data.unavailableStores.join(", ")}.`);
         }
         retailerStatus.textContent = messages.join(" ");
@@ -150,7 +155,7 @@ export function createPricingUI(options: Options) {
       if (previous) show(previous, needsCheck);
       if (needsCheck) show(await options.checkOffers(printing, { force: refresh }), false);
     } catch {
-      if (current()) retailerStatus.textContent = "Canadian offers are temporarily unavailable. Try refreshing.";
+      if (current()) retailerStatus.textContent = "Store offers are temporarily unavailable. Try refreshing.";
     } finally {
       if (current()) refreshOffers.disabled = false;
     }
@@ -198,10 +203,12 @@ export function createPricingUI(options: Options) {
     node("card-pricing-status").textContent = exact() ? "" : "Loading printings…";
     if (buying) {
       title.focus({ preventScroll: true });
-      inline.scrollIntoView({ block: "start" });
     } else if (!prices.open) prices.showModal();
     showPrinting();
     const version = cardVersion;
+    if (buying) requestAnimationFrame(() => {
+      if (active(version) && document.activeElement === title) inline.scrollIntoView({ block: "start" });
+    });
     if (!set && !exact()) {
       node("card-pricing-status").textContent = "This card has no exact printing in the price catalog.";
       return;

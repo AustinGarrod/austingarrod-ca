@@ -1,7 +1,12 @@
 import { freshOfferCheck, freshOffers, type PricingTarget, type RetailOffer, type RetailOffers } from "./pricing";
+import retailers from "../../../../public/utilities/pokemon-binder/retailers.json";
 
-export const buyingStores = ["401 Games", "Deck Out Gaming", "Skyfox Games"] as const;
-export type BuyingStore = typeof buyingStores[number];
+export type BuyingStore = keyof typeof retailers;
+export const buyingStores: readonly BuyingStore[] = Object.keys(retailers) as BuyingStore[];
+
+export function isCrossBorder(store: string): boolean {
+  return Object.hasOwn(retailers, store) && retailers[store as BuyingStore].country !== "CA";
+}
 export type Availability = "stock" | "none" | "unchecked" | "unavailable";
 export interface StoreMatch { store: BuyingStore; availability: Availability; offer?: RetailOffer; checkedAt?: string }
 

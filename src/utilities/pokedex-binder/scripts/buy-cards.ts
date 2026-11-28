@@ -1,11 +1,11 @@
-import { buyingStores, canCheckPrinting, combinedAvailability, matchesByStore, printingKey,
+import { buyingStores, canCheckPrinting, combinedAvailability, isCrossBorder, matchesByStore, printingKey,
   type Availability, type BuyingStore, type StoreMatch } from "../lib/buying-offers";
 import { createBuyOfferCache, offerBatchSize } from "../lib/buying-offer-cache";
 import { catalogArtwork } from "../lib/catalog-search";
 import { binderCards, binderSetIds } from "../lib/binder-catalog";
 import type { MasterState, SetCard, SetSummary } from "../lib/master";
 import { cad, calendarDate, groupBuyingEntries, marketPrices, matchesBuyingEntry, missingPrintings,
-  type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffers } from "../lib/pricing";
+  type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffer, type RetailOffers } from "../lib/pricing";
 import { escape } from "./binder-pages";
 
 interface Options {
@@ -55,17 +55,20 @@ const button = (id: string) => node<HTMLButtonElement>(id);
 const byName = new Intl.Collator("en-CA", { numeric: true });
 const time = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-function storeCell({ store, availability, offer, checkedAt }: StoreMatch, checking: boolean) {
+function listingLink(offer: RetailOffer, key: string) {
+  return `<a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer" data-buy-store-link="${escape(key)}"
+    aria-label="View ${escape(offer.store)} listing for ${cad(offer.priceCents)} CAD (opens in new tab)">${cad(offer.priceCents)} CAD</a>`;
+}
+
+function storeCell({ store, availability, offer }: StoreMatch, checking: boolean, rowId: string) {
   const state = { unchecked: "Needs a check", none: "No matching offer", unavailable: "Couldn’t check", stock: "In stock" };
-  const description = checking && !checkedAt ? "Checking…" : state[availability];
-  const at = offer?.checkedAt ?? checkedAt;
+  const pending = checking && availability === "unchecked";
+  const description = pending ? "Checking…" : state[availability];
   const price = offer
-    ? `<a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer"
-       aria-label="View ${escape(store)} listing for ${cad(offer.priceCents)} CAD (opens in new tab)">${cad(offer.priceCents)}</a>
-       <small>${escape(offer.condition)} · In stock</small>`
+    ? `${listingLink(offer, JSON.stringify([rowId, store]))}<small>${escape(offer.condition)} · In stock</small>`
     : escape(description);
-  const checked = at ? `<small>Checked ${escape(time.format(new Date(at)))}</small>` : "";
-  return `<div data-availability="${checking && !at ? "checking" : availability}"><dt>${escape(store)}</dt><dd>${price}${checked}</dd></div>`;
+  const checked = offer ? `<small>Checked ${escape(time.format(new Date(offer.checkedAt)))}</small>` : "";
+  return `<div data-availability="${pending ? "checking" : availability}"><dt>${escape(store)}${isCrossBorder(store) ? "<small>Cross-border</small>" : ""}</dt><dd>${price}${checked}</dd></div>`;
 }
 
 function priceOrder(a: number, b: number) {
@@ -90,7 +93,7 @@ export function createBuyCards(options: Options) {
   const checkPage = button("check"), checkAll = button("check-all"), cancel = button("cancel"), clear = button("clear");
   const filters = [search, finish, availability, store, maxPrice, condition, sort];
   // On phones the filters other than search sit behind one button that says how many are applied.
-  const filtersToggle = button("filters-toggle"), filterCount = node("filter-count");
+  const filtersToggle = button("filters-toggle"), filterCount = node("filter-count"), offerFilterCount = node("offer-filter-count");
   filtersToggle.addEventListener("click", () => {
     const open = !binderFilters.classList.contains("is-open");
     binderFilters.classList.toggle("is-open", open);
@@ -101,8 +104,12 @@ export function createBuyCards(options: Options) {
     filterCount.textContent = applied ? String(applied) : "";
     filterCount.hidden = !applied;
     filtersToggle.setAttribute("aria-label", applied ? `Filters, ${applied} applied` : "Filters");
+    const offerFilters = [store, maxPrice, condition].filter(field => field.value).length;
+    offerFilterCount.textContent = `${offerFilters} applied`;
+    offerFilterCount.hidden = !offerFilters;
   }
   const picks = new Map<string, string>();
+  const expandedStores = new Set<string>();
   const quotes = createBuyOfferCache(options.offerScope, draw);
   let entries: BuyingEntry[] = [], visible: Row[] = [], setErrors = 0, page = 0, version = 0;
   let sets = new Map<string, SetSummary>(), cards = new Map<string, Map<string, Finishes>>();
@@ -196,30 +203,48 @@ export function createBuyCards(options: Options) {
     const market = price ? `<strong>${cad(price.cents)} CAD</strong> <small>${escape(calendarDate(price.observedAt))}</small>`
       : marketPending.has(target.setId) ? "Loading…" : "No estimate";
     // Store checks stay manual: they share a server-wide lookup limit.
-    const checkButton = (text: string, label: string) =>
-      `<button type="button" class="dex-link" data-buy-check="${id}" aria-label="${label} for ${title}" ${!canCheck || manualCheck ? "disabled" : ""}>${text}</button>`;
+    const checkButton = (text: string, inline = false) =>
+      `<button type="button" ${inline ? 'class="dex-link"' : ""} data-buy-check="${id}" aria-label="${escape(text)} for ${title}" ${!canCheck || manualCheck ? "disabled" : ""}>${escape(text)}</button>`;
     const unchecked = stores.every(item => item.availability === "unchecked");
     const allFailed = stores.length > 0 && stores.every(item => item.availability === "unavailable");
     const someUnchecked = stores.some(item => item.availability === "unchecked");
-    const someFailed = stores.some(item => item.availability === "unavailable");
-    // When only some stores have a result, a small action under them checks the rest.
-    const recheck = canCheck && !checking && (someUnchecked || someFailed)
-      ? `<p class="dex-buying-recheck">${someUnchecked ? checkButton("Check stores", "Check stores") : checkButton("Retry", "Retry store check")}</p>` : "";
+    const failed = stores.filter(item => item.availability === "unavailable");
+    const retryLabel = failed.length === 1 && stores.length === buyingStores.length ? `Retry ${failed[0].store}` : "Retry stores";
+    const recheck = canCheck && !checking && !unchecked && (someUnchecked || failed.length)
+      ? checkButton(someUnchecked ? "Check remaining stores" : retryLabel) : "";
+    const checkedCount = stores.filter(item => item.checkedAt || item.offer).length;
+    const stocked = stores.flatMap(item => item.offer ? [item.offer] : []);
+    const byPrice = sort.value === "retail" || sort.value === "retail-desc";
+    const best = stocked.sort((a, b) => byPrice
+      ? a.priceCents - b.priceCents || a.conditionRank - b.conditionRank
+      : a.conditionRank - b.conditionRank || a.priceCents - b.priceCents)[0];
+    const resultLabel = allFailed ? "Stores unavailable" : someUnchecked || failed.length
+      ? "No matching offer so far" : "No matching offer";
+    const storeOrder = { stock: 0, unavailable: 1, unchecked: 2, none: 3 };
+    const ordered = stores.slice().sort((a, b) => storeOrder[a.availability] - storeOrder[b.availability]);
+    const coverage = `${checkedCount} of ${stores.length} checked${failed.length ? ` · ${failed.length} couldn’t be checked` : ""}`;
+    const comparison = `<details class="dex-buying-compare" data-buy-stores="${id}" ${expandedStores.has(row.id) ? "open" : ""}>
+      <summary data-buy-compare-stores="${id}">Compare stores <small>${coverage}</small></summary>
+      <dl class="dex-buying-offers">${ordered.map(item => storeCell(item, checking, row.id)).join("")}</dl>
+    </details>`;
     const storeResults = !canCheck && unchecked
       ? `<p class="dex-buying-store-line">${target.variant === "*" ? "Choose a finish to check stores." : "Store lookup is unavailable for this finish."}</p>`
       : unchecked && checking ? `<p class="dex-buying-store-line" role="status">Checking stores…</p>`
-      : unchecked ? `<p class="dex-buying-store-line">Stores: Needs a check · ${checkButton("Check stores", "Check stores")}</p>`
-      : allFailed && !checking ? `<p class="dex-buying-store-line" data-availability="unavailable">Stores unavailable · ${checkButton("Retry", "Retry store check")}</p>`
-      : `<dl class="dex-buying-offers">${stores.map(item => storeCell(item, checking)).join("")}</dl>${recheck}`;
-    return `<li class="dex-buying-row">
+      : unchecked ? `<p class="dex-buying-store-line">Stores: Needs a check · ${checkButton("Check stores", true)}</p>`
+      : `${best ? `<div class="dex-buying-best"><div><small>${byPrice ? "Lowest price" : "Best condition"}</small><strong>${escape(best.store)}</strong>
+        <small>${escape(best.condition)} · In stock${isCrossBorder(best.store) ? " · Cross-border" : ""}</small></div>
+        ${listingLink(best, JSON.stringify([row.id, "best"]))}</div>`
+        : `<p class="dex-buying-store-line" data-availability="${allFailed ? "unavailable" : "none"}">${resultLabel}</p>`}
+        ${comparison}`;
+    return `<li class="dex-buying-row" data-buy-row="${id}">
       <div class="dex-buying-identity">${image ? `<img src="${escape(image)}" width="42" height="59" alt="" loading="lazy">` : ""}
         <div><strong>${escape(target.name)}</strong><small>${escape(target.setName)} · #${escape(target.number)} · ${escape(target.finish)}
         ${entry.copies > 1 ? " · " + entry.copies + " needed" : ""}</small>
         <p class="dex-buying-market"><span>Market estimate</span>${market}</p></div>
       </div>
       <div>${storeResults}
-        <div class="dex-actions">${picker}
-          <button type="button" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Compare offers for ${title}">Compare offers</button>
+        <div class="dex-actions">${picker}${recheck}
+          <button type="button" data-buy-card="${id}" aria-controls="buy-card-pricing" aria-expanded="${row.id === inspectedRow}" aria-label="Price details for ${title}">Price details</button>
         </div>
       </div>
     </li>`;
@@ -298,16 +323,22 @@ export function createBuyCards(options: Options) {
     checkPage.disabled = manualCheck || !visible.some(row => canCheckPrinting(row.target));
     checkAll.disabled = manualCheck || !binderTargets.size;
     cancel.hidden = !manualCheck;
-    clear.hidden = filters.every(input => !input.value || input === sort && sort.value === "binder");
+    clear.hidden = binderActions.hidden || filters.every(input => !input.value || input === sort && sort.value === "binder");
     showFilterCount();
 
     const active = document.activeElement as HTMLElement | null;
-    const attribute = ["data-buy-check", "data-buy-card", "data-buy-finish"].find(name => active?.hasAttribute(name));
+    const attribute = ["data-buy-check", "data-buy-card", "data-buy-finish", "data-buy-compare-stores", "data-buy-store-link"].find(name => active?.hasAttribute(name));
     const focused = attribute && active?.getAttribute(attribute);
+    const focusedRow = active?.closest<HTMLElement>("[data-buy-row]")?.dataset.buyRow;
+    for (const details of list.querySelectorAll<HTMLDetailsElement>("details[data-buy-stores]")) {
+      const id = details.dataset.buyStores!;
+      if (details.open) expandedStores.add(id);
+      else expandedStores.delete(id);
+    }
     list.innerHTML = visible.map(rowMarkup).join("");
     if (attribute && focused && active && !active.isConnected) {
       const replacement = list.querySelector<HTMLElement>(`[${attribute}="${CSS.escape(focused)}"]:not(:disabled)`);
-      const alternative = list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(focused)}"]`);
+      const alternative = focusedRow ? list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(focusedRow)}"]`) : null;
       (replacement ?? alternative ?? (manualCheck ? cancel : checkPage)).focus({ preventScroll: true });
     }
     scheduleExpiration(now, quoteExpiry);
@@ -345,7 +376,7 @@ export function createBuyCards(options: Options) {
     function report(wait = rateLimitedUntil - Date.now(), retailer?: BuyingStore) {
       if (kind === "refresh") return;
       const seconds = Math.ceil(wait / 1_000);
-      const count = `${lookup.completed} of ${lookup.total} printings`;
+      const count = `${lookup.completed} of ${lookup.total} ${lookup.total === 1 ? "printing" : "printings"}`;
       showProgress(seconds > 0 ? `${count} checked.` : `Checking store prices · ${count}`, seconds, retailer);
     }
 
@@ -418,7 +449,7 @@ export function createBuyCards(options: Options) {
     const restoreFocus = document.activeElement === cancel;
     job = undefined;
     if (kind !== "refresh") {
-      showProgress(`Checked ${lookup.completed} of ${lookup.total} printings.`
+      showProgress(`Checked ${lookup.completed} of ${lookup.total} ${lookup.total === 1 ? "printing" : "printings"}.`
         + (lookup.unavailable ? ` Some stores couldn’t be checked for ${lookup.unavailable} ${lookup.unavailable === 1 ? "printing" : "printings"}.` : ""));
     }
     draw();
@@ -547,7 +578,7 @@ export function createBuyCards(options: Options) {
     const { kind, completed, total } = job;
     refreshPaused = true;
     cancelChecks();
-    showProgress(`Stopped after ${completed} of ${total} printings.`);
+    showProgress(`Stopped after ${completed} of ${total} ${total === 1 ? "printing" : "printings"}.`);
     draw();
     (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
   });
@@ -626,6 +657,7 @@ export function createBuyCards(options: Options) {
       sets.clear();
       cards.clear();
       picks.clear();
+      expandedStores.clear();
       quotes.reset();
       values.clear();
       marketPending.clear();

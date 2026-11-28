@@ -8,9 +8,9 @@ Run `npm run test:pokedex:api` with a loopback `POKEDEX_TEST_DSN` and optional `
 
 The [Cardmarket snapshot guide](market-prices.md) covers the private cache and its daily refresh.
 
-## Canadian store offers
+## Store offers in CAD
 
-The pricing endpoint uses Shopify's read-only Storefront Catalog to check 401 Games, Deck Out Gaming, and Skyfox Games. It needs PHP 8.4 with cURL enabled. APCu is optional and caches each store's response for nine minutes. Each lookup checks online availability, and the card view links to the quoted condition. [Shopify Storefront Catalog](https://shopify.dev/docs/agents/catalog/storefront-catalog)
+The pricing endpoint uses Shopify’s read-only Storefront Catalog. The browser and PHP share the retailer list in `public/utilities/pokemon-binder/retailers.json`. It includes 401 Games, Deck Out Gaming, Skyfox Games, Danireon, Dungeon Comics & Cards, Le Coin du Jeu, Space Social, Swirl Café & Games, and US-based Pokemon Plug. Lookups use the Canadian market and accept CAD quotes. The card view links to the in-stock variant for the quoted condition. PHP 8.4 and cURL are required. APCu is optional and caches each store's response for nine minutes. [Shopify Storefront Catalog](https://shopify.dev/docs/agents/catalog/storefront-catalog)
 
 Set up a Catalog API identity in Shopify Dev Dashboard under **Agents**. Provision its `client_id` and `client_secret` in `~/private/shopify-catalog.json` with owner-only permissions outside `public_html`. PHP exchanges the credentials for a short-lived token and keeps it in `~/private/shopify-catalog-token.json`. Keep both files out of release artifacts and public backups. Authenticated storefront calls send the web server's validated public buyer IP to Shopify. [Shopify authentication](https://shopify.dev/docs/agents/get-started/authentication) · [Shopify buyer IP and rate limits](https://shopify.dev/docs/agents/profiles/auth-and-rate-limiting)
 
@@ -18,4 +18,4 @@ Authenticated checks follow Shopify's per-retailer `Retry-After` responses with 
 
 Buy Cards can check all supported missing printings in the selected binder scope. Recently checked printings on the visible Buy Cards page refresh after expiry while the tab is visible.
 
-After deployment, confirm that `/utilities/pokemon-binder/shopify-profile.json` is publicly reachable over HTTPS with `Cache-Control: public, max-age=3600`. The profile is cached for an hour and offers retain their separate nine-minute limit. Open Buy Cards and compare an exact printing with a known offer from each store. The pre-release checks used 151 Jolteon #135 reverse holo for 401 Games, 151 Electrode #101 reverse holo for Deck Out Gaming, and Team Rocket Dark Hypno #9 Unlimited holo for Skyfox Games. Verify the finish, condition, CAD price, and selected variant on the store page. Use another known in-stock printing if availability has changed. [UCP profile hosting requirements](https://ucp.dev/specification/overview/#hosting)
+After deployment, confirm that `/utilities/pokemon-binder/shopify-profile.json` is publicly reachable over HTTPS with `Cache-Control: public, max-age=3600`. Open Buy Cards and compare exact printings. For example, check 30th Celebration Pikachu #027 stamped holo at Swirl Café & Games and Diamond & Pearl Weavile #40 reverse holo at Pokemon Plug. Check the finish, condition, CAD price, and selected variant on each store page. Use another currently stocked printing if inventory has changed. [UCP profile hosting requirements](https://ucp.dev/specification/overview/#hosting)
