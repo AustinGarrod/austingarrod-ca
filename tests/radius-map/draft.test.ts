@@ -30,9 +30,17 @@ describe("Radius Map draft", () => {
 
   it("survives storage that throws", () => {
     const failing = () => { throw new DOMException("Storage unavailable", "SecurityError"); };
-    expect(() => writeDraft(draft, failing)).not.toThrow();
+    expect(writeDraft(draft, failing)).toBe(false);
     expect(readDraft(failing)).toBeNull();
     expect(() => forgetDraft(failing)).not.toThrow();
+  });
+
+  it("reports whether a draft can be restored and keeps the prior copy on failure", () => {
+    const storage = memoryStorage();
+    expect(writeDraft(draft, storage.source)).toBe(true);
+    expect(writeDraft({ ...draft, value: "1".repeat(33) }, storage.source)).toBe(false);
+    expect(writeDraft({ ...draft, centerLabel: "x".repeat(241) }, storage.source)).toBe(false);
+    expect(readDraft(storage.source)).toEqual(draft);
   });
 
   it("rejects malformed or out-of-range drafts", () => {

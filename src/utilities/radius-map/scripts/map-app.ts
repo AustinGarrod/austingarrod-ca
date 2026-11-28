@@ -16,6 +16,7 @@ import {
   type MeasurementKind,
 } from "../lib/distance";
 import { forgetDraft, readDraft, writeDraft } from "../lib/draft";
+import { initializeUtilityUpdate } from "../../utility-update";
 import type { GeocodeResult } from "../lib/geocode";
 import {
   type SavedMeasurement,
@@ -274,6 +275,7 @@ export function initializeRadiusMap(): void {
   let accountView: RadiusAccountView | null = null;
   let accountSnapshot = "";
   let pendingSave = false;
+  let pendingWrites = 0;
   let draftTracking = false;
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
   let undoAction: (() => void) | null = null;
@@ -320,6 +322,12 @@ export function initializeRadiusMap(): void {
     }
   });
 
+  async function changeMeasurement(...args: Parameters<typeof accounts.change>): Promise<void> {
+    pendingWrites++;
+    try { await accounts.change(...args); }
+    finally { pendingWrites--; }
+  }
+
   // Status
 
   function setStatus(message: string, tone: "info" | "error" = "info"): void {
@@ -359,10 +367,10 @@ export function initializeRadiusMap(): void {
     else controlPanel.focus({ preventScroll: true });
   }
 
-  function persistDraft(): void {
+  function persistDraft(): boolean {
     // An edit belongs to a saved measurement; the draft kept is the one from before it.
-    if (!draftTracking || state.editingId) return;
-    writeDraft({
+    if (!draftTracking || state.editingId) return false;
+    return writeDraft({
       center: state.center,
       centerLabel: state.centerLabel,
       value: measurementInput.value,
@@ -833,7 +841,7 @@ export function initializeRadiusMap(): void {
   async function updateVisibility(measurement: SavedMeasurement, visible: boolean): Promise<void> {
     const namespace = accountId;
     try {
-      await accounts.change({ ...measurement, visible }, measurement);
+      await changeMeasurement({ ...measurement, visible }, measurement);
       if (namespace !== accountId) return;
       clearResult();
       if (visible) fitVisibleCircles();
@@ -967,7 +975,7 @@ export function initializeRadiusMap(): void {
       if (saveDialogMode === "rename") {
         if (!dialogOriginal) throw new Error("Measurement not found.");
         const renamedId = dialogOriginal.id;
-        await accounts.change({ ...dialogOriginal, name }, dialogOriginal);
+        await changeMeasurement({ ...dialogOriginal, name }, dialogOriginal);
         if (namespace !== accountId) return;
         saveDialog.close();
         setStatus(`Renamed to ${name}.`);
@@ -975,7 +983,7 @@ export function initializeRadiusMap(): void {
       } else {
         const draft = currentDraftInput(name);
         if (!draft) throw new Error("Choose a centre and valid distance before saving.");
-        await accounts.change(draft, dialogOriginal);
+        await changeMeasurement(draft, dialogOriginal);
         if (namespace !== accountId) return;
         saveDialog.close();
         if (operation === "update") finishEdit(`${name} updated.`);
@@ -1011,7 +1019,7 @@ export function initializeRadiusMap(): void {
     const namespace = accountId;
     const { id, createdAt, radiusMeters: _radius, updatedAt: _updated, ...input } = measurement;
     try {
-      await accounts.change(input, undefined, { id, createdAt });
+      await changeMeasurement(input, undefined, { id, createdAt });
       if (namespace !== accountId) return;
       setStatus(`Restored ${measurement.name}.`);
       rowFor(id)?.querySelector<HTMLButtonElement>(".saved-item-main")?.focus();
@@ -1033,7 +1041,7 @@ export function initializeRadiusMap(): void {
     deleteDialogSubmit.disabled = true;
     deleteDialogError.hidden = true;
     try {
-      await accounts.change(null, measurement);
+      await changeMeasurement(null, measurement);
       if (namespace !== accountId) return;
       if (state.editingId === measurement.id) finishEdit("");
       clearResult();
@@ -1470,5 +1478,12 @@ export function initializeRadiusMap(): void {
   fitWorld();
   restoreDraft();
   draftTracking = true;
+  initializeUtilityUpdate(() => {
+    if (state.editingId || document.querySelector("dialog[open]")) return "Finish or cancel your measurement edit before updating.";
+    if (pendingWrites) return "Wait for Radius Map to finish saving before updating.";
+    if (measurementInput.validity.badInput) return "Finish entering the distance before updating.";
+    if ((state.center || measurementInput.value) && !persistDraft()) return "Your draft couldn’t be saved. Finish it before updating.";
+    return null;
+  });
   accounts.start();
 }

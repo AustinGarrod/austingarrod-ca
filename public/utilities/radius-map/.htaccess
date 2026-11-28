@@ -2,6 +2,10 @@
   Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://analytics.garrod.house; connect-src 'self' https://analytics.garrod.house https://reports.garrod.house; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://analytics.garrod.house; form-action 'self'"
   Header set Permissions-Policy "camera=(), geolocation=(self), microphone=(), payment=(), usb=()"
 
+  <Files "index.html">
+    Header set Cache-Control "no-cache"
+  </Files>
+
   <Files "sw.js">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Service-Worker-Allowed "/utilities/radius-map/"

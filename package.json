@@ -17,7 +17,7 @@
     "write:deployment-manifest": "python scripts/write-deployment-manifest.py",
     "verify:dist": "node scripts/companion.mjs verify && python scripts/verify-build.py",
     "build:deploy": "npm run generate:assets && npm run build && npm run reporting:upload && npm run write:deployment-manifest && npm run verify:dist",
-    "build:site": "astro check && astro build && sentry-cli sourcemaps inject dist/_astro && node scripts/generate-radius-map-service-worker.mjs",
+    "build:site": "astro check && astro build && node scripts/generate-utility-releases.mjs && sentry-cli sourcemaps inject dist/_astro && node scripts/generate-radius-map-service-worker.mjs",
     "test:site": "vitest run",
     "install:companion": "node scripts/companion.mjs install",
     "test:companion:e2e": "node scripts/companion.mjs e2e",
@@ -38,7 +38,8 @@
     "test:accounts:browser": "node scripts/test-accounts-browser.mjs",
     "test:accounts:large": "node scripts/test-accounts-large-browser.mjs",
     "refresh:pokedex:scan-index": "node scripts/pokedex-scan-index.mjs",
-    "test:pokedex:scanner": "node scripts/test-pokedex-scanner.mjs"
+    "test:pokedex:scanner": "node scripts/test-pokedex-scanner.mjs",
+    "test:utility-updates": "node scripts/test-utility-updates.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

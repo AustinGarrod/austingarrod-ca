@@ -2,6 +2,7 @@
 import { ArrowDown, Copy } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
+import UtilityUpdateNotice from "@components/UtilityUpdateNotice.astro";
 import "../../styles/screen-cut-calculator.css";
 
 const title = "Window Screen Frame Cut Calculator | Austin Garrod";
@@ -17,6 +18,7 @@ const description = "Calculate aluminum window screen frame cut lengths from a m
   bodyClass="screen-cut-page"
 >
   <UtilityHeader toolName="Screen Cut Calculator" backHref={null} />
+  <UtilityUpdateNotice releasePath="/utilities/screen-cut-calculator/utility-release.json" />
 
   <div class="screen-cut-container">
     <section class="screen-cut-intro" aria-labelledby="calculator-title">

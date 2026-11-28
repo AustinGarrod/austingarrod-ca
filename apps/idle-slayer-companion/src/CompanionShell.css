@@ -44,6 +44,7 @@
 .companion-local-note small { color: var(--muted); font-size: .75rem; }
 /* Containing block for visually hidden legends inside scrolled cards; without it they extend the page. */
 .companion-content { position: relative; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; outline-offset: -3px; background: var(--surface); }
+.companion-content .utility-update { --utility-update-gutter: 24px; flex: 0 0 auto; }
 .companion-session-status { position: relative; z-index: 21; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; padding: 8px 24px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: .8125rem; line-height: 1.5; }
 .companion-session-status .session-history-controls { flex: 0 1 220px; }
 .companion-session-status .session-history-controls > div { flex: 1 1 90px; }
@@ -92,6 +93,7 @@
 }
 /* Phones: one 56px row. The breadcrumb keeps only its way back; the save state becomes a dot by Data. */
 @media (max-width: 760px) {
+  .companion-content .utility-update { --utility-update-gutter: 12px; }
   .companion-topbar { grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; min-height: 56px; padding: 0 12px; }
   .companion-crumbs { justify-content: flex-end; }
   .companion-crumb-back { display: inline; }

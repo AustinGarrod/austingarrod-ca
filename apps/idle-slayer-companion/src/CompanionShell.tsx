@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './CompanionShell.css'
+import '../../../src/styles/utility-update.css'
 import { usePwaStatus } from './pwa'
 import { loadRailCollapsed, saveRailCollapsed } from './domain/rail-preference'
 import { runtimeDeployment } from './runtime-deployment'
@@ -46,6 +47,7 @@ export function CompanionShell({ section, onNavigate, children, ascension, onDat
   const [mobile, setMobile] = useState(() => matchMedia('(max-width: 900px)').matches)
   const [largeText, setLargeText] = useState(() => parseFloat(getComputedStyle(document.documentElement).fontSize) > 20)
   const pwaStatus = usePwaStatus()
+  const [dismissedUpdates, setDismissedUpdates] = useState<Set<string>>(() => new Set())
   const menuButton = useRef<HTMLButtonElement>(null)
   const topbar = useRef<HTMLElement>(null)
   const navigation = useRef<HTMLElement>(null)
@@ -53,6 +55,9 @@ export function CompanionShell({ section, onNavigate, children, ascension, onDat
   const content = useRef<HTMLElement>(null)
   const current = companionSections.find((item) => item.id === section) ?? companionSections[0]
   const navigationModal = mobile && mobileOpen
+  const updateVersion = pwaStatus.updateVersion
+  const showUpdate = runtimeDeployment.target === 'website' && onInstall && updateVersion && !dismissedUpdates.has(updateVersion)
+  const showSidebarUpdate = pwaStatus.update && !showUpdate
 
   useLayoutEffect(() => {
     if (content.current) { content.current.scrollTop = 0; content.current.scrollLeft = 0 }
@@ -129,10 +134,21 @@ export function CompanionShell({ section, onNavigate, children, ascension, onDat
         <div className="companion-local-note"><span aria-hidden="true">◉</span><span>Stored in this browser<small>Export a backup.</small></span></div>
         {onSettings && <button type="button" onClick={() => openFromNavigation(onSettings)} title={collapsed ? 'Privacy & tracking' : undefined}><span aria-hidden="true">⚙</span><span className="companion-nav-label">Privacy & tracking</span></button>}
         {onHelp && <button type="button" onClick={() => openFromNavigation(onHelp)} title={collapsed ? 'About & sources' : undefined}><span aria-hidden="true">?</span><span className="companion-nav-label">About & sources</span></button>}
-        {onInstall && <button type="button" aria-label="Install & offline" onClick={() => openFromNavigation(onInstall)} title={collapsed ? pwaStatus.update ? 'Install & offline · Update ready' : 'Install & offline' : undefined}><span aria-hidden="true">↓</span><span className="companion-nav-label">Install & offline{pwaStatus.update && <small>Update ready</small>}</span></button>}
+        {onInstall && <button type="button" aria-label="Install & offline" onClick={() => openFromNavigation(onInstall)} title={collapsed ? showSidebarUpdate ? 'Install & offline · Update ready' : 'Install & offline' : undefined}><span aria-hidden="true">↓</span><span className="companion-nav-label">Install & offline{showSidebarUpdate && <small>Update ready</small>}</span></button>}
       </div>
     </aside>
     <main ref={content} id="companion-content" className="companion-content" tabIndex={-1} aria-label={current.title} inert={navigationModal}>
+      <span className="sr-only" role="status">{showUpdate ? 'Update available' : ''}</span>
+      {showUpdate && <div className="utility-update">
+        <div className="utility-update-copy"><strong>Update available</strong></div>
+        <div className="utility-update-actions">
+          <button type="button" className="utility-update-primary" onClick={onInstall}>Review update</button>
+          <button type="button" onClick={() => {
+            setDismissedUpdates((current) => new Set(current).add(updateVersion))
+            content.current?.focus({ preventScroll: true })
+          }}>Later</button>
+        </div>
+      </div>}
       {notice && <div className="companion-notice">{notice}</div>}
       {status && <div className="companion-session-status telemetry-private rr-block">{status}</div>}
       <div className="companion-map-container" hidden={section !== 'ascension'}>{ascension}</div>

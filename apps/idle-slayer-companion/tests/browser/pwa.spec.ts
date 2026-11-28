@@ -548,8 +548,22 @@ test('updates stay waiting for late windows, then naturally activate after all c
     await expect.poll(() => page.evaluate(({ key, id }) => Boolean(JSON.parse(localStorage.getItem(key)!).progress.ascension.purchases[id]), { key: PROFILE_STORAGE_KEY, id: catalog.startId })).toBe(true)
     const other = await context.newPage(); await other.goto(page.url())
     await expect(other.locator('.toolbar')).toBeVisible()
+    const reviewUpdate = page.getByRole('button', { name: 'Review update', exact: true })
+    await expect(reviewUpdate).toBeVisible()
+    if (process.env.UTILITY_UPDATE_SCREENSHOTS === '1') {
+      const output = resolve('../../output/utility-updates')
+      await page.screenshot({ path: resolve(output, `idle-slayer-companion-${testInfo.project.name}.png`), animations: 'disabled' })
+      const viewport = page.viewportSize()
+      if (testInfo.project.name === 'mobile' && viewport) {
+        await page.setViewportSize({ width: 320, height: 568 })
+        await page.screenshot({ path: resolve(output, 'idle-slayer-companion-narrow.png'), animations: 'disabled' })
+        await page.setViewportSize(viewport)
+      }
+    }
+    await other.getByRole('button', { name: 'Later', exact: true }).click()
+    await expect(other.getByRole('button', { name: 'Review update', exact: true })).toBeHidden()
     const previousRelease = JSON.parse(readFileSync(resolve(previous, 'offline-assets.json'), 'utf8'))
-    await openInstall(page); await page.getByRole('button', { name: 'Prepare app update…', exact: true }).click()
+    await reviewUpdate.click(); await page.getByRole('button', { name: 'Prepare app update…', exact: true }).click()
     await page.getByRole('button', { name: 'Prepare with saved progress', exact: true }).click()
     await expect(page.getByRole('dialog')).toContainText('Close every Idle Slayer Companion browser tab')
     // A window joining after preparation remains on the old complete release.

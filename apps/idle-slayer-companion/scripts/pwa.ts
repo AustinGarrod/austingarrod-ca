@@ -3,6 +3,8 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
 import { resolveDeployment, type CompanionDeployment } from '../deployment.ts'
+import { reportingCommit } from './reporting-build.ts'
+import { releaseContentHash } from '../../../scripts/utility-release-content.mts'
 
 export const PWA_BASE = resolveDeployment().base
 export const PWA_IDENTITY = resolveDeployment().identity
@@ -15,7 +17,7 @@ export function writeSectionEntries(directory: string): void {
   }
 }
 const hash = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex')
-export interface OfflineRelease { version: string; cachePrefix: string; assets: { file: string; sha256: string }[] }
+export interface OfflineRelease { version: string; contentVersion: string; cachePrefix: string; assets: { file: string; sha256: string }[] }
 export function offlineRelease(root: string, directory: string, deployment = resolveDeployment(process.env.COMPANION_DEPLOY_TARGET)): OfflineRelease {
   const catalog = JSON.parse(readFileSync(resolve(root, 'public/catalog.json'), 'utf8')) as { upgrades: { icon: string }[] }
   const companion = JSON.parse(readFileSync(resolve(root, 'public/companion-catalog.json'), 'utf8')) as { entities: { icon?: string }[] }
@@ -40,9 +42,21 @@ export function offlineRelease(root: string, directory: string, deployment = res
     }
   }
   walk('')
-  const assets = files.sort().map((file) => ({ file, sha256: hash(readFileSync(resolve(directory, file))) }))
-  const version = hash(deployment.cachePrefix + JSON.stringify(assets) + readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8'))
-  return { version, cachePrefix: deployment.cachePrefix, assets }
+  const content = new Map(files.sort().map((file) => [file, readFileSync(resolve(directory, file))]))
+  const assets = [...content].map(([file, bytes]) => ({ file, sha256: hash(bytes) }))
+  const worker = readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8')
+  // The byte-verified cache release includes diagnostics metadata. Only changed app content needs a notice.
+  content.delete('licenses/bundle-notices.json')
+  const commit = reportingCommit(root)
+  const reportingIds = /^[a-f0-9]{40}$/.test(commit) ? [commit] : []
+  for (const [file, bytes] of content) {
+    if (!file.endsWith('.js')) continue
+    const ids = bytes.toString('utf8').match(/idle-slayer-companion@[a-f0-9]{24}/g)
+    if (ids) reportingIds.push(...new Set(ids))
+  }
+  const contentVersion = releaseContentHash([...content, ['sw.js', worker]], files, reportingIds)
+  const version = hash(deployment.cachePrefix + JSON.stringify(assets) + worker + contentVersion)
+  return { version, contentVersion, cachePrefix: deployment.cachePrefix, assets }
 }
 export function renderWorker(root: string, release: OfflineRelease): string {
   return 'const RELEASE = ' + JSON.stringify(release) + ';\n' + readFileSync(resolve(root, 'scripts/pwa-worker.js'), 'utf8')

@@ -1,0 +1,22 @@
+---
+import "@styles/utility-update.css";
+
+interface Props {
+  releasePath: string;
+  overlay?: boolean;
+}
+
+const { releasePath, overlay = false } = Astro.props;
+---
+
+<span class="sr-only" role="status" data-utility-update-announcement></span>
+<div class:list={["utility-update", overlay && "utility-update-overlay"]} data-utility-release={releasePath} data-utility-version="UTILITY_RELEASE_PLACEHOLDER" hidden>
+  <div class="utility-update-copy">
+    <strong>Update available</strong>
+    <span data-utility-update-message></span>
+  </div>
+  <div class="utility-update-actions">
+    <button class="utility-update-primary" type="button" data-utility-update-now>Update now</button>
+    <button type="button" data-utility-update-later>Later</button>
+  </div>
+</div>

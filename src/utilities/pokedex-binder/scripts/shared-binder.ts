@@ -1,5 +1,6 @@
 import { loadBinderCards } from "../lib/binder-catalog";
 import { binderShareToken, type SharedBinder } from "../lib/binder-share";
+import { initializeUtilityUpdate } from "../../utility-update";
 import { catalogArtwork } from "../lib/catalog-search";
 import { sortSetChecklist, type SetChecklistSort } from "../lib/checklist";
 import { isCardPocket, setPockets, type SetCard, type SetSummary } from "../lib/master";
@@ -318,4 +319,5 @@ document.querySelector(".skip-link")?.addEventListener("click", event => {
 });
 window.addEventListener("hashchange", () => location.reload());
 window.addEventListener("pageshow", event => { if (event.persisted) location.reload(); });
+initializeUtilityUpdate(() => null);
 void load();

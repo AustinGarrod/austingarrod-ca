@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 import { newSetBinder } from "./test-pokedex-helpers.mjs";
 
@@ -7,6 +7,9 @@ const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binder = "/utilities/pokemon-binder/";
 const deepLink = binder + "buy-cards/?alerts=1";
 const screenshots = "output/pokedex-stock-alerts";
+const release = JSON.parse(await readFile(`dist${binder}utility-release.json`, "utf8"));
+const buyCardsPage = await readFile(`dist${binder}buy-cards/index.html`, "utf8");
+const nextVersion = release.version === "f".repeat(64) ? "e".repeat(64) : "f".repeat(64);
 const browser = await chromium.launch({ ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
 await mkdir(screenshots, { recursive: true });
 
@@ -23,11 +26,17 @@ try {
     ];
     let failRead = false;
     let conflict = false;
+    let version = release.version;
+    let waitForSave;
     const writes = [];
     await context.route("**/*", async route => {
       const request = route.request();
       const url = new URL(request.url());
       if (url.origin !== origin) return route.abort();
+      if (url.pathname === binder + "utility-release.json") return route.fulfill({ json: { ...release, version } });
+      if (url.pathname === binder + "buy-cards/" && !request.isNavigationRequest()) {
+        return route.fulfill({ contentType: "text/html", body: buyCardsPage.replace(`data-utility-version="${release.version}"`, `data-utility-version="${version}"`) });
+      }
       if (url.pathname === "/api/v1/auth.php") {
         return route.fulfill({ json: { enabled: true, migrationEnabled: false, user, csrfToken: "fixture" } });
       }
@@ -35,6 +44,7 @@ try {
         if (url.searchParams.get("action") !== "binder-stock-alerts") return route.fulfill({ json: { document: null } });
         assert.equal(request.headers()["x-account-id"], user.id);
         if (request.method() === "POST") {
+          if (waitForSave) await waitForSave;
           assert.equal(request.headers()["x-csrf-token"], "fixture");
           const body = request.postDataJSON();
           assert.equal(body.revision, revision);
@@ -96,7 +106,31 @@ try {
     await third.check();
     await expect(thirdMinimum).toBeEnabled();
     await thirdMinimum.fill("7");
+    const update = page.getByRole("button", { name: "Update now", exact: true });
+    const updateMessage = page.locator("[data-utility-update-message]");
+    let finishSave;
+    if (width === 1440) {
+      version = nextVersion;
+      await expect.poll(async () => {
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
+        return update.isVisible();
+      }).toBe(true);
+      await update.click();
+      await expect(updateMessage).toHaveText("Save your stock alert changes before updating.");
+      waitForSave = new Promise(resolve => { finishSave = resolve; });
+    }
     await panel.getByRole("button", { name: "Save alerts" }).click();
+    if (finishSave) {
+      try {
+        await expect(panel.getByText("Saving stock alerts…")).toBeVisible();
+        await update.click();
+        await expect(updateMessage).toHaveText("Wait for stock alerts to finish saving before updating.");
+      } finally {
+        finishSave();
+        waitForSave = undefined;
+        version = release.version;
+      }
+    }
     await expect(panel.getByText("Stock alerts saved.")).toBeVisible();
     assert.deepEqual(writes[0], [{ store: "Deck Out Gaming", minimum: 3 }, { store: "Skyfox Games", minimum: 7 }]);
     await page.reload();

@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import "../../styles/radius-map.css";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
+import UtilityUpdateNotice from "@components/UtilityUpdateNotice.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 
@@ -42,6 +43,7 @@ const signInHref = "/account/?returnTo=%2Futilities%2Fradius-map%2F";
     <UtilityHeader toolName="Radius Map" variant="overlay">
       <a id="radius-library-location" href={signInHref}>Sign in</a>
     </UtilityHeader>
+    <UtilityUpdateNotice releasePath="/utilities/radius-map/utility-release.json" overlay />
 
     <section id="radius-panel" class="control-panel" aria-labelledby="app-title" tabindex="-1">
       <header class="panel-header">

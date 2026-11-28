@@ -11,6 +11,7 @@ import { accountHref } from "../../../../packages/accounts/client";
 import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist";
 import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
 import { reportFailure } from "../../../reporting/browser";
+import { initializeUtilityUpdate } from "../../utility-update";
 import { createTransfers } from "./transfers";
 import { createPricingUI } from "./pricing-ui";
 import { createBuyCards } from "./buy-cards";
@@ -69,11 +70,18 @@ async function initialize() {
   const details = el("pokemon-details");
   const syncDialog = el<HTMLDialogElement>("sync-dialog");
   const statusLabels = { loading: "Loading your binder…", local: "Saved locally · Sync is optional", syncing: "Syncing your binder…", synced: "Synced · Saved on this device", pending: "Saved locally · Waiting to sync", error: "Saved locally · Sync needs attention", conflict: "Saved locally · Choose a binder layout" };
+  let pendingActions = 0;
+
+  async function tracked<T>(run: () => Promise<T>): Promise<T> {
+    pendingActions++;
+    try { return await run(); }
+    finally { pendingActions--; }
+  }
 
   const action = async (run: () => Promise<unknown>, control?: HTMLButtonElement) => {
     if (control) control.disabled = true;
     el("sync-error").textContent = "";
-    try { await run(); } catch (error) {
+    try { await tracked(run); } catch (error) {
       const message = error instanceof Error ? error.message : "That action could not finish. Your local binder is safe.";
       el("sync-error").textContent = message;
       el("dex-warning").textContent = message;
@@ -98,7 +106,7 @@ async function initialize() {
   function closeScanner() { scanner?.close(); }
   function openScanner(target?: SetScan) {
     try {
-      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => controller.setOwned(id, true) });
+      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => tracked(() => controller.setOwned(id, true)) });
       scanner.open(target);
     } catch {
       scanDialog.dataset.phase = "load-error";
@@ -199,7 +207,7 @@ async function initialize() {
       if (nationalEnabled(snapshot.state) && (await speciesIndex())(match).length) targets.push({ id: "national", name: "National Pokédex" });
       return targets;
     },
-    async markCollected(printing, targetId) {
+    markCollected: (printing, targetId) => tracked(async () => {
       accountReady();
       const match = await printingMatch(printing);
       if (!match) throw new Error("This printing is not in the catalog.");
@@ -219,7 +227,7 @@ async function initialize() {
         addSetImports(state, [group], new Map([[match.set.id, binder.id]]));
       });
       return `Marked ${label} collected in ${name}.`;
-    },
+    }),
   });
   const searchCards = el<HTMLButtonElement>("catalog-search-open");
   searchCards.addEventListener("click", () => catalogSearch.open());
@@ -244,7 +252,7 @@ async function initialize() {
     },
     async saveDex(ids, expected, current) {
       if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
-      await controller.importSpecies(ids, expected, current);
+      await tracked(() => controller.importSpecies(ids, expected, current));
       if (current()) await master.showNational();
     },
     selected: () => master.currentId(),
@@ -760,6 +768,12 @@ async function initialize() {
     if (!event.persisted) return;
     if (!el("buy-cards-workspace").hidden) dashboard.enter(false);
     void controller.sync();
+  });
+  initializeUtilityUpdate(() => {
+    if (document.querySelector("dialog[open]")) return "Finish or close the current binder dialog before updating.";
+    if (pendingActions || master.hasPendingEdits() || sharing.hasPendingChanges()) return "Wait for the binder to finish its current action before updating.";
+    if (snapshot.storageWarning) return "Your binder couldn’t be saved on this device. Export a backup before leaving this page.";
+    return stockAlerts.updateBlocker();
   });
 }
 

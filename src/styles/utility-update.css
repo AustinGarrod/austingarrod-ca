@@ -1,0 +1,98 @@
+.utility-update[hidden] {
+  display: none;
+}
+
+.utility-update {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-width: 0;
+  padding: 4px var(--utility-update-gutter, 24px);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.utility-update:not(.utility-update-overlay) {
+  position: sticky;
+  top: 0;
+  z-index: 24;
+}
+
+.utility-update-copy {
+  display: contents;
+}
+
+.utility-update-copy strong {
+  color: var(--secondary);
+}
+
+.utility-update-copy span:empty {
+  display: none;
+}
+
+.utility-update-copy span {
+  order: 1;
+  flex-basis: 100%;
+  padding-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.utility-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.utility-update .utility-update-actions button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.utility-update .utility-update-actions .utility-update-primary {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
+.utility-update .utility-update-actions button:hover:not(:disabled) {
+  border-color: var(--secondary);
+}
+
+.utility-update .utility-update-actions button:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.utility-update .utility-update-actions button:is(:disabled, [aria-disabled="true"]) {
+  opacity: 0.6;
+}
+
+@media (max-width: 760px) {
+  .utility-update {
+    justify-content: space-between;
+    gap: 4px;
+    padding-inline: var(--utility-update-gutter, 16px);
+  }
+
+  .utility-update-actions { margin-inline-start: auto; }
+  .utility-update .utility-update-actions button { padding-inline: 8px; }
+}
+
+@media print {
+  .utility-update {
+    display: none !important;
+  }
+}

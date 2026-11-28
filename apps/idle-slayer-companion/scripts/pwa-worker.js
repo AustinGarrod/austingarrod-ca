@@ -58,7 +58,7 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'CHECK_READY') event.waitUntil((async () => {
     const cache = await caches.open(cacheName);
     const keys = await cache.keys();
-    event.ports[0]?.postMessage({ ready: keys.length === allowed.size, version: RELEASE.version });
+    event.ports[0]?.postMessage({ ready: keys.length === allowed.size, version: RELEASE.version, contentVersion: RELEASE.contentVersion });
   })());
   if (event.data?.type === 'CHECK_WINDOWS') event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

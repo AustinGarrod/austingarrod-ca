@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
+import UtilityUpdateNotice from "@components/UtilityUpdateNotice.astro";
 import SharedBinderWorkspace from "@components/SharedBinderWorkspace.astro";
 import "../../../styles/pokedex-binder.css";
 import "../../../styles/pokedex-binder-share.css";
@@ -8,6 +9,7 @@ import "../../../styles/pokedex-binder-share.css";
 <BaseLayout shell="utility" title="Shared Pokémon binder | Austin Garrod" description="View a shared Pokémon binder." bodyClass="pokedex-page shared-binder-page" noIndex privatePage>
   <meta slot="head" name="referrer" content="no-referrer" />
   <UtilityHeader toolName="Pokémon Binder" />
+  <UtilityUpdateNotice releasePath="/utilities/pokemon-binder/utility-release.json" />
   <div class="dex-app rr-block" data-analytics-private>
     <header class="dex-shared-header">
       <div>

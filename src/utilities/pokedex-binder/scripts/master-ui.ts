@@ -929,6 +929,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (!document.hidden) schedule(0);
   });
   return {
+    hasPendingEdits: () => pendingEdits > 0,
     async start() {
       sets = await json("index");
       started = true;

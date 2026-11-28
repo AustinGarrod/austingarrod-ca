@@ -1,4 +1,5 @@
 import { reportState } from "../../../reporting/browser";
+import { initializeUtilityUpdate } from "../../utility-update";
 import {
   calculateFrameCuts,
   convertMeasurement,
@@ -25,6 +26,7 @@ const RECALCULATE_DELAY_MS = 400;
 /** Below this width the form and the cut list stack, so the page adds the cut bar and Show cut list. */
 const STACKED_LAYOUT_QUERY = "(max-width: 899.98px)";
 const EMPTY = "—";
+const UPDATE_DRAFT_KEY = "austingarrod.utilities.screen-cut-calculator.update-draft.v1";
 
 function requiredElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -515,5 +517,38 @@ export function initializeScreenCutCalculator(): void {
   }
 
   applySettings(storedSettings);
+  try {
+    const raw = sessionStorage.getItem(UPDATE_DRAFT_KEY);
+    if (raw) {
+      sessionStorage.removeItem(UPDATE_DRAFT_KEY);
+      const draft = JSON.parse(raw) as { unit?: unknown; values?: unknown; submitted?: unknown; advancedOpen?: unknown };
+      if ((draft?.unit === "mm" || draft?.unit === "cm") && draft.values && typeof draft.values === "object" && !Array.isArray(draft.values)) {
+        const values = draft.values as Record<string, unknown>;
+        setUnit(draft.unit);
+        for (const control of allControls) {
+          const value = values[control.id];
+          if (typeof value === "string") control.value = value;
+        }
+        submitted = draft.submitted === true;
+        advancedSettings.open = draft.advancedOpen === true;
+        showCustomClearance();
+      }
+    }
+  } catch { /* The calculator remains usable when tab storage is unavailable. */ }
   update();
+  initializeUtilityUpdate(() => {
+    if (allControls.some((control) => control.validity.badInput)) return "Finish entering your measurements before updating.";
+    try {
+      sessionStorage.setItem(UPDATE_DRAFT_KEY, JSON.stringify({
+        unit: currentUnit,
+        values: Object.fromEntries(allControls.map((control) => [control.id, control.value])),
+        submitted,
+        advancedOpen: advancedSettings.open,
+      }));
+      return null;
+    } catch {
+      if (!widthInput.value && !heightInput.value && !submitted && !advancedSettings.open) return null;
+      return "Your calculator inputs couldn’t be saved. Keep this page open to finish your cut list.";
+    }
+  });
 }

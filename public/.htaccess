@@ -54,6 +54,10 @@ ErrorDocument 404 /404.html
     Header set Cache-Control "no-store"
   </Files>
 
+  <Files "utility-release.json">
+    Header set Cache-Control "no-store"
+  </Files>
+
   <FilesMatch "^_astro/.*\.(css|js)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>

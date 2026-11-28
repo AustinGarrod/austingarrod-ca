@@ -187,5 +187,8 @@ export function createBinderSharing(options: ShareOptions) {
       message.textContent = "Link selected. Copy it using your browser or keyboard.";
     }
   });
-  return { contextChanged() { if (dialog.open && !isCurrent(visit)) close(); } };
+  return {
+    hasPendingChanges: () => pendingChanges.size > 0,
+    contextChanged() { if (dialog.open && !isCurrent(visit)) close(); },
+  };
 }

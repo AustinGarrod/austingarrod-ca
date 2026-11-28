@@ -96,6 +96,31 @@ shared_binder_route = "/utilities/pokemon-binder/shared/"
 unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, shared_binder_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
+for slug, entries in {
+    "pokemon-binder": ["index.html", "buy-cards/index.html", "shared/index.html"],
+    "radius-map": ["index.html"],
+    "screen-cut-calculator": ["index.html"],
+}.items():
+    app = DIST / "utilities" / slug
+    release = app / "utility-release.json"
+    check(release.is_file(), f"Missing utility release for {slug}")
+    if not release.is_file():
+        continue
+    receipt = json.loads(release.read_text(encoding="utf-8"))
+    version = receipt.get("version", "")
+    check(bool(re.fullmatch(r"[0-9a-f]{64}", version)), f"Invalid utility release for {slug}")
+    assets = receipt.get("assets", [])
+    check(bool(assets), f"Missing utility release assets for {slug}")
+    for asset in assets:
+        check(bool(re.fullmatch(r"/(?:_astro|fonts)/[\w.-]+\.(?:m?js|css|woff2?|png|svg|webp)", asset))
+              and (DIST / asset.lstrip("/")).is_file(), f"Invalid utility release asset for {slug}: {asset}")
+    for entry in entries:
+        path = app / entry
+        if path.is_file():
+            markup = path.read_text(encoding="utf-8")
+            check(markup.count(f'data-utility-version="{version}"') == 1, f"Utility release does not match {slug}/{entry}")
+            check(f'data-utility-release="/utilities/{slug}/utility-release.json"' in markup, f"Wrong utility release path in {slug}/{entry}")
+
 all_html: list[str] = []
 for route in routes:
     path = route_file(route)

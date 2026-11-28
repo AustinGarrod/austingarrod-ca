@@ -12,6 +12,7 @@ import BinderViewHeading from "@components/BinderViewHeading.astro";
 import BinderShare from "@components/BinderShare.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
+import UtilityUpdateNotice from "@components/UtilityUpdateNotice.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
 import { binderViewPaths, buyCardsSlug } from "../../../utilities/pokedex-binder/lib/view-routes";
@@ -30,6 +31,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
 
 <BaseLayout shell="utility" title={buying ? "Buy cards | " + bindersTitle : bindersTitle} description={utility.summary} breadcrumbLabel={buying ? "Buy cards" : utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
   <UtilityHeader toolName={utility.title} />
+  <UtilityUpdateNotice releasePath="/utilities/pokemon-binder/utility-release.json" />
 
   <div class="dex-app rr-block" id="dex-app" data-binders-title={bindersTitle} data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">

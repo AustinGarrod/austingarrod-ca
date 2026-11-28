@@ -26,6 +26,10 @@ body.screen-cut-page [hidden] {
   padding-bottom: clamp(48px, 7vw, 84px);
 }
 
+.screen-cut-page .utility-update {
+  --utility-update-gutter: max(24px, calc((100% - 1180px) / 2));
+}
+
 /* Intro */
 
 .screen-cut-intro {
@@ -663,6 +667,8 @@ body.screen-cut-page [hidden] {
 }
 
 @media (max-width: 600px) {
+  .screen-cut-page .utility-update { --utility-update-gutter: 16px; }
+
   .screen-cut-container {
     width: calc(100% - 32px);
   }

@@ -51,8 +51,11 @@ export function readDraft(source: StorageSource = sessionSource): RadiusDraft | 
   try { return parseDraft(source().getItem(DRAFT_KEY)); } catch { return null; }
 }
 
-export function writeDraft(draft: RadiusDraft, source: StorageSource = sessionSource): void {
-  try { source().setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* Storage can be unavailable; the draft then lasts for this page only. */ }
+export function writeDraft(draft: RadiusDraft, source: StorageSource = sessionSource): boolean {
+  const serialized = JSON.stringify(draft);
+  if (!parseDraft(serialized)) return false;
+  try { source().setItem(DRAFT_KEY, serialized); return true; }
+  catch { return false; }
 }
 
 export function forgetDraft(source: StorageSource = sessionSource): void {

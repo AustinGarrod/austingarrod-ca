@@ -6,6 +6,9 @@
 }
 .dex-footer a { text-decoration: underline; text-underline-offset: 3px; }
 .dex-app { max-width: 1480px; margin: 0 auto; padding: 26px 32px 24px; }
+.pokedex-page .utility-update { --utility-update-gutter: max(32px, calc((100% - 1480px) / 2 + 32px)); }
+@media (max-width: 1100px) { .pokedex-page .utility-update { --utility-update-gutter: 20px; } }
+@media (max-width: 600px) { .pokedex-page .utility-update { --utility-update-gutter: 12px; } }
 .dex-app [hidden],.dex-dialog [hidden] { display: none !important; }
 .dex-eyebrow,.dex-label { font-family: 'JetBrains Mono',monospace; font-size: 11px; line-height: 1.5; color: var(--subtle); }
 .dex-eyebrow { text-transform: uppercase; }

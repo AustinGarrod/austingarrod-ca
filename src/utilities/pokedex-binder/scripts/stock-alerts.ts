@@ -20,6 +20,7 @@ export function createStockAlerts(reconnect: () => Promise<void>) {
   });
   let account: BinderAccountState | undefined, active = false, generation = 0;
   let settings: BinderStockAlerts | undefined;
+  let pendingSaves = 0;
 
   function show(value: BinderStockAlerts) {
     settings = value;
@@ -96,6 +97,7 @@ export function createStockAlerts(reconnect: () => Promise<void>) {
     const ticket = generation;
     const alerts = rows.filter(row => row.enabled.checked).map(row => ({ store: row.store, minimum: row.minimum.valueAsNumber }));
     fields.disabled = save.disabled = true;
+    pendingSaves++;
     status.textContent = "Saving stock alerts…";
     try {
       const value = await createAccountClient(account.user.id).saveBinderStockAlerts(settings.revision, alerts);
@@ -111,11 +113,22 @@ export function createStockAlerts(reconnect: () => Promise<void>) {
         status.textContent = "Couldn’t save stock alerts. Try again.";
       }
     } finally {
+      pendingSaves--;
       if (ticket === generation) fields.disabled = save.disabled = false;
     }
   });
 
   return {
+    updateBlocker() {
+      if (pendingSaves) return "Wait for stock alerts to finish saving before updating.";
+      if (!active || !settings || form.hidden) return null;
+      const saved = settings.alerts;
+      const changed = rows.some((row) => {
+        const alert = saved.find((item) => item.store === row.store);
+        return row.enabled.checked !== Boolean(alert) || (alert && row.minimum.valueAsNumber !== alert.minimum);
+      });
+      return changed ? "Save your stock alert changes before updating." : null;
+    },
     enter() {
       active = true;
       if (new URLSearchParams(location.search).get("alerts") === "1") {
