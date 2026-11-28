@@ -122,8 +122,12 @@ describe("shipped Pokédex catalog", () => {
     expect(printingFiles).toHaveLength(index.species.length);
     const allCardIds = new Set();
     const expectedSetSpecies: Record<string, Set<number>> = Object.fromEntries(Object.keys(index.sets).map(id => [id, new Set<number>()]));
-    for (const entry of index.species) {
-      const printings = JSON.parse(await readFile(publicFile(`catalog/printings/${entry.id}.json`), "utf8"));
+    const checkSpecies = async (entry: { id: number; name: string; printingCount: number }) => {
+      const [shard, sprite] = await Promise.all([
+        readFile(publicFile(`catalog/printings/${entry.id}.json`), "utf8"),
+        readFile(publicFile(`sprites/${entry.id}.png`)),
+      ]);
+      const printings = JSON.parse(shard);
       expect(printings, entry.name).toHaveLength(entry.printingCount);
       const perSpeciesIds = new Set();
       for (const printing of printings) {
@@ -135,8 +139,12 @@ describe("shipped Pokédex catalog", () => {
         perSpeciesIds.add(printing.id); allCardIds.add(printing.id);
         if (printing.image) expect(printing.image).toMatch(/^https:\/\/assets\.tcgdex\.net\/en\/.+\/low\.webp$/);
       }
-      const sprite = await readFile(publicFile(`sprites/${entry.id}.png`));
       expect(sprite.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    };
+    // Keep concurrent reads bounded while avoiding one filesystem round trip per file.
+    const batchSize = 16;
+    for (let start = 0; start < index.species.length; start += batchSize) {
+      await Promise.all(index.species.slice(start, start + batchSize).map(checkSpecies));
     }
     expect(allCardIds.size).toBe(index.audit.indexedCards);
     expect(index.setSpecies).toEqual(Object.fromEntries(Object.entries(expectedSetSpecies).map(([id, ids]) => [id, [...ids].sort((a, b) => a - b)])));
