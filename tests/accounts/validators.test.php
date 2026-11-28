@@ -55,6 +55,8 @@ check(accounts_validate('radius-map', 'measurements', 1, (object)['version' => 1
     === '{"measurements":[],"version":1}', 'An explicitly empty Radius Map library must be valid');
 reject(fn () => accounts_validate('radius-map', 'measurements', 1, (object)['version' => 1], $webroot), 'Missing Radius Map state accepted');
 check(accounts_return('/utilities/radius-map/') === '/utilities/radius-map/', 'Radius Map return route must be allowed');
+check(accounts_return('/utilities/pokemon-binder/buy-cards/?alerts=1') === '/utilities/pokemon-binder/buy-cards/?alerts=1', 'Buy Cards stock alert return route must be allowed');
+check(accounts_return('/utilities/pokemon-binder/?view=buy-cards&alerts=1') === '/utilities/pokemon-binder/buy-cards/?alerts=1', 'Legacy stock alert returns must be updated');
 check(accounts_return('//external.example/') === '/account/', 'External return accepted');
 check(accounts_return('/\\external/') === '/account/', 'Backslash return accepted');
 $config = ['google' => ['clientId' => 'local-client']];

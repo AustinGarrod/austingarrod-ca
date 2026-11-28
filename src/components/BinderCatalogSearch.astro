@@ -21,7 +21,7 @@ const title = inline ? "Find any card" : "Search cards";
   <section id={id("results-panel")} aria-label="Find a card">
     <form id={id("form")} class="catalog-search-filters" role="search" aria-label={title}>
       <label>Card, Pokémon, set, or number
-        <input id={id("query")} type="search" maxlength="120" autocomplete="off" placeholder="e.g. Bulbasaur, MEW, or 001/165" />
+        <input id={id("query")} type="search" maxlength="120" autocomplete="off" placeholder="e.g. Bulbasaur, MEW, 001/165" />
       </label>
       <label>Set
         <select id={id("set")} disabled={!inline}><option value="">All sets</option></select>

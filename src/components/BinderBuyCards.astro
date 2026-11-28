@@ -1,12 +1,20 @@
 ---
 import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
+import { binderViewPaths } from "../utilities/pokedex-binder/lib/view-routes";
 import BinderCatalogSearch from "./BinderCatalogSearch.astro";
 import BinderStockAlerts from "./BinderStockAlerts.astro";
 import { Bell, SlidersHorizontal } from "@lucide/astro";
 import "../styles/pokedex-buying.css";
+
+interface Props {
+  active: boolean;
+}
+
+const { active } = Astro.props;
 ---
-<section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden>
+<section id="buy-cards-workspace" class="dex-buying-dashboard rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden={!active}>
   <header id="buy-cards-heading" class="dex-buying-heading">
+    <slot name="heading" />
     <p>Store prices are in CAD before shipping, taxes, and duties. For cross-border listings, select Canada on the retailer’s site if it opens in another currency. Authenticated store checks send your IP address to Shopify.</p>
   </header>
   <BinderCatalogSearch inline />
@@ -19,7 +27,7 @@ import "../styles/pokedex-buying.css";
     <div id="buy-cards-binder-filters" class="dex-buying-binder-filters" hidden>
       <div class="dex-buying-filter-bar">
         <label class="dex-buying-search">Filter missing cards
-          <input id="buy-cards-filter" type="search" placeholder="Name, set, or collector number" autocomplete="off" />
+          <input id="buy-cards-filter" type="search" placeholder="Name, set, #" autocomplete="off" />
         </label>
         <button id="buy-cards-filters-toggle" type="button" class="dex-buying-filters-toggle" aria-expanded="false" aria-controls="buy-cards-filter-panel"><SlidersHorizontal size={16} aria-hidden="true" /> Filters<span id="buy-cards-filter-count" class="dex-buying-filter-count" hidden></span></button>
       </div>
@@ -69,7 +77,7 @@ import "../styles/pokedex-buying.css";
       </div>
     </div>
     <p id="buy-cards-progress"><span id="buy-cards-countdown" role="timer"></span><span id="buy-cards-check-status" role="status"></span></p>
-    <p id="buy-cards-empty" hidden><a href="/utilities/pokemon-binder/" data-binder-view="binders">Go to Binders</a> to set up or connect a set binder.</p>
+    <p id="buy-cards-empty" hidden><a href={binderViewPaths.binders} data-binder-view="binders">Go to Binders</a> to set up or connect a set binder.</p>
     <section id="buy-card-pricing" class="dex-buying-detail" aria-labelledby="card-pricing-title" hidden></section>
     <ul id="buy-cards-list" class="dex-buying-list" aria-label="Missing cards and offers"></ul>
     <nav id="buy-cards-pages" class="dex-buying-pages" aria-label="Missing card pages" hidden>

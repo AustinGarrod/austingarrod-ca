@@ -182,6 +182,9 @@ describe("shared account client isolation", () => {
     const { safeReturnTo, accountHref } = await import("../../packages/accounts/client");
     for (const input of ["//example.test/", "https://example.test/", "/\\example.test/", "/utilities/pokedex-binder/?key=secret", "/account/"]) expect(safeReturnTo(input)).toBe("/utilities/");
     expect(safeReturnTo("/utilities/pokedex-binder/")).toBe("/utilities/pokedex-binder/");
+    expect(safeReturnTo("/utilities/pokemon-binder/buy-cards/")).toBe("/utilities/pokemon-binder/buy-cards/");
+    expect(safeReturnTo("/utilities/pokemon-binder/buy-cards/?alerts=1")).toBe("/utilities/pokemon-binder/buy-cards/?alerts=1");
+    expect(safeReturnTo("/utilities/pokemon-binder/?view=buy-cards&alerts=1")).toBe("/utilities/pokemon-binder/buy-cards/?alerts=1");
     expect(safeReturnTo("/apps/future-app/")).toBe("/apps/future-app/");
     expect(accountHref("/utilities/idle-slayer-companion/")).toContain("returnTo=%2Futilities%2Fidle-slayer-companion%2F");
   });

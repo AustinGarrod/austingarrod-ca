@@ -294,11 +294,18 @@
   gap: 8px 12px;
 }
 
+.dex-buying-binder-filters:not([hidden]) + .dex-buying-summary {
+  margin-block-start: 12px;
+}
+
 .dex-buying-dashboard .dex-buying-summary p {
   color: var(--ink);
   font-weight: 650;
   margin-block: 0;
-  margin-inline-end: auto;
+}
+
+.dex-buying-summary .dex-actions {
+  margin-inline-start: auto;
 }
 
 .dex-buying-dashboard :is(#buy-cards-progress, #buy-cards-empty) {
@@ -573,6 +580,9 @@
   .dex-buying-summary {
     row-gap: 4px;
   }
+  .dex-buying-summary > p {
+    margin-inline-end: auto;
+  }
   .dex-buying-summary .dex-actions {
     width: 100%;
   }
@@ -598,6 +608,9 @@
 }
 
 @media (max-width: 360px) {
+  .dex-buying-summary .dex-actions > button {
+    flex-basis: 100%;
+  }
   .dex-buying-filters,
   .dex-buying-refine .dex-buying-filters,
   .buy-catalog-search .catalog-search-rows li {

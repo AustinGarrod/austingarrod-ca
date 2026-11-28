@@ -137,7 +137,7 @@ async function testBinderStockAlerts(other) {
   assert.equal(messages.length, before + 1);
   assert.match(messages.at(-1), /To: alerts@example\.test/);
   assert.match(messages.at(-1), /Subject: 2 missing cards in stock at 401 Games/);
-  assert.match(messages.at(-1), /view=buy-cards&alerts=1/);
+  assert.match(messages.at(-1), /\/pokemon-binder\/buy-cards\/\?alerts=1/);
   assert.ok((await request(subscriber, 'sync', action)).data.alerts[0].lastCheckedAt);
   assert.equal(await run('elapsed'), 'checked', 'The same stock must not resend after the daily cooldown.');
   assert.equal(await run('unavailable'), 'checked');

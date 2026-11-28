@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+const BINDER_STOCK_ALERTS_PATH = '/utilities/pokemon-binder/buy-cards/?alerts=1';
+
 final class AccountsError extends RuntimeException
 {
     public function __construct(public int $status, public string $errorCode, string $message, public array $extra = [])
@@ -469,7 +471,9 @@ function accounts_email(mixed $value): string
 
 function accounts_return(mixed $value): string
 {
-    if ($value === '/utilities/pokemon-binder/?view=buy-cards&alerts=1') return $value;
+    if ($value === BINDER_STOCK_ALERTS_PATH || $value === '/utilities/pokemon-binder/?view=buy-cards&alerts=1') {
+        return BINDER_STOCK_ALERTS_PATH;
+    }
     if (!is_string($value) || !str_starts_with($value, '/') || str_starts_with($value, '//') || str_contains($value, '\\') || preg_match('/[\x00-\x20\x7f?#%]/', $value) || strlen($value) > 1024) {
         return '/account/';
     }

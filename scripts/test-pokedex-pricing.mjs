@@ -8,7 +8,8 @@ import { binderAction, newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binderUrl = origin + "/utilities/pokemon-binder/";
-const buyingUrl = binderUrl + "?view=buy-cards";
+const buyingUrl = binderUrl + "buy-cards/";
+const buyingPath = new URL(buyingUrl).pathname;
 const browser = await chromium.launch({ headless: true, ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
 const date = "2026-11-24";
 const market = { asOf: date, prices: [
@@ -26,7 +27,7 @@ if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
 const account = { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", email: "buying@example.test" };
 
 async function screenshot(page, width, state, anchor) {
-  if (!screenshotDir || width === 320) return;
+  if (!screenshotDir) return;
   if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: "start", behavior: "instant" }));
   await page.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled" });
 }
@@ -67,6 +68,19 @@ function retailerFixture(number, variant, now, skyfoxPrice) {
 }
 
 try {
+  const staticPage = await browser.newPage({ javaScriptEnabled: false });
+  try {
+    await staticPage.route("**/*", route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    await staticPage.goto(binderUrl);
+    await staticPage.getByRole("link", { name: "Buy cards" }).click();
+    await expect(staticPage).toHaveURL(buyingUrl);
+    await expect(staticPage.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
+    await expect(staticPage.locator("#binders-workspace")).toBeHidden();
+    await expect(staticPage.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
+  } finally {
+    await staticPage.close();
+  }
+
   const emptyContext = await browser.newContext({ viewport: { width: 390, height: 890 } });
   try {
     const page = await emptyContext.newPage();
@@ -95,6 +109,9 @@ try {
     const buying = page.locator("#buy-cards-workspace");
     await expect(buying.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
     await expect(page.locator("h1:visible")).toHaveCount(1);
+    await expect(page).toHaveTitle(/^Buy cards \| Pokémon Binder Tracker/);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://austingarrod.ca" + buyingPath);
+    await expect(page.locator("#buy-cards-open")).toHaveAttribute("href", buyingPath);
     await expect(page.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
     const setup = buying.getByRole("link", { name: "Go to Binders" });
     await expect(setup).toBeVisible();
@@ -143,6 +160,34 @@ try {
     console.log("Passed signed-out Buy Cards catalog lookup without a binder, caching, and focus restoration.");
   } finally {
     await emptyContext.close();
+  }
+
+  const legacyPage = await browser.newPage();
+  try {
+    await legacyPage.route("**/*", route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      if (url.pathname === "/api/v1/auth.php") return route.fulfill({
+        json: { enabled: true, migrationEnabled: false, user: null, csrfToken: "fixture" },
+      });
+      return route.continue();
+    });
+    await legacyPage.goto(binderUrl);
+    await legacyPage.goto(binderUrl + "?view=buy-cards&ref=bookmark#buy-cards-missing");
+    const updatedUrl = buyingUrl + "?ref=bookmark#buy-cards-missing";
+    await expect(legacyPage).toHaveURL(updatedUrl);
+    await expect(legacyPage.getByRole("heading", { name: "Buy cards", level: 1 })).toBeVisible();
+    await expect(legacyPage.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://austingarrod.ca" + buyingPath);
+    await expect(legacyPage.locator('meta[property="og:url"]')).toHaveAttribute("content", "https://austingarrod.ca" + buyingPath);
+    await legacyPage.goBack();
+    await expect(legacyPage).toHaveURL(binderUrl);
+    await expect(legacyPage.locator("#binders-open")).toHaveAttribute("aria-current", "page");
+    await expect(legacyPage.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://austingarrod.ca" + new URL(binderUrl).pathname);
+    await legacyPage.goForward();
+    await expect(legacyPage).toHaveURL(updatedUrl);
+    await expect(legacyPage.locator("#buy-cards-open")).toHaveAttribute("aria-current", "page");
+  } finally {
+    await legacyPage.close();
   }
 
   for (const width of [320, 390, 1440]) {
@@ -279,15 +324,18 @@ try {
     // The open binder is kept in history.state, not in the URL.
     const activeBinder = await page.evaluate(() => history.state?.binder);
     assert.ok(activeBinder);
+    await screenshot(page, width, "binders", page.locator(".dex-binder-nav"));
     await buyTab.press("Enter");
     await expect(page).toHaveURL(buyingUrl);
     await expect(buyTab).toHaveAttribute("aria-current", "page");
     await expect(buying.getByRole("heading", { name: "Buy cards" })).toBeFocused();
     const filtersToggle = buying.locator("#buy-cards-filters-toggle");
     await expect(buying.locator("#buy-cards-filter")).toBeVisible();
+    await screenshot(page, width, "buy-cards", page.locator(".dex-binder-nav"));
     if (await filtersToggle.isVisible()) {
       // On phones the filters sit behind one button that counts the applied filters.
       await expect(filtersToggle).toHaveAttribute("aria-label", "Filters, 1 applied");
+      await screenshot(page, width, "mobile-filters-collapsed", buying.locator("#buy-cards-missing"));
       await filtersToggle.click();
       await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
     }
@@ -362,6 +410,18 @@ try {
     await sort.selectOption("binder");
     await finish.selectOption("Regular");
     await expect(rows).toHaveCount(1);
+    const filtersBox = buying.locator("#buy-cards-binder-filters");
+    await expect(buying.locator("#buy-cards-clear")).toBeVisible();
+    const filtersBottom = await filtersBox.evaluate(element => element.getBoundingClientRect().bottom);
+    const actionsTop = await buying.locator(".dex-buying-summary").evaluate(element => element.getBoundingClientRect().top);
+    assert.ok(actionsTop - filtersBottom >= 12, "Leave at least 12 px between the filter panel and action row.");
+    if (width === 320) {
+      const actionWidth = await buying.locator("#buy-cards-binder-actions").evaluate(element => element.clientWidth);
+      const buttonWidths = await buying.locator("#buy-cards-binder-actions button:visible")
+        .evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().width));
+      assert.deepEqual(buttonWidths, [actionWidth, actionWidth], "Stack the check buttons at full width on narrow screens.");
+    }
+    await screenshot(page, width, "buy-cards-actions", buying.locator("#buy-cards-missing"));
     assert.equal(lookups.length, lookupCount, "Browsing and filtering a binder must not fetch retailer offers.");
     await rows.first().locator("[data-buy-check]").click();
     await expect(rows.first()).toContainText("Skyfox Games");

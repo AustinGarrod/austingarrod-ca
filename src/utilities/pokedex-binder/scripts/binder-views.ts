@@ -1,8 +1,15 @@
-type BinderView = "binders" | "buy-cards";
+import { binderViewForUrl, binderViewPaths, isLegacyBuyCardsUrl, type BinderView } from "../lib/view-routes";
+
 type ViewListener = (view: BinderView, fromBinders: boolean) => void;
 
-function currentView(): BinderView {
-  return new URLSearchParams(location.search).get("view") === "buy-cards" ? "buy-cards" : "binders";
+function viewFromHistory(): BinderView {
+  const url = new URL(location.href);
+  if (isLegacyBuyCardsUrl(url)) {
+    url.pathname = binderViewPaths["buy-cards"];
+    url.searchParams.delete("view");
+    history.replaceState(history.state, "", url);
+  }
+  return binderViewForUrl(url);
 }
 
 export function binderViews() {
@@ -22,7 +29,10 @@ export function binderViews() {
     },
   };
   const positions = new Map<BinderView, { scroll: number; focus?: HTMLElement }>();
-  const binderTitle = document.title;
+  const binderTitle = document.getElementById("dex-app")!.dataset.bindersTitle!;
+  const canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')!;
+  const openGraphUrl = document.head.querySelector<HTMLMetaElement>('meta[property="og:url"]')!;
+  const shareTitles = document.head.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]');
   let selected: BinderView | undefined;
   let fromBinders = false;
   let listener: ViewListener | undefined;
@@ -39,6 +49,9 @@ export function binderViews() {
     selected = view;
     fromBinders = prior === "binders";
     document.title = view === "buy-cards" ? "Buy cards | " + binderTitle : binderTitle;
+    canonical.href = new URL(binderViewPaths[view], canonical.href).href;
+    openGraphUrl.content = canonical.href;
+    for (const title of shareTitles) title.content = document.title;
     heading.dataset.view = view;
     if (heading.parentElement !== views[view].header) {
       // In Binders the h1 follows the set label; in Buy cards it leads the header.
@@ -60,8 +73,8 @@ export function binderViews() {
   }
 
   history.scrollRestoration = "manual";
-  show(currentView());
-  window.addEventListener("popstate", () => show(currentView()));
+  show(viewFromHistory());
+  window.addEventListener("popstate", () => show(viewFromHistory()));
   document.addEventListener("click", event => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-binder-view]");

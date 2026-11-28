@@ -149,7 +149,7 @@ function binder_stock_email(array $config, string $root, string $email, string $
     }
     if ($count > $linkCount) $lines[] = 'And '.($count - $linkCount).' more matches in this check.';
     $lines[] = 'Store availability and prices can change.';
-    $lines[] = 'Manage or turn off your alerts: '.$config['allowedOrigin'].'/utilities/pokemon-binder/?view=buy-cards&alerts=1';
+    $lines[] = 'Manage or turn off your alerts: '.$config['allowedOrigin'].BINDER_STOCK_ALERTS_PATH;
     $mail = accounts_mailer($config, $root, $email);
     $mail->Subject = "$count missing $plural in stock at $store";
     $mail->Body = implode("\n", $lines);

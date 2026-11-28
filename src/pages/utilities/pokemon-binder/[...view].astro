@@ -8,31 +8,39 @@ import BinderTransfers from "@components/BinderTransfers.astro";
 import BinderCatalogSearch from "@components/BinderCatalogSearch.astro";
 import BinderPricing from "@components/BinderPricing.astro";
 import BinderBuyCards from "@components/BinderBuyCards.astro";
+import BinderViewHeading from "@components/BinderViewHeading.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
-import "../../styles/pokedex-binder.css";
-import "../../styles/pokedex-binder-dialogs.css";
+import { binderViewPaths, buyCardsSlug } from "../../../utilities/pokedex-binder/lib/view-routes";
+import "../../../styles/pokedex-binder.css";
+import "../../../styles/pokedex-binder-dialogs.css";
+
+export function getStaticPaths() {
+  return [{ params: { view: undefined } }, { params: { view: buyCardsSlug } }];
+}
 
 const utility = utilities.find((item) => item.slug === "pokemon-binder");
 if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missing.");
+const buying = Astro.params.view === buyCardsSlug;
+const bindersTitle = utility.title + " | Austin Garrod";
 ---
 
-<BaseLayout shell="utility" title={utility.title + " | Austin Garrod"} description={utility.summary} breadcrumbLabel={utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
+<BaseLayout shell="utility" title={buying ? "Buy cards | " + bindersTitle : bindersTitle} description={utility.summary} breadcrumbLabel={buying ? "Buy cards" : utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
   <UtilityHeader toolName={utility.title} />
 
-  <div class="dex-app rr-block" id="dex-app" data-analytics-private aria-busy="true">
+  <div class="dex-app rr-block" id="dex-app" data-binders-title={bindersTitle} data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">
-      <a id="binders-open" href="/utilities/pokemon-binder/" data-binder-view="binders" aria-current="page"><BookOpen size={16} aria-hidden="true" /> Binders</a>
-      <a id="buy-cards-open" href="/utilities/pokemon-binder/?view=buy-cards" data-binder-view="buy-cards"><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
+      <a id="binders-open" href={binderViewPaths.binders} data-binder-view="binders" aria-current={buying ? undefined : "page"}><BookOpen size={16} aria-hidden="true" /> Binders</a>
+      <a id="buy-cards-open" href={binderViewPaths["buy-cards"]} data-binder-view="buy-cards" aria-current={buying ? "page" : undefined}><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
     </nav>
-    <div id="binders-workspace">
+    <div id="binders-workspace" hidden={buying}>
     <header id="binder-bar" class="dex-appbar">
       <button id="binder-back" type="button" class="dex-back" aria-label="All binders" hidden><ArrowLeft size={18} aria-hidden="true" /><span>All binders</span></button>
       <div class="dex-appbar-title">
         <p id="master-set-label" class="dex-eyebrow" hidden></p>
-        <h1 id="binder-view-title" tabindex="-1"><span id="home-title">{utility.title}</span><span id="national-title" hidden>National Pokédex</span><span id="master-title" hidden></span><span id="buy-title">Buy cards</span></h1>
+        {!buying && <BinderViewHeading view="binders" title={utility.title} />}
         <p id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</p>
         <p id="master-message" role="status" class="dex-status-note"></p>
       </div>
@@ -90,7 +98,11 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
 
     </div>
     </div>
-    <BinderBuyCards />
+    <BinderBuyCards active={buying}>
+      <Fragment slot="heading">
+        {buying && <BinderViewHeading view="buy-cards" title={utility.title} />}
+      </Fragment>
+    </BinderBuyCards>
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
@@ -223,5 +235,5 @@ if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missi
       document.getElementById("scan-reload").addEventListener("click", () => location.reload());
     })();
   </script>
-  <script>import "../../utilities/pokedex-binder/scripts/app";</script>
+  <script>import "../../../utilities/pokedex-binder/scripts/app";</script>
 </BaseLayout>

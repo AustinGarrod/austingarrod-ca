@@ -1,0 +1,16 @@
+---
+import type { BinderView } from "../utilities/pokedex-binder/lib/view-routes";
+
+interface Props {
+  view: BinderView;
+  title: string;
+}
+
+const { view, title } = Astro.props;
+---
+<h1 id="binder-view-title" data-view={view} tabindex="-1">
+  <span id="home-title">{title}</span>
+  <span id="national-title" hidden>National Pokédex</span>
+  <span id="master-title" hidden></span>
+  <span id="buy-title">Buy cards</span>
+</h1>

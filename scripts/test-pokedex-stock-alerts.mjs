@@ -5,8 +5,7 @@ import { newSetBinder } from "./test-pokedex-helpers.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binder = "/utilities/pokemon-binder/";
-const buying = binder + "?view=buy-cards";
-const deepLink = buying + "&alerts=1";
+const deepLink = binder + "buy-cards/?alerts=1";
 const screenshots = "output/pokedex-stock-alerts";
 const browser = await chromium.launch({ ...(process.platform === "win32" ? { channel: "msedge" } : {}) });
 await mkdir(screenshots, { recursive: true });
@@ -71,7 +70,8 @@ try {
 
     user = signedIn;
     failRead = true;
-    await page.goto(deepLink);
+    await page.goto(width === 390 ? binder + "?view=buy-cards&alerts=1" : deepLink);
+    await expect(page).toHaveURL(new URL(deepLink, origin).href);
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(panel.getByText("Couldn’t load stock alerts.")).toBeVisible();
     failRead = false;

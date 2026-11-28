@@ -30,6 +30,7 @@ import { validateSettings, type CardStatus } from "../lib/model";
 import { marketPrices, valueBinder, type PricingTarget } from "../lib/pricing";
 import { binderCards, binderSetIds, loadBinderCards, relatedSets, setCardKey } from "../lib/binder-catalog";
 import { catalogArtwork } from "../lib/catalog-search";
+import { binderViewForUrl } from "../lib/view-routes";
 
 const node = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => node<HTMLInputElement>(id);
@@ -803,7 +804,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     return render();
   }
   window.addEventListener("popstate", () => {
-    if (new URLSearchParams(location.search).get("view") !== "buy-cards") void fromHistory().catch(report);
+    if (binderViewForUrl(new URL(location.href)) === "binders") void fromHistory().catch(report);
   });
   node("binder-back").addEventListener("click", () => {
     void goHome().then(() => node("set-overview-title").focus()).catch(report);

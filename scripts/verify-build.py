@@ -91,7 +91,8 @@ utilities = data["utilities"]
 public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
     f"/projects/{project['slug']}/" for project in projects
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
-unlisted_routes = ["/utilities/screen-cut-calculator/", "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
+buy_cards_route = "/utilities/pokemon-binder/buy-cards/"
+unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
 all_html: list[str] = []
@@ -223,12 +224,14 @@ check("/utilities/pokemon-binder/" in route_file("/utilities/pokedex-binder/").r
       "The old binder route must redirect to the new address")
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
+binder_private_regions = [
+    "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
+    "catalog-search-dialog", "card-pricing-dialog", "buy-cards-workspace",
+    "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog", "transfer-dialog",
+]
 private_regions = {
-    "/utilities/pokemon-binder/": [
-        "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
-        "catalog-search-dialog", "card-pricing-dialog", "buy-cards-workspace",
-        "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog", "transfer-dialog",
-    ],
+    "/utilities/pokemon-binder/": binder_private_regions,
+    buy_cards_route: binder_private_regions,
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",
