@@ -179,7 +179,7 @@ async function initialize() {
     binders: master.backup,
     offerScope: controller.restoreScope,
     enabledStores: () => allowedStores,
-    selected: () => master.currentId(),
+    setStatus: (slot, status) => master.setBuyingSlotStatus(slot.binderId, slot.key, status),
     inspect: target => pricing.openBuyingPrinting(target),
     closeDetail: () => pricing.closeBuyingPrinting(),
   });
@@ -208,7 +208,7 @@ async function initialize() {
     void controller.pendingRestore().then(value => setVisibility("resume-restore", value)).catch(() => {});
   }
   let enteredView = false;
-  navigation.subscribe((selected, fromBinders) => {
+  navigation.subscribe(selected => {
     reminder.refresh();
     if (enteredView || selected !== "binders") {
       closeScanner();
@@ -216,7 +216,7 @@ async function initialize() {
     }
     enteredView = true;
     if (selected === "buy-cards") {
-      dashboard.enter(fromBinders);
+      dashboard.enter();
       stockAlerts.enter();
     } else {
       dashboard.leave();
@@ -888,7 +888,7 @@ async function initialize() {
   });
   window.addEventListener("pageshow", event => {
     if (!event.persisted) return;
-    if (!el("buy-cards-workspace").hidden) dashboard.enter(false);
+    if (!el("buy-cards-workspace").hidden) dashboard.enter();
     void controller.sync();
   });
   initializeUtilityUpdate(() => {

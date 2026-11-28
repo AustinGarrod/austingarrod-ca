@@ -1,5 +1,5 @@
 import { setSlots, type SetBinder, type SetCard, type SetSummary } from "./master";
-import { normalizeSearch } from "./model";
+import { normalizeSearch, type CardStatus } from "./model";
 import { numberKey } from "./transfer-identity";
 import { binderSetIds } from "./binder-catalog";
 
@@ -73,24 +73,34 @@ export function sumBinderValues(values: readonly BinderValue[]): BinderValue {
   }), { cents: 0, priced: 0, collected: 0, asOf: null } as BinderValue);
 }
 
-export interface BuyingEntry { target: PricingTarget; copies: number }
-export function missingPrintings(binder: SetBinder, set: SetSummary, cards: SetCard[], sets?: ReadonlyMap<string, SetSummary>): PricingTarget[] {
+export interface BuyingSlot {
+  binderId: string;
+  binderName: string;
+  key: string;
+  status: CardStatus;
+  target: PricingTarget;
+}
+
+export interface BuyingEntry { target: PricingTarget; slots: BuyingSlot[] }
+export function buyingSlots(binder: SetBinder, set: SetSummary, cards: SetCard[], sets?: ReadonlyMap<string, SetSummary>): BuyingSlot[] {
   return setSlots(binder, cards).flatMap(slot => {
-    if (!slot.required || slot.status !== "missing" || slot.key.startsWith("extra:")) return [];
+    if (!slot.required || slot.key.startsWith("extra:")) return [];
     const source = slot.sourceSetId ? sets?.get(slot.sourceSetId) : set;
     if (!source) return [];
-    return [{ setId: source.id, setName: source.name, number: slot.number, name: slot.name,
-      variant: slot.key.slice(slot.key.indexOf(":") + 1), finish: slot.finish }];
+    const target = { setId: source.id, setName: source.name, number: slot.number, name: slot.name,
+      variant: slot.key.slice(slot.key.indexOf(":") + 1), finish: slot.finish };
+    return [{ binderId: binder.id, binderName: binder.name, key: slot.key, status: slot.status, target }];
   });
 }
 
-export function groupBuyingEntries(targets: readonly PricingTarget[]): BuyingEntry[] {
+export function groupBuyingEntries(slots: readonly BuyingSlot[]): BuyingEntry[] {
   const rows = new Map<string, BuyingEntry>();
-  for (const target of targets) {
+  for (const slot of slots) {
+    const { target } = slot;
     const id = JSON.stringify([target.setId, target.number, target.variant]);
     const row = rows.get(id);
-    if (row) row.copies++;
-    else rows.set(id, { target, copies: 1 });
+    if (row) row.slots.push(slot);
+    else rows.set(id, { target, slots: [slot] });
   }
   return [...rows.values()];
 }

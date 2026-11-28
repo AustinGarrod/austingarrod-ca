@@ -20,13 +20,13 @@ const { active } = Astro.props;
   <BinderCatalogSearch inline />
   <section id="buy-cards-missing" class="dex-buying-missing" aria-labelledby="buy-cards-missing-title">
     <header class="dex-buying-missing-header">
-      <h2 id="buy-cards-missing-title">Missing from your binders</h2>
+      <h2 id="buy-cards-missing-title">Cards from your binders</h2>
       <button id="stock-alerts-toggle" type="button" aria-expanded="false" aria-controls="stock-alerts-panel"><Bell size={16} aria-hidden="true" /> Stock alerts</button>
     </header>
     <BinderStockAlerts />
     <div id="buy-cards-binder-filters" class="dex-buying-binder-filters" hidden>
       <div class="dex-buying-filter-bar">
-        <label class="dex-buying-search">Filter missing cards
+        <label class="dex-buying-search">Filter binder cards
           <input id="buy-cards-filter" type="search" placeholder="Name, set, #" autocomplete="off" />
         </label>
         <button id="buy-cards-filters-toggle" type="button" class="dex-buying-filters-toggle" aria-expanded="false" aria-controls="buy-cards-filter-panel"><SlidersHorizontal size={16} aria-hidden="true" /> Filters<span id="buy-cards-filter-count" class="dex-buying-filter-count" hidden></span></button>
@@ -34,10 +34,16 @@ const { active } = Astro.props;
       <div id="buy-cards-filter-panel" class="dex-buying-filter-panel">
       <div class="dex-buying-filters">
         <label>Set binders <select id="buy-cards-scope"><option value="">All binders</option></select></label>
+        <label>Card status
+          <select id="buy-cards-card-status">
+            <option value="missing">Missing</option><option value="ordered">Ordered</option>
+            <option value="owned">Collected</option><option value="">All statuses</option>
+          </select>
+        </label>
         <label>Finish <select id="buy-cards-finish"><option value="">All finishes</option></select></label>
         <label>Availability
           <select id="buy-cards-availability">
-            <option value="">Any status</option><option value="stock">In stock</option>
+            <option value="">Any availability</option><option value="stock">In stock</option>
             <option value="unchecked">Needs a check</option><option value="none">No matching offer</option>
             <option value="unavailable">Couldn’t check</option>
           </select>
@@ -64,7 +70,6 @@ const { active } = Astro.props;
           </select></label>
         </div>
       </details>
-      <p class="dex-help">Required cards from your set binders, excluding cards already ordered.</p>
       </div>
     </div>
     <div class="dex-buying-summary">
@@ -76,11 +81,12 @@ const { active } = Astro.props;
         <button id="buy-cards-cancel" class="dex-quiet" type="button" hidden>Stop checking</button>
       </div>
     </div>
+    <p id="buy-cards-edit-status" role="status"></p>
     <p id="buy-cards-progress"><span id="buy-cards-countdown" role="timer"></span><span id="buy-cards-check-status" role="status"></span></p>
     <p id="buy-cards-empty" hidden><a href={binderViewPaths.binders} data-binder-view="binders">Go to Binders</a> to set up or connect a set binder.</p>
     <section id="buy-card-pricing" class="dex-buying-detail" aria-labelledby="card-pricing-title" hidden></section>
-    <ul id="buy-cards-list" class="dex-buying-list" aria-label="Missing cards and offers"></ul>
-    <nav id="buy-cards-pages" class="dex-buying-pages" aria-label="Missing card pages" hidden>
+    <ul id="buy-cards-list" class="dex-buying-list" aria-label="Binder cards and offers"></ul>
+    <nav id="buy-cards-pages" class="dex-buying-pages" aria-label="Binder card pages" hidden>
       <button id="buy-cards-prev" type="button">Previous</button>
       <span id="buy-cards-page"></span>
       <button id="buy-cards-next" type="button">Next</button>

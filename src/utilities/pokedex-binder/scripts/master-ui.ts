@@ -1002,6 +1002,14 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     },
     collection() { return { sets, cards }; },
     applyCollection(fn: (doc: MasterState) => void) { return change(fn); },
+    setBuyingSlotStatus(binderId: string, key: string, status: CardStatus) {
+      return change(doc => {
+        const binder = doc.binders.find(b => b.id === binderId);
+        if (!binder || !setSlots(binder, cachedBinderCards(binder)).some(slot => slot.key === key))
+          throw new Error("This binder slot has changed. Refresh the list and try again.");
+        setSlotStatus(binder, key, status);
+      });
+    },
     async positionLists(binderId: string | null, status: CardStatus) {
       const version = accountVersion;
       const { state: saved } = await store.read(scope);

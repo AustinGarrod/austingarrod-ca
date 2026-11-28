@@ -204,7 +204,7 @@
 
 .dex-buying-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
 }
@@ -308,9 +308,13 @@
   margin-inline-start: auto;
 }
 
-.dex-buying-dashboard :is(#buy-cards-progress, #buy-cards-empty) {
+.dex-buying-dashboard :is(#buy-cards-progress, #buy-cards-edit-status, #buy-cards-empty) {
   margin-block: 8px;
   font-size: 14px;
+}
+
+.dex-buying-dashboard #buy-cards-edit-status:empty {
+  margin: 0;
 }
 
 .dex-buying-dashboard #buy-cards-progress:has(> span:empty + span:empty) {
@@ -369,6 +373,13 @@
 .dex-buying-identity small,
 .dex-buying-market small {
   display: block;
+}
+
+.dex-buying-slot-status {
+  display: grid;
+  gap: 8px;
+  max-width: 240px;
+  margin-top: 10px;
 }
 
 .dex-buying-dashboard .dex-buying-market {

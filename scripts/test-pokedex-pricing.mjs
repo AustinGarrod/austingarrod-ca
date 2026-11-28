@@ -334,12 +334,13 @@ try {
     await screenshot(page, width, "buy-cards", page.locator(".dex-binder-nav"));
     if (await filtersToggle.isVisible()) {
       // On phones the filters sit behind one button that counts the applied filters.
-      await expect(filtersToggle).toHaveAttribute("aria-label", "Filters, 1 applied");
+      await expect(filtersToggle).toHaveAttribute("aria-label", "Filters");
       await screenshot(page, width, "mobile-filters-collapsed", buying.locator("#buy-cards-missing"));
       await filtersToggle.click();
       await expect(filtersToggle).toHaveAttribute("aria-expanded", "true");
     }
-    await expect(scope).toHaveValue(activeBinder);
+    await expect(scope).toHaveValue("");
+    await scope.selectOption(activeBinder);
     await expect(scope.locator("option:checked")).toHaveText("Second 151");
     await expect(page.locator("#master-title")).toBeHidden();
     await page.goBack();
@@ -649,16 +650,18 @@ try {
       await expect(rows.first()).toContainText("$2.80");
       await rows.first().locator("[data-buy-card]").click();
       await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
+      const accountBinder = await scope.inputValue();
 
       user = null;
       await notifySessionChange(page);
       await expect(page).toHaveURL(buyingUrl);
       await expect(inlineDetails).toBeHidden();
       await expect(scope.locator("option").filter({ hasText: "Account only 151" })).toHaveCount(0);
-      await expect(scope.locator("option")).toHaveCount(4);
-      await expect(scope).toHaveValue("");
-      await expect(search).toHaveValue("");
-      await search.fill("Ivysaur 002");
+      await expect(scope.locator("option:checked")).toHaveText("Unavailable binder");
+      await expect(scope).toHaveValue(accountBinder);
+      await expect(search).toHaveValue("Ivysaur 002");
+      await expect(buying.locator("#buy-cards-status")).toContainText("No cards match the current filters");
+      await scope.selectOption("");
       await expect(rows.first()).toContainText("$2.50");
       await expect(rows.first()).not.toContainText("$2.80");
       await page.clock.fastForward(601_000);
@@ -726,12 +729,19 @@ try {
       assert.ok(requestedStores.slice(firstRequest).every(selection => JSON.stringify(selection) === '["Deck Out Gaming"]'));
 
       await finish.selectOption("Regular");
+      await buying.locator("#buy-cards-offer-filters summary").click();
+      await store.selectOption("Deck Out Gaming");
       await openSettings(page);
       await page.locator('[name="retailer"][value="Deck Out Gaming"]').uncheck();
       await save.click();
       await expect(save).toBeEnabled();
       await buyTab.click();
       await expect(buying.locator("#buy-cards-store-status")).toContainText("Retailer checks are off");
+      await expect(store).toHaveValue("Deck Out Gaming");
+      await expect(buying.locator("#buy-cards-status")).toContainText("No cards match the current filters");
+      await store.selectOption("");
+      await expect(search).toHaveValue("Ivysaur 002");
+      await expect(finish).toHaveValue("Regular");
       await expect(checkPage).toBeDisabled();
       await expect(buying.locator("#buy-cards-check-all")).toBeDisabled();
       const beforeOff = requestedStores.length;

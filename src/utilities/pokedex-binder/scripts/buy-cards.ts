@@ -4,14 +4,15 @@ import { createBuyOfferCache, offerBatchSize } from "../lib/buying-offer-cache";
 import { catalogArtwork } from "../lib/catalog-search";
 import { binderCards, binderSetIds } from "../lib/binder-catalog";
 import type { MasterState, SetCard, SetSummary } from "../lib/master";
-import { cad, calendarDate, groupBuyingEntries, marketPrices, matchesBuyingEntry, missingPrintings,
-  type BuyingEntry, type MarketPrice, type PricingTarget, type RetailOffer, type RetailOffers } from "../lib/pricing";
+import { cardStatusLabel, type CardStatus } from "../lib/model";
+import { buyingSlots, cad, calendarDate, groupBuyingEntries, marketPrices, matchesBuyingEntry,
+  type BuyingEntry, type BuyingSlot, type MarketPrice, type PricingTarget, type RetailOffer, type RetailOffers } from "../lib/pricing";
 import { escape } from "./binder-pages";
 
 interface Options {
   collection(): { sets: readonly SetSummary[]; cards(setId: string): Promise<SetCard[]> };
   binders(): Promise<MasterState>;
-  selected(): string;
+  setStatus(slot: BuyingSlot, status: CardStatus): Promise<void>;
   offerScope(): string;
   enabledStores(): readonly BuyingStore[] | undefined;
   inspect(target: PricingTarget): void;
@@ -55,6 +56,18 @@ const select = (id: string) => node<HTMLSelectElement>(id);
 const button = (id: string) => node<HTMLButtonElement>(id);
 const byName = new Intl.Collator("en-CA", { numeric: true });
 const time = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const cardStatuses = ["missing", "ordered", "owned"] as const;
+const slotId = (slot: BuyingSlot) => JSON.stringify([slot.binderId, slot.key]);
+
+function setFilterOptions(field: HTMLSelectElement, defaultLabel: string, choices: HTMLOptionElement[], unavailableLabel?: string) {
+  const previous = field.selectedOptions[0];
+  const value = field.value;
+  if (value && !choices.some(choice => choice.value === value)) {
+    choices.push(new Option(unavailableLabel ?? previous.text, value));
+  }
+  field.replaceChildren(new Option(defaultLabel, ""), ...choices);
+  field.value = value;
+}
 
 function listingLink(offer: RetailOffer, key: string) {
   return `<a href="${escape(offer.url)}" target="_blank" rel="noopener noreferrer" data-buy-store-link="${escape(key)}"
@@ -84,16 +97,18 @@ function formatWait(seconds: number) {
 }
 
 export function createBuyCards(options: Options) {
-  const workspace = node("workspace"), list = node("list"), status = node("status");
+  const workspace = node("workspace"), list = node("list"), status = node("status"), editStatus = node("edit-status");
   const empty = node("empty"), progress = node("check-status"), countdown = node("countdown");
   const missing = node("missing"), detail = document.getElementById("buy-card-pricing")!;
   const binderFilters = node("binder-filters"), binderActions = node("binder-actions");
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
-  const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
+  const scope = select("scope"), cardFilter = select("card-status"), finish = select("finish");
+  const availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
   const storeNotice = node("store-status");
   const checkPage = button("check"), checkAll = button("check-all"), cancel = button("cancel"), clear = button("clear");
-  const filters = [search, finish, availability, store, maxPrice, condition, sort];
+  const filters = [search, cardFilter, finish, availability, store, maxPrice, condition, sort];
+  const filterDefault = (field: HTMLElement) => field === sort ? "binder" : field === cardFilter ? "missing" : "";
   // On phones the filters other than search sit behind one button that says how many are applied.
   const filtersToggle = button("filters-toggle"), filterCount = node("filter-count"), offerFilterCount = node("offer-filter-count");
   filtersToggle.addEventListener("click", () => {
@@ -102,7 +117,8 @@ export function createBuyCards(options: Options) {
     filtersToggle.setAttribute("aria-expanded", String(open));
   });
   function showFilterCount() {
-    const applied = [scope, finish, availability, store, maxPrice, condition].filter(field => field.value).length;
+    const applied = [scope, cardFilter, finish, availability, store, maxPrice, condition]
+      .filter(field => field.value !== filterDefault(field)).length;
     filterCount.textContent = applied ? String(applied) : "";
     filterCount.hidden = !applied;
     filtersToggle.setAttribute("aria-label", applied ? `Filters, ${applied} applied` : "Filters");
@@ -111,6 +127,7 @@ export function createBuyCards(options: Options) {
     offerFilterCount.hidden = !offerFilters;
   }
   const picks = new Map<string, string>();
+  const statusEdits = new Map<string, { value: CardStatus }>();
   const expandedStores = new Set<string>();
   const quotes = createBuyOfferCache(options.offerScope, draw);
   let entries: BuyingEntry[] = [], visible: Row[] = [], setErrors = 0, page = 0, version = 0;
@@ -118,7 +135,7 @@ export function createBuyCards(options: Options) {
   let values = new Map<string, MarketPrice>(), marketPending = new Set<string>();
   let loading = false, failedToLoad = false, needsReload = false, hasBinders = true;
   let catalogState: "loading" | "ready" | "error" = "loading";
-  let visited = false, entryFromBinder = false;
+  let visited = false;
   let job: CheckJob | undefined;
   let binderTargets = new Map<string, PricingTarget>();
   let rateLimitedUntil = 0, refreshPaused = false;
@@ -142,10 +159,8 @@ export function createBuyCards(options: Options) {
   }
 
   function fillFinishes() {
-    const preferred = finish.value;
     const labels = new Set(entries.flatMap(entry => [entry.target.finish, ...choicesFor(entry).map(item => item.label)]));
-    finish.replaceChildren(new Option("All finishes", ""), ...[...labels].sort(byName.compare).map(item => new Option(item, item)));
-    if (labels.has(preferred)) finish.value = preferred;
+    setFilterOptions(finish, "All finishes", [...labels].sort(byName.compare).map(item => new Option(item, item)));
   }
 
   function getRow(entry: BuyingEntry, now: number, shops: readonly BuyingStore[], budget: number, grade: number): Row {
@@ -240,11 +255,20 @@ export function createBuyCards(options: Options) {
         ${listingLink(best, JSON.stringify([row.id, "best"]))}</div>`
         : `<p class="dex-buying-store-line" data-availability="${allFailed ? "unavailable" : "none"}">${resultLabel}</p>`}
         ${comparison}`;
+    const statusControls = entry.slots.map(slot => {
+      const key = slotId(slot);
+      const value = statusEdits.get(key)?.value ?? slot.status;
+      return `<label>Status in ${escape(slot.binderName)}
+        <select data-buy-status="${escape(key)}" aria-label="Status of ${title} in ${escape(slot.binderName)}">
+          ${cardStatuses.map(state => `<option value="${state}" ${state === value ? "selected" : ""}>${cardStatusLabel[state]}</option>`).join("")}
+        </select></label>`;
+    }).join("");
     return `<li class="dex-buying-row" data-buy-row="${id}">
       <div class="dex-buying-identity">${image ? `<img src="${escape(image)}" width="42" height="59" alt="" loading="lazy">` : ""}
         <div><strong>${escape(target.name)}</strong><small>${escape(target.setName)} · #${escape(target.number)} · ${escape(target.finish)}
-        ${entry.copies > 1 ? " · " + entry.copies + " needed" : ""}</small>
-        <p class="dex-buying-market"><span>Market estimate</span> ${market}</p></div>
+        ${entry.slots.length > 1 ? " · " + entry.slots.length + (cardFilter.value === "missing" ? " needed" : " binder slots") : ""}</small>
+        <p class="dex-buying-market"><span>Market estimate</span> ${market}</p>
+        <div class="dex-buying-slot-status">${statusControls}</div></div>
       </div>
       <div>${storeResults}
         <div class="dex-actions">${picker}${recheck}
@@ -293,14 +317,21 @@ export function createBuyCards(options: Options) {
       return;
     }
     const enabled = options.enabledStores() ?? [];
+    for (const field of [store, maxPrice, condition, availability]) field.disabled = !enabled.length && !field.value;
     const shops = store.value ? enabled.filter(item => item === store.value) : enabled;
     const budget = Number.isFinite(maxPrice.valueAsNumber) ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
     const grade = condition.value !== "" ? Number(condition.value) : Infinity;
     const requiresOffer = Number.isFinite(budget) || Number.isFinite(grade);
-    const matching = entries.filter(entry => matchesBuyingEntry(entry, search.value)
-      && (!finish.value || entry.target.finish === finish.value || choicesFor(entry).some(item => item.label === finish.value)))
-      .map(entry => getRow(entry, now, shops, budget, grade))
-      .filter(row => !enabled.length || (availability.value ? row.availability === availability.value : !requiresOffer || row.availability === "stock"));
+    const filteringOffers = !!(store.value || availability.value || requiresOffer);
+    const matching = entries
+      .filter(entry => matchesBuyingEntry(entry, search.value)
+        && (!finish.value || entry.target.finish === finish.value || choicesFor(entry).some(item => item.label === finish.value)))
+      .flatMap(entry => {
+        const slots = cardFilter.value ? entry.slots.filter(slot => slot.status === cardFilter.value) : entry.slots;
+        return slots.length ? [getRow({ ...entry, slots }, now, shops, budget, grade)] : [];
+      })
+      .filter(row => !filteringOffers || (shops.length > 0
+        && (availability.value ? row.availability === availability.value : !requiresOffer || row.availability === "stock")));
     if (sort.value === "name") matching.sort((a, b) => byName.compare(a.target.name, b.target.name));
     if (sort.value === "market") matching.sort((a, b) => priceOrder(a.price?.cents ?? Infinity, b.price?.cents ?? Infinity));
     if (sort.value === "stock") matching.sort((a, b) => Number(b.availability === "stock") - Number(a.availability === "stock"));
@@ -311,12 +342,18 @@ export function createBuyCards(options: Options) {
     const pages = Math.max(1, Math.ceil(matching.length / pageSize));
     page = Math.min(page, pages - 1);
     visible = matching.slice(page * pageSize, (page + 1) * pageSize);
-    const count = matching.reduce((sum, row) => sum + row.entry.copies, 0);
+    const count = matching.reduce((sum, row) => sum + row.entry.slots.length, 0);
+    const cardCount = `${count.toLocaleString()} ${count === 1 ? "card" : "cards"}`;
+    const countLabel = cardFilter.value === "missing" ? cardCount + " still to find"
+      : cardFilter.value === "owned" ? cardCount + " collected"
+      : cardFilter.value === "ordered" ? cardCount + " ordered" : cardCount;
+    const filtersHideAll = scope.value || (entries.length > 0 && (cardFilter.value !== "missing"
+      || entries.some(entry => entry.slots.some(slot => slot.status === "missing"))));
     const summary = failedToLoad ? "The binders couldn’t load. Switch to Binders and return to try again."
       : !hasBinders ? "You don’t have any set binders yet."
-      : count ? `${count.toLocaleString()} ${count === 1 ? "card" : "cards"} still to find`
-      : entries.length ? (availability.value === "stock" || requiresOffer ? "No in-stock offers match. Clear offer filters to check more cards."
-        : "No missing cards match this search.") : "No catalog cards still to find.";
+      : count ? countLabel
+      : filtersHideAll ? "No cards match the current filters."
+      : "No catalog cards still to find.";
     status.textContent = summary + (setErrors ? " Some set checklists couldn’t load." : "");
     empty.hidden = hasBinders || failedToLoad;
     binderFilters.hidden = binderActions.hidden = !hasBinders || failedToLoad;
@@ -328,11 +365,12 @@ export function createBuyCards(options: Options) {
     checkPage.disabled = !enabled.length || manualCheck || !visible.some(row => canCheckPrinting(row.target));
     checkAll.disabled = !enabled.length || manualCheck || !binderTargets.size;
     cancel.hidden = !manualCheck;
-    clear.hidden = binderActions.hidden || filters.every(input => !input.value || input === sort && sort.value === "binder");
+    clear.hidden = binderActions.hidden || [scope, ...filters].every(field => field.value === filterDefault(field));
     showFilterCount();
 
     const active = document.activeElement as HTMLElement | null;
-    const attribute = ["data-buy-check", "data-buy-card", "data-buy-finish", "data-buy-compare-stores", "data-buy-store-link"].find(name => active?.hasAttribute(name));
+    const attribute = ["data-buy-check", "data-buy-card", "data-buy-finish", "data-buy-status", "data-buy-compare-stores",
+      "data-buy-store-link"].find(name => active?.hasAttribute(name));
     const focused = attribute && active?.getAttribute(attribute);
     const focusedRow = active?.closest<HTMLElement>("[data-buy-row]")?.dataset.buyRow;
     for (const details of list.querySelectorAll<HTMLDetailsElement>("details[data-buy-stores]")) {
@@ -344,7 +382,9 @@ export function createBuyCards(options: Options) {
     if (attribute && focused && active && !active.isConnected) {
       const replacement = list.querySelector<HTMLElement>(`[${attribute}="${CSS.escape(focused)}"]:not(:disabled)`);
       const alternative = focusedRow ? list.querySelector<HTMLElement>(`[data-buy-card="${CSS.escape(focusedRow)}"]`) : null;
-      (replacement ?? alternative ?? (manualCheck ? cancel : checkPage)).focus({ preventScroll: true });
+      const fallback = attribute === "data-buy-status" ? list.querySelector<HTMLElement>("[data-buy-status]") ?? search
+        : manualCheck ? cancel : checkPage;
+      (replacement ?? alternative ?? fallback).focus({ preventScroll: true });
     }
     scheduleExpiration(now, quoteExpiry);
   }
@@ -462,30 +502,31 @@ export function createBuyCards(options: Options) {
     if (restoreFocus) (kind === "all" ? checkAll : checkPage).focus({ preventScroll: true });
   }
 
-  async function load(preferred: string) {
+  async function load(keepRows = false) {
     const ticket = ++version;
     const current = () => isActive() && version === ticket;
-    cancelChecks();
+    if (!keepRows) cancelChecks();
     needsReload = false;
     loading = true;
     failedToLoad = false;
     setErrors = 0;
-    entries = visible = [];
-    binderTargets.clear();
     values = new Map();
     marketPending = new Set();
     scope.disabled = true;
-    checkPage.disabled = checkAll.disabled = true;
-    empty.hidden = true;
-    list.replaceChildren();
-    node("pages").hidden = true;
-    status.textContent = "Checking which cards are missing…";
+    if (!keepRows) {
+      entries = visible = [];
+      binderTargets.clear();
+      checkPage.disabled = checkAll.disabled = true;
+      empty.hidden = true;
+      list.replaceChildren();
+      node("pages").hidden = true;
+      status.textContent = "Loading cards from your set binders…";
+    }
     try {
       const [state] = await Promise.all([options.binders(), quotes.hydrate()]);
       if (!current()) return;
       hasBinders = state.binders.length > 0;
-      scope.replaceChildren(new Option("All binders", ""), ...state.binders.map(binder => new Option(binder.name, binder.id)));
-      scope.value = state.binders.some(binder => binder.id === preferred) ? preferred : "";
+      setFilterOptions(scope, "All binders", state.binders.map(binder => new Option(binder.name, binder.id)), "Unavailable binder");
       const selected = state.binders.filter(binder => !scope.value || binder.id === scope.value);
       const catalog = options.collection();
       sets = new Map(catalog.sets.map(set => [set.id, set]));
@@ -497,9 +538,10 @@ export function createBuyCards(options: Options) {
       cards = new Map([...loaded].map(([id, data]) => [id, new Map(data.map(card => [card.number, card.variants]))]));
       entries = groupBuyingEntries(selected.flatMap(binder => {
         const set = sets.get(binder.setId), data = loaded.get(binder.setId);
-        return set && data ? missingPrintings(binder, set, binderCards(binder, id => loaded.get(id) ?? []), sets) : [];
+        return set && data ? buyingSlots(binder, set, binderCards(binder, id => loaded.get(id) ?? []), sets) : [];
       }));
-      binderTargets = checkableTargets(entries.flatMap(entry => targetsFor(entry.target, choicesFor(entry))));
+      binderTargets = checkableTargets(entries.filter(entry => entry.slots.some(slot => slot.status === "missing"))
+        .flatMap(entry => targetsFor(entry.target, choicesFor(entry))));
       fillFinishes();
       const ids = [...new Set(entries.map(entry => entry.target.setId))];
       marketPending = new Set(ids);
@@ -520,14 +562,19 @@ export function createBuyCards(options: Options) {
       }
       for (let worker = 0; worker < Math.min(4, ids.length); worker++) void pullMarket();
     } catch {
-      if (current()) failedToLoad = true;
+      if (current()) {
+        failedToLoad = true;
+        entries = visible = [];
+        binderTargets.clear();
+        cancelChecks();
+      }
     } finally {
       if (current()) { loading = false; scope.disabled = false; draw(); }
     }
   }
 
   function resetFilters() {
-    for (const field of filters) field.value = field === sort ? "binder" : "";
+    for (const field of [scope, ...filters]) field.value = filterDefault(field);
     node<HTMLDetailsElement>("offer-filters").open = false;
     page = 0;
   }
@@ -539,9 +586,9 @@ export function createBuyCards(options: Options) {
     }
     if (!visited) {
       visited = true;
-      void load(entryFromBinder ? options.selected() : "");
+      void load();
     } else if (needsReload || marketPending.size || failedToLoad) {
-      void load(scope.value);
+      void load();
     } else {
       refreshVisible();
     }
@@ -575,7 +622,7 @@ export function createBuyCards(options: Options) {
       options.closeDetail();
     }
     page = 0;
-    void load(scope.value);
+    void load();
   });
   checkPage.addEventListener("click", () => void check(checkableTargets(visible.map(row => row.target))));
   checkAll.addEventListener("click", () => void check(binderTargets, "all"));
@@ -592,7 +639,13 @@ export function createBuyCards(options: Options) {
     if (document.hidden && job?.kind === "refresh") cancelChecks();
     refreshVisible();
   });
-  clear.addEventListener("click", () => { resetFilters(); changeVisibleRows(); search.focus(); });
+  clear.addEventListener("click", () => {
+    const changeScope = !!scope.value;
+    resetFilters();
+    if (changeScope) void load();
+    else changeVisibleRows();
+    search.focus();
+  });
   function turnPage(offset: number) {
     page += offset;
     changeVisibleRows();
@@ -600,8 +653,32 @@ export function createBuyCards(options: Options) {
   }
   next.addEventListener("click", () => turnPage(1));
   prev.addEventListener("click", () => turnPage(-1));
+  async function saveStatus(control: HTMLSelectElement, key: string) {
+    const pending = statusEdits.get(key);
+    if (pending) { control.value = pending.value; return; }
+    const rowId = control.closest<HTMLElement>("[data-buy-row]")?.dataset.buyRow;
+    const slot = visible.find(row => row.id === rowId)?.entry.slots.find(item => slotId(item) === key);
+    if (!slot) return;
+    const value = control.value as CardStatus;
+    const edit = { value };
+    statusEdits.set(key, edit);
+    editStatus.textContent = "";
+    let message: string;
+    try {
+      await options.setStatus(slot, value);
+      message = `${slot.target.name} marked ${cardStatusLabel[value].toLowerCase()} in ${slot.binderName}.`;
+    } catch (error) {
+      message = error instanceof Error ? error.message : "Couldn’t save the card status. Try again.";
+    }
+    if (statusEdits.get(key) !== edit) return;
+    statusEdits.delete(key);
+    editStatus.textContent = message;
+    draw();
+  }
+
   list.addEventListener("change", event => {
-    const control = (event.target as Element).closest<HTMLSelectElement>("[data-buy-finish]");
+    const control = (event.target as Element).closest<HTMLSelectElement>("[data-buy-finish], [data-buy-status]");
+    if (control?.dataset.buyStatus) { void saveStatus(control, control.dataset.buyStatus); return; }
     if (!control?.dataset.buyFinish) return;
     if (control.value) picks.set(control.dataset.buyFinish, control.value);
     else picks.delete(control.dataset.buyFinish);
@@ -634,11 +711,8 @@ export function createBuyCards(options: Options) {
       const enabled = options.enabledStores();
       storeNotice.hidden = enabled !== undefined && enabled.length > 0;
       node("store-status-text").textContent = enabled ? "Retailer checks are off." : "Retailer choices are loading or unavailable.";
-      const previous = store.value;
-      store.replaceChildren(new Option("All enabled stores", ""), ...(enabled ?? []).map(shop =>
+      setFilterOptions(store, "All enabled stores", (enabled ?? []).map(shop =>
         new Option(shop + (isCrossBorder(shop) ? " (cross-border)" : ""), shop)));
-      if (enabled?.some(shop => shop === previous)) store.value = previous;
-      for (const field of [store, maxPrice, condition, availability]) field.disabled = !enabled?.length;
       draw();
     },
     inspectCatalog(target: PricingTarget, restoreFocus: () => void) {
@@ -647,8 +721,7 @@ export function createBuyCards(options: Options) {
       if (detail.nextElementSibling !== missing) missing.before(detail);
       options.inspect(target);
     },
-    enter(fromBinders: boolean) {
-      if (!visited) entryFromBinder = fromBinders;
+    enter() {
       refreshPaused = false;
       activate();
     },
@@ -672,21 +745,23 @@ export function createBuyCards(options: Options) {
     },
     bindersChanged() {
       needsReload = true;
-      if (isActive() && catalogState === "ready" && visited) void load(scope.value);
+      if (isActive() && catalogState === "ready" && visited) void load(true);
     },
     scopeChanged() {
       deactivate();
-      resetFilters();
+      page = 0;
       entries = visible = [];
       binderTargets.clear();
       sets.clear();
       cards.clear();
       picks.clear();
+      statusEdits.clear();
+      editStatus.textContent = "";
       expandedStores.clear();
       quotes.reset();
       values.clear();
       marketPending.clear();
-      scope.replaceChildren(new Option("All binders", ""));
+      setFilterOptions(scope, "All binders", [], "Unavailable binder");
       list.replaceChildren();
       empty.hidden = true;
       binderFilters.hidden = binderActions.hidden = true;

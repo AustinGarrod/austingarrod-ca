@@ -17,7 +17,7 @@ import {
 import { masterCatalog } from "../../scripts/pokedex-master-catalog.mjs";
 import { binderCards, relatedSets } from "../../src/utilities/pokedex-binder/lib/binder-catalog";
 import { catalogArtwork } from "../../src/utilities/pokedex-binder/lib/catalog-search";
-import { missingPrintings, valueBinder } from "../../src/utilities/pokedex-binder/lib/pricing";
+import { buyingSlots, valueBinder } from "../../src/utilities/pokedex-binder/lib/pricing";
 import { exportCards, addSetImports, groupSetImport } from "../../src/utilities/pokedex-binder/lib/card-transfer";
 
 const installed = "public/utilities/pokedex-binder/catalog/master-sets/";
@@ -255,7 +255,9 @@ describe("set catalog and independent pocket goals", () => {
     expect(energy.map(slot => slot.number)).toEqual(["009", "010", "011", "012", "013", "014", "015", "016"]);
     expect(energy.every(slot => slot.key.endsWith(":holo+stamp=30th-anniversary"))).toBe(true);
     setSlotStatus(binder, energy[0].key, "ordered");
-    const targets = missingPrintings(binder, summaries.get("30th")!, expandedCards, summaries);
+    const buying = buyingSlots(binder, summaries.get("30th")!, expandedCards, summaries);
+    expect(buying).toContainEqual(expect.objectContaining({ key: energy[0].key, status: "ordered" }));
+    const targets = buying.filter(slot => slot.status === "missing").map(slot => slot.target);
     expect(targets).toHaveLength(196);
     expect(targets).toContainEqual(expect.objectContaining({ setId: "mee", number: "010", variant: "holo+stamp=30th-anniversary" }));
     const markets = { asOf: "2026-11-26", prices: [{ number: "009", variant: "holo+stamp=30th-anniversary", cents: 100, observedAt: "2026-11-26" }] };

@@ -73,6 +73,9 @@ export async function testFullBuyCards(browser, origin) {
     const countdownStatus = buying.getByRole("timer");
     const search = buying.locator("#buy-cards-filter"), availability = buying.locator("#buy-cards-availability");
     const finish = buying.locator("#buy-cards-finish");
+    const cardFilter = buying.locator("#buy-cards-card-status");
+    const resultsStatus = buying.locator("#buy-cards-status");
+    const editStatus = buying.locator("#buy-cards-edit-status");
 
     await page.goto(origin + "/utilities/pokemon-binder/");
     for (const [set, name] of [["sv03.5", "Main 151"], ["sv03.5", "Spare 151"], ["sv01", "Other expansion"]]) {
@@ -91,6 +94,41 @@ export async function testFullBuyCards(browser, origin) {
 
     await buyTab.click();
     await buying.locator("#buy-cards-filters-toggle").click();
+    await expect(scope).toHaveValue("");
+    await finish.selectOption("Holo");
+    await scope.selectOption({ label: "Other expansion" });
+    await expect(resultsStatus).toContainText("No cards match the current filters");
+    await expect(finish).toHaveValue("Holo");
+    await expect(rows).toHaveCount(0);
+    await buying.getByRole("button", { name: "Clear filters", exact: true }).click();
+    await expect(scope).toHaveValue("");
+    await expect(finish).toHaveValue("");
+    await search.fill("Ivysaur 002");
+    await finish.selectOption("Regular");
+    const mainStatus = rows.getByRole("combobox", { name: /status of ivysaur.*in main 151/i });
+    const spareStatus = rows.getByRole("combobox", { name: /status of ivysaur.*in spare 151/i });
+    await expect(mainStatus).toHaveValue("missing");
+    await expect(spareStatus).toHaveValue("missing");
+    await mainStatus.selectOption("ordered");
+    await expect(editStatus).toHaveText("Ivysaur marked ordered in Main 151.");
+    await expect(mainStatus).toHaveCount(0);
+    await expect(spareStatus).toHaveValue("missing");
+    await expect(cardFilter).toHaveValue("missing");
+    await expect(finish).toHaveValue("Regular");
+    await cardFilter.selectOption("ordered");
+    await expect(mainStatus).toHaveValue("ordered");
+    await mainStatus.selectOption("owned");
+    await expect(resultsStatus).toContainText("No cards match the current filters");
+    await expect(cardFilter).toHaveValue("ordered");
+    await cardFilter.selectOption("owned");
+    await expect(mainStatus).toHaveValue("owned");
+    await mainStatus.selectOption("missing");
+    await expect(editStatus).toHaveText("Ivysaur marked missing in Main 151.");
+    await cardFilter.selectOption("missing");
+    await expect(mainStatus).toHaveValue("missing");
+    await expect(spareStatus).toHaveValue("missing");
+    await search.fill("");
+    await finish.selectOption("");
     await scope.selectOption({ label: "Main 151" });
     // 24 cards per page: the seven missing cards share one page.
     await expect(rows).toHaveCount(7);

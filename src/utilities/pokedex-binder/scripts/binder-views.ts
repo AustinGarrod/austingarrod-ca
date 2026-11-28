@@ -1,6 +1,6 @@
 import { binderViewForUrl, binderViewPaths, legacyBinderView, type BinderView } from "../lib/view-routes";
 
-type ViewListener = (view: BinderView, fromBinders: boolean) => void;
+type ViewListener = (view: BinderView) => void;
 
 function viewFromHistory(): BinderView {
   const url = new URL(location.href);
@@ -40,7 +40,6 @@ export function binderViews() {
   const openGraphUrl = document.head.querySelector<HTMLMetaElement>('meta[property="og:url"]')!;
   const shareTitles = document.head.querySelectorAll<HTMLMetaElement>('meta[property="og:title"], meta[name="twitter:title"]');
   let selected: BinderView | undefined;
-  let fromBinders = false;
   let listener: ViewListener | undefined;
   let home: (() => void) | undefined;
   let binderHistory: unknown = null;
@@ -54,7 +53,6 @@ export function binderViews() {
       positions.set(prior, { scroll: window.scrollY, focus });
     }
     selected = view;
-    fromBinders = prior === "binders";
     if (view === "binders") binderHistory = history.state;
     document.title = view === "binders" ? binderTitle : (view === "settings" ? "Settings" : "Buy cards") + " | " + binderTitle;
     canonical.href = new URL(binderViewPaths[view], canonical.href).href;
@@ -71,7 +69,7 @@ export function binderViews() {
       if (id === view) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
-    listener?.(view, fromBinders);
+    listener?.(view);
     if (prior) {
       const position = positions.get(view);
       const focus = position?.focus;
@@ -105,7 +103,7 @@ export function binderViews() {
     openSettings: () => go("settings", binderViewPaths.settings),
     subscribe(callback: ViewListener) {
       listener = callback;
-      callback(selected!, fromBinders);
+      callback(selected!);
     },
     onHome(callback: () => void) {
       home = callback;
