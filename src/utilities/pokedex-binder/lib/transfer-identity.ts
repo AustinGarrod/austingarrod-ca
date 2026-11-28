@@ -24,6 +24,8 @@ const aliases: Record<string, readonly string[]> = {
   base1: ["Base Set (Shadowless)"], ex1: ["EX Ruby & Sapphire"],
   ex2: ["EX Sandstorm"], ex3: ["EX Dragon"],
   "sv03.5": ["Scarlet & Violet 151", "Scarlet & Violet—151"],
+  "30th-c": ["30th Celebration Classic Collection"],
+  mee: ["MEE: Mega Evolution Energies"],
 };
 
 interface SetIdentity { id: string; code: string; name: string }

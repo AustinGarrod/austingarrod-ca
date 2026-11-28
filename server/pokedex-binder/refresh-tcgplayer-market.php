@@ -59,7 +59,7 @@ function binder_tcgplayer_market_rows(array $groups): Generator
     }
 }
 
-function binder_tcgplayer_market_refresh(string $webroot): void
+function binder_tcgplayer_market_refresh(string $webroot, bool $rebuild = false): void
 {
     $source = 'tcgplayer';
     $file = binder_market_cache_path($webroot, $source);
@@ -81,7 +81,8 @@ function binder_tcgplayer_market_refresh(string $webroot): void
             $exists = $db->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'market_snapshots'")->fetchColumn();
             $previous = $exists ? $db->query('SELECT observed_at FROM market_snapshots ORDER BY day DESC LIMIT 1')->fetchColumn() : false;
             unset($db);
-            if ($previous !== false && new DateTimeImmutable($previous) >= $asOf) {
+            $published = $previous === false ? null : new DateTimeImmutable($previous);
+            if ($published !== null && ($published > $asOf || ($published == $asOf && !$rebuild))) {
                 fwrite(STDOUT, 'TCGplayer already published through ' . $previous . ".\n");
                 return;
             }
@@ -114,8 +115,9 @@ if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
 }
-if ($argc !== 2 || !is_dir($argv[1]) || !extension_loaded('curl') || !extension_loaded('pdo_sqlite')) {
-    fwrite(STDERR, "Usage: php refresh-tcgplayer-market.php /absolute/site/webroot (requires curl and pdo_sqlite)\n");
+$rebuild = $argc === 3 && $argv[2] === '--rebuild';
+if (($argc !== 2 && !$rebuild) || !is_dir($argv[1]) || !extension_loaded('curl') || !extension_loaded('pdo_sqlite')) {
+    fwrite(STDERR, "Usage: php refresh-tcgplayer-market.php /absolute/site/webroot [--rebuild] (requires curl and pdo_sqlite)\n");
     exit(1);
 }
 
@@ -126,7 +128,7 @@ try {
     if (!function_exists('binder_market_catalog_data')) {
         throw new RuntimeException('Deploy the TCGplayer market reader before refreshing prices.');
     }
-    binder_tcgplayer_market_refresh($root);
+    binder_tcgplayer_market_refresh($root, $rebuild);
 } catch (Throwable $error) {
     fwrite(STDERR, $error->getMessage() . "\n");
     exit(1);

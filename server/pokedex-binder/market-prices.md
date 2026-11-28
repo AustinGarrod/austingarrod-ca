@@ -15,6 +15,7 @@ The binder displays TCGplayer Market Price, which reflects recent completed sale
 4. Verify both the `set=sv03.5&source=tcgplayer` response and the exact history request with `set=sv03.5&source=tcgplayer&number=001&variant=reverse&days=30`. A fresh cache starts with one observation per priced printing.
 
 The regular catalog refresh regenerates the TCGplayer market crosswalk with the transfer IDs. To refresh just these two crosswalks, run `npm run refresh:pokedex:transfer-ids`.
+After deploying updated printing matches, append `--rebuild` to the refresh command to republish the latest feed with those matches and retain earlier daily observations.
 
 ## Cardmarket compatibility
 

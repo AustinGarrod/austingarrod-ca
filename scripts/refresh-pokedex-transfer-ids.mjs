@@ -4,12 +4,12 @@ import { setTimeout } from "node:timers/promises";
 import { resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { cardNameKey, numberKey } from "../src/utilities/pokedex-binder/lib/transfer-identity.ts";
-import { marketPrintingCrosswalk, tcgplayerCardName, tcgplayerGroupSet } from "./pokedex-tcgplayer-market.mjs";
+import { marketPrintingCrosswalk, tcgplayerGroupSet, tcgplayerListingIdentity } from "./pokedex-tcgplayer-market.mjs";
 
 const directory = process.argv[2] ? pathToFileURL(resolve(process.argv[2]) + sep) : new URL("../public/utilities/pokedex-binder/catalog/", import.meta.url);
 const read = async (name) => JSON.parse(await readFile(new URL(name, directory), "utf8"));
 const api = "https://tcgcsv.com/tcgplayer/3/";
-const headers = { "User-Agent": "AustinGarrod.ca Pokédex Binder catalog refresh" };
+const headers = { "User-Agent": "AustinGarrod.ca-Pokedex-Binder/1.0.0" };
 async function fetchCatalog(path) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -48,8 +48,10 @@ for (const group of groups) {
   for (const product of listings) {
     const number = product.extendedData?.find(item => item.name === "Number")?.value;
     if (!number || !Number.isSafeInteger(product.productId) || product.productId < 1) continue;
-    const name = tcgplayerCardName(product.name, number);
-    const candidates = (byNumber.get(numberKey(number)) ?? []).filter(card =>
+    const identity = tcgplayerListingIdentity(set.id, product.name, number);
+    if (!identity) continue;
+    const [key, name] = identity;
+    const candidates = (byNumber.get(key) ?? []).filter(card =>
       name === cardNameKey(card.name) && (!subtype || card.variants.some(v => v.id.includes("subtype=" + subtype))));
     if (candidates.length !== 1) continue;
     const printings = [...new Set((prices.get(product.productId) ?? []).map(item => item.subTypeName)
