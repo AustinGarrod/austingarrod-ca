@@ -189,8 +189,34 @@
 .dex-pricing-section { border-top: 1px solid var(--line); padding: 14px 0; }
 .dex-pricing-section h3 { display: flex; align-items: center; gap: 6px; margin: 0; }
 .dex-pricing-section .dex-section-heading { gap: 8px; flex-wrap: wrap; }
-.dex-pricing-section .dex-section-heading a { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
-.dex-dialog .dex-market-value { margin: 8px 0 4px; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pokedex-page .dex-market-value { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.pokedex-page .dex-market-value.has-amount {
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.pokedex-page .dex-market-source { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; margin: 4px 0 0; }
+.dex-market-source a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dex-price-date { white-space: nowrap; }
+.dex-market-history { margin-top: 8px; }
+.dex-market-history summary {
+  align-content: center;
+  min-height: var(--dex-control-height);
+  width: fit-content;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dex-market-history > label { max-width: 16rem; }
 .dex-market-chart { padding: 10px; background: var(--surface-low); border: 1px solid var(--line); }
 .dex-market-chart canvas { display: block; width: 100%; height: 156px; }
 .dex-market-chart output { font-size: 12px; font-family: 'JetBrains Mono', monospace; }
@@ -496,7 +522,6 @@
 .set-overview-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 16px; border-top: 1px solid var(--line); }
 .set-overview-totals .set-overview-value { grid-column: 1 / -1; }
 .set-overview-card .set-overview-value { margin-top: 14px; padding: 10px 0 0; }
-.set-overview-card .set-overview-value small { flex-basis: 100%; }
 .set-overview-value strong {
   color: var(--ink);
   font-size: 15px;
@@ -504,7 +529,7 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.set-overview-value small { color: var(--muted); font-size: 12px; }
+.set-overview-value small { display: grid; flex-basis: 100%; gap: 2px; color: var(--muted); font-size: 12px; }
 .set-overview-card footer { border-top: 1px solid var(--line); }
 .pokedex-page .set-overview-card footer button { width: 100%; min-height: 44px; justify-content: space-between; padding: 10px 20px; border: 0; }
 @media (max-width: 600px) {
@@ -513,7 +538,6 @@
   .set-overview-totals .set-overview-completion { padding: 10px 12px; border-top: 1px solid var(--line); }
   .set-overview-totals .set-overview-counts > div { padding: 8px 10px; }
   .set-overview-totals .set-overview-value { padding-inline: 12px; }
-  .set-overview-totals .set-overview-value small { flex-basis: 100%; }
   .set-overview-list { gap: 12px; }
 }
 #master-list img { width: 44px; height: 56px; object-fit: contain; }

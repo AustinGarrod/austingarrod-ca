@@ -200,7 +200,8 @@ export function createBuyCards(options: Options) {
        <option value="">Choose a finish</option>${choices.map(choice =>
          `<option value="${escape(choice.id)}" ${choice.id === target.variant ? "selected" : ""}>${escape(choice.label)}</option>`).join("")}</select></label>`
       : "";
-    const market = price ? `<strong>${cad(price.cents)} CAD</strong> <small>${escape(calendarDate(price.observedAt))}</small>`
+    const market = price ? `<strong>${cad(price.cents)} CAD</strong>
+      <small>TCGplayer sales · <time class="dex-price-date">${escape(calendarDate(price.observedAt))}</time></small>`
       : marketPending.has(target.setId) ? "Loading…" : "No estimate";
     // Store checks stay manual: they share a server-wide lookup limit.
     const checkButton = (text: string, inline = false) =>
@@ -240,7 +241,7 @@ export function createBuyCards(options: Options) {
       <div class="dex-buying-identity">${image ? `<img src="${escape(image)}" width="42" height="59" alt="" loading="lazy">` : ""}
         <div><strong>${escape(target.name)}</strong><small>${escape(target.setName)} · #${escape(target.number)} · ${escape(target.finish)}
         ${entry.copies > 1 ? " · " + entry.copies + " needed" : ""}</small>
-        <p class="dex-buying-market"><span>Market estimate</span>${market}</p></div>
+        <p class="dex-buying-market"><span>Market estimate</span> ${market}</p></div>
       </div>
       <div>${storeResults}
         <div class="dex-actions">${picker}${recheck}

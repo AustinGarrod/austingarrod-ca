@@ -200,6 +200,7 @@ if scanner_manifest.is_file():
 check((scanner_assets / "ATTRIBUTION.txt").is_file(), "Missing scanner attribution")
 check((DIST / "utilities/pokedex-binder/catalog/scan-index.json").is_file(), "Missing scanner name index")
 check((DIST / "utilities/pokedex-binder/catalog/tcgplayer-products.json").is_file(), "Missing TCGplayer Product ID crosswalk")
+check((DIST / "utilities/pokedex-binder/catalog/tcgplayer-printings.json").is_file(), "Missing TCGplayer market printing crosswalk")
 check((DIST / "utilities/pokedex-binder/catalog/cardmarket-printings.json").is_file(), "Missing Cardmarket printing crosswalk")
 check((DIST / "utilities/pokemon-binder/catalog/cards.json").is_file(), "Missing Pokémon Binder card search index")
 check((DIST / "utilities/pokemon-binder/shopify-profile.json").is_file(), "Missing Pokémon Binder Shopify profile")

@@ -360,7 +360,6 @@
 }
 
 .dex-buying-identity small,
-.dex-buying-market span,
 .dex-buying-market small {
   display: block;
 }
@@ -368,6 +367,12 @@
 .dex-buying-dashboard .dex-buying-market {
   margin: 10px 0 0;
   font-size: 12px;
+}
+
+.dex-buying-market strong {
+  display: inline;
+  margin-inline-start: 4px;
+  font-size: 14px;
 }
 
 .dex-buying-market strong,
@@ -497,13 +502,6 @@
   max-width: 24rem;
 }
 
-.dex-buying-detail .dex-market-value {
-  margin: 8px 0 4px;
-  font-size: 24px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .dex-buying-detail .dex-pricing-section input[type="range"] {
   min-height: var(--dex-control-height);
   padding: 0;
@@ -515,7 +513,7 @@
   overflow-wrap: anywhere;
 }
 
-.dex-buying-detail :is(.dex-pricing-section .dex-section-heading a, .dex-retail-offers a) {
+.dex-buying-detail .dex-retail-offers a {
   display: inline-flex;
   min-height: var(--dex-control-height);
   align-items: center;

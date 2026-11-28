@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/public/utilities/pokemon-binder/api/_market.php';
 require_once dirname(__DIR__, 2) . '/server/pokedex-binder/refresh-market.php';
+require_once dirname(__DIR__, 2) . '/server/pokedex-binder/refresh-tcgplayer-market.php';
 
 function verify_market(mixed $expected, mixed $actual): void
 {
@@ -86,5 +87,37 @@ try {
     unset($reader, $writer);
     unlink($file);
 }
+
+$usdAsOf = binder_tcgplayer_market_date("2026-11-22T20:06:22+0000\n");
+verify_market('2026-11-22T20:06:22+00:00', $usdAsOf->format(DATE_ATOM));
+reject_market(static fn() => binder_tcgplayer_market_date('2026-11-31T20:06:22+0000'));
+$usdRate = binder_market_exchange(['observations' => [
+    ['d' => '2026-11-23', 'FXUSDCAD' => ['v' => '1.50']],
+    ['d' => '2026-11-20', 'FXEURCAD' => ['v' => '1.55'], 'FXUSDCAD' => ['v' => '1.41']],
+]], $usdAsOf->format('Y-m-d'), 'FXUSDCAD');
+verify_market(1.41, $usdRate);
+$usdCatalog = ['test' => [
+    '001' => ['normal' => [10, 'Normal'], 'reverse' => [10, 'Reverse Holofoil']],
+    '002' => ['holo' => [11, 'Holofoil']],
+    '003' => ['normal' => [12, 'Normal']],
+]];
+$usdTargets = binder_market_targets($usdCatalog);
+$row = static fn(int $product, string $printing, mixed $market): array => [
+    'productId' => $product, 'subTypeName' => $printing, 'marketPrice' => $market, 'lowPrice' => 7.25,
+];
+$usdPrices = binder_tcgplayer_market_prices([
+    $row(10, 'Normal', 0.5), $row(10, 'Reverse Holofoil', 2.5), $row(10, 'Holofoil', 4),
+    $row(11, 'Holofoil', 2), $row(11, 'Holofoil', 3), $row(11, 'Holofoil', 4),
+    $row(12, 'Normal', null), $row(99, 'Normal', 5),
+], $usdTargets, $usdRate);
+verify_market([10 => [2 => 71, 4 => 353]], $usdPrices);
+$usdCache = new PDO('sqlite::memory:', null, null, [PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+verify_market(2, binder_market_publish($usdCache, $usdAsOf, $usdRate, $usdPrices, 'tcgplayer'));
+reject_market(static fn() => binder_market_publish($usdCache, $usdAsOf->modify('+1 day'), $usdRate, [], 'tcgplayer'));
+verify_market(['asOf' => $usdAsOf->format(DATE_ATOM), 'points' => [
+    ['date' => '2026-11-22', 'cents' => 353],
+]], binder_market_read($usdCache, $usdCatalog['test'], ['001', 'reverse', 90]));
+verify_market(['asOf' => $usdAsOf->format(DATE_ATOM), 'points' => []],
+    binder_market_read($usdCache, $usdCatalog['test'], ['002', 'holo', 90]));
 
 echo "Market price conversion, refresh, and history checks passed.\n";

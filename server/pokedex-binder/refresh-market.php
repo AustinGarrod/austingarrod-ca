@@ -23,6 +23,9 @@ function binder_market_fetch(string $url, int $limit): string
             return strlen($chunk);
         },
     ]);
+    if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+        curl_setopt($request, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+    }
     $ok = curl_exec($request);
     $status = curl_getinfo($request, CURLINFO_RESPONSE_CODE);
     $failure = curl_error($request);
@@ -47,14 +50,14 @@ function binder_market_as_of(array $guide): DateTimeImmutable
     return $asOf;
 }
 
-function binder_market_exchange(array $rates, string $day): float
+function binder_market_exchange(array $rates, string $day, string $series = 'FXEURCAD'): float
 {
     $rate = null;
     $rateDate = '';
     // Weekends and bank holidays use the most recent preceding business day's published rate.
     foreach ($rates['observations'] ?? [] as $observation) {
         $date = $observation['d'] ?? null;
-        $value = $observation['FXEURCAD']['v'] ?? null;
+        $value = $observation[$series]['v'] ?? null;
         if (is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date) && $date <= $day && $date > $rateDate
             && is_numeric($value) && is_finite((float) $value) && (float) $value > 0) {
             $rateDate = $date;
@@ -63,7 +66,7 @@ function binder_market_exchange(array $rates, string $day): float
     }
     $cutoff = (new DateTimeImmutable($day))->modify('-7 days')->format('Y-m-d');
     if ($rate === null || $rateDate < $cutoff) {
-        throw new RuntimeException('No recent Bank of Canada EUR/CAD rate is available for ' . $day . '.');
+        throw new RuntimeException('No recent Bank of Canada ' . $series . ' rate is available for ' . $day . '.');
     }
     return $rate;
 }
@@ -96,28 +99,34 @@ function binder_market_convert(array $guideRows, array $targets, float $rate): a
         }
         $seen[$product] = true;
         foreach ($targets[$product] as $field => $metric) {
-            $value = $row[$field] ?? null;
-            if ((!is_float($value) && !is_int($value)) || !is_finite((float) $value) || $value <= 0) {
-                continue;
-            }
-            $cents = round($value * $rate * 100, 0, PHP_ROUND_HALF_UP);
-            if ($cents >= 1 && $cents <= 9007199254740991) {
-                $prices[$product][$metric] = (int) $cents;
+            $cents = binder_market_cents($row[$field] ?? null, $rate);
+            if ($cents !== null) {
+                $prices[$product][$metric] = $cents;
             }
         }
     }
     return $prices;
 }
 
-function binder_market_publish(PDO $db, DateTimeImmutable $asOf, float $rate, array $prices): int
+function binder_market_cents(mixed $value, float $rate): ?int
+{
+    if ((!is_float($value) && !is_int($value)) || !is_finite((float) $value) || $value <= 0) {
+        return null;
+    }
+    $cents = round($value * $rate * 100, 0, PHP_ROUND_HALF_UP);
+    return $cents >= 1 && $cents <= 9007199254740991 ? (int) $cents : null;
+}
+
+function binder_market_publish(PDO $db, DateTimeImmutable $asOf, float $rate, array $prices, string $source = 'cardmarket'): int
 {
     if (!$prices) {
         throw new RuntimeException('The refresh returned no usable printing prices.');
     }
+    $column = match ($source) { 'cardmarket' => 'eur_cad', 'tcgplayer' => 'usd_cad' };
     $db->exec('PRAGMA foreign_keys = ON');
-    $db->exec('CREATE TABLE IF NOT EXISTS market_snapshots (
-        day TEXT PRIMARY KEY, observed_at TEXT NOT NULL, eur_cad REAL NOT NULL
-    ) WITHOUT ROWID');
+    $db->exec("CREATE TABLE IF NOT EXISTS market_snapshots (
+        day TEXT PRIMARY KEY, observed_at TEXT NOT NULL, $column REAL NOT NULL
+    ) WITHOUT ROWID");
     $db->exec('CREATE TABLE IF NOT EXISTS market_prices (
         day TEXT NOT NULL REFERENCES market_snapshots(day) ON DELETE CASCADE,
         product INTEGER NOT NULL, metric INTEGER NOT NULL, cents INTEGER NOT NULL,
@@ -136,7 +145,7 @@ function binder_market_publish(PDO $db, DateTimeImmutable $asOf, float $rate, ar
         }
 
         $db->prepare('DELETE FROM market_snapshots WHERE day = ?')->execute([$day]);
-        $db->prepare('INSERT INTO market_snapshots(day, observed_at, eur_cad) VALUES (?, ?, ?)')
+        $db->prepare("INSERT INTO market_snapshots(day, observed_at, $column) VALUES (?, ?, ?)")
             ->execute([$day, $asOf->format(DATE_ATOM), $rate]);
         $insert = $db->prepare('INSERT INTO market_prices(day, product, metric, cents) VALUES (?, ?, ?, ?)');
         $count = 0;

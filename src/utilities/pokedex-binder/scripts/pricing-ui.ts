@@ -28,6 +28,7 @@ export function createPricingUI(options: Options) {
   const inline = node("buy-card-pricing"), content = node("card-pricing-content");
   const title = node("card-pricing-title"), header = title.closest("header")!, back = button("card-pricing-back");
   const variant = select("card-pricing-variant"), range = select("card-market-range");
+  const historyPanel = node<HTMLDetailsElement>("card-market-history");
   const region = node("card-market-chart-region");
   const drawChart = createPriceChart(node<HTMLCanvasElement>("card-market-chart"),
     node<HTMLInputElement>("card-market-point"), node<HTMLOutputElement>("card-market-point-value"));
@@ -58,17 +59,22 @@ export function createPricingUI(options: Options) {
   }
 
   async function loadMarket(version: number) {
-    const current = node("card-market-current"), date = node("card-market-date");
+    const current = node("card-market-current"), source = node("card-market-source");
+    const date = node<HTMLTimeElement>("card-market-date");
     current.textContent = "Loading market estimate…";
-    date.textContent = "";
+    current.classList.remove("has-amount");
+    source.hidden = true;
     try {
       const { set, number, variant } = query();
       const market = await marketPrices(set);
       if (!active(version)) return;
       const price = market.prices.find(item => item.number === number && item.variant === variant);
       current.textContent = price ? cad(price.cents) + " CAD" : "No market estimate for this printing.";
+      current.classList.toggle("has-amount", !!price);
       if (price && Number.isFinite(Date.parse(price.observedAt))) {
-        date.textContent = "European market · Converted to CAD · " + calendarDate(price.observedAt);
+        date.dateTime = price.observedAt;
+        date.textContent = calendarDate(price.observedAt);
+        source.hidden = false;
       }
     } catch {
       if (active(version)) current.textContent = "Market prices are temporarily unavailable.";
@@ -80,7 +86,7 @@ export function createPricingUI(options: Options) {
     const controller = new AbortController();
     historyRequest = controller;
     const version = cardVersion, ticket = ++historyVersion;
-    const current = () => active(version) && ticket === historyVersion;
+    const current = () => active(version) && historyPanel.open && ticket === historyVersion;
     const status = node("card-market-history-status");
     region.hidden = true;
     drawChart([]);
@@ -170,7 +176,11 @@ export function createPricingUI(options: Options) {
     if (!exact()) return;
     node("card-pricing-status").textContent = "";
     void loadMarket(version);
-    void loadHistory();
+    if (historyPanel.open) void loadHistory();
+    else {
+      region.hidden = true;
+      node("card-market-history-status").textContent = "";
+    }
     void loadOffers();
   }
 
@@ -190,6 +200,7 @@ export function createPricingUI(options: Options) {
     title.textContent = printing.name;
     node("card-pricing-identity").textContent = `${printing.setName} · #${printing.number}`;
     node("card-pricing-variants").hidden = true;
+    node("card-pricing-finish").hidden = false;
     const image = node<HTMLImageElement>("card-pricing-image");
     const catalog = options.collection();
     const set = catalog.sets.find(item => item.id === printing.setId);
@@ -199,6 +210,7 @@ export function createPricingUI(options: Options) {
     image.hidden = !artwork;
     if (artwork) { image.alt = printing.name + " card artwork"; image.src = artwork; }
     else image.removeAttribute("src");
+    historyPanel.open = false;
     range.value = "30";
     node("card-pricing-status").textContent = exact() ? "" : "Loading printings…";
     if (buying) {
@@ -229,6 +241,7 @@ export function createPricingUI(options: Options) {
       if (!exact() || candidates.length > 1) {
         variant.replaceChildren(...candidates.map(item => new Option(item.label, item.id)));
         node("card-pricing-variants").hidden = false;
+        node("card-pricing-finish").hidden = true;
         if (exact()) variant.value = printing.variant;
         else {
           // Start with the first finish so prices load at once; the select switches finishes.
@@ -257,7 +270,11 @@ export function createPricingUI(options: Options) {
     target = { ...target, variant: next.id, finish: next.label };
     showPrinting();
   });
-  range.addEventListener("change", () => { if (exact()) void loadHistory(); });
+  historyPanel.addEventListener("toggle", () => {
+    if (historyPanel.open && exact() && active(cardVersion)) void loadHistory();
+    else historyRequest?.abort();
+  });
+  range.addEventListener("change", () => { if (historyPanel.open && exact()) void loadHistory(); });
   refreshOffers.addEventListener("click", () => { if (exact()) void loadOffers(true); });
   prices.addEventListener("close", () => {
     if (!prices.open && presentation === "dialog") endPrinting();

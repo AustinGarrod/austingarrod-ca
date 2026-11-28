@@ -21,26 +21,29 @@ import { ExternalLink, ShoppingBag } from "@lucide/astro";
     <p id="card-pricing-status" role="status"></p>
     <div id="card-pricing-exact" hidden>
       <section class="dex-pricing-section" aria-labelledby="card-market-heading">
-        <div class="dex-section-heading">
-          <h3 id="card-market-heading">Market estimate</h3>
-          <a href="https://www.cardmarket.com/en/Pokemon/Products" target="_blank" rel="noopener noreferrer"
-            data-umami-event="outbound-link-click" data-umami-event-destination="cardmarket" aria-label="Cardmarket (opens in new tab)">
-            Cardmarket <ExternalLink size={13} aria-hidden="true" />
-          </a>
-        </div>
+        <h3 id="card-market-heading">Market estimate</h3>
         <p id="card-market-current" class="dex-market-value" role="status"></p>
-        <p id="card-market-date" class="dex-help"></p>
-        <label for="card-market-range">Price history
-          <select id="card-market-range"><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
-        </label>
-        <p id="card-market-history-status" role="status"></p>
-        <div id="card-market-chart-region" class="dex-market-chart" hidden>
-          <canvas id="card-market-chart" role="img" aria-label="Cardmarket price history in Canadian dollars"></canvas>
-          <label for="card-market-point">Explore recorded prices
-            <input id="card-market-point" type="range" min="0" max="1" value="0" />
+        <p id="card-market-source" class="dex-help dex-market-source" hidden>
+          <span><a href="https://help.tcgplayer.com/hc/en-us/articles/213588017-TCGplayer-Market-Price" target="_blank" rel="noopener noreferrer"
+            data-umami-event="outbound-link-click" data-umami-event-destination="tcgplayer" aria-label="About TCGplayer sales data (opens in new tab)">
+            TCGplayer sales <ExternalLink size={13} aria-hidden="true" />
+          </a> · USD to CAD</span>
+          <span class="dex-price-date">Updated <time id="card-market-date"></time></span>
+        </p>
+        <details id="card-market-history" class="dex-market-history">
+          <summary>Price history</summary>
+          <label for="card-market-range">Date range
+            <select id="card-market-range"><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
           </label>
-          <output id="card-market-point-value" for="card-market-point" aria-live="polite"></output>
-        </div>
+          <p id="card-market-history-status" role="status"></p>
+          <div id="card-market-chart-region" class="dex-market-chart" hidden>
+            <canvas id="card-market-chart" role="img" aria-label="TCGplayer market price history in Canadian dollars"></canvas>
+            <label for="card-market-point">Explore recorded prices
+              <input id="card-market-point" type="range" min="0" max="1" value="0" />
+            </label>
+            <output id="card-market-point-value" for="card-market-point" aria-live="polite"></output>
+          </div>
+        </details>
       </section>
       <section class="dex-pricing-section" aria-labelledby="card-retail-heading">
         <div class="dex-section-heading">

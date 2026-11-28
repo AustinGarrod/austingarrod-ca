@@ -6,7 +6,7 @@ For the release, deploy the retired endpoint and account handlers first. Run `re
 
 Run `npm run test:pokedex:api` with a loopback `POKEDEX_TEST_DSN` and optional `POKEDEX_TEST_USER` and `POKEDEX_TEST_PASSWORD` to rehearse retirement in a randomly named test database. The separate [accounts guide](../accounts/README.md) covers active sync and recovery.
 
-The [Cardmarket snapshot guide](market-prices.md) covers the private cache and its daily refresh.
+The [market snapshot guide](market-prices.md) covers the private caches and their daily refresh.
 
 ## Stock alert worker
 

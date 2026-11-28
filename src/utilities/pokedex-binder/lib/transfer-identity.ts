@@ -28,6 +28,19 @@ const aliases: Record<string, readonly string[]> = {
 
 interface SetIdentity { id: string; code: string; name: string }
 
+const setNameKey = (value: string) =>
+  identityText(value.replace(/^(?:SV|SWSH|SM|XY|BW|ME|HGSS|DP|PL|EX)\d*(?:\.\d+)?\s*:\s*/i, ""));
+
+function matchesSetName(set: SetIdentity, name: string) {
+  return identityText(set.name) === name || aliases[set.id]?.some(alias => identityText(alias) === name)
+    || (name.startsWith("ex") && /^ex\d+$/.test(set.id) && identityText(set.name) === name.slice(2));
+}
+
+export function findTransferSetNames<T extends SetIdentity>(sets: readonly T[], value: string): T[] {
+  const name = setNameKey(value);
+  return name ? sets.filter(set => matchesSetName(set, name)) : [];
+}
+
 export function findTransferSets<T extends SetIdentity>(sets: readonly T[], value: string): T[] {
   const raw = value.trim().toLowerCase();
   if (!raw) return [];
@@ -35,10 +48,8 @@ export function findTransferSets<T extends SetIdentity>(sets: readonly T[], valu
   if (exactId) return [exactId];
   const key = identityText(value);
   if (!key) return [];
-  const name = identityText(value.replace(/^(?:SV|SWSH|SM|XY|BW|ME|HGSS|DP|PL|EX)\d*(?:\.\d+)?\s*:\s*/i, ""));
-  return sets.filter(set => identityText(set.code) === key || identityText(set.name) === name
-    || aliases[set.id]?.some(alias => identityText(alias) === name)
-    || (name.startsWith("ex") && /^ex\d+$/.test(set.id) && identityText(set.name) === name.slice(2)));
+  const name = setNameKey(value);
+  return sets.filter(set => identityText(set.code) === key || matchesSetName(set, name));
 }
 
 export function findNumberedTransferSets<T extends SetIdentity>(sets: readonly T[], value: string, ...numbers: string[]): T[] {

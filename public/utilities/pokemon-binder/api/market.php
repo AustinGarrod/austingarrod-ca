@@ -23,9 +23,11 @@ $set = $_GET['set'] ?? null;
 $number = $_GET['number'] ?? null;
 $variant = $_GET['variant'] ?? null;
 $days = $_GET['days'] ?? null;
+$source = $_GET['source'] ?? 'cardmarket';
 $history = $number !== null || $variant !== null || $days !== null;
-$allowed = $history ? ['set', 'number', 'variant', 'days'] : ['set'];
-if (array_diff(array_keys($_GET), $allowed) || !is_string($set) || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/D', $set)
+$allowed = $history ? ['set', 'source', 'number', 'variant', 'days'] : ['set', 'source'];
+if (array_diff(array_keys($_GET), $allowed) || !in_array($source, ['cardmarket', 'tcgplayer'], true)
+    || !is_string($set) || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/D', $set)
     || ($history && (!is_string($number) || $number === '' || strlen($number) > 48 || !is_string($variant) ||
         $variant === '' || strlen($variant) > 200 || !in_array($days, ['30', '90'], true)))) {
     binder_market_reply(400, ['error' => 'Invalid market price query.']);
@@ -50,12 +52,12 @@ try {
             binder_market_reply(404, ['error' => 'Unknown printing.']);
         }
     }
-    $file = binder_market_cache_path($webroot);
+    $file = binder_market_cache_path($webroot, $source);
     if ($file === null || !is_file($file)) {
         binder_market_reply(200, ['asOf' => null, $history ? 'points' : 'prices' => []]);
     }
 
-    $mapping = binder_market_catalog($webroot)[$set] ?? [];
+    $mapping = binder_market_catalog($webroot, $source)[$set] ?? [];
     $db = binder_market_connect($file, true);
     binder_market_reply(200, binder_market_read($db, $mapping, $history ? [$number, $variant, (int) $days] : null));
 } catch (Throwable $error) {

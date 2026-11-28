@@ -17,7 +17,9 @@ const market = { asOf: date, prices: [
   { number: "002", variant: "normal", cents: 349, observedAt: date },
   { number: "002", variant: "reverse", cents: 105, observedAt: date },
 ] };
-const points = [{ date: "2026-11-19", cents: 122 }, { date: "2026-11-21", cents: 130 }, { date, cents: 123 }];
+const historyPoints = cents => cents ? [
+  { date: "2026-11-19", cents: cents - 1 }, { date: "2026-11-21", cents: cents + 7 }, { date, cents },
+] : [];
 const stores = Object.keys(retailers);
 const screenshotDir = process.env.POKEDEX_PRICING_SCREENSHOTS;
 if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
@@ -25,8 +27,13 @@ const account = { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", email: "buying@exa
 
 async function screenshot(page, width, state, anchor) {
   if (!screenshotDir || width === 320) return;
-  if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: "start" }));
+  if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: "start", behavior: "instant" }));
   await page.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled" });
+}
+
+async function screenshotElement(element, width, state) {
+  if (!screenshotDir || width === 320) return;
+  await element.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled" });
 }
 
 async function notifySessionChange(page) {
@@ -71,8 +78,9 @@ try {
       if (url.pathname === "/api/v1/auth.php") return route.fulfill({ json: { enabled: true, migrationEnabled: false, user: null, csrfToken: "fixture" } });
       if (url.pathname.endsWith("/catalog/cards.json")) catalogReads++;
       if (url.pathname.endsWith("/market.php")) {
+        assert.equal(url.searchParams.get("source"), "tcgplayer");
         marketReads++;
-        return route.fulfill({ json: url.searchParams.has("days") ? { asOf: date, points } : {
+        return route.fulfill({ json: url.searchParams.has("days") ? { asOf: date, points: historyPoints(999) } : {
           ...market, prices: [{ number: "003", variant: "holo", cents: 999, observedAt: date }],
         } });
       }
@@ -181,7 +189,12 @@ try {
         return route.fulfill({ status: 400, json: { error: { code: "unknown_action" } } });
       }
       if (url.pathname.endsWith("/market.php")) {
-        if (url.searchParams.has("days")) return route.fulfill({ json: { asOf: date, points } });
+        assert.equal(url.searchParams.get("source"), "tcgplayer");
+        if (url.searchParams.has("days")) {
+          const price = url.searchParams.get("set") === "sv03.5" && market.prices.find(item =>
+            item.number === url.searchParams.get("number") && item.variant === url.searchParams.get("variant"));
+          return route.fulfill({ json: { asOf: date, points: historyPoints(price && price.cents) } });
+        }
         await marketGate;
         return route.fulfill({ json: market });
       }
@@ -219,6 +232,13 @@ try {
     const priceDialog = page.locator("#card-pricing-dialog");
     await expect(priceDialog).toBeVisible();
     await expect(page.locator("#card-market-current")).toHaveText("$1.23 CAD");
+    await expect(page.locator("#card-market-source")).toContainText("TCGplayer sales");
+    await expect(page.locator("#card-pricing-variants")).toBeVisible();
+    await expect(page.locator("#card-pricing-finish")).toBeHidden();
+    await expect(page.locator("#card-market-chart-region")).toBeHidden();
+    await expect(page.locator("#card-retail-offers li").first()).toContainText("Skyfox Games");
+    await screenshot(page, width, "market-dialog");
+    await priceDialog.getByText("Price history", { exact: true }).click();
     await expect(page.locator("#card-market-chart-region")).toBeVisible();
     await page.locator("#card-market-point").press("ArrowLeft");
     await expect(page.locator("#card-market-point-value")).toContainText("$1.30 CAD");
@@ -228,6 +248,15 @@ try {
     await expect(page.locator("#card-retail-offers")).not.toContainText("$0.15");
     await expect(page.locator("#card-retail-status")).toContainText("401 Games");
     assert.equal(await priceDialog.evaluate(dialog => dialog.scrollWidth > dialog.clientWidth + 1), false);
+    await screenshot(page, width, "market-history");
+    await priceDialog.getByText("Price history", { exact: true }).click();
+    await priceDialog.locator("#card-pricing-variant").selectOption("reverse");
+    await expect(priceDialog.locator("#card-market-current")).toHaveText("$5.25 CAD");
+    assert.equal(await priceDialog.evaluate(dialog => {
+      dialog.querySelector("summary").click();
+      return dialog.querySelector("#card-market-chart-region").hidden;
+    }), true, "Opening history after switching finishes must hide the previous chart immediately.");
+    await expect(priceDialog.locator("#card-market-point-value")).toContainText("$5.25 CAD");
     await priceDialog.getByRole("button", { name: "Close card prices" }).click();
 
     for (const name of ["First 151", "Second 151"]) {
@@ -239,6 +268,7 @@ try {
       if (await page.locator("#master-checklist").isHidden()) await page.locator("#master-view-checklist").click();
       await page.locator('[data-checklist-row="001:normal"]').getByRole("radio", { name: "Have it" }).check();
       await page.locator('[data-checklist-row="001:reverse"]').getByRole("radio", { name: "Ordered" }).check();
+      if (name === "Second 151") await page.locator('[data-checklist-row="003:holo"]').getByRole("radio", { name: "Have it" }).check();
       await expect(page.locator("#master-ordered")).toHaveText("1");
     }
     const buying = page.locator("#buy-cards-workspace");
@@ -278,8 +308,10 @@ try {
     await expect(page).toHaveURL(binderUrl);
     await expect(page.locator("#set-overview")).toBeVisible();
     await expect(page.locator("#set-overview-totals [data-value-amount]")).toHaveText("$2.46 CAD");
-    await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 2 collected");
+    await expect(page.locator("#set-overview-totals [data-value-coverage]")).toContainText("2 of 3 collected cards priced");
+    await expect(page.locator("#set-overview-totals [data-value-source]")).toContainText("TCGplayer sales");
     await expect(page.locator("#set-overview-list [data-value-amount]")).toHaveText(["$1.23 CAD", "$1.23 CAD"]);
+    await screenshotElement(page.locator("#set-overview"), width, "market-binder-totals");
     await buyTab.click();
     const search = buying.locator("#buy-cards-filter");
     const finish = buying.locator("#buy-cards-finish");
@@ -292,7 +324,7 @@ try {
     const rows = buying.locator("#buy-cards-list > li");
     await expect(buying).toBeVisible();
     await expect(page.locator("#set-overview")).toBeHidden();
-    if (width === 1440) {
+    if (width !== 320) {
       await expect(scope).toBeEnabled();
       const beforeLookup = lookups.length;
       const binderScope = await scope.inputValue();
@@ -305,10 +337,14 @@ try {
       await printing.click();
       await expect(inlineDetails.getByRole("heading", { name: "Alakazam" })).toBeFocused();
       await expect(inlineDetails.locator("#card-pricing-identity")).toContainText("Base Set");
+      await expect(inlineDetails.locator("#card-market-current")).toHaveText("No market estimate for this printing.");
+      await inlineDetails.getByText("Price history", { exact: true }).click();
+      await expect(inlineDetails.locator("#card-market-history-status")).toHaveText("No recorded prices in this date range.");
       await expect(inlineDetails.locator("#card-retail-offers")).toContainText("$24.99 CAD");
       assert.deepEqual(lookups.slice(beforeLookup), [{ set: "base1", number: "1", variant: "holo+subtype=unlimited" }]);
       assert.equal(catalogReads, 1, "Binder and Buy Cards search should share the loaded catalog.");
       await expect(page.locator("dialog[open]")).toHaveCount(0);
+      await screenshotElement(inlineDetails.getByRole("region", { name: "Market estimate" }), width, "market-unavailable");
       await inlineDetails.locator("#card-pricing-back").press("Enter");
       await expect(printing).toBeFocused();
       await expect(scope).toHaveValue(binderScope);
@@ -371,12 +407,14 @@ try {
     await rows.first().locator("[data-buy-card]").click();
     await expect(inlineDetails).toBeVisible();
     await expect(inlineDetails.getByRole("heading", { name: "Ivysaur" })).toBeFocused();
-    await expect(inlineDetails.locator("#card-market-chart-region")).toBeVisible();
+    await expect(inlineDetails.locator("#card-market-current")).toHaveText("$3.49 CAD");
+    await expect(inlineDetails.locator("#card-market-chart-region")).toBeHidden();
     await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(4);
     await expect(inlineDetails.locator("#card-retail-offers")).toContainText("In stock · Cross-border");
-    if (screenshotDir && width !== 320) {
-      await inlineDetails.screenshot({ path: join(screenshotDir, `pricing-${width}.png`), animations: "disabled" });
-    }
+    await screenshot(page, width, "pricing", inlineDetails);
+    await inlineDetails.getByText("Price history", { exact: true }).click();
+    await expect(inlineDetails.locator("#card-market-chart-region")).toBeVisible();
+    await expect(inlineDetails.locator("#card-market-point-value")).toContainText("$3.49 CAD");
     assert.equal(lookups.length, beforeCompare, "Opening a partially successful check should reuse fresh quotes.");
     retailerFailure = true;
     await inlineDetails.locator("#card-retail-refresh").click();

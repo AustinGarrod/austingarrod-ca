@@ -357,16 +357,6 @@
   margin-bottom: 4px;
 }
 
-.dex-collection-dialog .dex-market-value {
-  margin: 6px 0 0;
-  font-size: clamp(22px, 3vw, 28px);
-  line-height: 1.2;
-}
-
-.dex-collection-dialog #card-market-date {
-  margin-top: 4px;
-}
-
 .pokedex-page .dex-collection-dialog input[type="range"] {
   min-height: var(--dex-control-height);
   padding: 0;
@@ -374,7 +364,7 @@
   background: transparent;
 }
 
-.dex-collection-dialog :is(.dex-pricing-section .dex-section-heading a, .dex-retail-offers a) {
+.dex-collection-dialog .dex-retail-offers a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;

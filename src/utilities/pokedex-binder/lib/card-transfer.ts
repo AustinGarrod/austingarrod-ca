@@ -3,6 +3,7 @@ import { loadBinderCards, relatedSets, setCardKey } from "./binder-catalog";
 import { newBinder, setSlots, type MasterState, type SetBinder, type SetCard, type SetSummary, type Variant } from "./master";
 import type { CardStatus } from "./model";
 import { cardNameKey, embeddedCollectorNumber, findNumberedTransferSets, findTransferSets, identityText, numberKey, type ProductIdentity } from "./transfer-identity";
+import { tcgplayerProduct } from "./tcgplayer-identity";
 import type { TransferFormat, TransferRow } from "./transfer-csv";
 
 export interface TransferCatalog {
@@ -201,26 +202,6 @@ function binderLootFinish(variant: Variant) {
 
 export const tcgplayerConditions = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"] as const;
 export type TcgplayerCondition = typeof tcgplayerConditions[number];
-
-const tcgplayerPrintings: Record<string, readonly string[]> = {
-  normal: ["Normal", "Unlimited"], holo: ["Holofoil", "Unlimited Holofoil"], reverse: ["Reverse Holofoil"],
-  "normal+subtype=unlimited": ["Unlimited", "Normal"], "holo+subtype=unlimited": ["Unlimited Holofoil", "Holofoil"],
-  "normal+subtype=shadowless": ["Unlimited", "Normal"], "holo+subtype=shadowless": ["Unlimited Holofoil", "Holofoil"],
-  "normal+stamp=1st-edition": ["1st Edition"], "holo+stamp=1st-edition": ["1st Edition Holofoil"],
-  "normal+subtype=shadowless+stamp=1st-edition": ["1st Edition"], "holo+subtype=shadowless+stamp=1st-edition": ["1st Edition Holofoil"],
-};
-
-function tcgplayerProduct(products: [string, ProductIdentity][], variant: Variant) {
-  const printings = tcgplayerPrintings[variant.id];
-  if (!printings) return;
-  const shadowless = variant.id.includes("+subtype=shadowless");
-  const matches = products.flatMap(([productId, [, , subtype, listed]]) => {
-    if (shadowless !== (subtype === "shadowless")) return [];
-    const printing = printings.find(name => listed?.includes(name));
-    return printing ? [{ productId, printing }] : [];
-  });
-  if (matches.length === 1) return matches[0];
-}
 
 export type CardExportFormat = "portable" | "binderloot" | "tcgplayer";
 export type CardExportList = CardStatus;

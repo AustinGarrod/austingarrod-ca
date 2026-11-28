@@ -129,7 +129,9 @@ async function requestPrices<T>(path: string, signal?: AbortSignal, body?: strin
 }
 
 export function pricingRequest<T>(endpoint: "market" | "offers", query: Record<string, string>, signal?: AbortSignal) {
-  return requestPrices<T>(endpoint + ".php?" + new URLSearchParams(query), signal);
+  const params = new URLSearchParams(query);
+  if (endpoint === "market") params.set("source", "tcgplayer");
+  return requestPrices<T>(endpoint + ".php?" + params, signal);
 }
 
 export async function batchRetailOffers(targets: readonly { set: string; number: string; variant: string; stores?: readonly string[] }[],

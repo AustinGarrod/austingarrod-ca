@@ -28,7 +28,7 @@ import { ArrowDownUp, ArrowRight, BookOpen, Layers } from "@lucide/astro";
     <div class="set-overview-value" data-market-value>
       <span class="dex-label">Estimated set binder value</span>
       <strong data-value-amount></strong>
-      <small data-value-coverage></small>
+      <small><span data-value-coverage></span><span data-value-source hidden>TCGplayer sales · <time class="dex-price-date"></time></span></small>
     </div>
     <div class="set-overview-feedback">
       <p id="set-overview-status" role="status"></p>
@@ -72,7 +72,7 @@ import { ArrowDownUp, ArrowRight, BookOpen, Layers } from "@lucide/astro";
         <div class="set-overview-value" data-market-value>
           <span class="dex-label">Estimated binder value</span>
           <strong data-value-amount></strong>
-          <small data-value-coverage></small>
+          <small><span data-value-coverage></span><span data-value-source hidden>TCGplayer sales · <time class="dex-price-date"></time></span></small>
         </div>
       </div>
       <footer><button type="button" data-overview-binder>Open binder <ArrowRight size={16} aria-hidden="true" /></button></footer>

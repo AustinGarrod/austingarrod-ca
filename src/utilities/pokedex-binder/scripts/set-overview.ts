@@ -40,9 +40,17 @@ function showProgress(container: HTMLElement, progress: OverviewProgress) {
 function showValue(container: HTMLElement, value?: BinderValue) {
   const amount = container.querySelector("[data-value-amount]")!;
   const coverage = container.querySelector("[data-value-coverage]")!;
+  const source = container.querySelector<HTMLElement>("[data-value-source]")!;
   amount.textContent = value ? (value.priced || !value.collected ? cad(value.cents) + " CAD" : "Price unavailable") : "Loading…";
-  coverage.textContent = value ? `${counts.format(value.priced)} of ${counts.format(value.collected)} collected cards priced`
-    + (value.asOf && value.priced && Number.isFinite(Date.parse(value.asOf)) ? " · Cardmarket · " + calendarDate(value.asOf) : "") : "";
+  coverage.textContent = value
+    ? `${counts.format(value.priced)} of ${counts.format(value.collected)} collected ${value.collected === 1 ? "card" : "cards"} priced` : "";
+  const date = value?.priced && value.asOf && Number.isFinite(Date.parse(value.asOf)) ? value.asOf : null;
+  source.hidden = !date;
+  if (date) {
+    const updated = source.querySelector("time")!;
+    updated.dateTime = date;
+    updated.textContent = calendarDate(date);
+  }
 }
 
 function overallProgress(rows: readonly OverviewBinder[]): OverviewProgress {
