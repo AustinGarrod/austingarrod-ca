@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
-import { binderAction } from '../../scripts/test-pokedex-helpers.mjs';
+import { openSettings, returnToBinders } from '../../scripts/test-pokedex-helpers.mjs';
 const origin = process.env.BINDER_BROWSER_ORIGIN || 'http://127.0.0.1:4325';
 assert.ok(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin), 'Use a localhost fixture server.');
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
@@ -45,7 +45,7 @@ try {
     await page.locator('#owned-grid-1').check();
     await expect(page.locator('#owned-count')).toHaveText('1');
     assert.deepEqual(cloud.ownedDexIds, [25], 'Sign-in must not overwrite the account or guest collection.');
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     await expect(page.locator('#binder-account-status')).toContainText('binder@example.test');
     await page.locator('#binder-account-review').click();
     await expect(page.locator('#binder-migration-dialog')).toBeVisible();
@@ -56,6 +56,7 @@ try {
     await page.screenshot({ path: `output/pokedex-accounts-review-${viewport.width}.png`, fullPage: false });
     await page.locator('#binder-migration-form button[type=submit]').click();
     await expect(page.locator('#binder-migration-dialog')).not.toBeVisible();
+    await returnToBinders(page);
     await expect(page.locator('#owned-count')).toHaveText('2');
     assert.deepEqual(cloud.ownedDexIds, [1, 25]); assert.equal(cloud.settings.rows, 3);
     assert.equal(snapshots.length, 2);

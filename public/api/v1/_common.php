@@ -474,6 +474,7 @@ function accounts_return(mixed $value): string
     if ($value === BINDER_STOCK_ALERTS_PATH || $value === '/utilities/pokemon-binder/?view=buy-cards&alerts=1') {
         return BINDER_STOCK_ALERTS_PATH;
     }
+    if ($value === '/utilities/pokemon-binder/?view=settings') return '/utilities/pokemon-binder/settings/';
     if (!is_string($value) || !str_starts_with($value, '/') || str_starts_with($value, '//') || str_contains($value, '\\') || preg_match('/[\x00-\x20\x7f?#%]/', $value) || strlen($value) > 1024) {
         return '/account/';
     }

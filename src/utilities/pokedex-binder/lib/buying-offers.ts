@@ -7,6 +7,20 @@ export const buyingStores: readonly BuyingStore[] = Object.keys(retailers) as Bu
 export function isCrossBorder(store: string): boolean {
   return Object.hasOwn(retailers, store) && retailers[store as BuyingStore].country !== "CA";
 }
+
+export function offersForStores(data: RetailOffers, stores: readonly BuyingStore[]): RetailOffers {
+  const allowed = (store: string) => stores.some(name => name === store);
+  const selected = <T>(record?: Record<string, T>) =>
+    record && Object.fromEntries(Object.entries(record).filter(([store]) => allowed(store)));
+  return {
+    ...data,
+    offers: data.offers.filter(offer => allowed(offer.store)),
+    unavailableStores: data.unavailableStores.filter(allowed),
+    checkedStores: selected(data.checkedStores),
+    expiresAt: selected(data.expiresAt),
+    storeRetryAfter: selected(data.storeRetryAfter),
+  };
+}
 export type Availability = "stock" | "none" | "unchecked" | "unavailable";
 export interface StoreMatch { store: BuyingStore; availability: Availability; offer?: RetailOffer; checkedAt?: string }
 

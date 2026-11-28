@@ -1,0 +1,55 @@
+.dex-settings-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.dex-settings-panel {
+  min-width: 0;
+  padding: clamp(12px, 2.5vw, 24px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.dex-settings-panel h2 { margin: 0 0 8px; font-size: 19px; }
+.dex-settings-panel h3 { margin: 0 0 8px; font-size: 16px; }
+.dex-settings-panel .dex-actions { margin-top: 12px; }
+.dex-settings-panel > :last-child { margin-bottom: 0; }
+.dex-settings-panel :is(.dex-actions, .dex-backup-actions):not(:has(> :not([hidden]))) { display: none; }
+.dex-settings-panel fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+
+.dex-settings-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--dex-control-height, 44px);
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.dex-settings-choice input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--secondary);
+}
+
+.dex-settings-panel .dex-settings-stores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.dex-settings-stores label { background: var(--surface-low); }
+.dex-settings-stores label span { font: 600 13px/1.4 Inter, sans-serif; text-transform: none; }
+.dex-settings-stores small { display: block; color: var(--muted); }
+.dex-settings-backup { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.dex-settings .dex-error:empty { display: none; }
+
+@media (max-width: 760px) {
+  .dex-settings-panels { grid-template-columns: 1fr; }
+}

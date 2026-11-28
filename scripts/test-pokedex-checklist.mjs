@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
-import { binderAction, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
+import { binderAction, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder, openSettings, returnToBinders } from './test-pokedex-helpers.mjs';
 
 const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
@@ -430,12 +430,12 @@ try {
     await expect(page.locator('#binder-view')).not.toHaveClass(/has-details/);
     await expect(page.locator('#binder-bar')).not.toContainText('Fill the gaps');
     assert.equal(await page.locator('#dex-filter').evaluate(node => getComputedStyle(node).appearance), 'none');
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     await page.locator('#binder-account-review').click();
     await page.locator('#binder-migration-layout').selectOption('device');
     await page.locator('#binder-migration-form button[type=submit]').click();
     await expect(page.locator('#dex-status')).toHaveText('Synced · Saved on this device');
-    await page.keyboard.press('Escape');
+    await returnToBinders(page);
     await page.locator('#view-checklist').click();
     const rows = page.locator('.dex-checklist-row');
     await expect(rows).toHaveCount(100);

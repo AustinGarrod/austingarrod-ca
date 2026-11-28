@@ -100,6 +100,17 @@ try {
     if (width === 390) await panel.screenshot({ path: `${screenshots}/${width}-panel.png` });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
 
+    await page.locator("#settings-open").click();
+    await page.getByRole("radio", { name: "Choose stores" }).check();
+    await page.locator('#retailer-settings-stores input[value="401 Games"]').uncheck();
+    await page.getByRole("button", { name: "Save retailer choices" }).click();
+    await expect(page.getByRole("button", { name: "Save retailer choices" })).toBeEnabled();
+    await page.getByRole("link", { name: "Manage email stock alerts in Buy Cards" }).click();
+    await expect(panel).toBeVisible();
+    await expect(first).toBeChecked();
+    await expect(firstMinimum).toHaveValue("5");
+    assert.deepEqual(writes, [], "Price lookup settings must not write email alert preferences.");
+
     await first.uncheck();
     await expect(firstMinimum).toBeDisabled();
     await expect(firstMinimum).toBeHidden();

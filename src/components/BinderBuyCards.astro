@@ -1,5 +1,4 @@
 ---
-import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
 import { binderViewPaths } from "../utilities/pokedex-binder/lib/view-routes";
 import BinderCatalogSearch from "./BinderCatalogSearch.astro";
 import BinderStockAlerts from "./BinderStockAlerts.astro";
@@ -16,6 +15,7 @@ const { active } = Astro.props;
   <header id="buy-cards-heading" class="dex-buying-heading">
     <slot name="heading" />
     <p>Store prices are in CAD before shipping, taxes, and duties. For cross-border listings, select Canada on the retailer’s site if it opens in another currency. Authenticated store checks send your IP address to Shopify.</p>
+    <p class="dex-help" id="buy-cards-store-status" role="status"><span id="buy-cards-store-status-text">Loading retailer choices…</span> <a href={binderViewPaths.settings} data-binder-view="settings">Retailer settings</a></p>
   </header>
   <BinderCatalogSearch inline />
   <section id="buy-cards-missing" class="dex-buying-missing" aria-labelledby="buy-cards-missing-title">
@@ -55,7 +55,7 @@ const { active } = Astro.props;
         <summary>Store, price, and condition <small id="buy-cards-offer-filter-count" hidden></small></summary>
         <div class="dex-buying-filters">
           <label>Store <select id="buy-cards-store">
-            <option value="">All stores</option>{buyingStores.map(name => <option value={name}>{name}{isCrossBorder(name) ? " (cross-border)" : ""}</option>)}
+            <option value="">All enabled stores</option>
           </select></label>
           <label>Maximum price (CAD) <input id="buy-cards-max-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Any price" /></label>
           <label>Minimum condition <select id="buy-cards-condition">

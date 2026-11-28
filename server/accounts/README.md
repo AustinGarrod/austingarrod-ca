@@ -49,6 +49,8 @@ Binder adoption stages both the device and selected copies of its National Dex a
 
 Public Binder links live in `accounts_binder_shares`. Apply `server/pokedex-binder/shares.sql` before deploying sharing code, and verify the account runtime can read, insert and update the table. An authenticated owner publishes or revokes a link through sync. The public route reads only that binder’s display data. Its URL fragment and request header contain the link token and must stay out of diagnostics. A synced removal revokes the link in the same transaction as the document update. Preserve the share table on rollback.
 
+Pokémon Binder can also save a small `pokedex-binder / preferences` document through ordinary authenticated reads and writes. It holds retailer lookup choices independently of the collection and email stock alerts. The preferences document is optional and stays outside collection migration manifests and portable collection backups.
+
 Recovery list/read/restore/delete operations check ownership. Routine sync keeps a checkpoint before the first changed sync per document on a UTC date. The most recent three checkpoint dates are retained, with the first pre-sync copy retained on dates that have older per-edit history. Checkpoint creation and pruning share the document write transaction. Explicit replacement writes carry `preservePrevious: true` in their frozen outbox and keep the prior live save separately. Migration, conflict, restore, replacement, and assistant copies are kept until explicitly deleted. Do not restore an older production database over newer saves as an application rollback. Keep account tables and key revocations when rolling back frontend assets, and preserve any newer device outboxes.
 
 ## Local verification

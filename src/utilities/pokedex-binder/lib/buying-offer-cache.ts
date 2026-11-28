@@ -1,4 +1,4 @@
-import { buyingStores, printingKey, type BuyingStore } from "./buying-offers";
+import { buyingStores, offersForStores, printingKey, type BuyingStore } from "./buying-offers";
 import { batchRetailOffers, freshOfferCheck, freshOffers, offerLifetime, pricingRequest, type PricingTarget, type RetailOffer,
   type RetailOffers } from "./pricing";
 
@@ -323,7 +323,7 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
         requests.set(plan.requestKey, result);
       });
     }
-    return await Promise.all(plans.map(async plan => {
+    return await Promise.all(plans.map(async (plan, index) => {
       const received = await requests.get(plan.requestKey);
       validateLookup(ticket, signal);
       const finished = Date.now();
@@ -331,7 +331,8 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
       const missing = plan.missing.filter(store => !snapshot.checkedStores?.[store]);
       const retryAfter = missing.length && (paused || received?.retryAfter) && retryAt > finished
         ? Math.ceil((retryAt - finished) / 1_000) : undefined;
-      return { ...snapshot, retryAfter, storeRetryAfter: retailerWait(missing, finished) };
+      return offersForStores({ ...snapshot, retryAfter, storeRetryAfter: retailerWait(missing, finished) },
+        lookups[index].stores ?? buyingStores);
     }));
   }
 
@@ -340,7 +341,7 @@ export function createBuyOfferCache(scope: () => string, changed: () => void) {
     const ticket = generation;
     const previous = await read(target);
     validateLookup(ticket, signal);
-    if (!force && previous && stores.some(store => previous.checkedStores?.[store])) return previous;
+    if (!force && previous && stores.some(store => previous.checkedStores?.[store])) return offersForStores(previous, stores);
     const [result] = await checkMany([{ target, stores }], signal);
     return result;
   }

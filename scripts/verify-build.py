@@ -93,11 +93,12 @@ public_routes = ["/", "/about/", "/projects/", "/utilities/", "/contact/"] + [
 ] + [f"/utilities/{utility['slug']}/" for utility in utilities]
 buy_cards_route = "/utilities/pokemon-binder/buy-cards/"
 shared_binder_route = "/utilities/pokemon-binder/shared/"
-unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, shared_binder_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
+binder_settings_route = "/utilities/pokemon-binder/settings/"
+unlisted_routes = ["/utilities/screen-cut-calculator/", buy_cards_route, shared_binder_route, binder_settings_route, "/account/", "/account/privacy/", "/account/assistant-consent/", "/account/assistants/"]
 routes = public_routes + unlisted_routes
 
 for slug, entries in {
-    "pokemon-binder": ["index.html", "buy-cards/index.html", "shared/index.html"],
+    "pokemon-binder": ["index.html", "buy-cards/index.html", "shared/index.html", "settings/index.html"],
     "radius-map": ["index.html"],
     "screen-cut-calculator": ["index.html"],
 }.items():
@@ -253,13 +254,14 @@ check("/utilities/pokemon-binder/" in route_file("/utilities/pokedex-binder/").r
 
 # Input masking alone does not hide derived text, map tile URLs, or saved labels.
 binder_private_regions = [
-    "dex-app", "layout-dialog", "sync-dialog", "confirm-dialog", "scan-dialog", "print-content",
+    "dex-app", "layout-dialog", "binder-settings", "confirm-dialog", "scan-dialog", "print-content",
     "catalog-search-dialog", "card-pricing-dialog", "buy-cards-workspace",
     "card-import-dialog", "card-export-dialog", "master-editor", "master-extra-dialog", "transfer-dialog",
 ]
 private_regions = {
     "/utilities/pokemon-binder/": binder_private_regions,
     buy_cards_route: binder_private_regions,
+    binder_settings_route: binder_private_regions,
     "/contact/": [".contact-form"],
     "/utilities/radius-map/": [
         "map", "location-search", "measurement-value", "search-results", ".measurement-summary",

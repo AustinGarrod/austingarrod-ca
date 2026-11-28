@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
-import { binderAction, cardLists, chooseFilter, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
+import { binderAction, cardLists, chooseFilter, newSetBinder, openBinder, openSettings, returnToBinders } from './test-pokedex-helpers.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from 'node:fs';
@@ -192,20 +192,21 @@ try {
     await page.locator('#dex-search').fill('');
   });
   await scenario('backup restore exports and print contain collection without secrets', async () => {
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     const exported = page.waitForEvent('download');
     await page.locator('#export-json').click();
     backup = JSON.parse(readFileSync(await (await exported).path(), 'utf8'));
     assert.deepEqual(backup.state.ownedDexIds, [17]);
     assert.ok(!JSON.stringify(backup).includes('pdx_'));
-    await closeDialogs(page);
+    await returnToBinders(page);
     await go(page, 1); await page.locator('#owned-grid-1').check();
     await expect(page.locator('#owned-count')).toHaveText('2');
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     await page.locator('#import-json').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
     await expect(page.locator('#confirm-dialog')).toBeVisible();
     await expect(page.locator('#confirm-cancel')).toBeFocused();
     await page.locator('#confirm-accept').click();
+    await returnToBinders(page);
     await expect(page.locator('#owned-count')).toHaveText('1');
     await closeDialogs(page);
     await cardLists(page);
@@ -317,8 +318,8 @@ try {
     await page.locator('#print-missing').click();
     const printed = page.locator('#print-content');
     await expect(printed.locator('h1')).toContainText('All binders');
-    // One printed section per binder: the National Pokédex and both set binders.
-    await expect(printed.locator('section')).toHaveCount(3);
+    // One printed section per binder, including the previously created Pitch Black binder.
+    await expect(printed.locator('section')).toHaveCount(4);
     await expect(printed.locator('tbody tr')).toHaveCount(allCsv.trimEnd().split('\r\n').length - 1);
     await expect(printed.locator('section').filter({hasText:'151 Master'})).toContainText('Shop promo');
     await page.emulateMedia({ media: 'print' });
@@ -328,17 +329,17 @@ try {
     await cardLists(page);
     await page.locator('#export-scope').selectOption('current');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     const download = page.waitForEvent('download');
     await page.locator('#export-json').click();
     const saved = readFileSync(await (await download).path());
-    await closeDialogs(page);
-    await slot('001:reverse').uncheck();
+    await returnToBinders(page);
+    await page.locator('[data-set-status="001:reverse"][value="missing"]').check();
     await expect(slot('001:reverse')).not.toBeChecked();
-    await binderAction(page, '#sync-open');
+    await openSettings(page);
     await page.locator('#import-json').setInputFiles({ name: 'binders.json', mimeType: 'application/json', buffer: saved });
     await page.locator('#confirm-accept').click();
-    await closeDialogs(page);
+    await returnToBinders(page);
     await openBinder(page, '151 Master');
     await page.locator('#master-view-checklist').click();
     await page.locator('#master-search').fill('#001');
@@ -370,7 +371,7 @@ try {
     await expect(results.locator('[data-set-jump="'+reviewedNumber+':normal"]')).toHaveCount(0);
     await results.locator('[data-set-jump="'+reviewedNumber+':holo"]').click();
     await expect(grid.locator('[data-set-open="'+reviewedNumber+':reverse"]')).toBeVisible();
-    await firstPage.click();
+    await ctrl('page-select').selectOption('1');
     await ctrl('search').fill(ex);
     // Search results replace the page grid while a search is active.
     await expect(ctrl('binder-view')).toBeHidden();
@@ -378,14 +379,14 @@ try {
     await expect(ctrl('pokemon-details')).toContainText('Holo');
     await ctrl('search').fill('');
     await ctrl('page-next').click(); await expect(ctrl('page-heading')).toHaveText('Page 2');
-    await firstPage.click(); await expect(ctrl('page-heading')).toHaveText('Page 1');
+    await ctrl('page-select').selectOption('1'); await expect(ctrl('page-heading')).toHaveText('Page 1');
     await binderAction(page, '#master-settings'); await ctrl('columns').fill('1'); await ctrl('rows').fill('1'); await ctrl('blanks').fill('1');
     await ctrl('form').locator('button.dex-primary').click();
     await expect(grid).toContainText('Reserved');
     await expect(ctrl('page-progress')).toHaveText('0 of 0 collected on this page');
     await binderAction(page, '#master-add-extra'); await ctrl('extra-name').fill('Optional promo'); await ctrl('extra-form').locator('button').last().click();
     const last = ctrl('page-overview').locator('button').last();
-    await last.click(); await expect(grid).toContainText('Optional promo');
+    await ctrl('page-select').selectOption(await last.getAttribute('data-page')); await expect(grid).toContainText('Optional promo');
     await expect(ctrl('page-progress')).toContainText('0 of 0 collected on this page · Optional extras 0/1');
     await grid.locator('input').check(); await expect(ctrl('page-progress')).toContainText('Optional extras 1/1');
     await expect(ctrl('progress')).toHaveText('1 / '+expectedGoal);
@@ -400,6 +401,7 @@ try {
     await checkPhysicalPages(phone,"CRI","003",198);
     await exerciseSets(phone);
     await go(phone, 17);
+    await phone.keyboard.press('Escape');
     await phone.locator('#open-grid-17').click();
     await expect(phone.locator('#pokemon-details h2')).toHaveText('Pidgeotto');
     await expect(phone.locator('#pokemon-details')).toBeInViewport();
@@ -410,9 +412,9 @@ try {
     await phone.setViewportSize({ width: 320, height: 750 });
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     await expect(phone.locator('#binder-grid .dex-pocket')).toHaveCount(36);
-    await binderAction(phone, '#sync-open');
+    await openSettings(phone);
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
-    await phone.keyboard.press('Escape');
+    await returnToBinders(phone);
   });
   await scenario('portfolio routes and mobile menu remain usable', async () => {
     const smokeContext = await context();

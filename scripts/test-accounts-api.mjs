@@ -323,6 +323,17 @@ try {
   assert.equal((await request(a, 'sync', 'write', first)).data.document.revision, 1);
   assert.equal((await request(a, 'sync', 'write', { ...first, state: binder([2]) })).status, 409);
   assert.equal((await request(b, 'sync', 'read', undefined, { app, document, clientId })).data.document, null);
+  const retailerSetting = { schemaVersion: 1, mode: 'selected', stores: ['Pokemon Plug'] };
+  const preferences = { ...write(retailerSetting, 0, randomUUID()), document: 'preferences' };
+  for (const stores of [['unknown.example'], ['401 Games', '401 Games']]) {
+    assert.equal((await request(a, 'sync', 'write', { ...preferences, state: { ...retailerSetting, stores } })).status, 422);
+  }
+  assert.equal((await request(a, 'sync', 'migration-stage', { migrationId: randomUUID(), app,
+    document: 'preferences', variant: 'selected', schemaVersion: 1, state: retailerSetting, baseRevision: 0 })).status, 422);
+  const savedPreferences = await request(a, 'sync', 'write', preferences);
+  assert.equal(savedPreferences.status, 200, JSON.stringify(savedPreferences.data));
+  assert.deepEqual(savedPreferences.data.document.state, retailerSetting);
+  assert.equal((await request(b, 'sync', 'read', undefined, { app, document: 'preferences', clientId })).data.document, null);
   // Both processes contend for the same rate-limit bucket. None may deadlock
   // upgrading a shared insert lock before the document's revision lock.
   const sharedBucketReads = await Promise.all(Array.from({ length: 12 }, (_, index) => request(a, 'sync', 'read', undefined, { app, document, clientId }, {}, index % 2 ? parallel : origin)));

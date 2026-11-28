@@ -4,9 +4,9 @@ declare(strict_types=1);
 require_once __DIR__.'/_common.php';
 require_once __DIR__.'/_master-sets.php';
 const ACCOUNTS_SYSTEMS = ['achievement', 'craft', 'material', 'quest', 'village', 'enemy', 'divinity'];
-// The registry also defines complete migration manifests for each application.
+// Collection migration manifests exclude optional settings documents.
 const ACCOUNTS_DOCUMENT_LIMITS = [
-    'pokedex-binder' => ['binder' => 65536, 'master-sets' => 4194304],
+    'pokedex-binder' => ['binder' => 65536, 'master-sets' => 4194304, 'preferences' => 2048],
     'idle-slayer-companion' => ['progress' => 4194304, 'intentions' => 65536, 'checkpoints' => 4194304, 'comparison' => 4096],
     'radius-map' => ['measurements' => 4194304],
 ];
@@ -120,6 +120,23 @@ function accounts_validate(string $app, string $document, mixed $version, mixed 
 
     if ($app === 'pokedex-binder' && $document === 'master-sets') {
         master_validate($state, $webroot);
+        return $encoded;
+    }
+
+    if ($app === 'pokedex-binder' && $document === 'preferences') {
+        if (!accounts_fields($state, ['schemaVersion', 'mode', 'stores']) || $state->schemaVersion !== 1
+            || !in_array($state->mode, ['all', 'selected'], true) || !is_array($state->stores)
+            || ($state->mode === 'all' && $state->stores !== [])) {
+            accounts_invalid();
+        }
+        $registry = json_decode(file_get_contents($webroot.'/utilities/pokemon-binder/retailers.json'), true, 16, JSON_THROW_ON_ERROR);
+        $seen = [];
+        foreach ($state->stores as $store) {
+            if (!is_string($store) || !isset($registry[$store]) || isset($seen[$store])) {
+                accounts_invalid();
+            }
+            $seen[$store] = true;
+        }
         return $encoded;
     }
 

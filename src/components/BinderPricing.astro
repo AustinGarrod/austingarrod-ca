@@ -1,5 +1,6 @@
 ---
 import { ExternalLink, ShoppingBag } from "@lucide/astro";
+import { binderSettingsPath } from "../../packages/accounts/client";
 ---
 <dialog id="card-pricing-dialog" class="dex-dialog dex-collection-dialog dex-pricing-dialog rr-block" data-analytics-private aria-labelledby="card-pricing-title">
   <div id="card-pricing-content" class="dex-price-content">
@@ -52,6 +53,7 @@ import { ExternalLink, ShoppingBag } from "@lucide/astro";
         </div>
         <p class="dex-help">Prices are in CAD before shipping, taxes, and duties. For cross-border listings, select Canada on the retailer’s site if it opens in another currency. Authenticated store checks send your IP address to Shopify.</p>
         <p id="card-retail-status" role="status"></p>
+        <p class="dex-help" id="card-retail-settings" hidden><a href={binderSettingsPath} data-binder-view="settings">Retailer settings</a></p>
         <ul id="card-retail-offers" class="dex-retail-offers"></ul>
       </section>
     </div>

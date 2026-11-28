@@ -1,7 +1,7 @@
 // Shared navigation for the Pokémon Binder browser checks. Not a test on its own.
 // The Binders tab opens on a list of binders; a binder is opened from its card and left with "All binders".
 // Inside the app bar, a menu holds Scan cards, Binder settings, Add an extra card, Import and export,
-// and Sync and backup. Import and export is one dialog that leads to import, export and card lists.
+// Import and export is one dialog that leads to import, export, card lists and the backup settings.
 import { expect } from '@playwright/test';
 
 /** The binder cards on the home list (National Pokédex and set binders). */
@@ -17,6 +17,18 @@ async function settled(page) {
 
 async function closeDialogs(page) {
   while (await page.locator('dialog[open]').count()) await page.keyboard.press('Escape');
+}
+
+export async function openSettings(page) {
+  await closeDialogs(page);
+  await page.locator("#settings-open").click();
+  await expect(page.locator("#binder-settings")).toBeVisible();
+}
+
+export async function returnToBinders(page) {
+  await closeDialogs(page);
+  await page.locator("#binders-open").click();
+  await settled(page);
 }
 
 /** Returns to the home list of binders. */

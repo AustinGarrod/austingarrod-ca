@@ -10,41 +10,45 @@ import BinderPricing from "@components/BinderPricing.astro";
 import BinderBuyCards from "@components/BinderBuyCards.astro";
 import BinderViewHeading from "@components/BinderViewHeading.astro";
 import BinderShare from "@components/BinderShare.astro";
+import BinderSettings from "@components/BinderSettings.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import UtilityHeader from "@components/UtilityHeader.astro";
 import UtilityUpdateNotice from "@components/UtilityUpdateNotice.astro";
 import { utilities } from "@data/profile";
 import { createUtilityApplicationSchema } from "@data/seo";
-import { binderViewPaths, buyCardsSlug } from "../../../utilities/pokedex-binder/lib/view-routes";
+import { binderViewPaths, buyCardsSlug, settingsSlug } from "../../../utilities/pokedex-binder/lib/view-routes";
 import "../../../styles/pokedex-binder.css";
 import "../../../styles/pokedex-binder-dialogs.css";
 
 export function getStaticPaths() {
-  return [{ params: { view: undefined } }, { params: { view: buyCardsSlug } }];
+  return [undefined, buyCardsSlug, settingsSlug].map(view => ({ params: { view } }));
 }
 
 const utility = utilities.find((item) => item.slug === "pokemon-binder");
 if (!utility) throw new Error("Pokémon Binder Tracker utility metadata is missing.");
 const buying = Astro.params.view === buyCardsSlug;
+const settings = Astro.params.view === settingsSlug;
+const binding = !buying && !settings;
 const bindersTitle = utility.title + " | Austin Garrod";
 ---
 
-<BaseLayout shell="utility" title={buying ? "Buy cards | " + bindersTitle : bindersTitle} description={utility.summary} breadcrumbLabel={buying ? "Buy cards" : utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
+<BaseLayout shell="utility" title={binding ? bindersTitle : (settings ? "Settings | " : "Buy cards | ") + bindersTitle} description={utility.summary} breadcrumbLabel={binding ? utility.title : settings ? "Settings" : "Buy cards"} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page" noIndex={settings}>
   <link slot="head" rel="preconnect" href="https://assets.tcgdex.net" />
   <UtilityHeader toolName={utility.title} />
   <UtilityUpdateNotice releasePath="/utilities/pokemon-binder/utility-release.json" />
 
   <div class="dex-app rr-block" id="dex-app" data-binders-title={bindersTitle} data-analytics-private aria-busy="true">
     <nav class="dex-binder-nav" aria-label="Pokémon Binder">
-      <a id="binders-open" href={binderViewPaths.binders} data-binder-view="binders" aria-current={buying ? undefined : "page"}><BookOpen size={16} aria-hidden="true" /> Binders</a>
+      <a id="binders-open" href={binderViewPaths.binders} data-binder-view="binders" aria-current={binding ? "page" : undefined}><BookOpen size={16} aria-hidden="true" /> Binders</a>
       <a id="buy-cards-open" href={binderViewPaths["buy-cards"]} data-binder-view="buy-cards" aria-current={buying ? "page" : undefined}><ShoppingBag size={16} aria-hidden="true" /> Buy cards</a>
+      <a id="settings-open" href={binderViewPaths.settings} data-binder-view="settings" aria-current={settings ? "page" : undefined}><Settings2 size={16} aria-hidden="true" /> Settings</a>
     </nav>
-    <div id="binders-workspace" hidden={buying}>
+    <div id="binders-workspace" hidden={!binding}>
     <header id="binder-bar" class="dex-appbar">
       <button id="binder-back" type="button" class="dex-back" aria-label="All binders" hidden><ArrowLeft size={18} aria-hidden="true" /><span>All binders</span></button>
       <div class="dex-appbar-title">
         <p id="master-set-label" class="dex-eyebrow" hidden></p>
-        {!buying && <BinderViewHeading view="binders" title={utility.title} />}
+        {binding && <BinderViewHeading view="binders" title={utility.title} />}
         <p id="dex-status" class="dex-status" role="status" aria-live="polite">Loading your binder…</p>
         <p id="master-message" role="status" class="dex-status-note"></p>
       </div>
@@ -62,7 +66,6 @@ const bindersTitle = utility.title + " | Austin Garrod";
             <button id="master-add-extra" type="button" aria-haspopup="dialog" hidden><Plus size={16} aria-hidden="true" /> Add an extra card</button>
             <button id="binder-share-menu" type="button" aria-haspopup="dialog" hidden><Share2 size={16} aria-hidden="true" /> Share binder</button>
             <button id="transfer-open" type="button" aria-haspopup="dialog"><ArrowDownUp size={16} aria-hidden="true" /> Import and export</button>
-            <button id="sync-open" type="button" aria-haspopup="dialog"><Cloud size={16} aria-hidden="true" /> Sync and backup</button>
           </div>
         </details>
       </div>
@@ -109,6 +112,11 @@ const bindersTitle = utility.title + " | Austin Garrod";
         {buying && <BinderViewHeading view="buy-cards" title={utility.title} />}
       </Fragment>
     </BinderBuyCards>
+    <BinderSettings active={settings}>
+      <Fragment slot="heading">
+        {settings && <BinderViewHeading view="settings" title={utility.title} />}
+      </Fragment>
+    </BinderSettings>
     <footer class="dex-footer"><p id="catalog-note">English physical cards · National Pokédex order</p><p>An unofficial fan tool. Pokémon and card artwork belong to their respective owners. Species data and sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="pokeapi">PokéAPI</a>. Card data: <a href="https://tcgdex.net/" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-link-click" data-umami-event-destination="tcgdex">TCGdex</a>. <a href="/utilities/pokedex-binder/licenses/ATTRIBUTION.txt" data-umami-event="utility-navigation" data-umami-event-destination="catalog-licenses">Data and artwork notices</a>.</p></footer>
   </div>
   <noscript><p class="container">Pokémon Binder Tracker needs JavaScript to display your collection and save progress.</p></noscript>
@@ -146,24 +154,6 @@ const bindersTitle = utility.title + " | Austin Garrod";
     </form>
   </dialog>
 
-  <dialog id="sync-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="sync-title">
-    <header class="dex-dialog-header"><h2 id="sync-title">Sync &amp; backup</h2><button type="button" data-close-dialog aria-label="Close sync and backup">×</button></header>
-    <p id="sync-message" class="dex-notice" role="status"></p>
-    <section id="binder-account-panel" hidden>
-      <h3>Account sync</h3><p id="binder-account-status" class="dex-help"></p>
-      <a id="binder-account-link" href="/account/?returnTo=%2Futilities%2Fpokedex-binder%2F">Sign in with email or Google</a>
-      <div class="dex-actions"><button id="binder-account-review" hidden>Review & connect account</button><button id="binder-account-resume" hidden>Resume saved migration</button><button id="binder-account-sync" hidden>Sync account now</button><button id="binder-account-recheck" hidden>Retry saving & account connection</button><button id="binder-recovery-download" hidden>Download migration backups</button></div>
-      <p class="dex-help">Connecting keeps recovery copies of your device and account data.</p>
-    </section>
-    <section class="dex-backups">
-      <h3>Collection backup</h3>
-      <button id="resume-restore" hidden>Finish interrupted backup restore</button>
-      <button id="previous-restore" hidden>Download collection from before restore</button>
-      <p class="dex-help">Download your collection and binder layouts before clearing browser data.</p>
-      <div class="dex-backup-actions"><button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button><label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label></div>
-    </section>
-    <p id="sync-error" class="dex-error" role="alert"></p>
-  </dialog>
   <dialog id="transfer-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="transfer-title">
     <header class="dex-dialog-header"><h2 id="transfer-title">Import and export</h2><button type="button" data-close-dialog aria-label="Close import and export">×</button></header>
     <section class="dex-transfer-choice" aria-labelledby="transfer-import-title">
@@ -188,7 +178,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
     </section>
     <section class="dex-transfer-choice" aria-labelledby="transfer-backup-title">
       <div><h3 id="transfer-backup-title">JSON backup</h3><p class="dex-help">Everything in this browser, to restore later or on another device.</p></div>
-      <button id="transfer-backup" type="button" aria-haspopup="dialog"><Cloud size={16} aria-hidden="true" /> Back up or restore</button>
+      <button id="transfer-backup" type="button"><Cloud size={16} aria-hidden="true" /> Back up or restore</button>
     </section>
   </dialog>
   <dialog id="binder-migration-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="binder-migration-title">

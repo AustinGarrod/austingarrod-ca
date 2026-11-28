@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
-import { binderAction as pokedexAction, chooseFilter, homeCard, homeCards, newSetBinder, openBinder as openPokedexBinder, openMenu, transferAction } from './test-pokedex-helpers.mjs';
+import { binderAction as pokedexAction, chooseFilter, homeCard, homeCards, newSetBinder, openBinder as openPokedexBinder, openMenu, openSettings, returnToBinders, transferAction } from './test-pokedex-helpers.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
@@ -135,7 +135,7 @@ async function openBinder(page) {
   await expect(page.locator('#dex-app')).toHaveAttribute('aria-busy', 'false');
 }
 async function adoptBinder(page, chooseAccount) {
-  await pokedexAction(page, '#sync-open');
+  await openSettings(page);
   await expect(page.locator('#binder-account-review')).toBeVisible();
   await page.locator('#binder-account-review').click();
   await expect(page.locator('#binder-migration-dialog')).toBeVisible();
@@ -143,6 +143,7 @@ async function adoptBinder(page, chooseAccount) {
   if (chooseAccount) await page.locator('#binder-migration-collection').selectOption('account');
   await page.locator('#binder-migration-form button[type=submit]').click();
   await expect(page.locator('#binder-migration-dialog')).not.toBeVisible();
+  await returnToBinders(page);
   await expect(page.locator('#dex-status')).toContainText('Synced', { timeout: 15_000 });
 }
 async function openSlayer(page) {
@@ -288,7 +289,7 @@ try {
     const savedBinder = homeCard(page, 'My 151');
     await expect(savedBinder.locator('[data-owned-count]')).toHaveText('1');
     await expect(savedBinder.locator('[data-required-count]')).toHaveText('360');
-    await pokedexAction(page, '#sync-open'); await expect(page.locator('#binder-account-status')).toContainText(email); await page.keyboard.press('Escape');
+    await openSettings(page); await expect(page.locator('#binder-account-status')).toContainText(email); await returnToBinders(page);
     await adoptBinder(page, false); await openPokedexBinder(page, 'National Pokédex'); await page.locator('#owned-grid-2').check();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.ownedDexIds.join(',')).toBe('1,2');
     const oldKey = await desktop.request.get(origin + '/utilities/pokedex-binder/api/binder.php', { headers: { 'X-Pokedex-Key': 'retired' } });
@@ -333,14 +334,51 @@ try {
     await openBinder(page); await openBinder(phone);
     await openPokedexBinder(page, 'National Pokédex'); await pokedexAction(page, '#layout-open'); await page.locator('#national-hide').click();
     await expect.poll(async () => (await remote(desktop, 'pokedex-binder', 'binder')).state.enabled).toBe(false);
-    await pokedexAction(phone, '#sync-open'); await phone.locator('#binder-account-sync').click(); await phone.keyboard.press('Escape');
+    await openSettings(phone); await phone.locator('#binder-account-sync').click(); await returnToBinders(phone);
     await expect(phone.locator('#national-workspace')).toBeHidden();
     await expect(homeCards(phone)).toHaveCount(1);
     await phone.locator('#national-add').click(); await expect(phone.locator('#owned-count')).toHaveText('2');
     await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'binder')).state.enabled).toBe(true);
-    await pokedexAction(page, '#sync-open'); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    await openSettings(page); await page.locator('#binder-account-sync').click(); await returnToBinders(page);
     await openPokedexBinder(page, 'National Pokédex');
     await expect(page.locator('#owned-count')).toHaveText('2');
+  });
+  await scenario('Pokémon retailer settings sync across devices and retain an offline conflict draft', async () => {
+    await openSettings(page);
+    await openSettings(phone);
+    async function chooseStore(target, selected) {
+      await target.locator('[name="retailer-mode"][value="selected"]').check();
+      for (const shop of await target.locator('[name="retailer"]').all()) {
+        await shop.setChecked(await shop.getAttribute('value') === selected);
+      }
+      await target.locator('#retailer-settings-save').click();
+    }
+    const activeStores = target => target.locator('[name="retailer"]:checked').evaluateAll(shops => shops.map(shop => shop.value));
+    const remoteStores = async () => (await remote(desktop, 'pokedex-binder', 'preferences'))?.state.stores;
+    await chooseStore(page, '401 Games');
+    await expect.poll(remoteStores).toEqual(['401 Games']);
+    const refreshed = phone.waitForResponse(response => response.ok() && response.url().includes('document=preferences'));
+    await phone.locator('#binder-account-sync').click();
+    await refreshed;
+    await expect.poll(() => activeStores(phone)).toEqual(['401 Games']);
+    await mobile.setOffline(true);
+    try {
+      await chooseStore(phone, 'Deck Out Gaming');
+      await expect.poll(() => activeStores(phone)).toEqual(['Deck Out Gaming']);
+      await expect.poll(remoteStores).toEqual(['401 Games']);
+      await chooseStore(page, 'Pokemon Plug');
+      await expect.poll(remoteStores).toEqual(['Pokemon Plug']);
+    } finally {
+      await mobile.setOffline(false);
+    }
+    await expect(phone.locator('#retailer-settings-status')).toContainText('changed on another device');
+    await expect.poll(() => activeStores(phone)).toEqual(['Deck Out Gaming']);
+    await phone.locator('#retailer-settings-save').click();
+    await expect.poll(remoteStores).toEqual(['Deck Out Gaming']);
+    await expect(phone.locator('#retailer-settings-keep')).toBeHidden();
+    await expect(phone.locator('#binder-account-link')).toHaveAttribute('href', '/account/?returnTo=%2Futilities%2Fpokemon-binder%2Fsettings%2F');
+    await returnToBinders(page);
+    await returnToBinders(phone);
   });
   await scenario('a confirmed CSV import syncs set ownership to the other browser', async () => {
     await transferAction(phone, '#import-cards');
@@ -351,7 +389,7 @@ try {
     await phone.locator('#card-import-apply').click();
     await expect(phone.locator('#card-import-dialog')).toBeHidden();
     await expect.poll(async () => (await remote(mobile, 'pokedex-binder', 'master-sets')).state.binders[0].owned).toContain('002:reverse');
-    await pokedexAction(page, '#sync-open'); await page.locator('#binder-account-sync').click(); await page.keyboard.press('Escape');
+    await openSettings(page); await page.locator('#binder-account-sync').click(); await returnToBinders(page);
     await openPokedexBinder(page, 'My 151');
     await expect(page.locator('[data-key="002:reverse"]')).toBeChecked();
   });
@@ -845,7 +883,13 @@ try {
     for (const [currentPage, context, expectedRaw, count] of [[page, desktop, desktopOriginals, '1'], [phone, mobile, mobileOriginals, '1']]) {
       await currentPage.goto(origin + '/account/');
       // The installed-map context used the same mobile session and signed it out.
-      if (context === desktop) await currentPage.locator('#account-logout').click();
+      if (context === desktop) {
+        await currentPage.goto(origin + '/utilities/pokemon-binder/settings/');
+        await currentPage.locator('#binder-account-sign-out').click();
+        await expect(currentPage.locator('#binder-account-link')).toHaveText('Sign in with email or Google');
+        await expect(currentPage.locator('[name="retailer-mode"][value="all"]')).toBeChecked();
+        await currentPage.goto(origin + '/account/');
+      }
       await expect(currentPage.locator('#account-signed-out')).toBeVisible();
       assert.equal((await session(context)).user, null);
       await openBinder(currentPage); await expect(currentPage.locator('#owned-count')).toHaveText(count); await openSlayer(currentPage); assert.deepEqual(await originals(currentPage), expectedRaw);

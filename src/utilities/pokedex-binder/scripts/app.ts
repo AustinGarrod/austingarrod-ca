@@ -7,7 +7,10 @@ import { validateMaster } from "../lib/master";
 import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type CardStatus, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
-import { accountHref } from "../../../../packages/accounts/client";
+import { accountHref, binderSettingsPath, signOut } from "../../../../packages/accounts/client";
+import { createRetailerPreferences, enabledRetailers } from "../lib/retailer-preferences";
+import type { BuyingStore } from "../lib/buying-offers";
+import { retailerSettingsForm } from "./retailer-settings";
 import { filterChecklist, setLabel, type ChecklistSort } from "../lib/checklist";
 import { createCardScanner, type CardScanner, type SetScan } from "./scanner";
 import { reportFailure } from "../../../reporting/browser";
@@ -72,7 +75,6 @@ async function initialize() {
     .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
   const printingArtwork = createPrintingArtwork(details, el<HTMLDialogElement>("printing-artwork-dialog"));
-  const syncDialog = el<HTMLDialogElement>("sync-dialog");
   const statusLabels = { loading: "Loading your binder…", local: "Saved locally · Sync is optional", syncing: "Syncing your binder…", synced: "Synced · Saved on this device", pending: "Saved locally · Waiting to sync", error: "Saved locally · Sync needs attention", conflict: "Saved locally · Choose a binder layout" };
   let pendingActions = 0;
 
@@ -139,10 +141,26 @@ async function initialize() {
     reconnect: controller.recheckConnection,
     sync: (id, binder) => binder === "national" ? controller.syncedBinderRevision(id) : master.syncedBinderRevision(id, binder),
   });
+  let allowedStores: readonly BuyingStore[] | undefined;
+  let preferencesReady = false;
+  const preferences = createRetailerPreferences(settings => {
+    updateRetailerForm(settings);
+    const next = settings.value ? enabledRetailers(settings.value) : undefined;
+    if (JSON.stringify(next) === JSON.stringify(allowedStores)) return;
+    allowedStores = next;
+    dashboard.retailersChanged();
+    pricing.retailersChanged();
+  });
+  const updateRetailerForm = retailerSettingsForm(preferences.save, preferences.sync);
+  function setPreferenceScope() {
+    const owner = account.boundAccountId;
+    preferences.setScope(owner ?? "guest", !!owner && owner === account.user?.id && !account.offline && !account.retainedAccount);
+  }
   const dashboard = createBuyCards({
     collection: master.collection,
     binders: master.backup,
     offerScope: controller.restoreScope,
+    enabledStores: () => allowedStores,
     selected: () => master.currentId(),
     inspect: target => pricing.openBuyingPrinting(target),
     closeDetail: () => pricing.closeBuyingPrinting(),
@@ -151,6 +169,7 @@ async function initialize() {
     collection: master.collection,
     readOffers: dashboard.readOffers,
     checkOffers: dashboard.checkOffers,
+    enabledStores: () => allowedStores,
     onBuyingClose: dashboard.detailClosed,
   });
   const buyCatalogSearch = createCatalogSearch({
@@ -159,17 +178,36 @@ async function initialize() {
     openPrinting: target => dashboard.inspectCatalog(target, () => buyCatalogSearch.focus()),
   });
   const stockAlerts = createStockAlerts(controller.recheckConnection);
+  let restoreStatusRequest = 0;
+  function refreshBackupActions() {
+    const ticket = ++restoreStatusRequest;
+    const scope = controller.restoreScope();
+    const setVisibility = (id: string, value: unknown) => {
+      if (ticket === restoreStatusRequest && scope === controller.restoreScope()) el(id).hidden = !value;
+    };
+    el("previous-restore").hidden = el("resume-restore").hidden = true;
+    void controller.previousRestore().then(value => setVisibility("previous-restore", value)).catch(() => {});
+    void controller.pendingRestore().then(value => setVisibility("resume-restore", value)).catch(() => {});
+  }
+  let enteredView = false;
   navigation.subscribe((selected, fromBinders) => {
-    if (selected === "buy-cards") {
+    if (enteredView || selected !== "binders") {
       closeScanner();
       for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog[open]")) dialog.close();
+    }
+    enteredView = true;
+    if (selected === "buy-cards") {
       dashboard.enter(fromBinders);
       stockAlerts.enter();
     } else {
       dashboard.leave();
       stockAlerts.leave();
-      // The Binders tab shows the binder kept in history.state, or the home list.
-      void master.fromHistory();
+      if (selected === "binders") void master.fromHistory();
+      else {
+        renderSync();
+        refreshBackupActions();
+        void preferences.sync();
+      }
     }
   });
   // Choosing the Binders tab while already on it returns to the list of binders.
@@ -507,7 +545,7 @@ async function initialize() {
   }
   function renderSync() {
     el("binder-account-panel").hidden = !account.enabled;
-    el<HTMLAnchorElement>("binder-account-link").href = accountHref("/utilities/pokemon-binder/");
+    el<HTMLAnchorElement>("binder-account-link").href = accountHref(binderSettingsPath);
     el("binder-account-link").textContent = account.user ? "Manage account & recovery" : "Sign in with email or Google";
     el("binder-account-status").textContent = account.retainedAccount ? `This open binder belongs to ${account.retainedAccount.email}. Your account changed, and this binder has changes that could not be saved on this device. Export its JSON backup before leaving, or retry saving to finish switching accounts.` : account.offline ? `Saved on this device for ${account.user?.email ?? "your account"}. Reconnect and sign in before syncing.` : account.mode === "account" ? `Syncing with ${account.user?.email ?? "your account"}.` : account.user
       ? `Signed in as ${account.user.email}. Review your device and account copies before connecting them.`
@@ -515,8 +553,11 @@ async function initialize() {
     el("binder-account-review").hidden = !account.user || !account.migrationEnabled || account.mode === "account" || account.pendingMigration;
     el("binder-account-resume").hidden = !account.user || !account.pendingMigration;
     el("binder-account-sync").hidden = account.mode !== "account";
-    el("binder-account-recheck").hidden = !account.storageNeedsRecovery;
+    el("binder-account-recheck").hidden = !account.storageNeedsRecovery && !account.offline;
+    el("binder-account-recheck").textContent = account.offline ? "Reconnect account" : "Retry saving & account connection";
     el("binder-recovery-download").hidden = !account.user;
+    el("binder-account-sign-out").hidden = !account.user || account.offline;
+    el<HTMLButtonElement>("binder-account-sync").disabled = account.offline || !!account.retainedAccount;
     el("sync-message").textContent = snapshot.error ?? (snapshot.storageWarning ? "Browser storage is unavailable. Export a backup before leaving this page." : statusLabels[snapshot.status]);
   }
   async function updateOnboarding() {
@@ -566,10 +607,17 @@ async function initialize() {
       dashboard.scopeChanged();
     }
     account = value; sharing.contextChanged(); master.account(value); stockAlerts.account(value); renderSync();
+    if (preferencesReady) setPreferenceScope();
+    if (changed && !el("binder-settings").hidden) refreshBackupActions();
     if (changed) dashboard.bindersChanged();
     if (onboardingReady && changed) void updateOnboarding();
   });
   await controller.start();
+  preferencesReady = true;
+  setPreferenceScope();
+  window.addEventListener("online", () => {
+    if (account.offline) void controller.recheckConnection().catch(() => {});
+  });
   onboardingReady = true;
   void updateOnboarding();
   void master.start().then(dashboard.catalogReady).catch(error => {
@@ -607,7 +655,13 @@ async function initialize() {
     // Import, export and backup open their own dialogs; this one steps aside.
     if ((event.target as Element).closest("#import-cards, #import-collectr, #export-cards, #transfer-backup")) transferDialog.close();
   });
-  el("transfer-backup").addEventListener("click", () => el("sync-open").click());
+  el("transfer-backup").addEventListener("click", () => {
+    transferDialog.close();
+    navigation.openSettings();
+    const heading = el("binder-backup-title");
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "nearest" });
+  });
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
   else { scanDialog.close(); scanDialog.dataset.phase = "closed"; }
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
@@ -686,7 +740,7 @@ async function initialize() {
     el("first-set").focus();
   });
   el("first-connect").addEventListener("click", () => {
-    if (account.pendingMigration) { el("sync-open").click(); el("binder-account-resume").focus(); }
+    if (account.pendingMigration) { navigation.openSettings(); el("binder-account-resume").focus(); }
     else el("binder-account-review").click();
   });
   el("layout-form").addEventListener("submit", event => {
@@ -696,14 +750,8 @@ async function initialize() {
       el<HTMLDialogElement>("layout-dialog").close();
     });
   });
-  el("sync-open").addEventListener("click", () => { el("sync-error").textContent = ""; renderSync(); syncDialog.showModal();
-    el("previous-restore").hidden=true;
-    void controller.previousRestore().then(saved=>{el("previous-restore").hidden=!saved;}).catch(()=>{});
-    el("resume-restore").hidden=true;
-    void controller.pendingRestore().then(pending=>{el("resume-restore").hidden=!pending;}).catch(()=>{});
-  });
   el("previous-restore").addEventListener("click",()=>void action(async()=>{const backup=await controller.previousRestore();if(backup)download(JSON.stringify(backup),"pokedex-before-restore.json","application/json");}));
-  el("resume-restore").addEventListener("click",()=>void action(async()=>{await controller.resumeRestore();await master.restored();el("resume-restore").hidden=true;}));
+  el("resume-restore").addEventListener("click",()=>void action(async()=>{await controller.resumeRestore();await master.restored();refreshBackupActions();}));
   el("binder-account-review").addEventListener("click", event => void action(async () => {
     migrationPreview = await controller.previewMigration();
     const preview = migrationPreview;
@@ -717,7 +765,7 @@ async function initialize() {
     collection.querySelector<HTMLOptionElement>('option[value="account"]')!.disabled = !preview.account;
     layout.value = preview.layoutConflict ? "" : "device"; collection.value = "combine";
     el("binder-migration-error").textContent = "";
-    syncDialog.close(); el<HTMLDialogElement>("binder-migration-dialog").showModal();
+    el<HTMLDialogElement>("binder-migration-dialog").showModal();
   }, event.currentTarget as HTMLButtonElement));
   el("binder-migration-form").addEventListener("submit", event => {
     event.preventDefault();
@@ -732,7 +780,11 @@ async function initialize() {
     }, button);
   });
   el("binder-account-resume").addEventListener("click", event => void action(() => controller.resumeMigration(), event.currentTarget as HTMLButtonElement));
-  el("binder-account-sync").addEventListener("click", event => void action(() => Promise.all([controller.sync(),master.sync()]), event.currentTarget as HTMLButtonElement));
+  el("binder-account-sync").addEventListener("click", event => void action(() => Promise.all([controller.sync(), master.sync(), preferences.sync()]), event.currentTarget as HTMLButtonElement));
+  el("binder-account-sign-out").addEventListener("click", event => void action(async () => {
+    await signOut();
+    el("binder-account-link").focus();
+  }, event.currentTarget as HTMLButtonElement));
   el("binder-account-recheck").addEventListener("click", event => void action(() => controller.recheckConnection(), event.currentTarget as HTMLButtonElement));
   el("binder-recovery-download").addEventListener("click", event => void action(async () => download(await controller.recoveryBackups(), "pokedex-binder-migration-backups.json", "application/json"), event.currentTarget as HTMLButtonElement));
   el("conflict-local").addEventListener("click", () => void action(() => controller.resolveLayout("local")));
@@ -753,6 +805,7 @@ async function initialize() {
         if(scope!==controller.restoreScope()) throw new Error("The active account changed. Review the backup again.");
         state.enabled ??= nationalEnabled(state);
         if(sets) { await controller.restoreCollections(state,sets,scope);await master.restored(); } else await controller.replaceState(state);
+        refreshBackupActions();
       }
     } finally { input.value = ""; }
   }));

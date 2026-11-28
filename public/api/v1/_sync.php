@@ -183,6 +183,9 @@ function accounts_migration_stage(PDO $db, string $user, stdClass $body, string 
 
     $migration = accounts_id($body->migrationId);
     [$app,$document] = accounts_document_pair($body->app, $body->document);
+    if ($app === 'pokedex-binder' && $document === 'preferences') {
+        accounts_fail(422, 'invalid_request', 'Retailer preferences are saved independently of collection migration.');
+    }
     $json = accounts_validate($app, $document, $body->schemaVersion, $body->state, $webroot);
     $revision = accounts_number($body->baseRevision);
     $hash = accounts_hash($body);
@@ -213,7 +216,7 @@ function accounts_migration_commit(PDO $db, string $user, stdClass $body, string
     }
 
     $app = $body->app;
-    $expected = array_keys(ACCOUNTS_DOCUMENT_LIMITS[$app] ?? []);
+    $expected = $app === 'pokedex-binder' ? ['binder', 'master-sets'] : array_keys(ACCOUNTS_DOCUMENT_LIMITS[$app] ?? []);
     sort($expected, SORT_STRING);
     if ($expected === []) {
         accounts_fail(422, 'unknown_document', 'This application is not registered.');

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { chromium, expect } from "@playwright/test";
 import retailers from "../public/utilities/pokemon-binder/retailers.json" with { type: "json" };
 import { testFullBuyCards } from "./test-pokedex-buying-bulk.mjs";
-import { binderAction, newSetBinder } from "./test-pokedex-helpers.mjs";
+import { binderAction, newSetBinder, openSettings, returnToBinders } from "./test-pokedex-helpers.mjs";
 
 const origin = process.env.POKEDEX_PRICING_ORIGIN || "http://127.0.0.1:4321";
 const binderUrl = origin + "/utilities/pokemon-binder/";
@@ -29,7 +29,7 @@ const account = { id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", email: "buying@exa
 async function screenshot(page, width, state, anchor) {
   if (!screenshotDir) return;
   if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: "start", behavior: "instant" }));
-  await page.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled" });
+  await page.screenshot({ path: join(screenshotDir, `${state}-${width}.png`), animations: "disabled", fullPage: state === "settings" });
 }
 
 async function screenshotElement(element, width, state) {
@@ -626,12 +626,13 @@ try {
       await bindersTab.click();
       user = account;
       await notifySessionChange(page);
-      await binderAction(page, "#sync-open");
+      await openSettings(page);
       await page.locator("#binder-account-review").click();
       await page.locator("#binder-migration-layout").selectOption("device");
       await page.locator("#binder-migration-form button[type=submit]").click();
       await expect(page.locator("#dex-status")).toHaveText("Synced · Saved on this device");
       await expect(page.locator("#binder-migration-dialog")).toBeHidden();
+      await returnToBinders(page);
       await newSetBinder(page);
       await page.locator("#master-set").fill("sv03.5");
       await page.locator("#master-name").fill("Account only 151");
@@ -683,6 +684,62 @@ try {
         releaseOffer();
         offerGate = undefined;
       }
+    }
+    if (width !== 320) {
+      await openSettings(page);
+      await expect(page).toHaveURL(binderUrl + "settings/");
+      const choice = page.locator('[name="retailer-mode"][value="selected"]');
+      const save = page.locator("#retailer-settings-save");
+      await choice.check();
+      const shops = await page.locator('[name="retailer"]').all();
+      for (const shop of shops) if (await shop.getAttribute("value") !== "Deck Out Gaming") await shop.uncheck();
+      await save.click();
+      await expect(save).toBeEnabled();
+      await expect(page.locator("#retailer-settings-status")).toContainText("saved on this device");
+      await screenshot(page, width, "settings");
+      await page.goBack();
+      await expect(buying).toBeVisible();
+      await expect(search).toHaveValue("Ivysaur 002");
+      await page.goForward();
+      await expect(page.locator("#binder-settings")).toBeVisible();
+      await page.reload();
+      await expect(choice).toBeChecked();
+      await expect(page.locator('[name="retailer"]:checked')).toHaveCount(1);
+
+      const firstRequest = requestedStores.length;
+      fixtureCheckedAt = await page.evaluate(() => Date.now());
+      await buyTab.click();
+      await search.fill("Ivysaur 002");
+      if (width === 390) await buying.locator("#buy-cards-filters-toggle").click();
+      await finish.selectOption("Regular");
+      await expect(store.locator("option")).toHaveCount(2);
+      await expect(store.locator("option").last()).toHaveText("Deck Out Gaming");
+      await rows.first().locator("[data-buy-card]").click();
+      await expect(inlineDetails.locator("#card-retail-status")).toContainText("1 of 1 store checked");
+      await expect(inlineDetails.locator("#card-retail-offers li")).toHaveCount(1);
+      await expect(inlineDetails.locator("#card-retail-offers")).toContainText("Deck Out Gaming");
+      await inlineDetails.locator("#card-pricing-back").click();
+      await finish.selectOption("Reverse holo");
+      await checkPage.click();
+      await expect(checkPage).toBeEnabled();
+      assert.ok(requestedStores.length > firstRequest);
+      assert.ok(requestedStores.slice(firstRequest).every(selection => JSON.stringify(selection) === '["Deck Out Gaming"]'));
+
+      await finish.selectOption("Regular");
+      await openSettings(page);
+      await page.locator('[name="retailer"][value="Deck Out Gaming"]').uncheck();
+      await save.click();
+      await expect(save).toBeEnabled();
+      await buyTab.click();
+      await expect(buying.locator("#buy-cards-store-status")).toContainText("Retailer checks are off");
+      await expect(checkPage).toBeDisabled();
+      await expect(buying.locator("#buy-cards-check-all")).toBeDisabled();
+      const beforeOff = requestedStores.length;
+      await rows.first().locator("[data-buy-card]").click();
+      await expect(inlineDetails.locator("#card-retail-status")).toHaveText("Retailer checks are off.");
+      await expect(inlineDetails.locator("#card-retail-refresh")).toBeDisabled();
+      await expect(inlineDetails.locator("#card-market-current")).toContainText("CAD");
+      assert.equal(requestedStores.length, beforeOff);
     }
     assert.deepEqual(errors, []);
     await context.close();

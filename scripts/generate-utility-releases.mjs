@@ -9,7 +9,7 @@ const { release: reportingRelease } = JSON.parse(await readFile(new URL("../src/
 const releases = [
   {
     slug: "pokemon-binder",
-    pages: ["index.html", "buy-cards/index.html", "shared/index.html"],
+    pages: ["index.html", "buy-cards/index.html", "shared/index.html", "settings/index.html"],
     extras: [
       "utilities/pokemon-binder/shopify-profile.json",
       "utilities/pokemon-binder/catalog/cards.json",

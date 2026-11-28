@@ -1,11 +1,12 @@
-import { binderViewForUrl, binderViewPaths, isLegacyBuyCardsUrl, type BinderView } from "../lib/view-routes";
+import { binderViewForUrl, binderViewPaths, legacyBinderView, type BinderView } from "../lib/view-routes";
 
 type ViewListener = (view: BinderView, fromBinders: boolean) => void;
 
 function viewFromHistory(): BinderView {
   const url = new URL(location.href);
-  if (isLegacyBuyCardsUrl(url)) {
-    url.pathname = binderViewPaths["buy-cards"];
+  const legacy = legacyBinderView(url);
+  if (legacy) {
+    url.pathname = binderViewPaths[legacy];
     url.searchParams.delete("view");
     history.replaceState(history.state, "", url);
   }
@@ -27,6 +28,11 @@ export function binderViews() {
       header: document.getElementById("buy-cards-heading")!,
       link: document.getElementById("buy-cards-open")!,
     },
+    settings: {
+      workspace: document.getElementById("binder-settings")!,
+      header: document.getElementById("binder-settings-heading")!,
+      link: document.getElementById("settings-open")!,
+    },
   };
   const positions = new Map<BinderView, { scroll: number; focus?: HTMLElement }>();
   const binderTitle = document.getElementById("dex-app")!.dataset.bindersTitle!;
@@ -37,6 +43,7 @@ export function binderViews() {
   let fromBinders = false;
   let listener: ViewListener | undefined;
   let home: (() => void) | undefined;
+  let binderHistory: unknown = null;
 
   function show(view: BinderView) {
     if (view === selected) return;
@@ -48,7 +55,8 @@ export function binderViews() {
     }
     selected = view;
     fromBinders = prior === "binders";
-    document.title = view === "buy-cards" ? "Buy cards | " + binderTitle : binderTitle;
+    if (view === "binders") binderHistory = history.state;
+    document.title = view === "binders" ? binderTitle : (view === "settings" ? "Settings" : "Buy cards") + " | " + binderTitle;
     canonical.href = new URL(binderViewPaths[view], canonical.href).href;
     openGraphUrl.content = canonical.href;
     for (const title of shareTitles) title.content = document.title;
@@ -73,23 +81,28 @@ export function binderViews() {
   }
 
   history.scrollRestoration = "manual";
+  function go(view: BinderView, href: string) {
+    if (view === selected) {
+      if (view === "binders") home?.();
+      return;
+    }
+    if (selected === "binders") binderHistory = history.state;
+    history.pushState(view === "binders" && selected === "settings" ? binderHistory : null, "", href);
+    show(view);
+  }
   show(viewFromHistory());
   window.addEventListener("popstate", () => show(viewFromHistory()));
   document.addEventListener("click", event => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-binder-view]");
     const view = link?.dataset.binderView;
-    if (!link || (view !== "binders" && view !== "buy-cards")) return;
+    if (!link || (view !== "binders" && view !== "buy-cards" && view !== "settings")) return;
     event.preventDefault();
-    if (view === selected) {
-      if (view === "binders") home?.();
-      return;
-    }
-    history.pushState(null, "", link.href);
-    show(view);
+    go(view, link.href);
   });
 
   return {
+    openSettings: () => go("settings", binderViewPaths.settings),
     subscribe(callback: ViewListener) {
       listener = callback;
       callback(selected!, fromBinders);

@@ -1,0 +1,71 @@
+---
+import { Download } from "@lucide/astro";
+import { accountHref, binderSettingsPath, binderStockAlertsPath } from "../../packages/accounts/client";
+import { buyingStores, isCrossBorder } from "../utilities/pokedex-binder/lib/buying-offers";
+import "../styles/pokedex-settings.css";
+
+interface Props { active: boolean }
+const { active } = Astro.props;
+---
+
+<section id="binder-settings" class="dex-settings rr-block" data-analytics-private aria-labelledby="binder-view-title" hidden={!active}>
+  <header id="binder-settings-heading" class="dex-appbar"><slot name="heading" /></header>
+  <div class="dex-settings-panels">
+    <section class="dex-settings-panel" aria-labelledby="settings-retailers-title">
+      <h2 id="settings-retailers-title">Retailers</h2>
+      <p class="dex-help">Choose which stores the app checks for in-stock offers.</p>
+      <form id="retailer-settings-form">
+        <fieldset id="retailer-settings-controls" disabled>
+          <legend class="sr-only">Store selection</legend>
+          <label class="dex-settings-choice"><input type="radio" name="retailer-mode" value="all" checked /> All supported stores</label>
+          <label class="dex-settings-choice"><input type="radio" name="retailer-mode" value="selected" /> Choose stores</label>
+          <fieldset id="retailer-settings-stores" class="dex-settings-stores" hidden disabled>
+            <legend class="sr-only">Stores to check</legend>
+            {buyingStores.map(store => <label class="dex-settings-choice">
+              <input type="checkbox" name="retailer" value={store} />
+              <span>{store}{isCrossBorder(store) && <small>Cross-border</small>}</span>
+            </label>)}
+          </fieldset>
+        </fieldset>
+        <div class="dex-actions">
+          <button type="submit" id="retailer-settings-save" class="dex-primary" disabled>Save retailer choices</button>
+          <button type="button" id="retailer-settings-copy" hidden>Use this device’s guest choices</button>
+          <button type="button" id="retailer-settings-keep" hidden>Keep synced choices</button>
+          <button type="button" id="retailer-settings-retry" hidden>Retry settings sync</button>
+        </div>
+        <p id="retailer-settings-status" class="dex-help" role="status">Loading retailer choices…</p>
+      </form>
+      <p class="dex-help"><a href={binderStockAlertsPath} data-binder-view="buy-cards">Manage email stock alerts in Buy Cards</a>. Alerts use their own store choices.</p>
+    </section>
+
+    <section class="dex-settings-panel" aria-labelledby="sync-title">
+      <h2 id="sync-title" tabindex="-1">Account &amp; sync</h2>
+      <p id="sync-message" class="dex-help" role="status"></p>
+      <div id="binder-account-panel" hidden>
+        <p id="binder-account-status" class="dex-help"></p>
+        <a id="binder-account-link" href={accountHref(binderSettingsPath)}>Sign in with email or Google</a>
+        <div class="dex-actions">
+          <button id="binder-account-review" hidden>Review &amp; connect account</button>
+          <button id="binder-account-resume" hidden>Resume saved migration</button>
+          <button id="binder-account-sync" hidden>Sync now</button>
+          <button id="binder-account-recheck" hidden>Retry saving &amp; account connection</button>
+          <button id="binder-recovery-download" hidden>Download migration backups</button>
+          <button id="binder-account-sign-out" hidden>Sign out on this device</button>
+        </div>
+      </div>
+      <section class="dex-settings-backup" aria-labelledby="binder-backup-title">
+        <h3 id="binder-backup-title" tabindex="-1">Collection backup</h3>
+        <p class="dex-help">Download your collection and binder layouts before clearing browser data.</p>
+        <div class="dex-backup-actions">
+          <button id="export-json"><Download size={16} aria-hidden="true" /> Download JSON backup</button>
+          <label class="dex-file-label" for="import-json">Restore JSON backup<input id="import-json" type="file" accept=".json,application/json" /></label>
+        </div>
+        <div class="dex-actions">
+          <button id="resume-restore" hidden>Finish interrupted backup restore</button>
+          <button id="previous-restore" hidden>Download collection from before restore</button>
+        </div>
+      </section>
+      <p id="sync-error" class="dex-error" role="alert"></p>
+    </section>
+  </div>
+</section>

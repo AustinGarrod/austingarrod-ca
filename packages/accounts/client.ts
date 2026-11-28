@@ -4,6 +4,7 @@ export interface BinderStockAlert { store: string; minimum: number; lastCheckedA
 export interface BinderStockAlerts { alerts: BinderStockAlert[]; revision: string; hasSyncedBinders: boolean }
 const binderBuyCardsPath = "/utilities/pokemon-binder/buy-cards/";
 export const binderStockAlertsPath = binderBuyCardsPath + "?alerts=1";
+export const binderSettingsPath = "/utilities/pokemon-binder/settings/";
 export interface AccountSession {
   enabled: boolean;
   migrationEnabled: boolean;
@@ -231,7 +232,8 @@ export function signOut(everywhere = false) { return authenticated(everywhere ? 
 /** Local utility/app entry routes only; new adapters do not need new login logic. */
 export function safeReturnTo(value: string | null | undefined): string {
   if (value === "/utilities/pokemon-binder/?view=buy-cards&alerts=1") return binderStockAlertsPath;
-  if (value === binderBuyCardsPath) return value;
+  if (value === "/utilities/pokemon-binder/?view=settings") return binderSettingsPath;
+  if (value === binderBuyCardsPath || value === binderSettingsPath) return value;
   if (value === "/account/assistant-consent/" || value === "/account/admin/" || value === binderStockAlertsPath) return value;
   if (value && /^\/(?:utilities|apps)\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(value)) return value;
   return "/utilities/";

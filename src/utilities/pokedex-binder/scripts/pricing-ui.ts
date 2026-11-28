@@ -1,5 +1,5 @@
 import type { SetCard, SetSummary } from "../lib/master";
-import { buyingStores, isCrossBorder, matchesByStore } from "../lib/buying-offers";
+import { isCrossBorder, matchesByStore, type BuyingStore } from "../lib/buying-offers";
 import { catalogArtwork } from "../lib/catalog-search";
 import {
   cad, calendarDate, freshOffers, marketPrices, offerLifetime, pricingRequest, type PriceHistory,
@@ -11,7 +11,8 @@ import { createPriceChart } from "./price-chart";
 interface Options {
   collection(): { sets: readonly SetSummary[]; cards(setId: string): Promise<SetCard[]> };
   readOffers(target: PricingTarget): Promise<RetailOffers | undefined>;
-  checkOffers(target: PricingTarget, options?: { force?: boolean }): Promise<RetailOffers>;
+  checkOffers(target: PricingTarget, options?: { force?: boolean; signal?: AbortSignal }): Promise<RetailOffers>;
+  enabledStores(): readonly BuyingStore[] | undefined;
   onBuyingClose(): void;
 }
 
@@ -34,10 +35,12 @@ export function createPricingUI(options: Options) {
     node<HTMLInputElement>("card-market-point"), node<HTMLOutputElement>("card-market-point-value"));
   const retailerList = node("card-retail-offers"), retailerStatus = node("card-retail-status");
   const refreshOffers = button("card-retail-refresh");
+  const retailerSettings = node("card-retail-settings");
   let target: PricingTarget | undefined, candidates: SetCard["variants"] = [];
   let cardVersion = 0, historyVersion = 0, retailVersion = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let historyRequest: AbortController | undefined;
+  let retailRequest: AbortController | undefined;
   let presentation: Presentation | undefined;
   const exact = () => target && !["", "*"].includes(target.variant);
   const active = (version: number) => version === cardVersion &&
@@ -47,6 +50,8 @@ export function createPricingUI(options: Options) {
   function cancelOffers() {
     retailVersion++;
     clearTimeout(timer);
+    retailRequest?.abort();
+    retailRequest = undefined;
   }
 
   function endPrinting() {
@@ -116,11 +121,21 @@ export function createPricingUI(options: Options) {
 
   async function loadOffers(refresh = false) {
     cancelOffers();
+    const enabled = options.enabledStores();
+    retailerSettings.hidden = !!enabled?.length;
+    refreshOffers.disabled = true;
+    if (!enabled?.length) {
+      retailerList.replaceChildren();
+      retailerStatus.textContent = enabled ? "Retailer checks are off." : "Retailer choices are loading or unavailable.";
+      return;
+    }
+    const stores = enabled;
+    const controller = new AbortController();
+    retailRequest = controller;
     const version = cardVersion, ticket = retailVersion;
     const current = () => active(version) && ticket === retailVersion;
     if (!refresh) retailerList.replaceChildren();
     retailerStatus.textContent = "Checking stores…";
-    refreshOffers.disabled = true;
     try {
       const printing = target!;
       function show(data: RetailOffers, checking: boolean) {
@@ -139,13 +154,13 @@ export function createPricingUI(options: Options) {
         if (data.retryAfter) messages.push(`Store checks are busy. Try again in about ${data.retryAfter} seconds.`);
         const waitingStores = Object.keys(data.storeRetryAfter ?? {});
         if (waitingStores.length) messages.push(`Waiting to check ${waitingStores.join(", ")}. Refresh offers to retry.`);
-        const allUnavailable = buyingStores.every(store => data.unavailableStores.includes(store));
-        const checked = matchesByStore(data, buyingStores, now, Infinity, Infinity)
+        const allUnavailable = stores.every(store => data.unavailableStores.includes(store));
+        const checked = matchesByStore(data, stores, now, Infinity, Infinity)
           .filter(store => store.checkedAt || store.offer).length;
-        if (checked) messages.push(`${checked} of ${buyingStores.length} stores checked.`);
+        if (checked) messages.push(`${checked} of ${stores.length} ${stores.length === 1 ? "store" : "stores"} checked.`);
         if (!checking && !offers.length && !data.retryAfter && !waitingStores.length) messages.push(data.offers.length ? "The previous offers expired. Refresh to check again."
           : allUnavailable ? "Stores are temporarily unavailable."
-          : checked < buyingStores.length ? "No exact in-stock offers so far." : "No exact in-stock offers found.");
+          : checked < stores.length ? "No exact in-stock offers so far." : "No exact in-stock offers found.");
         if (data.unavailableStores.length && !allUnavailable) {
           messages.push(`Couldn’t check ${data.unavailableStores.join(", ")}.`);
         }
@@ -159,10 +174,11 @@ export function createPricingUI(options: Options) {
       if (!current()) return;
       const needsCheck = refresh || !Object.keys(previous?.checkedStores ?? {}).length;
       if (previous) show(previous, needsCheck);
-      if (needsCheck) show(await options.checkOffers(printing, { force: refresh }), false);
+      if (needsCheck) show(await options.checkOffers(printing, { force: refresh, signal: controller.signal }), false);
     } catch {
       if (current()) retailerStatus.textContent = "Store offers are temporarily unavailable. Try refreshing.";
     } finally {
+      if (retailRequest === controller) retailRequest = undefined;
       if (current()) refreshOffers.disabled = false;
     }
   }
@@ -289,6 +305,7 @@ export function createPricingUI(options: Options) {
     openPrinting: (printing: PricingTarget) => presentPrinting(printing, "dialog"),
     openBuyingPrinting: (printing: PricingTarget) => presentPrinting(printing, "inline"),
     closeBuyingPrinting,
+    retailersChanged() { if (exact() && active(cardVersion)) void loadOffers(); },
     scopeChanged() {
       if (presentation === "inline") closeBuyingPrinting();
       else endPrinting();

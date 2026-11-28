@@ -1,4 +1,4 @@
-import { buyingStores, canCheckPrinting, combinedAvailability, isCrossBorder, matchesByStore, printingKey,
+import { canCheckPrinting, combinedAvailability, isCrossBorder, matchesByStore, offersForStores, printingKey,
   type Availability, type BuyingStore, type StoreMatch } from "../lib/buying-offers";
 import { createBuyOfferCache, offerBatchSize } from "../lib/buying-offer-cache";
 import { catalogArtwork } from "../lib/catalog-search";
@@ -13,6 +13,7 @@ interface Options {
   binders(): Promise<MasterState>;
   selected(): string;
   offerScope(): string;
+  enabledStores(): readonly BuyingStore[] | undefined;
   inspect(target: PricingTarget): void;
   closeDetail(): void;
 }
@@ -34,7 +35,7 @@ type CheckKind = "manual" | "all" | "refresh";
 interface CheckWork {
   key: string;
   target: PricingTarget;
-  stores?: readonly BuyingStore[];
+  stores: readonly BuyingStore[];
   unavailable?: boolean;
 }
 
@@ -90,6 +91,7 @@ export function createBuyCards(options: Options) {
   const search = node<HTMLInputElement>("filter"), maxPrice = node<HTMLInputElement>("max-price");
   const scope = select("scope"), finish = select("finish"), availability = select("availability"), store = select("store");
   const condition = select("condition"), sort = select("sort"), next = button("next"), prev = button("prev");
+  const storeNotice = node("store-status");
   const checkPage = button("check"), checkAll = button("check-all"), cancel = button("cancel"), clear = button("clear");
   const filters = [search, finish, availability, store, maxPrice, condition, sort];
   // On phones the filters other than search sit behind one button that says how many are applied.
@@ -193,7 +195,8 @@ export function createBuyCards(options: Options) {
     const set = sets.get(target.setId);
     const image = set && catalogArtwork(set, target.number);
     const title = escape(target.name + " #" + target.number + " " + target.finish);
-    const canCheck = canCheckPrinting(target);
+    const enabled = options.enabledStores();
+    const canCheck = !!enabled?.length && canCheckPrinting(target);
     const manualCheck = job && job.kind !== "refresh";
     const picker = choices.length > 1
       ? `<label>Printing <select data-buy-finish="${id}" aria-label="Choose a finish for ${escape(target.name)}">
@@ -210,7 +213,7 @@ export function createBuyCards(options: Options) {
     const allFailed = stores.length > 0 && stores.every(item => item.availability === "unavailable");
     const someUnchecked = stores.some(item => item.availability === "unchecked");
     const failed = stores.filter(item => item.availability === "unavailable");
-    const retryLabel = failed.length === 1 && stores.length === buyingStores.length ? `Retry ${failed[0].store}` : "Retry stores";
+    const retryLabel = failed.length === 1 && stores.length === enabled?.length ? `Retry ${failed[0].store}` : "Retry stores";
     const recheck = canCheck && !checking && !unchecked && (someUnchecked || failed.length)
       ? checkButton(someUnchecked ? "Check remaining stores" : retryLabel) : "";
     const checkedCount = stores.filter(item => item.checkedAt || item.offer).length;
@@ -228,7 +231,7 @@ export function createBuyCards(options: Options) {
       <summary data-buy-compare-stores="${id}">Compare stores <small>${coverage}</small></summary>
       <dl class="dex-buying-offers">${ordered.map(item => storeCell(item, checking, row.id)).join("")}</dl>
     </details>`;
-    const storeResults = !canCheck && unchecked
+    const storeResults = !enabled?.length ? "" : !canCheck && unchecked
       ? `<p class="dex-buying-store-line">${target.variant === "*" ? "Choose a finish to check stores." : "Store lookup is unavailable for this finish."}</p>`
       : unchecked && checking ? `<p class="dex-buying-store-line" role="status">Checking stores…</p>`
       : unchecked ? `<p class="dex-buying-store-line">Stores: Needs a check · ${checkButton("Check stores", true)}</p>`
@@ -252,7 +255,7 @@ export function createBuyCards(options: Options) {
   }
 
   function canRefresh() {
-    return isActive() && !document.hidden && !loading && catalogState === "ready" && !job && !refreshPaused;
+    return !!options.enabledStores()?.length && isActive() && !document.hidden && !loading && catalogState === "ready" && !job && !refreshPaused;
   }
 
   function visibleTargets() {
@@ -289,14 +292,15 @@ export function createBuyCards(options: Options) {
       scheduleExpiration(now, quoteExpiry);
       return;
     }
-    const shops = store.value ? buyingStores.filter(item => item === store.value) : buyingStores;
+    const enabled = options.enabledStores() ?? [];
+    const shops = store.value ? enabled.filter(item => item === store.value) : enabled;
     const budget = Number.isFinite(maxPrice.valueAsNumber) ? Math.max(0, Math.round(maxPrice.valueAsNumber * 100)) : Infinity;
     const grade = condition.value !== "" ? Number(condition.value) : Infinity;
     const requiresOffer = Number.isFinite(budget) || Number.isFinite(grade);
     const matching = entries.filter(entry => matchesBuyingEntry(entry, search.value)
       && (!finish.value || entry.target.finish === finish.value || choicesFor(entry).some(item => item.label === finish.value)))
       .map(entry => getRow(entry, now, shops, budget, grade))
-      .filter(row => availability.value ? row.availability === availability.value : !requiresOffer || row.availability === "stock");
+      .filter(row => !enabled.length || (availability.value ? row.availability === availability.value : !requiresOffer || row.availability === "stock"));
     if (sort.value === "name") matching.sort((a, b) => byName.compare(a.target.name, b.target.name));
     if (sort.value === "market") matching.sort((a, b) => priceOrder(a.price?.cents ?? Infinity, b.price?.cents ?? Infinity));
     if (sort.value === "stock") matching.sort((a, b) => Number(b.availability === "stock") - Number(a.availability === "stock"));
@@ -321,8 +325,8 @@ export function createBuyCards(options: Options) {
     prev.disabled = page === 0;
     next.disabled = page >= pages - 1;
     const manualCheck = !!job && job.kind !== "refresh";
-    checkPage.disabled = manualCheck || !visible.some(row => canCheckPrinting(row.target));
-    checkAll.disabled = manualCheck || !binderTargets.size;
+    checkPage.disabled = !enabled.length || manualCheck || !visible.some(row => canCheckPrinting(row.target));
+    checkAll.disabled = !enabled.length || manualCheck || !binderTargets.size;
     cancel.hidden = !manualCheck;
     clear.hidden = binderActions.hidden || filters.every(input => !input.value || input === sort && sort.value === "binder");
     showFilterCount();
@@ -359,11 +363,12 @@ export function createBuyCards(options: Options) {
   }
 
   async function check(targets: Map<string, PricingTarget>, kind: CheckKind = "manual") {
-    if (!targets.size || job && job.kind !== "refresh") return;
+    const enabled = options.enabledStores();
+    if (!enabled?.length || !targets.size || job && job.kind !== "refresh") return;
     if (job) cancelChecks();
     if (kind !== "refresh") refreshPaused = false;
 
-    const work = [...targets].map(([key, target]): CheckWork => ({ key, target }));
+    const work = [...targets].map(([key, target]): CheckWork => ({ key, target, stores: enabled }));
     const deferred: (CheckWork & { resumeAt: number })[] = [];
     const lookup: CheckJob = {
       kind, controller: new AbortController(), keys: new Set(targets.keys()),
@@ -433,7 +438,7 @@ export function createBuyCards(options: Options) {
           return;
         }
         const delays = result?.storeRetryAfter ?? {};
-        const waiting = buyingStores.filter(shop => delays[shop] > 0);
+        const waiting = item.stores.filter(shop => delays[shop] > 0);
         if (waiting.length) {
           const seconds = Math.min(...waiting.map(shop => delays[shop]));
           deferred.push({ ...item, stores: waiting, resumeAt: finished + seconds * 1_000, unavailable });
@@ -615,8 +620,27 @@ export function createBuyCards(options: Options) {
   });
 
   return {
-    readOffers: quotes.read,
-    checkOffers: quotes.check,
+    async readOffers(target: PricingTarget) {
+      const stores = options.enabledStores();
+      if (!stores?.length) return;
+      const data = await quotes.read(target);
+      return data && offersForStores(data, stores);
+    },
+    checkOffers(target: PricingTarget, lookup: { force?: boolean; signal?: AbortSignal } = {}) {
+      return quotes.check(target, { ...lookup, stores: options.enabledStores() ?? [] });
+    },
+    retailersChanged() {
+      cancelChecks();
+      const enabled = options.enabledStores();
+      storeNotice.hidden = enabled !== undefined && enabled.length > 0;
+      node("store-status-text").textContent = enabled ? "Retailer checks are off." : "Retailer choices are loading or unavailable.";
+      const previous = store.value;
+      store.replaceChildren(new Option("All enabled stores", ""), ...(enabled ?? []).map(shop =>
+        new Option(shop + (isCrossBorder(shop) ? " (cross-border)" : ""), shop)));
+      if (enabled?.some(shop => shop === previous)) store.value = previous;
+      for (const field of [store, maxPrice, condition, availability]) field.disabled = !enabled?.length;
+      draw();
+    },
     inspectCatalog(target: PricingTarget, restoreFocus: () => void) {
       clearInspection();
       restoreCatalogFocus = restoreFocus;
