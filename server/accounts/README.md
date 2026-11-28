@@ -75,7 +75,7 @@ Authentication discovery and mutations share a same-origin Web Lock across tabs 
 
 ## Utility admin
 
-Open `/account/admin/` with an authorized utility account. The dashboard counts account registrations, live sessions, and current saves. Recent utility activity counts accounts with a changed save in the last 30 days. The directory opens an account's sign-in metadata, current saves, client counts, recovery copies, and Binder stock-alert preferences and send attempts when available. JSON downloads contain the complete stored save. Guest saves, unsynced edits and Screen Cut Calculator settings remain on their original devices.
+Open `/account/admin/` with an authorized utility account. The overview shows account and sync activity and the latest available Binder market price snapshot dates. The directory opens an account's sign-in metadata, client counts, current saves, recovery copies, saved retailer preferences, stock-alert settings and send attempts, and public binder link status. The admin response exposes only whether a link is active. The same read-only viewer renders current and historical saves with searchable records and local utility catalogs. Download original JSON retrieves the exact stored save. Guest saves, unsynced edits and Screen Cut Calculator settings remain on their devices.
 
 The API opens only with live accounts and a private allowlist. It uses the existing account database and requires no schema change. Provision access after verifying the existing operator's account UUID against their verified email:
 

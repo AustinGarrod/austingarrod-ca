@@ -78,13 +78,19 @@ function binder_market_metric(string $field): int
     };
 }
 
+function binder_market_latest_snapshot(PDO $db): ?array
+{
+    $row = $db->query('SELECT day, observed_at FROM market_snapshots ORDER BY day DESC LIMIT 1')->fetch();
+    return $row === false ? null : $row;
+}
+
 /** A read transaction keeps the latest snapshot and its observations consistent. */
 function binder_market_read(PDO $db, array $set, ?array $history): array
 {
     $db->beginTransaction();
     try {
-        $newest = $db->query('SELECT day, observed_at FROM market_snapshots ORDER BY day DESC LIMIT 1')->fetch();
-        if ($newest === false) {
+        $newest = binder_market_latest_snapshot($db);
+        if ($newest === null) {
             return ['asOf' => null, $history === null ? 'prices' : 'points' => []];
         }
         $asOf = $newest['observed_at'];

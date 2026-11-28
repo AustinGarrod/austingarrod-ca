@@ -1,4 +1,6 @@
 import { APIError, refreshSession, requestUtilityAdmin, subscribeSession, type AccountSession } from "../../../packages/accounts/client";
+import { item } from "./admin-save-table";
+import { retailerFields, savedDataView, type BinderShare, type SavedVersion } from "./admin-save-view";
 
 interface Account {
   id: string;
@@ -7,22 +9,14 @@ interface Account {
 }
 interface DirectoryAccount extends Account { saves: number; lastSavedAt: string | null }
 interface Directory { users: DirectoryAccount[]; next: string | null }
+interface PricingSnapshot { status: "available" | "empty" | "unavailable"; asOf: string | null }
 interface Overview {
   accounts: number;
   newAccounts: number;
   signedIn: number;
   saves: number;
   apps: Record<string, { accounts: number; saves: number; recentlySynced: number }>;
-}
-interface SavedVersion {
-  id: string;
-  app: string;
-  document: string;
-  revision: number;
-  schemaVersion: number;
-  bytes: number;
-  date: string;
-  label: string | null;
+  pricing: Record<"tcgplayer" | "cardmarket", PricingSnapshot>;
 }
 interface StockAlert {
   store: string;
@@ -37,6 +31,8 @@ interface AccountDetails {
   lastSessionAt: string | null;
   activeSessions: number;
   stockAlerts: StockAlert[];
+  binderShares: BinderShare[] | null;
+  retailerPreferences: { mode: "all" | "selected"; stores: string[] } | null;
   saves: Array<SavedVersion & { clients: number }>;
   recoveryCount: number;
 }
@@ -50,8 +46,8 @@ const detail = element("detail");
 const users = element("users");
 const documents = element("documents");
 const recovery = element("recovery");
-const inspector = element<HTMLDialogElement>("inspector");
-const inspectorJson = element("inspector-json");
+const inspector = element("inspector");
+const inspectorContent = element("inspector-content");
 const download = element<HTMLButtonElement>("download");
 const search = element<HTMLInputElement>("search");
 const appFilter = element<HTMLSelectElement>("app-filter");
@@ -63,7 +59,7 @@ const detailRefresh = element<HTMLButtonElement>("detail-refresh");
 const appCards = [...document.querySelectorAll<HTMLElement>("[data-admin-app]")];
 const appNames = new Map(appCards.map(card => [card.dataset.adminApp!, card.dataset.title!]));
 const documentNames: Record<string, string> = {
-  binder: "National Dex binder", "master-sets": "Named set binders", progress: "Progress",
+  binder: "National Dex binder", "master-sets": "Named set binders", preferences: "Retailer preferences", progress: "Progress",
   intentions: "Intentions", checkpoints: "Checkpoints", comparison: "Saved comparison", measurements: "Measurements",
 };
 const number = new Intl.NumberFormat();
@@ -84,13 +80,11 @@ let recoveryCursor: SavedVersion | null = null;
 let recoveryCount = 0;
 let inspectedData: SavedData | null = null;
 let directoryTrigger: HTMLButtonElement | null = null;
-
-function item<K extends keyof HTMLElementTagNameMap>(tag: K, text = "", className = ""): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (text) node.textContent = text;
-  if (className) node.className = className;
-  return node;
-}
+let inspectorTrigger: HTMLButtonElement | null = null;
+let accountScroll = 0;
+let inspectorRequest: AbortController | null = null;
+let inspectorBack: (() => void) | undefined;
+let binderShares: BinderShare[] | null = null;
 
 function dateLabel(value: string | null, formatter = day): HTMLElement {
   if (!value) return item("span", "—");
@@ -113,15 +107,20 @@ function messageFor(error: unknown): string {
 
 function closeInspector(): void {
   ++inspectorGeneration;
+  inspectorRequest?.abort();
+  inspectorRequest = null;
+  inspectorBack = undefined;
+  inspectorTrigger = null;
   inspectedData = null;
-  inspectorJson.replaceChildren();
-  inspectorJson.hidden = true;
+  inspectorContent.replaceChildren();
   download.hidden = true;
   element("inspector-title").textContent = "Saved data";
+  element("inspector-back-label").textContent = "Back to account";
   element("inspector-context").textContent = "";
+  element("inspector-account").textContent = "";
   element("inspector-meta").textContent = "";
   setMessage("inspector-status", "");
-  if (inspector.open) inspector.close();
+  inspector.hidden = true;
 }
 
 function clearDetail(): void {
@@ -131,11 +130,14 @@ function clearDetail(): void {
   selectedAccount = null;
   recoveryCursor = null;
   recoveryCount = 0;
+  binderShares = null;
   closeInspector();
   for (const id of ["user-email", "user-id", "user-created", "user-providers", "user-seen", "user-sessions"]) element(id).replaceChildren();
   setMessage("detail-status", "");
   setMessage("recovery-status", "");
   documents.replaceChildren();
+  element("binder-settings").hidden = true;
+  for (const id of ["retailers", "shares", "sharing-status"]) element(id).replaceChildren();
   element("stock-alert-list").replaceChildren();
   element("stock-alerts").hidden = true;
   recovery.replaceChildren();
@@ -188,6 +190,11 @@ async function loadOverview(session: AccountSession, initial = false): Promise<v
     element("new").textContent = number.format(result.newAccounts);
     element("active").textContent = number.format(result.signedIn);
     element("saves").textContent = number.format(result.saves);
+    for (const source of ["tcgplayer", "cardmarket"] as const) {
+      const snapshot = result.pricing?.[source];
+      element(`pricing-${source}`).replaceChildren(snapshot?.status === "available" && snapshot.asOf && Number.isFinite(Date.parse(snapshot.asOf))
+        ? dateLabel(snapshot.asOf, time) : snapshot?.status === "empty" ? "No snapshot published" : "Snapshot unavailable");
+    }
     for (const card of appCards) {
       const app = result.apps[card.dataset.adminApp!];
       card.querySelector("[data-accounts]")!.textContent = number.format(app.accounts);
@@ -288,7 +295,7 @@ function recordRow(account: Account, version: SavedVersion & { clients?: number 
   const open = item("button", version.label ? "View copy" : "View save", "button secondary");
   open.type = "button";
   open.setAttribute("aria-label", `View ${title}${version.label ? ` recovery copy, revision ${version.revision}` : " save"}`);
-  open.addEventListener("click", () => void inspect(account, version));
+  open.addEventListener("click", () => void inspect(account, version, open));
   row.append(content, open);
   return row;
 }
@@ -328,6 +335,32 @@ function renderStockAlerts(alerts: StockAlert[]): void {
   });
   element("stock-alert-list").replaceChildren(...rows);
   element("stock-alerts").hidden = !rows.length;
+}
+
+function renderBinderSettings(result: AccountDetails): void {
+  binderShares = result.binderShares ?? null;
+  const hasBinder = result.saves.some(save => save.app === "pokedex-binder") || result.stockAlerts.length || binderShares?.length;
+  const panel = element("binder-settings");
+  panel.hidden = !hasBinder;
+  if (!hasBinder) return;
+  const preferences = result.retailerPreferences;
+  const retailer = element("retailers");
+  retailer.replaceChildren(item("h3", "Retailer lookup settings"));
+  retailer.append(preferences ? retailerFields(preferences.mode, preferences.stores)
+    : item("p", "Account default · All supported retailers"));
+  const shares = element("shares");
+  for (const share of binderShares ?? []) {
+    const row = item("li");
+    const name = share.name ?? (share.binderKey === "national" ? "National Dex binder" : "Removed or unavailable binder");
+    const status = item("span", share.active ? "Link active" : "Revoked");
+    const label = item("div");
+    label.append(item("strong", name));
+    if (!share.name && share.binderKey !== "national") label.append(item("p", share.binderKey, "admin-record-meta"));
+    row.append(label, status);
+    shares.append(row);
+  }
+  setMessage("sharing-status", binderShares === null ? "Sharing status is unavailable."
+    : binderShares.length ? "" : "No public links have been created.");
 }
 
 async function loadRecovery(account: Account): Promise<void> {
@@ -382,6 +415,7 @@ async function openAccount(account: Account, focus = true): Promise<void> {
     element("user-sessions").textContent = number.format(result.activeSessions);
     recoveryCount = result.recoveryCount;
     renderDocuments(result.account, result.saves);
+    renderBinderSettings(result);
     renderStockAlerts(result.stockAlerts);
     setMessage("detail-status", "");
     element("detail-content").hidden = false;
@@ -395,35 +429,53 @@ async function openAccount(account: Account, focus = true): Promise<void> {
   }
 }
 
-async function inspect(account: Account, version: SavedVersion): Promise<void> {
+async function inspect(account: Account, version: SavedVersion, trigger: HTMLButtonElement): Promise<void> {
   const session = viewer;
   if (!session?.user) return;
   closeInspector();
   const generation = inspectorGeneration;
+  const request = new AbortController();
+  inspectorRequest = request;
+  inspectorTrigger = trigger;
+  accountScroll = window.scrollY;
   element("inspector-title").textContent = recordName(version);
   element("inspector-context").textContent = `${appNames.get(version.app) ?? version.app} · ${version.label ? copyLabel(version.label) : "Current save"}`;
+  element("inspector-account").textContent = account.email;
   setMessage("inspector-status", "Loading saved data…");
-  inspector.showModal();
+  detail.hidden = true;
+  inspector.hidden = false;
+  element("inspector-title").focus({ preventScroll: true });
+  window.scrollTo({ top: 0, behavior: "instant" });
   try {
     const result = await requestUtilityAdmin<SavedData>(session.user.id, version.label ? "snapshot" : "save", { userId: account.id, id: version.id });
-    if (generation !== inspectorGeneration || !inspector.open) return;
+    if (generation !== inspectorGeneration) return;
     const { save, json } = result;
-    const maxPreview = 40_000;
-    const preview = json.length <= maxPreview ? JSON.stringify(JSON.parse(json), null, 2) : json;
-    const truncated = preview.length > maxPreview;
     element("inspector-meta").replaceChildren(`Revision ${number.format(save.revision)} · Schema ${save.schemaVersion} · ${bytesLabel(save.bytes)} · `, dateLabel(save.date, time));
-    inspectorJson.textContent = preview.slice(0, maxPreview);
-    inspectorJson.hidden = false;
-    setMessage("inspector-status", truncated ? "Showing the first 40,000 characters. Download the JSON for the complete save." : "");
     inspectedData = result;
     download.hidden = false;
+    const content = await savedDataView(save, json, {
+      signal: request.signal, shares: binderShares, historical: save.label !== null,
+      selectBinder(name, back) {
+        inspectorBack = back;
+        const title = element("inspector-title");
+        title.textContent = name ?? recordName(version);
+        element("inspector-back-label").textContent = back ? "Back to named binders" : "Back to account";
+        if (name !== null) {
+          title.focus({ preventScroll: true });
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+      },
+    }).catch(() => null);
+    if (generation !== inspectorGeneration) return;
+    setMessage("inspector-status", content ? "" : "This saved format cannot be displayed. Download the original JSON to access the stored data.");
+    if (content) inspectorContent.replaceChildren(...content);
   } catch (error) {
-    if (generation === inspectorGeneration && inspector.open && !handleAccess(error)) setMessage("inspector-status", messageFor(error));
+    if (generation === inspectorGeneration && !handleAccess(error)) setMessage("inspector-status", messageFor(error));
   }
 }
 
 function saveDownload(): void {
-  if (!inspectedData || !inspector.open) return;
+  if (!inspectedData || inspector.hidden) return;
   const { json, save } = inspectedData;
   const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
   const link = item("a");
@@ -469,8 +521,17 @@ element("back").addEventListener("click", () => {
   directoryTrigger = null;
 });
 element("retry").addEventListener("click", connect);
-element("inspector-close").addEventListener("click", closeInspector);
-inspector.addEventListener("close", () => { if (!inspector.open) closeInspector(); });
+element("inspector-close").addEventListener("click", () => {
+  if (inspectorBack) {
+    inspectorBack();
+    return;
+  }
+  const trigger = inspectorTrigger;
+  closeInspector();
+  detail.hidden = false;
+  (trigger?.isConnected ? trigger : element("user-email")).focus({ preventScroll: true });
+  window.scrollTo({ top: accountScroll, behavior: "instant" });
+});
 download.addEventListener("click", saveDownload);
 window.addEventListener("pagehide", () => showGate("Checking admin access…"));
 window.addEventListener("pageshow", event => { if (event.persisted) connect(); });

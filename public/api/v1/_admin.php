@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__.'/_common.php';
 require_once __DIR__.'/_validators.php';
+require_once __DIR__.'/_binder-shares.php';
+require_once dirname(__DIR__, 2).'/utilities/pokemon-binder/api/_market.php';
 
 const ADMIN_USER_PAGE_SIZE = 20;
 const ADMIN_RECOVERY_PAGE_SIZE = 15;
@@ -81,6 +83,22 @@ function accounts_admin_timestamp(?string $value): ?string
     return $value === null ? null : str_replace(' ', 'T', $value).'Z';
 }
 
+function accounts_admin_pricing(string $webroot): array
+{
+    $prices = [];
+    foreach (['tcgplayer', 'cardmarket'] as $source) {
+        try {
+            $file = binder_market_cache_path($webroot, $source);
+            $snapshot = $file !== null && is_file($file)
+                ? binder_market_latest_snapshot(binder_market_connect($file, true)) : null;
+            $prices[$source] = ['status' => $snapshot === null ? 'empty' : 'available', 'asOf' => $snapshot['observed_at'] ?? null];
+        } catch (Throwable) {
+            $prices[$source] = ['status' => 'unavailable', 'asOf' => null];
+        }
+    }
+    return $prices;
+}
+
 function accounts_admin_users(PDO $db, stdClass $body): array
 {
     $search = $body->search ?? '';
@@ -123,12 +141,45 @@ function accounts_admin_account(PDO $db, string $user): array
         FROM accounts_documents d WHERE d.user_id=? ORDER BY d.app,d.document', [$user])->fetchAll();
     $account['createdAt'] = accounts_admin_timestamp($account['created_at']);
     unset($account['created_at']);
+    $preferences = accounts_query($db, "SELECT state_json FROM accounts_documents
+        WHERE user_id=? AND app='pokedex-binder' AND document='preferences'", [$user])->fetchColumn();
     return ['account' => $account, 'providers' => $providers,
         'lastSessionAt' => $session['lastSeen'] === null ? null : gmdate('c', (int)$session['lastSeen']),
         'activeSessions' => (int)$session['active'],
         'stockAlerts' => accounts_admin_stock_alerts($db, $user),
+        'binderShares' => accounts_admin_binder_shares($db, $user),
+        'retailerPreferences' => $preferences === false ? null : json_decode($preferences, false, 16, JSON_THROW_ON_ERROR),
         'saves' => array_map(fn (array $row) => accounts_admin_save_metadata($row, false) + ['clients' => (int)$row['clients']], $rows),
         'recoveryCount' => (int)accounts_query($db, 'SELECT COUNT(*) FROM accounts_recovery WHERE user_id=?', [$user])->fetchColumn()];
+}
+
+function accounts_admin_binder_shares(PDO $db, string $user): ?array
+{
+    try {
+        $rows = accounts_query($db, 'SELECT binder_key, token IS NOT NULL AS active
+            FROM accounts_binder_shares WHERE user_id=? ORDER BY active DESC,binder_key', [$user])->fetchAll();
+    } catch (PDOException $error) {
+        if (($error->errorInfo[0] ?? '') === '42S02' && (int)($error->errorInfo[1] ?? 0) === 1146) return null;
+        throw $error;
+    }
+    if (!$rows) return [];
+
+    $documents = accounts_query($db, "SELECT document,schema_version,state_json FROM accounts_documents
+        WHERE user_id=? AND app='pokedex-binder' AND document IN ('binder','master-sets')", [$user])->fetchAll();
+    $names = [];
+    foreach ($documents as $row) {
+        if ((int)$row['schema_version'] !== 1) continue;
+        $state = json_decode($row['state_json'], false, 64, JSON_THROW_ON_ERROR);
+        if ($row['document'] === 'binder') {
+            if (binder_share_national_enabled($state)) $names['national'] = 'National Dex binder';
+        } else {
+            foreach ($state->binders as $binder) $names[$binder->id] = $binder->name;
+        }
+    }
+    return array_map(static fn (array $row) => [
+        'binderKey' => $row['binder_key'], 'active' => (bool)$row['active'],
+        'name' => $names[$row['binder_key']] ?? null,
+    ], $rows);
 }
 
 function accounts_admin_stock_alerts(PDO $db, string $user): array

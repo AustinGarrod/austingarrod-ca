@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/public/utilities/pokemon-binder/api/_market.php';
 require_once dirname(__DIR__, 2) . '/server/pokedex-binder/refresh-market.php';
 require_once dirname(__DIR__, 2) . '/server/pokedex-binder/refresh-tcgplayer-market.php';
+require_once dirname(__DIR__, 2) . '/public/api/v1/_admin.php';
 
 function verify_market(mixed $expected, mixed $actual): void
 {
@@ -83,6 +84,24 @@ try {
     ]], binder_market_read($reader, $set, ['001', 'reverse', 90]));
     verify_market(['asOf' => $published, 'points' => []], binder_market_read($reader, $set, ['002', 'holo', 90]));
     verify_market(3, $reader->query('SELECT COUNT(*) FROM market_snapshots')->fetchColumn());
+    $webroot = dirname(__DIR__, 2) . '/public';
+    $previousTcgplayer = getenv('POKEMON_BINDER_TCGPLAYER_CACHE');
+    $previousCardmarket = getenv('POKEMON_BINDER_MARKET_CACHE');
+    try {
+        putenv('POKEMON_BINDER_TCGPLAYER_CACHE='.$file);
+        putenv('POKEMON_BINDER_MARKET_CACHE='.$file.'-missing');
+        verify_market([
+            'tcgplayer' => ['status' => 'available', 'asOf' => $published],
+            'cardmarket' => ['status' => 'empty', 'asOf' => null],
+        ], accounts_admin_pricing($webroot));
+        file_put_contents($file.'-invalid', 'This fixture is not a SQLite database.');
+        putenv('POKEMON_BINDER_TCGPLAYER_CACHE='.$file.'-invalid');
+        verify_market(['status' => 'unavailable', 'asOf' => null], accounts_admin_pricing($webroot)['tcgplayer']);
+    } finally {
+        if (is_file($file.'-invalid')) unlink($file.'-invalid');
+        putenv($previousTcgplayer === false ? 'POKEMON_BINDER_TCGPLAYER_CACHE' : 'POKEMON_BINDER_TCGPLAYER_CACHE='.$previousTcgplayer);
+        putenv($previousCardmarket === false ? 'POKEMON_BINDER_MARKET_CACHE' : 'POKEMON_BINDER_MARKET_CACHE='.$previousCardmarket);
+    }
 } finally {
     unset($reader, $writer);
     unlink($file);

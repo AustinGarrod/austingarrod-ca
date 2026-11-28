@@ -46,7 +46,7 @@ try {
 
     switch ($action) {
         case 'overview':
-            $result = accounts_admin_overview($db);
+            $result = accounts_admin_overview($db) + ['pricing' => accounts_admin_pricing($webroot)];
             break;
         case 'users':
             $result = accounts_admin_users($db, $body);
@@ -55,7 +55,7 @@ try {
         case 'recovery':
             $target = accounts_id($body->userId ?? null);
             $result = $action === 'account'
-                ? accounts_admin_account($db, $target)
+                ? accounts_transaction($db, fn () => accounts_admin_account($db, $target))
                 : accounts_admin_recovery($db, $target, $body);
             break;
         case 'save':

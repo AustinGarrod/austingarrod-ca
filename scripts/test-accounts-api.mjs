@@ -20,7 +20,8 @@ const database = `accounts_test_${Date.now()}_${randomBytes(4).toString('hex')}`
 mkdirSync(join(root, 'tmp'), { recursive: true });
 const temporary = mkdtempSync(join(root, 'tmp/accounts-api-'));
 const configFile = join(temporary, 'private-config.php');
-const env = { ...process.env, ACCOUNTS_CONFIG: configFile, ACCOUNTS_TEST_DATABASE: database, REPORTING_DSN: '' };
+const env = { ...process.env, ACCOUNTS_CONFIG: configFile, ACCOUNTS_TEST_DATABASE: database, REPORTING_DSN: '',
+  POKEMON_BINDER_MARKET_CACHE: join(temporary, 'cardmarket.sqlite'), POKEMON_BINDER_TCGPLAYER_CACHE: join(temporary, 'tcgplayer.sqlite') };
 if (!env.OPENSSL_CONF && process.platform === 'win32' && existsSync('C:/Program Files/Git/usr/ssl/openssl.cnf')) env.OPENSSL_CONF = 'C:/Program Files/Git/usr/ssl/openssl.cnf';
 const databaseCommand = (action, fixture = {}) => execFileSync(php, [...flags, join(root, 'tests/accounts/database.php'), action], { env: { ...env, ...fixture }, stdio: ['ignore', 'pipe', 'pipe'] });
 const messages = [];
@@ -160,7 +161,18 @@ async function testBinderSharing(other) {
     { id: snapshot.id, baseRevision: 2, clientId: client, operationId: randomUUID() })).status, 200);
   assert.equal((await read(sharedSet.data.token)).status, 404);
   assert.deepEqual((await manage(owner, undefined, { binder: set.id })).data, { version: 2, token: null });
+  const active = await manage(owner, { ...publishNational, version: 4, documentRevision: 4 });
+  assert.equal(active.status, 200);
+  assert.match(active.data.token, /^pbs_[a-f0-9]{64}$/);
+  for (const [index, stores] of [['401 Games'], []].entries()) {
+    const alertPreferences = { schemaVersion: 1, mode: 'selected', stores };
+    assert.equal((await request(owner, 'sync', 'write', {
+      ...write(alertPreferences, index, client, index + 1), document: 'preferences',
+    })).status, 200);
+    assert.equal((await read(active.data.token)).status, 200, 'Changing retailer preferences must preserve a live link');
+  }
   console.log('Binder sharing: owner controls, cookie-free projection, live sync, revocation, and restoration passed.');
+  return { userId: owner.session.user.id, setId: set.id, token: active.data.token };
 }
 
 async function testBinderStockAlerts(other) {
@@ -316,7 +328,7 @@ try {
   assert.equal((await request(a, 'auth', 'email-verify', proof)).status, 401, 'OTP replay must fail after session rotation');
   await login(b, 'two@example.test');
   const stockAlertsUserId = await testBinderStockAlerts(b);
-  await testBinderSharing(b);
+  const sharedAccount = await testBinderSharing(b);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId }, { 'X-Account-ID': b.session.user.id })).status, 409);
   assert.equal((await request(a, 'sync', 'read', undefined, { app, document, clientId })).data.document, null);
   const first = write(binder([1]), 0, clientId); let response = await request(a, 'sync', 'write', first); assert.equal(response.status, 200, JSON.stringify(response.data)); assert.equal(response.data.document.revision, 1);
@@ -499,6 +511,9 @@ try {
     assert.equal(overview.status, 200, JSON.stringify(overview.data));
     assert.equal(overview.data.apps['radius-map'].accounts, 1);
     assert.equal(overview.data.apps['radius-map'].recentlySynced, 1);
+    assert.deepEqual(overview.data.pricing, {
+      tcgplayer: { status: 'empty', asOf: null }, cardmarket: { status: 'empty', asOf: null },
+    });
     assert.equal(overview.headers.get('referrer-policy'), 'no-referrer');
     const directory = await admin(b, 'users', { app: 'radius-map' });
     assert.deepEqual(directory.data.users.map(user => user.id), [userId]);
@@ -507,6 +522,8 @@ try {
     const account = await admin(b, 'account', { userId });
     assert.equal(account.data.account.id, userId);
     assert.deepEqual(account.data.stockAlerts, []);
+    assert.deepEqual(account.data.binderShares, []);
+    assert.deepEqual(account.data.retailerPreferences, { schemaVersion: 1, mode: 'selected', stores: [] });
     const saved = account.data.saves.find(save => save.app === 'radius-map');
     assert.equal(saved.revision, 2);
     assert.equal(Object.hasOwn(saved, 'json'), false);
@@ -538,12 +555,21 @@ try {
     ]);
     assert.ok(alertAccount.stockAlerts[1].lastSendAttemptAt);
     assert.deepEqual(Object.keys(alertAccount.stockAlerts[1]).sort(), ['enabled', 'lastCheckedAt', 'lastSendAttemptAt', 'minimum', 'store']);
+    assert.equal(alertAccount.retailerPreferences, null, 'No document is distinct from an explicitly empty selection');
+    const adminShare = await admin(b, 'account', { userId: sharedAccount.userId });
+    assert.equal(adminShare.status, 200);
+    assert.deepEqual(adminShare.data.binderShares, [
+      { binderKey: 'national', active: true, name: 'National Dex binder' },
+      { binderKey: sharedAccount.setId, active: false, name: 'Shared 151' },
+    ]);
+    assert.doesNotMatch(JSON.stringify(adminShare.data), /pbs_[a-f0-9]{64}|"token"/);
+    assert.ok(!readFileSync(auditPath, 'utf8').includes(sharedAccount.token));
     const events = readFileSync(auditPath, 'utf8').trim().split('\n').map(line => JSON.parse(line));
     assert.deepEqual(events.slice(0, 5).map(event => event.action), ['overview', 'users', 'users', 'users', 'account']);
-    assert.ok(events.slice(5, -3).every(event => event.action === 'recovery'));
-    assert.deepEqual(events.slice(-3).map(event => event.action), ['save', 'snapshot', 'account']);
+    assert.ok(events.slice(5, -4).every(event => event.action === 'recovery'));
+    assert.deepEqual(events.slice(-4).map(event => event.action), ['save', 'snapshot', 'account', 'account']);
     assert.ok(events.every(event => event.operator === operatorId && !JSON.stringify(event).includes('@')));
-    assert.equal(events.at(-2).record, copy.data.snapshot.id);
+    assert.equal(events.at(-3).record, copy.data.snapshot.id);
     writeFileSync(allowlist, '{"operators":[]}');
     assert.equal((await admin(b, 'overview')).status, 503, 'Removing the private allowlist takes effect on the next request');
   }

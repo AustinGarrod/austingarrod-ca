@@ -1,5 +1,5 @@
 ---
-import { ArrowLeft, ArrowRight, BookOpen, Download, MapPin, RefreshCw, ShieldCheck, Swords, X } from "@lucide/astro";
+import { ArrowLeft, ArrowRight, BookOpen, Download, MapPin, RefreshCw, ShieldCheck, Swords } from "@lucide/astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { accountHref } from "../../../../packages/accounts/client";
 import "@styles/utility-admin.css";
@@ -62,6 +62,7 @@ const signIn = accountHref("/account/admin/");
                 <div><dt>Accounts that saved · 30 days</dt><dd data-recent>—</dd></div>
               </dl>
               <button class="admin-link" type="button" data-filter-app={id}>View accounts <ArrowRight size={16} aria-hidden="true" /></button>
+              {id === "pokedex-binder" && <a class="admin-link admin-pricing-link" href="#admin-pricing-heading">Pricing snapshots <ArrowRight size={16} aria-hidden="true" /></a>}
             </li>
           ))}
         </ul>
@@ -87,6 +88,16 @@ const signIn = accountHref("/account/admin/");
           </div>
         </div>
       </section>
+      <section class="admin-panel" aria-labelledby="admin-pricing-heading">
+        <div class="admin-section-heading">
+          <h2 id="admin-pricing-heading" tabindex="-1">Binder pricing snapshots</h2>
+          <p>Latest price data available to Pokémon Binder.</p>
+        </div>
+        <dl class="admin-facts admin-pricing-facts">
+          <div><dt>TCGplayer</dt><dd id="admin-pricing-tcgplayer"></dd></div>
+          <div><dt>Cardmarket · legacy</dt><dd id="admin-pricing-cardmarket"></dd></div>
+        </dl>
+      </section>
     </div>
 
     <div class="admin-view" id="admin-detail" hidden>
@@ -109,9 +120,18 @@ const signIn = accountHref("/account/admin/");
         <section class="admin-panel" aria-labelledby="admin-documents-heading">
           <div class="admin-section-heading">
             <h2 id="admin-documents-heading">Current saves</h2>
-            <p>Open a save to inspect its synced data or download its JSON.</p>
+            <p>Open a save to inspect its synced data.</p>
           </div>
           <div id="admin-documents"></div>
+        </section>
+        <section class="admin-panel" id="admin-binder-settings" aria-labelledby="admin-binder-settings-heading" hidden>
+          <div class="admin-section-heading"><h2 id="admin-binder-settings-heading">Pokémon Binder settings</h2></div>
+          <div id="admin-retailers"></div>
+          <div class="admin-share-settings">
+            <h3>Public sharing</h3>
+            <p id="admin-sharing-status"></p>
+            <ul class="admin-records" id="admin-shares"></ul>
+          </div>
         </section>
         <section class="admin-panel" id="admin-stock-alerts" aria-labelledby="admin-stock-alerts-heading" hidden>
           <div class="admin-section-heading"><h2 id="admin-stock-alerts-heading">Binder stock alerts</h2></div>
@@ -127,22 +147,22 @@ const signIn = accountHref("/account/admin/");
         </section>
       </div>
     </div>
+    <section class="admin-view" id="admin-inspector" aria-labelledby="admin-inspector-title" hidden>
+      <button class="admin-link admin-back" type="button" id="admin-inspector-close"><ArrowLeft size={17} aria-hidden="true" /><span id="admin-inspector-back-label">Back to account</span></button>
+      <div class="admin-titlebar admin-save-titlebar">
+        <div>
+          <p id="admin-inspector-context"></p>
+          <h1 id="admin-inspector-title" tabindex="-1">Saved data</h1>
+          <p id="admin-inspector-account"></p>
+          <p id="admin-inspector-meta" class="admin-record-meta"></p>
+        </div>
+        <button class="button secondary" type="button" id="admin-download" hidden><Download size={17} aria-hidden="true" />Download original JSON</button>
+      </div>
+      <p class="admin-notice" id="admin-inspector-status" role="status" hidden></p>
+      <div class="admin-view" id="admin-inspector-content"></div>
+    </section>
     <p class="admin-notice admin-error" id="admin-error" role="alert" hidden></p>
   </div>
-
-  <dialog id="admin-inspector" class="admin-inspector rr-block" data-analytics-private aria-labelledby="admin-inspector-title">
-    <div class="admin-inspector-body">
-      <div class="admin-inspector-header">
-        <div><h2 id="admin-inspector-title">Saved data</h2><p id="admin-inspector-context"></p><p id="admin-inspector-meta"></p></div>
-        <button class="button secondary admin-close" type="button" id="admin-inspector-close" aria-label="Close saved data"><X size={20} aria-hidden="true" /></button>
-      </div>
-      <p id="admin-inspector-status" role="status"></p>
-      <pre tabindex="0" aria-label="Saved JSON" id="admin-inspector-json" hidden></pre>
-      <div class="admin-inspector-actions">
-        <button class="button primary" type="button" id="admin-download" hidden><Download size={17} aria-hidden="true" />Download JSON</button>
-      </div>
-    </div>
-  </dialog>
   <script>
     import "../../../utilities/accounts/admin-page";
   </script>

@@ -806,6 +806,31 @@ try {
       data: { revision, alerts: [{ store: '401 Games', minimum: 2 }] },
     });
     assert.equal(updatedAlerts.status(), 200);
+    const national = await remote(desktop, 'pokedex-binder', 'binder');
+    const shareUrl = origin + '/api/v1/sync.php?action=binder-share';
+    const priorShare = await desktop.request.get(shareUrl + '&binder=national', { headers: customerHeaders });
+    assert.equal(priorShare.status(), 200);
+    const share = await desktop.request.post(shareUrl, {
+      headers: { ...customerHeaders, Origin: origin, 'X-CSRF-Token': customer.csrfToken },
+      data: { binder: 'national', action: 'publish', version: (await priorShare.json()).version, documentRevision: national.revision },
+    });
+    assert.equal(share.status(), 200);
+    const namedSets = await remote(desktop, 'pokedex-binder', 'master-sets');
+    for (const includeRelated of [false, true]) {
+      namedSets.state.binders.push({
+        id: randomUUID(), setId: 'swsh9', name: includeRelated ? 'Related layout on' : 'Related layout off',
+        goal: 'variants', order: 'together', owned: [], extras: [], specialties: [],
+        settings: { rows: 4, columns: 4, useBackSides: true, leadingBlankPockets: 0,
+          ...(includeRelated ? { includeRelated: true } : {}),
+          sectionLayout: [{ id: 'swsh9tg', newPage: true }, { id: 'swsh9' }] },
+      });
+    }
+    const fixtureBinders = await desktop.request.post(origin + '/api/v1/sync.php?action=write', {
+      headers: { ...customerHeaders, Origin: origin, 'X-CSRF-Token': customer.csrfToken },
+      data: { app: namedSets.app, document: namedSets.document, state: namedSets.state, schemaVersion: namedSets.schemaVersion,
+        baseRevision: namedSets.revision, clientId: randomUUID(), mutationSequence: 1, operationId: randomUUID() },
+    });
+    assert.equal(fixtureBinders.status(), 200);
 
     const operatorContext = await makeContext('desktop', { width: 1440, height: 1000 });
     const operatorPage = await operatorContext.newPage();
@@ -822,6 +847,8 @@ try {
     const openUser = operatorPage.getByRole('button', { name: `Open ${email}` });
     await expect(overview).toBeVisible();
     await expect(openUser).toBeVisible();
+    await expect(operatorPage.getByRole('heading', { name: 'Binder pricing snapshots' })).toBeVisible();
+    await expect(operatorPage.getByRole('link', { name: 'Pricing snapshots' })).toHaveAttribute('href', '#admin-pricing-heading');
     await operatorPage.screenshot({ path: join(output, 'admin-desktop-overview.png'), fullPage: true });
     const emailSearch = operatorPage.getByRole('searchbox', { name: 'Email or account ID' });
     await emailSearch.fill(email);
@@ -834,23 +861,96 @@ try {
     const stockAlerts = operatorPage.getByRole('region', { name: 'Binder stock alerts' });
     await expect(stockAlerts).toContainText('401 Games');
     await expect(stockAlerts).toContainText('Minimum 2 cards');
+    await expect(operatorPage.locator('#admin-retailers')).toContainText('Deck Out Gaming');
+    const shares = operatorPage.locator('#admin-shares li');
+    await expect(shares.filter({ hasText: 'National Dex binder' })).toContainText('Link active');
+    await expect(shares.filter({ hasText: 'My 151' })).toContainText('Revoked');
+    await expect(operatorPage.locator('#admin-binder-settings')).not.toContainText(/pbs_[a-f0-9]{64}/);
     const viewSave = operatorPage.getByRole('button', { name: 'View Measurements save', exact: true });
-    const viewCopy = operatorPage.getByRole('button', { name: /recovery copy, revision/ }).first();
+    const viewCopy = operatorPage.getByRole('button', { name: /View Radius Map · Measurements recovery copy, revision/ }).first();
+    const backToAccount = operatorPage.getByRole('button', { name: 'Back to account', exact: true });
+    const viewer = operatorPage.locator('#admin-inspector');
+    const view = name => operatorPage.getByRole('button', { name: `View ${name} save`, exact: true });
     await expect(viewCopy).toBeVisible();
     await operatorPage.screenshot({ path: join(output, 'admin-desktop-account.png'), fullPage: true });
+    const response = operatorPage.waitForResponse(res => res.url().endsWith('/api/v1/admin.php') && res.request().postDataJSON()?.action === 'save');
     await viewSave.click();
-    const savedJson = operatorPage.locator('#admin-inspector-json');
-    await expect(savedJson).toContainText('measurements');
+    const rawSave = (await (await response).json()).json;
+    await expect(viewer.getByRole('heading', { name: 'Saved measurements' })).toBeVisible();
     await expect(operatorPage.locator('#admin-inspector-context')).toHaveText('Radius Map · Current save');
+    await expect(viewer.locator('pre')).toHaveCount(0);
     const downloadEvent = operatorPage.waitForEvent('download');
-    await operatorPage.getByRole('button', { name: 'Download JSON' }).click();
+    await operatorPage.getByRole('button', { name: 'Download original JSON' }).click();
     const downloaded = await downloadEvent;
-    assert.deepEqual(JSON.parse(readFileSync(await downloaded.path(), 'utf8')),
-      (await remote(desktop, 'radius-map', 'measurements')).state);
+    assert.equal(readFileSync(await downloaded.path(), 'utf8'), rawSave);
+    assert.deepEqual(JSON.parse(rawSave), (await remote(desktop, 'radius-map', 'measurements')).state);
     await operatorPage.screenshot({ path: join(output, 'admin-desktop-save.png') });
-    await operatorPage.keyboard.press('Escape');
-    await expect(savedJson).toBeEmpty();
+    await backToAccount.click();
+    await expect(operatorPage.locator('#admin-inspector-content')).toBeEmpty();
     await expect(viewSave).toBeFocused();
+
+    await view('National Dex binder').click();
+    const dexSearch = viewer.getByRole('searchbox', { name: 'Search by name or Dex number' });
+    const dexRows = viewer.getByRole('table', { name: 'Pokédex checklist' }).locator('tbody tr');
+    await expect(dexRows).toHaveCount(50);
+    await viewer.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(viewer.getByRole('status')).toContainText('Showing 51–100');
+    await expect(viewer.getByRole('heading', { name: 'Pokédex checklist' })).toBeFocused();
+    await dexSearch.fill('#1');
+    await expect(dexRows).toHaveCount(1);
+    await dexSearch.fill('Bulbasaur');
+    await expect(dexRows).toHaveCount(1);
+    await expect(dexRows).toContainText('Bulbasaur');
+    await backToAccount.click();
+    await operatorPage.route('**/utilities/pokedex-binder/catalog/index.json', route => route.abort());
+    await view('National Dex binder').click();
+    await expect(viewer).toContainText('Saved Dex numbers are still shown');
+    await expect(viewer).toContainText('Unlisted species');
+    await backToAccount.click();
+    await operatorPage.unroute('**/utilities/pokedex-binder/catalog/index.json');
+
+    await view('Named set binders').click();
+    await viewer.getByRole('button', { name: 'Open My 151' }).click();
+    await expect(viewer.getByRole('heading', { level: 1, name: 'My 151' })).toBeFocused();
+    await expect(viewer.getByRole('table', { name: 'Card checklist' })).toContainText('Ivysaur');
+    await expect(viewer.getByRole('table', { name: 'Card checklist' })).toContainText(/reverse holo/i);
+    await operatorPage.screenshot({ path: join(output, 'admin-desktop-binder.png') });
+    await operatorPage.setViewportSize({ width: 390, height: 844 });
+    await operatorPage.screenshot({ path: join(output, 'admin-mobile-binder.png') });
+    assert.equal(await operatorPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Mobile binder checklist horizontal overflow');
+    await operatorPage.setViewportSize({ width: 1440, height: 1000 });
+    await viewer.getByText('Binder settings and section layout', { exact: true }).click();
+    await expect(viewer.getByRole('table', { name: 'Section layout' })).toBeVisible();
+    await viewer.getByRole('button', { name: /Back to named binders/ }).click();
+    await expect(viewer.getByRole('button', { name: 'Open My 151' })).toBeFocused();
+    await viewer.getByRole('button', { name: 'Open Related layout off' }).click();
+    await viewer.getByText('Binder settings and section layout', { exact: true }).click();
+    await expect(viewer.getByRole('table', { name: 'Section layout', exact: true })).not.toContainText('Trainer Gallery');
+    await expect(viewer.getByRole('table', { name: 'Inactive related-set layout' })).toContainText('Brilliant Stars Trainer Gallery');
+    await viewer.getByRole('button', { name: /Back to named binders/ }).click();
+    const galleryFile = '**/catalog/master-sets/swsh9tg.json';
+    await operatorPage.route(galleryFile, route => route.abort());
+    await viewer.getByRole('button', { name: 'Open Related layout on' }).click();
+    await expect(viewer.getByRole('table', { name: 'Card checklist' })).toContainText('Exeggcute');
+    await expect(viewer).toContainText('Catalog unavailable for Brilliant Stars Trainer Gallery');
+    await expect(viewer.getByRole('heading', { name: 'Required card progress' })).toHaveCount(0);
+    await operatorPage.unroute(galleryFile);
+    await viewer.getByRole('button', { name: /Back to named binders/ }).click();
+    await backToAccount.click();
+
+    for (const [name, heading] of [['Retailer preferences', 'Retailer lookup settings'], ['Progress', 'Recorded progress'],
+      ['Intentions', 'Recipe plans'], ['Checkpoints', 'Progress checkpoints'], ['Saved comparison', 'Compared upgrades']]) {
+      await view(name).click();
+      await expect(viewer.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      if (name === 'Retailer preferences') await expect(viewer).toContainText('Deck Out Gaming');
+      if (name === 'Progress') await expect(viewer).toContainText('12345678901234567890');
+      if (name === 'Intentions') await expect(viewer.getByRole('table', { name: 'Recipe plans' })).toContainText('unknown-desktop');
+      if (name === 'Checkpoints') {
+        await viewer.getByText('desktop checkpoint', { exact: true }).click();
+        await expect(viewer.getByText('Captured revision', { exact: true })).toBeVisible();
+      }
+      await backToAccount.click();
+    }
 
     await operatorPage.setViewportSize({ width: 390, height: 844 });
     const mobileActions = await operatorPage.locator('#admin-detail .button:visible').evaluateAll(buttons => buttons.map(button => ({
@@ -858,10 +958,11 @@ try {
     })));
     assert.ok(mobileActions.every(({ width, height, content }) => height >= 44 && width >= content), 'Mobile action labels must fit inside their tap targets');
     await viewCopy.click();
-    await expect(savedJson).not.toBeEmpty();
+    await expect(viewer.getByRole('heading', { name: 'Saved measurements' })).toBeVisible();
     await expect(operatorPage.locator('#admin-inspector-context')).not.toContainText('Current save');
+    assert.equal(await operatorPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Mobile save viewer horizontal overflow');
     await operatorPage.screenshot({ path: join(output, 'admin-mobile-save.png') });
-    await operatorPage.getByRole('button', { name: 'Close saved data' }).click();
+    await backToAccount.click();
     await operatorPage.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await operatorPage.screenshot({ path: join(output, 'admin-mobile-account.png'), fullPage: true });
     await operatorPage.getByRole('button', { name: 'Back to accounts' }).click();
@@ -871,12 +972,33 @@ try {
     await operatorPage.screenshot({ path: join(output, 'admin-mobile-overview.png'), fullPage: true });
     assert.equal(await operatorPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
 
+    const large = await remote(desktop, 'idle-slayer-companion', 'progress');
+    const exact = '9876543210'.repeat(103).slice(0, 1024);
+    for (let index = 0; index < 3650; index++) large.state.modules.material.records[`fixture-large-${index}`] = { count: exact };
+    const bytes = Buffer.byteLength(JSON.stringify(large.state));
+    assert.ok(bytes > 3.5 * 1024 ** 2 && bytes < 4 * 1024 ** 2);
+    const stored = await desktop.request.post(origin + '/api/v1/sync.php?action=write', {
+      headers: { ...customerHeaders, Origin: origin, 'X-CSRF-Token': customer.csrfToken },
+      data: { app: large.app, document: large.document, state: large.state, schemaVersion: large.schemaVersion, baseRevision: large.revision,
+        clientId: randomUUID(), mutationSequence: 1, operationId: randomUUID() },
+    });
+    assert.equal(stored.status(), 200);
+    await openUser.click();
+    await view('Progress').click();
+    const progressRows = viewer.getByRole('table', { name: 'Recorded progress' }).locator('tbody tr');
+    await expect(progressRows).toHaveCount(50);
+    await viewer.getByRole('searchbox', { name: 'Search progress' }).fill('fixture-large-3649');
+    await expect(progressRows).toHaveCount(1);
+    await expect(progressRows).toContainText(exact);
+    assert.equal(await operatorPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Long decimal overflow');
+
     const signOutPage = await operatorContext.newPage();
     await signOutPage.goto(origin + '/account/');
     await signOutPage.locator('#account-logout').click();
     await expect(operatorPage.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
     await expect(operatorPage.locator('#admin-users')).toBeEmpty();
     await expect(operatorPage.locator('#admin-user-email')).toBeEmpty();
+    await expect(operatorPage.locator('#admin-inspector-content')).toBeEmpty();
     await operatorPage.screenshot({ path: join(output, 'admin-mobile-sign-in.png') });
   });
   await scenario('signing out restores each browser guest view and retains originals', async () => {
