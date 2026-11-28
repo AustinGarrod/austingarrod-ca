@@ -87,7 +87,7 @@ function accounts_save_document(PDO $db, string $user, string $app, string $docu
         $id = accounts_uuid();
         accounts_query($db, 'INSERT INTO accounts_documents(id,user_id,app,document,schema_version,revision,state_json) VALUES(?,?,?,?,?,1,?)', [$id, $user, $app, $document, $version, $json]);
     } else {
-        if ($app === 'pokedex-binder') {
+        if ($app === 'pokedex-binder' && in_array($document, ['binder', 'master-sets'], true)) {
             binder_shares_revoke_removed($db, $user, $document, $row['state_json'], $json);
         }
         accounts_query($db, 'UPDATE accounts_documents SET schema_version=?,revision=revision+1,state_json=? WHERE id=?', [$version, $json, $row['id']]);

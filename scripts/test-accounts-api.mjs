@@ -333,6 +333,12 @@ try {
   const savedPreferences = await request(a, 'sync', 'write', preferences);
   assert.equal(savedPreferences.status, 200, JSON.stringify(savedPreferences.data));
   assert.deepEqual(savedPreferences.data.document.state, retailerSetting);
+  const revisedPreferences = await request(a, 'sync', 'write', {
+    ...write({ ...retailerSetting, stores: [] }, savedPreferences.data.document.revision, preferences.clientId, 2),
+    document: 'preferences',
+  });
+  assert.equal(revisedPreferences.status, 200, JSON.stringify(revisedPreferences.data));
+  assert.deepEqual(revisedPreferences.data.document.state.stores, []);
   assert.equal((await request(b, 'sync', 'read', undefined, { app, document: 'preferences', clientId })).data.document, null);
   // Both processes contend for the same rate-limit bucket. None may deadlock
   // upgrading a shared insert lock before the document's revision lock.
@@ -363,7 +369,8 @@ try {
   assert.equal((await request(b, 'sync', 'recovery-restore', { id: saved.id, baseRevision: 0, clientId, operationId: randomUUID() })).status, 404);
   response = await request(a, 'sync', 'recovery-restore', { id: saved.id, baseRevision: 3, clientId, operationId: randomUUID() }); assert.equal(response.status, 200); assert.deepEqual(response.data.document.state.ownedDexIds, [1, 2]);
   assert.equal((await request(a, 'sync', 'recovery-delete', { id: saved.id })).status, 200); assert.equal((await request(a, 'sync', 'recovery-read', undefined, { id: saved.id })).status, 404);
-  const binderRecovery = async () => (await request(a, 'sync', 'recovery-list', undefined, { app })).data.snapshots;
+  const binderRecovery = async () => (await request(a, 'sync', 'recovery-list', undefined, { app }))
+    .data.snapshots.filter(copy => copy.document === document);
   const listBeforeRetention = await binderRecovery();
   const todaysCheckpoint = listBeforeRetention.find(copy => copy.label === 'Before sync');
   assert.ok(todaysCheckpoint);
