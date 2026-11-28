@@ -30,6 +30,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
 ---
 
 <BaseLayout shell="utility" title={buying ? "Buy cards | " + bindersTitle : bindersTitle} description={utility.summary} breadcrumbLabel={buying ? "Buy cards" : utility.title} structuredData={createUtilityApplicationSchema(utility)} bodyClass="pokedex-page">
+  <link slot="head" rel="preconnect" href="https://assets.tcgdex.net" />
   <UtilityHeader toolName={utility.title} />
   <UtilityUpdateNotice releasePath="/utilities/pokemon-binder/utility-release.json" />
 
@@ -115,6 +116,15 @@ const bindersTitle = utility.title + " | Austin Garrod";
   <BinderCatalogSearch />
   <BinderPricing />
   <BinderShare />
+
+  <dialog id="printing-artwork-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="printing-artwork-title">
+    <header class="dex-dialog-header"><h2 id="printing-artwork-title">Card artwork</h2><button type="button" data-close-dialog aria-label="Close artwork preview" autofocus>×</button></header>
+    <div class="dex-artwork-frame"></div>
+    <footer class="dex-artwork-actions">
+      <a>Open original</a>
+      <p role="status"></p>
+    </footer>
+  </dialog>
 
   <dialog id="layout-dialog" class="dex-dialog dex-collection-dialog rr-block" data-analytics-private aria-labelledby="layout-title">
     <form id="layout-form">

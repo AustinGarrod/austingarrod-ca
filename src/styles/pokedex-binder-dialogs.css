@@ -42,6 +42,36 @@
   margin: 0;
 }
 
+.dex-artwork-frame {
+  width: min(100%, max(120px, 50dvh));
+  aspect-ratio: 600 / 825;
+  margin-inline: auto;
+  background: var(--surface-low);
+}
+
+.dex-artwork-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.dex-artwork-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  margin-top: 12px;
+}
+
+.dex-artwork-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--dex-control-height);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .dex-collection-dialog :is(.dex-help, small, [role="status"]:not(.dex-market-value)) {
   color: var(--muted);
   font-size: 13px;

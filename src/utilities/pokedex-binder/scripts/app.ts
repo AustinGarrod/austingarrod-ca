@@ -19,6 +19,7 @@ import { createStockAlerts } from "./stock-alerts";
 import { binderViews } from "./binder-views";
 import { createBinderSharing } from "./share-binder";
 import { createCatalogSearch, type MarkTarget } from "./catalog-search";
+import { createPrintingArtwork } from "./printing-artwork";
 import { catalogArtwork, type CatalogPrinting } from "../lib/catalog-search";
 import { addSetImports, groupSetImport, type TransferMatch } from "../lib/card-transfer";
 import type { ProductIdentity } from "../lib/transfer-identity";
@@ -59,6 +60,8 @@ async function initialize() {
   let numberStatus: "idle" | "loading" | "error" = "idle";
   let scanner: CardScanner | null = null;
   const printingCache = new Map<number, Printing[]>();
+  const printingRequests = new Map<number, Promise<Printing[]>>();
+  let printingWarmTimer: number | undefined;
   const search = el<HTMLInputElement>("dex-search");
   const filter = el<HTMLSelectElement>("dex-filter");
   const generation = el<HTMLSelectElement>("dex-generation");
@@ -68,6 +71,7 @@ async function initialize() {
   el("checklist-sets").innerHTML = Object.values(catalog.sets).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))
     .map(set => `<option value="${escape(setLabel(set))}"></option>`).join("");
   const details = el("pokemon-details");
+  const printingArtwork = createPrintingArtwork(details, el<HTMLDialogElement>("printing-artwork-dialog"));
   const syncDialog = el<HTMLDialogElement>("sync-dialog");
   const statusLabels = { loading: "Loading your binder…", local: "Saved locally · Sync is optional", syncing: "Syncing your binder…", synced: "Synced · Saved on this device", pending: "Saved locally · Waiting to sync", error: "Saved locally · Sync needs attention", conflict: "Saved locally · Choose a binder layout" };
   let pendingActions = 0;
@@ -418,30 +422,68 @@ async function initialize() {
   }
   function renderDetails() {
     const item = species.find(candidate => candidate.id === selected);
-    if (!item) return;
+    if (!item) { printingArtwork.observeThumbnails(); return; }
     const loc = locationFor(item.id, snapshot.state.settings, species);
     details.innerHTML = `<div class="dex-detail-hero">${sprite(item, 80)}<div><p class="dex-eyebrow">${dex(item.id)} · Generation ${item.generation}</p><h2>${escape(item.name)}</h2></div><button type="button" class="dex-details-close" data-close-details aria-label="Close details for ${escape(item.name)}">×</button></div><div class="dex-detail-body"><div class="dex-location"><div><span class="dex-label">Page</span><strong>${loc.page}</strong></div><div><span class="dex-label">Row</span><strong>${loc.row}</strong></div><div><span class="dex-label">Column</span><strong>${loc.column}</strong></div><div><span class="dex-label">Sheet</span><strong>${loc.sheet} · ${titleCase(loc.side)}</strong></div></div>${statusControl(item.id, cardStatus(snapshot.state.ownedDexIds.includes(item.id), snapshot.state.orderedDexIds?.includes(item.id) ?? false), item.name)}<h3>Find a card</h3><p class="dex-help">English physical printings. Any version can fill this species’ slot.</p><label class="sr-only" for="printing-search">Filter printings by set name, code, or card number</label><input id="printing-search" type="search" placeholder="Filter by set name, code, or number" value="${escape(printingQuery)}" /><div id="printing-list" class="dex-printings" aria-live="polite"></div></div>`;
     renderPrintings();
   }
   function renderPrintings() {
     const list = document.getElementById("printing-list"); if (!list) return;
-    if (detailLoading) { list.innerHTML = '<p class="dex-help">Loading card references…</p>'; return; }
-    if (detailError) { list.innerHTML = '<p class="dex-help">Card references could not load. You can still update your checklist.</p><button id="retry-printings">Try again</button>'; return; }
+    list.innerHTML = printingRows();
+    printingArtwork.observeThumbnails(list);
+  }
+  function printingRows() {
+    if (detailLoading) return '<p class="dex-help">Loading card references…</p>';
+    if (detailError) return '<p class="dex-help">Card references could not load. You can still update your checklist.</p><button id="retry-printings">Try again</button>';
     const query = printingQuery.trim().toLocaleLowerCase();
     const cards = (loadedPrintings ?? []).filter(card => {
       const set = catalog.sets[card.setId]; return !query || `${set?.name ?? ""} ${set?.code ?? ""} ${card.number} ${card.name}`.toLocaleLowerCase().includes(query);
     }).sort((a, b) => (catalog.sets[b.setId]?.releaseDate ?? "").localeCompare(catalog.sets[a.setId]?.releaseDate ?? "") || a.setId.localeCompare(b.setId) || a.number.localeCompare(b.number, undefined, { numeric: true }));
-    if (!cards.length) { list.innerHTML = `<p class="dex-help">${query ? "No printings match this filter." : "No indexed English printings in this catalog."}</p>`; return; }
-    let previous = "";
-    list.innerHTML = cards.map(card => {
+    if (!cards.length) return `<p class="dex-help">${query ? "No printings match this filter." : "No indexed English printings in this catalog."}</p>`;
+    let previous = "", artworkCount = 0;
+    return cards.map(card => {
       const set = catalog.sets[card.setId];
       const heading = previous !== card.setId ? `<div class="dex-set-heading"><span>${escape(set?.name ?? "Unknown set")}</span><code>${escape(set?.code ?? "Code not provided")}</code></div>` : ""; previous = card.setId;
       const image = catalogArtwork({ id: card.setId }, card.number)
         ?? (card.image?.startsWith("https://assets.tcgdex.net/") ? card.image : null);
-      const highImage = image?.replace(/\/low\.webp$/, "/high.webp");
-      return `${heading}<article class="dex-card-printing">${image ? `<a href="${escape(highImage)}" target="_blank" rel="noopener noreferrer" aria-label="View ${escape(card.name)} ${escape(card.number)} card artwork"><img src="${escape(image)}" alt="${escape(card.name)} card" width="58" height="81" loading="lazy" /></a>` : ""}<div><p class="dex-card-title">${escape(card.name)}</p><p>Collector #${escape(card.number)}</p><small>${escape(card.rarity ?? "Rarity not provided")}</small><small>${escape(set?.releaseDate ?? "Release date not provided")}</small>
+      let artwork = "";
+      if (image) {
+        const index = artworkCount++;
+        const source = index < 2 ? `src="${escape(image)}"${index === 0 ? ' fetchpriority="high"' : ""}`
+          : printingArtwork.canObserve ? `data-artwork-src="${escape(image)}"` : `src="${escape(image)}" loading="lazy"`;
+        artwork = `<a href="${escape(image.replace(/\/low\.webp$/, "/high.webp"))}" target="_blank" rel="noopener noreferrer" aria-haspopup="dialog" aria-label="View ${escape(card.name)} ${escape(card.number)} card artwork" data-printing-artwork="${escape(card.id)}" data-artwork-title="${escape(card.name)} · #${escape(card.number)}"><img ${source} alt="${escape(card.name)} card" width="58" height="81" /></a>`;
+      }
+      return `${heading}<article class="dex-card-printing">${artwork}<div><p class="dex-card-title">${escape(card.name)}</p><p>Collector #${escape(card.number)}</p><small>${escape(card.rarity ?? "Rarity not provided")}</small><small>${escape(set?.releaseDate ?? "Release date not provided")}</small>
         <button type="button" data-printing-prices="${escape(card.id)}" aria-haspopup="dialog">Prices and offers</button></div></article>`;
     }).join("");
+  }
+  function loadPrintings(id: number) {
+    const cached = printingCache.get(id);
+    if (cached) return Promise.resolve(cached);
+    const pending = printingRequests.get(id);
+    if (pending) return pending;
+    const request = fetch(`${root}catalog/printings/${id}.json`).then(async response => {
+      if (!response.ok) throw new Error("Catalog unavailable");
+      const data = await response.json() as Printing[];
+      if (!Array.isArray(data)) throw new Error("Catalog unavailable");
+      printingCache.set(id, data);
+      return data;
+    }).finally(() => printingRequests.delete(id));
+    printingRequests.set(id, request);
+    return request;
+  }
+  function schedulePrintingWarm(event: FocusEvent | PointerEvent) {
+    if (event instanceof PointerEvent && event.pointerType !== "mouse") return;
+    const control = (event.target as Element).closest<HTMLButtonElement>("button[data-pokemon], button[data-goto]");
+    if (!control || (event.relatedTarget instanceof Node && control.contains(event.relatedTarget))) return;
+    window.clearTimeout(printingWarmTimer);
+    const id = Number(control.dataset.pokemon ?? control.dataset.goto);
+    if (id === selected || printingCache.has(id) || printingRequests.has(id)) return;
+    printingWarmTimer = window.setTimeout(() => {
+      if (control.getClientRects().length && control.matches(":hover, :focus-visible")) {
+        void loadPrintings(id).catch(() => {});
+      }
+    }, 120);
   }
   async function selectPokemon(id: number, focusSheet = true) {
     if (!species.some(item => item.id === id)) return;
@@ -451,11 +493,7 @@ async function initialize() {
     if (focusSheet) showDetailsSheet(details, "open-grid-" + id);
     if (loadedPrintings) return;
     try {
-      const response = await fetch(`${root}catalog/printings/${id}.json`);
-      if (!response.ok) throw new Error("Catalog unavailable");
-      const data = await response.json() as Printing[];
-      if (!Array.isArray(data)) throw new Error("Catalog unavailable");
-      printingCache.set(id, data);
+      const data = await loadPrintings(id);
       if (selected === id) { loadedPrintings = data; detailLoading = false; renderPrintings(); }
     } catch { if (selected === id) { detailLoading = false; detailError = true; renderPrintings(); } }
   }
@@ -573,6 +611,9 @@ async function initialize() {
   if (scanDialog.open && scanDialog.dataset.phase === "loading" && nationalEnabled(snapshot.state)) openScanner();
   else { scanDialog.close(); scanDialog.dataset.phase = "closed"; }
   el("catalog-note").textContent = `English physical-card catalog · Updated ${new Date(catalog.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })} · Community data may have gaps.`;
+
+  el("national-workspace").addEventListener("pointerover", schedulePrintingWarm);
+  el("national-workspace").addEventListener("focusin", schedulePrintingWarm);
 
   document.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLButtonElement>("[data-page],[data-pokemon],[data-goto],[data-close-dialog],[data-close-details]");

@@ -1,6 +1,6 @@
 // Run against npm run preview only. No production or third-party requests.
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { binderAction, chooseFilter, goHome, homeCard, homeCards, newSetBinder, openBinder } from './test-pokedex-helpers.mjs';
 
@@ -8,6 +8,37 @@ const origin = process.env.POKEDEX_CHECKLIST_ORIGIN || 'http://localhost:4321';
 assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname), 'Checklist checks must stay local.');
 await mkdir('output/pokedex-checklist', { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
+
+async function checkPrintingArtwork(page) {
+  const fixture = await readFile(new URL('../public/utilities/pokedex-binder/sprites/25.png', import.meta.url));
+  await page.route('https://assets.tcgdex.net/**', route => route.request().url().endsWith('/high.webp')
+    ? route.fulfill({ status: 503 }) : route.fulfill({ contentType: 'image/png', body: fixture }));
+  await openBinder(page, 'National Pokédex');
+  await page.locator('#view-binder').click();
+  await page.locator('#dex-search').fill('#0025');
+  await page.locator('#results-list [data-goto="25"]').click();
+  const list = page.locator('#printing-list');
+  await expect(list.locator('img').first()).toHaveAttribute('fetchpriority', 'high');
+  const offscreen = list.locator('img').nth(24);
+  await expect(offscreen).not.toHaveAttribute('src');
+  const deferredSource = await offscreen.getAttribute('data-artwork-src');
+  assert.ok(deferredSource);
+  await offscreen.scrollIntoViewIfNeeded();
+  await expect(offscreen).toHaveAttribute('src', deferredSource);
+
+  const search = page.locator('#printing-search');
+  await search.fill('MEW');
+  const artwork = list.getByRole('link', { name: 'View Pikachu 025 card artwork' });
+  await expect(artwork).toHaveAttribute('href', /\/sv03\.5\/025\/high\.webp$/);
+  await artwork.click();
+  const dialog = page.getByRole('dialog', { name: 'Pikachu · #025' });
+  await expect(dialog.getByRole('link', { name: 'Open original' })).toHaveAttribute('href', /\/sv03\.5\/025\/high\.webp$/);
+  await expect(dialog.getByRole('status')).toHaveText('Full-size artwork unavailable.');
+  await expect.poll(() => dialog.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(artwork).toBeFocused();
+}
 
 async function checkControlSizing(page) {
   const viewport = page.viewportSize();
@@ -536,8 +567,9 @@ try {
     await checkSetOverview(page, width);
     await checkAnniversaryExpansion(page, documents);
     await checkBulkSelections(page, documents);
+    await checkPrintingArtwork(page);
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`Passed National and set binder checklists, navigation, set overview totals, and bulk selection at ${width}px`);
+    console.log(`Passed National and set binder checklists, navigation, set overview totals, bulk selection, and artwork at ${width}px`);
   }
 } finally { await browser.close(); }
