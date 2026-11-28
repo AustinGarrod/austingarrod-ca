@@ -10,7 +10,7 @@ export interface CheckpointState {
 }
 
 /** Reducer commands always start from the current adopted document, never a render's full-list copy. */
-export function createCheckpointSession(options: { revision: string; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined; id: () => string }) {
+export function createCheckpointSession(options: { onSavedChange?: () => void; revision: string; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined; id: () => string }) {
   let state: CheckpointState = { vault: emptyCheckpoints(), savedVault: null, version: 0, loaded: false, pending: false, dirty: false, saved: false, conflict: false, error: '' }
   let baseline: Snapshot = null, observed: Snapshot = null, generation = 0
   let preservePrevious = false
@@ -47,6 +47,7 @@ export function createCheckpointSession(options: { revision: string; storage: ()
         preservePrevious = false
         baseline = observed = { text, vault: state.vault }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '' })
+        if (options.onSavedChange && (!snapshot.vault || exportCheckpoints(snapshot.vault, options.revision) !== text)) options.onSavedChange()
         return true
       })
     } catch {

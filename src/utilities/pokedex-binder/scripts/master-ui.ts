@@ -46,6 +46,7 @@ export interface MasterOptions {
   openPrinting(target: PricingTarget): void;
   bindersChanged(): void;
   binderChanged(): void;
+  guestEditSaved(): void;
   /** Asks before a destructive action. The dialog also offers a backup download. */
   confirm(title: string, text: string, label: string, tone?: "danger"): Promise<boolean>;
   /** Called after the open binder was deleted, so focus can move somewhere useful. */
@@ -150,9 +151,16 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
   }
   async function change(fn: (doc: MasterState) => void) {
     const target = scope;
+    const generation = accountVersion;
+    let changed = false;
     if (++pendingEdits === 1) window.addEventListener("beforeunload", waitForLocalSave);
     try {
-      await store.update(target, (save) => fn(save.state));
+      await store.update(target, (save) => {
+        const before = target === "guest" ? structuredClone(save.state) : null;
+        fn(save.state);
+        changed = before !== null && !sameSave(before, save.state);
+      });
+      if (changed && generation === accountVersion) pricing.guestEditSaved();
     } finally {
       if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
     }
@@ -735,7 +743,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     });
   });
   async function deleteBinder() {
-    const binderId = editing, target = scope;
+    const binderId = editing, target = scope, generation = accountVersion;
     const b = state.binders.find((binder) => binder.id === binderId);
     if (!binderId || !b) throw new Error("This binder was already deleted.");
     const marks = b.owned.length + (b.ordered?.length ?? 0);
@@ -752,6 +760,7 @@ export function createMasterUI(store: MasterStore, openScan: (target: SetScan) =
     if (++pendingEdits === 1) window.addEventListener("beforeunload", waitForLocalSave);
     try {
       await store.remove(target, binderId);
+      if (target === "guest" && generation === accountVersion) pricing.guestEditSaved();
     } finally {
       if (--pendingEdits === 0) window.removeEventListener("beforeunload", waitForLocalSave);
     }

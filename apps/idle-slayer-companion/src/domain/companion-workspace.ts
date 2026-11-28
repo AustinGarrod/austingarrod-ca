@@ -43,7 +43,7 @@ function stored(workspace: CompanionWorkspace, legacyBaseline: string | null) {
 }
 
 /** Separate intentions document, with exact saved baselines and explicit recovery drafts. */
-export function createCompanionWorkspaceSession(options: { storage: () => DocumentStorage; locks: () => ProfileLocks | undefined }) {
+export function createCompanionWorkspaceSession(options: { onSavedChange?: () => void; storage: () => DocumentStorage; locks: () => ProfileLocks | undefined }) {
   let adopted = false, operation = 0, baseline: Pair | undefined, persisted: CompanionWorkspace | undefined
   let preservePrevious = false
   let state: CompanionWorkspaceState = { workspace: emptyCompanionWorkspace(), raw: null, legacy: null, loaded: false, pending: false, dirty: false, readable: false, conflict: false, error: '', version: 0 }
@@ -118,7 +118,9 @@ export function createCompanionWorkspaceSession(options: { storage: () => Docume
         if (ticket !== operation || state.version !== version) return false
         preservePrevious = false
         adopted = true; baseline = { raw, legacy: expected.legacy }; persisted = workspace
-        publish({ raw, legacy: expected.legacy, readable: true, conflict: false, error: '' }); return true
+        publish({ raw, legacy: expected.legacy, readable: true, conflict: false, error: '' })
+        if (options.onSavedChange && (current.kind !== 'valid' || stored(current.workspace, expected.legacy) !== raw)) options.onSavedChange()
+        return true
       })
     } catch { if (ticket === operation) publish({ error: 'Intentions could not be saved. Export this visit or retry saving before closing the page.' }); return false }
     finally { if (ticket === operation) publish({ pending: false }) }

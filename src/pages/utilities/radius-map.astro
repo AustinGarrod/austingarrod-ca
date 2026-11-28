@@ -78,6 +78,7 @@ const signInHref = "/account/?returnTo=%2Futilities%2Fradius-map%2F";
         <button id="status-undo" class="uk-button status-undo" type="button" hidden>Undo</button>
       </div>
 
+      <aside id="radius-account-reminder" hidden></aside>
       <div id="panel-content" class="panel-content">
         <aside id="install-app-card" class="install-app-card" aria-label="Install Radius Map" hidden>
           <img src="/utilities/radius-map/icons/icon-192.png" width="40" height="40" alt="" />
@@ -293,7 +294,7 @@ const signInHref = "/account/?returnTo=%2Futilities%2Fradius-map%2F";
     <div class="action-dialog-body">
       <p class="uk-step">Save measurement</p>
       <h2 id="sign-in-dialog-title">Saving needs a free account</h2>
-      <p id="sign-in-dialog-copy" class="dialog-summary">Your circle will be kept while you sign in, and saving opens when you come back.</p>
+      <p id="sign-in-dialog-copy" class="dialog-summary" aria-live="polite">Your circle will be kept while you sign in, and saving opens when you come back.</p>
       <div class="uk-actions dialog-actions">
         <button id="sign-in-dialog-cancel" class="uk-button" type="button">Keep drawing</button>
         <a id="radius-sign-in-to-save" class="uk-button uk-button-primary" href={signInHref} hidden>Sign in to save</a>

@@ -39,7 +39,8 @@
     "test:accounts:large": "node scripts/test-accounts-large-browser.mjs",
     "refresh:pokedex:scan-index": "node scripts/pokedex-scan-index.mjs",
     "test:pokedex:scanner": "node scripts/test-pokedex-scanner.mjs",
-    "test:utility-updates": "node scripts/test-utility-updates.mjs"
+    "test:utility-updates": "node scripts/test-utility-updates.mjs",
+    "test:account-reminder": "node scripts/test-account-reminder.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

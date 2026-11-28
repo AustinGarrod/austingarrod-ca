@@ -1,5 +1,7 @@
 import L, { type Circle, type LatLngBounds, type LatLngExpression, type Marker } from "leaflet";
 import { reportFailure, reportState } from "../../../reporting/browser";
+import { peekSession } from "../../../../packages/accounts/client";
+import { mountAccountReminder } from "../../../../packages/accounts/reminder";
 import { bindRadiusAccountControls } from "./account-controls";
 import { toSavedMeasurements } from "../lib/account-measurements";
 import type { RadiusAccountView } from "../lib/account-library";
@@ -277,15 +279,34 @@ export function initializeRadiusMap(): void {
   let pendingSave = false;
   let pendingWrites = 0;
   let draftTracking = false;
+  let draftCanContinue = false;
+  let committedCircle = "";
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
   let undoAction: (() => void) | null = null;
   let fitTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const reminder = mountAccountReminder(element("radius-account-reminder"), {
+    title: "Save this measurement",
+    description: "Use a free account to save this circle.",
+    returnTo: "/utilities/radius-map/",
+    offered: () => {
+      const session = peekSession();
+      return !!session?.enabled && !session.user && !!accountView?.canSignIn && !!currentDraftInput()
+        && draftCanContinue && !state.editingId && activeTab === "create";
+    },
+    beforeContinue: prepareDraftSignIn,
+    onVisibilityChange: () => {
+      if (isMobileLayout() && state.center) requestAnimationFrame(fitDraftCircle);
+    },
+    fallbackFocus: () => controlPanel,
+  });
 
   const accounts = bindRadiusAccountControls(view => {
     const previousAccount = accountId;
     const switched = view.accountId !== previousAccount;
     accountId = view.accountId;
     accountView = view;
+    reminder.refresh();
     if (switched && previousAccount) {
       state.saved = [];
       editOriginal = dialogOriginal = deleteOriginal = undefined;
@@ -370,7 +391,7 @@ export function initializeRadiusMap(): void {
   function persistDraft(): boolean {
     // An edit belongs to a saved measurement; the draft kept is the one from before it.
     if (!draftTracking || state.editingId) return false;
-    return writeDraft({
+    draftCanContinue = writeDraft({
       center: state.center,
       centerLabel: state.centerLabel,
       value: measurementInput.value,
@@ -378,6 +399,32 @@ export function initializeRadiusMap(): void {
       unit: state.unit,
       pendingSave,
     });
+    return draftCanContinue;
+  }
+
+  function prepareDraftSignIn(): boolean {
+    pendingSave = true;
+    if (persistDraft()) return true;
+    pendingSave = false;
+    reminder.refresh();
+    const message = "Your draft could not be kept for sign-in. Keep this map open and try again.";
+    if (signInDialog.open) signInDialogCopy.textContent = message;
+    else setStatus(message, "error");
+    return false;
+  }
+
+  function draftCircleKey(): string {
+    const draft = currentDraftInput();
+    return draft ? JSON.stringify([draft.center.lat, draft.center.lng, draft.value, draft.kind, draft.unit]) : "";
+  }
+
+  function commitDraftChange(): void {
+    if (!draftCanContinue || state.editingId || accountView?.signedInId || peekSession()?.user) return;
+    const key = draftCircleKey();
+    if (key && key !== committedCircle) {
+      committedCircle = key;
+      reminder.recordChange();
+    }
   }
 
   // Layout
@@ -528,6 +575,7 @@ export function initializeRadiusMap(): void {
     measurementError.textContent = error ?? "";
     measurementInput.setAttribute("aria-invalid", error ? "true" : "false");
     persistDraft();
+    reminder.refresh();
 
     if (error) {
       updateSummary(null);
@@ -583,12 +631,12 @@ export function initializeRadiusMap(): void {
     locationChosenLabel.textContent = state.center ? displayPlace(state.centerLabel) : "";
   }
 
-  function setCenter(coordinates: Coordinates, label: string, statusMessage: string): void {
+  function setCenter(coordinates: Coordinates, label: string, statusMessage: string, committed = false): void {
     clearResult();
     clearLocationError();
     changingCenter = false;
     state.center = coordinates;
-    state.centerLabel = label;
+    state.centerLabel = label.slice(0, 240);
     if (!draftMarker) {
       draftMarker = L.marker(coordinates as LatLngExpression, {
         draggable: true,
@@ -599,10 +647,10 @@ export function initializeRadiusMap(): void {
       }).addTo(map);
       draftMarker.on("dragend", () => {
         if (!draftMarker) return;
-        const point = draftMarker.getLatLng();
+        const point = map.wrapLatLng(draftMarker.getLatLng());
         const moved = { lat: point.lat, lng: point.lng };
         searchInput.value = "";
-        setCenter(moved, `Dropped pin · ${readableCoordinates(moved)}`, "Centre moved. The circle has been updated.");
+        setCenter(moved, `Dropped pin · ${readableCoordinates(moved)}`, "Centre moved. The circle has been updated.", true);
         window.umami?.track("radius-map-centre-selected", { method: "drag" });
       });
     } else {
@@ -616,6 +664,7 @@ export function initializeRadiusMap(): void {
     if (isMobileLayout() && activeTab === "create" && !state.editingId) setSheetExpanded(false, { fit: false });
     const circleWasDrawn = refreshMeasurement({ fit: true });
     setStatus(circleWasDrawn ? statusMessage : "Centre selected. Enter a valid distance to draw the circle.");
+    if (committed) commitDraftChange();
   }
 
   function hideEditState(): void {
@@ -627,6 +676,9 @@ export function initializeRadiusMap(): void {
   }
 
   function clearDraft(message = "Choose a centre for your next measurement."): void {
+    committedCircle = "";
+    draftCanContinue = false;
+    reminder.refresh();
     if (draftMarker) draftMarker.removeFrom(map);
     removeDraftCircle();
     draftMarker = null;
@@ -863,6 +915,7 @@ export function initializeRadiusMap(): void {
   function activateTab(tab: WorkspaceTab, options: { focus?: boolean } = {}): void {
     const changed = tab !== activeTab;
     activeTab = tab;
+    reminder.refresh();
     for (const name of tabOrder) {
       const selected = name === tab;
       tabs[name].tab.setAttribute("aria-selected", String(selected));
@@ -1176,7 +1229,7 @@ export function initializeRadiusMap(): void {
       button.addEventListener("click", () => {
         searchInput.value = shortenLabel(result.label);
         closeSearchResults();
-        setCenter({ lat: result.lat, lng: result.lng }, result.label, `Circle centred on ${shortenLabel(result.label)}.`);
+        setCenter({ lat: result.lat, lng: result.lng }, result.label, `Circle centred on ${shortenLabel(result.label)}.`, true);
         focusNext(measurementInput);
         window.umami?.track("radius-map-centre-selected", { method: "search" });
       });
@@ -1227,7 +1280,7 @@ export function initializeRadiusMap(): void {
     const coordinates = parseCoordinateInput(query);
     if (coordinates) {
       closeSearchResults();
-      setCenter(coordinates, `Coordinates · ${readableCoordinates(coordinates)}`, "Circle centred on the entered coordinates.");
+      setCenter(coordinates, `Coordinates · ${readableCoordinates(coordinates)}`, "Circle centred on the entered coordinates.", true);
       focusNext(measurementInput);
       window.umami?.track("radius-map-centre-selected", { method: "coordinates" });
       return;
@@ -1276,7 +1329,7 @@ export function initializeRadiusMap(): void {
         done();
         closeSearchResults();
         searchInput.value = "";
-        setCenter(coordinates, `Your location · ${readableCoordinates(coordinates)}`, "Circle centred on your current location.");
+        setCenter(coordinates, `Your location · ${readableCoordinates(coordinates)}`, "Circle centred on your current location.", true);
         focusNext(measurementInput);
         window.umami?.track("radius-map-geolocation-result", { outcome: "success" });
         window.umami?.track("radius-map-centre-selected", { method: "geolocation" });
@@ -1299,11 +1352,12 @@ export function initializeRadiusMap(): void {
   });
 
   map.on("click", (event) => {
-    const coordinates = { lat: event.latlng.lat, lng: event.latlng.lng };
+    const point = map.wrapLatLng(event.latlng);
+    const coordinates = { lat: point.lat, lng: point.lng };
     closeSearchResults();
     searchInput.value = "";
     if (activeTab !== "create") activateTab("create");
-    setCenter(coordinates, `Dropped pin · ${readableCoordinates(coordinates)}`, "Circle centred on the dropped pin. Drag it to fine-tune the centre.");
+    setCenter(coordinates, `Dropped pin · ${readableCoordinates(coordinates)}`, "Circle centred on the dropped pin. Drag it to fine-tune the centre.", true);
     window.umami?.track("radius-map-centre-selected", { method: "map" });
   });
 
@@ -1318,13 +1372,14 @@ export function initializeRadiusMap(): void {
   measurementInput.addEventListener("change", () => {
     clearTimeout(fitTimer);
     const valid = refreshMeasurement({ fit: true, announce: true });
+    if (valid) commitDraftChange();
     window.umami?.track("radius-map-measurement-change", { control: "distance", outcome: valid ? "valid" : "invalid" });
   });
   measurementInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       clearTimeout(fitTimer);
-      refreshMeasurement({ fit: true, announce: true });
+      if (refreshMeasurement({ fit: true, announce: true })) commitDraftChange();
     }
   });
 
@@ -1334,6 +1389,7 @@ export function initializeRadiusMap(): void {
       clearResult();
       state.kind = input.value as MeasurementKind;
       const valid = refreshMeasurement({ fit: true, announce: true });
+      if (valid) commitDraftChange();
       window.umami?.track("radius-map-measurement-change", { control: "kind", kind: state.kind, outcome: valid ? "valid" : "invalid" });
       if (valid) setStatus(state.kind === "radius"
         ? "Using radius. The distance runs from the centre to the circle edge."
@@ -1348,6 +1404,7 @@ export function initializeRadiusMap(): void {
       clearResult();
       state.unit = input.value as DistanceUnit;
       const valid = refreshMeasurement({ fit: true, announce: true });
+      if (valid) commitDraftChange();
       window.umami?.track("radius-map-measurement-change", { control: "unit", unit: state.unit, outcome: valid ? "valid" : "invalid" });
       if (valid) setStatus(`Distance in ${state.unit === "km" ? "kilometres" : "miles"}.`);
     });
@@ -1423,9 +1480,8 @@ export function initializeRadiusMap(): void {
   signInDialog.addEventListener("click", (event) => {
     if (event.target === signInDialog) signInDialog.close();
   });
-  signInToSave.addEventListener("click", () => {
-    pendingSave = true;
-    persistDraft();
+  signInToSave.addEventListener("click", (event) => {
+    if (!prepareDraftSignIn()) event.preventDefault();
   });
   deleteForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1458,6 +1514,7 @@ export function initializeRadiusMap(): void {
   function restoreDraft(): void {
     const draft = readDraft();
     if (!draft) return;
+    draftCanContinue = true;
     pendingSave = draft.pendingSave;
     setMeasurementControls(draft.kind, draft.unit, draft.value);
     if (draft.center) {
@@ -1477,6 +1534,7 @@ export function initializeRadiusMap(): void {
   updateLocationStep();
   fitWorld();
   restoreDraft();
+  committedCircle = draftCircleKey();
   draftTracking = true;
   initializeUtilityUpdate(() => {
     if (state.editingId || document.querySelector("dialog[open]")) return "Finish or cancel your measurement edit before updating.";

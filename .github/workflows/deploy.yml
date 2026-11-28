@@ -110,6 +110,7 @@ jobs:
           curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4321/ > /dev/null
           curl -fsS --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:4331/utilities/pokemon-binder/ > /dev/null
           npm run test:utility-updates
+          npm run test:account-reminder
           npm run test:pokedex:scanner
           npm run test:pokedex:transfers
           POKEDEX_PRICING_ORIGIN=http://127.0.0.1:4331 npm run test:pokedex:pricing

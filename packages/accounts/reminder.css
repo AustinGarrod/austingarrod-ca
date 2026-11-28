@@ -1,0 +1,108 @@
+.account-reminder[hidden] {
+  display: none;
+}
+
+.account-reminder {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+  padding: 10px 12px;
+  --reminder-accent: var(--secondary, #006a61);
+  border: 1px solid var(--reminder-accent);
+  border-inline-start-width: 4px;
+  background: color-mix(in srgb, var(--reminder-accent) 12%, var(--surface, #fff));
+  color: var(--ink, #0b1c30);
+  font-size: .875rem;
+  line-height: 1.4;
+}
+
+.account-reminder-copy {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.account-reminder-copy strong {
+  color: var(--reminder-accent);
+}
+
+.account-reminder-copy p {
+  margin: 2px 0 0;
+  color: var(--muted, #45464d);
+}
+
+.account-reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.account-reminder-actions :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line, #c6c6cd);
+  border-radius: 0;
+  background: var(--surface, #fff);
+  color: var(--ink, #0b1c30);
+  font: inherit;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-reminder-actions .account-reminder-primary {
+  border-color: #000;
+  background: #000;
+  color: #fff;
+}
+
+.account-reminder-actions .account-reminder-primary:hover {
+  border-color: var(--ink, #0b1c30);
+  background: var(--ink, #0b1c30);
+  color: #fff;
+}
+
+.account-reminder-actions button:hover {
+  border-color: var(--ink, #0b1c30);
+}
+
+.account-reminder-actions :is(a, button):focus-visible {
+  outline: 2px solid var(--accent, var(--secondary, #006a61));
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .account-reminder {
+    padding: 8px 10px;
+  }
+
+  .account-reminder-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+    width: min(100%, 320px);
+  }
+
+  .account-reminder-actions :is(a, button) {
+    padding-inline: 6px;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+}
+
+.account-reminder-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

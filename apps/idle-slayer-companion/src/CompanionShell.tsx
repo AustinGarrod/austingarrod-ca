@@ -31,6 +31,7 @@ export interface CompanionShellProps {
   status?: ReactNode
   /** Short save state for the header note; the full sentence is its title and stays in the status row. */
   saveNote?: { short: string; full: string; tone: 'saved' | 'pending' | 'warning' }
+  accountReminder?: ReactNode
   notice?: ReactNode
 }
 
@@ -40,7 +41,7 @@ const siteLinks = runtimeDeployment.target === 'legacy-migration'
   : { home: '/', utilities: '/utilities/' }
 
 /** Navigation owns no player data. Keeping the map mounted preserves its visit-only state. */
-export function CompanionShell({ section, onNavigate, children, ascension, onData, onSettings, onHelp, onInstall, status, saveNote, notice }: CompanionShellProps) {
+export function CompanionShell({ section, onNavigate, children, ascension, onData, onSettings, onHelp, onInstall, status, saveNote, notice, accountReminder }: CompanionShellProps) {
   const [collapsed, setCollapsedState] = useState(() => loadRailCollapsed(() => window.localStorage))
   function setCollapsed(next: boolean) { setCollapsedState(next); saveRailCollapsed(next, () => window.localStorage) }
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -149,6 +150,7 @@ export function CompanionShell({ section, onNavigate, children, ascension, onDat
           }}>Later</button>
         </div>
       </div>}
+      {accountReminder}
       {notice && <div className="companion-notice">{notice}</div>}
       {status && <div className="companion-session-status telemetry-private rr-block">{status}</div>}
       <div className="companion-map-container" hidden={section !== 'ascension'}>{ascension}</div>

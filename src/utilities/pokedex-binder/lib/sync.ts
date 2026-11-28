@@ -235,21 +235,24 @@ export function createBinderController(options: BinderControllerOptions) {
     finally { busy = false; emit(); }
   }
   async function sync(): Promise<void> { if (!started || stopped) return; await serialized(runSync); }
-  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false, requirePersistence = false): Promise<void> {
+  async function edit(change: (state: BinderState) => BinderState, preservePrevious = false, requirePersistence = false): Promise<boolean> {
+    let changed = false;
     await store.update(doc => {
       const next = validateState(change(cloneState(doc.state)), options.species);
       // Clearing the last mark or resetting a legacy layout does not hide an open binder.
       if (options.optionalDex && !preservePrevious && next.enabled === undefined && nationalEnabled(doc.state) && !nationalEnabled(next)) next.enabled = true;
-      if (options.transport && preservePrevious && !sameState(doc.state, next)) doc.preservePrevious = true;
+      changed = !sameState(doc.state, next);
+      if (options.transport && preservePrevious && changed) doc.preservePrevious = true;
       doc.state = next;
       if (doc.layoutConflict) doc.layoutConflict.local = { ...doc.state.settings };
       return doc;
     }, true, requirePersistence);
     emit(); schedule();
+    return changed && store.persistent;
   }
-  async function setStatus(id: number, status: CardStatus): Promise<void> {
+  async function setStatus(id: number, status: CardStatus): Promise<boolean> {
     if (!options.species.some(item => item.id === id)) throw new Error("This Pokémon is not in the catalog.");
-    await edit(state => {
+    return edit(state => {
       state.ownedDexIds = state.ownedDexIds.filter(value => value !== id);
       const ordered = (state.orderedDexIds ?? []).filter(value => value !== id);
       if (status === "owned") state.ownedDexIds.push(id);
@@ -259,17 +262,20 @@ export function createBinderController(options: BinderControllerOptions) {
     });
   }
   const setOwned = (id: number, owned: boolean) => setStatus(id, owned ? "owned" : "missing");
-  async function setSettings(settings: BinderSettings): Promise<void> { const validated = validateSettings(settings); await edit(state => ({ ...state, settings: validated })); }
-  async function setEnabled(enabled: boolean): Promise<void> { await edit(state => ({ ...state, enabled })); }
-  async function importSpecies(ids: readonly number[], check: (current: BinderState) => void): Promise<void> {
-    await edit(state => {
+  async function setSettings(settings: BinderSettings): Promise<boolean> {
+    const validated = validateSettings(settings);
+    return edit(state => ({ ...state, settings: validated }));
+  }
+  const setEnabled = (enabled: boolean) => edit(state => ({ ...state, enabled }));
+  async function importSpecies(ids: readonly number[], check: (current: BinderState) => void): Promise<boolean> {
+    return edit(state => {
       check(state);
       const owned = new Set([...state.ownedDexIds, ...ids]);
       return { ...state, enabled: true, ownedDexIds: [...owned],
         ...(state.orderedDexIds ? { orderedDexIds: state.orderedDexIds.filter(id => !owned.has(id)) } : {}) };
     }, false, true);
   }
-  async function replaceState(state: BinderState): Promise<void> { await edit(() => state, true); }
+  const replaceState = (state: BinderState) => edit(() => state, true);
   async function createSync(): Promise<string> {
     if (retired) throw new Error("This key was retired. Sign in to recover this device's collection; its original sync history has been preserved.");
     const key = await serialized(async () => {

@@ -4,9 +4,9 @@ import { diagnosticStorage } from './reporting-storage'
 import { COMPARISON_STORAGE_KEY } from './domain/saved-comparison'
 import { useAccountPersistence } from './AccountPersistenceContext'
 
-export function useComparisonSession() {
+export function useComparisonSession(onSavedChange?: () => void) {
   const persistence = useAccountPersistence()
-  const session = useMemo(() => createComparisonSession({ storage: diagnosticStorage('saved-comparison', persistence.storage), locks: persistence.locks }), [persistence])
+  const session = useMemo(() => createComparisonSession({ storage: diagnosticStorage('saved-comparison', persistence.storage), locks: persistence.locks, onSavedChange }), [persistence, onSavedChange])
   const [state, setState] = useState(session.getState)
   useEffect(() => persistence.registerVisit('comparison', () => session.getState().list), [persistence, session])
   useEffect(() => {

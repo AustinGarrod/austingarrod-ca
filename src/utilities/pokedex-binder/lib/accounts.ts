@@ -305,7 +305,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     await recovery.put("last-restore:"+scope,journal.id);
     await recovery.put("restore:"+scope,null);
   }
-  async function restoreCollections(next: BinderState, nextSets: MasterState, scope: string): Promise<void> {
+  async function restoreCollections(next: BinderState, nextSets: MasterState, scope: string): Promise<boolean> {
     if (scope !== restoreScope() || retainedAccount) throw new Error("The active account changed. Review the backup again.");
     const previous=cloneState(active.snapshot().state);
     const previousSets=(await masters.read(scope)).state;
@@ -314,6 +314,7 @@ export function createUnifiedBinderController(options: UnifiedBinderOptions) {
     if(pending) await recovery.put("restore-backup:"+pending.id,pending);
     await recovery.put("restore:"+scope,journal);
     await applyRestore(journal);
+    return !sameState(previous, journal.next) || !sameSave(previousSets, journal.nextSets);
   }
   async function previousRestore() {
     const scope=restoreScope();

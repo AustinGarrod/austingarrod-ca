@@ -26,7 +26,7 @@ const sameBaseline = (first: Baseline, second: Baseline) => first.companionText 
 const replacementActions = new Set<HistoryAction>(['clear', 'restore', 'game_import', 'transfer', 'recovery', 'companion_import', 'companion_restore'])
 
 /** One coordinated envelope, one bounded history, and a read-only legacy migration boundary. */
-export function createCompanionSession(options: { onFailure?: (error: unknown, operation: string) => void; revision: string; storage: () => StorageAccess; locks: () => ProfileLocks | undefined; mapMilestoneIds?: readonly string[]; companionItemIds?: readonly string[]; mapCatalog?: Catalog; companionCatalog?: CompanionCatalog }) {
+export function createCompanionSession(options: { onFailure?: (error: unknown, operation: string) => void; onSavedChange?: () => void; revision: string; storage: () => StorageAccess; locks: () => ProfileLocks | undefined; mapMilestoneIds?: readonly string[]; companionItemIds?: readonly string[]; mapCatalog?: Catalog; companionCatalog?: CompanionCatalog }) {
   let baseline: Baseline | undefined
   let persisted: CompanionProgress | undefined
   let initialized = false, adoptedCompanion = false, operation = 0
@@ -142,7 +142,15 @@ export function createCompanionSession(options: { onFailure?: (error: unknown, o
         preservePrevious = false
         adoptedCompanion = true
         baseline = { companionText: backup.value, legacyText: expected.legacyText }; persisted = progress
-        state = { ...state, conflict: null, writable: true, error: '', errorKind: undefined }; emit(); return true
+        state = { ...state, conflict: null, writable: true, error: '', errorKind: undefined }; emit()
+        if (options.onSavedChange && (replacing || current.kind === 'valid')) {
+          const prior = current.kind === 'valid' ? exportCompanionStored({
+            progress: { ...current.progress, ascension: { ...current.progress.ascension, showSpoilers: progress.ascension.showSpoilers } },
+            legacyBaseline: expected.legacyText,
+          }) : null
+          if (!prior?.ok || prior.value !== backup.value) options.onSavedChange()
+        }
+        return true
       })
     } catch (cause) { failure(cause, 'storage.lock-request')
       if (ticket === operation) error('Safe saving is unavailable in this browser. Current Companion progress remains available in this session; export a backup to keep it.', 'unavailable')

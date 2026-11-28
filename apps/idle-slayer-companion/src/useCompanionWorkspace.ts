@@ -7,9 +7,9 @@ export { COMPANION_WORKSPACE_KEY, parseCompanionWorkspace } from './domain/compa
 export type { CompanionGoal, CompanionWorkspace, CompanionWorkspaceReview } from './domain/companion-workspace'
 
 /** Intentions stay outside actual progress and its Undo history. */
-export function useCompanionWorkspace() {
+export function useCompanionWorkspace(onSavedChange?: () => void) {
   const persistence = useAccountPersistence()
-  const session = useMemo(() => createCompanionWorkspaceSession({ storage: diagnosticStorage('intentions', persistence.storage), locks: persistence.locks }), [persistence])
+  const session = useMemo(() => createCompanionWorkspaceSession({ storage: diagnosticStorage('intentions', persistence.storage), locks: persistence.locks, onSavedChange }), [persistence, onSavedChange])
   const state = useSyncExternalStore(session.subscribe, session.getState)
   useEffect(() => persistence.registerVisit('intentions', () => session.getState().workspace), [persistence, session])
   useEffect(() => {

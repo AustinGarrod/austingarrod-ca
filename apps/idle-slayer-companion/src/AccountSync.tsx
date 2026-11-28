@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { accountHref, refreshSession } from '../../../packages/accounts/client'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { accountHref, peekSession, refreshSession } from '../../../packages/accounts/client'
+import { mountAccountReminder } from '../../../packages/accounts/reminder'
 import { AccountPersistenceContext } from './AccountPersistenceContext'
 import { createCompanionAccountSync } from './account-sync'
 import { accountKey, documentKeys, type DocumentName } from './account-storage'
@@ -12,13 +13,34 @@ function download(text: string, filename: string) {
   anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 /** Authentication is optional; the legacy compatibility build never mounts this boundary. */
-export function AccountSyncBoundary({ revision, children }: { revision: string; children: (controls: ReactNode) => ReactNode }) {
+export function AccountSyncBoundary({ revision, children }: { revision: string; children: (controls: ReactNode, notice: ReactNode, onSavedChange?: () => void) => ReactNode }) {
   const controller = useMemo(() => {
     let storage: Storage
     try { storage = localStorage } catch { storage = { getItem: () => { throw new Error('Browser storage is unavailable. Existing saved data was kept.') }, setItem: () => { throw new Error('Browser storage is unavailable.') }, removeItem: () => {}, clear: () => {}, key: () => null, length: 0 } }
     return createCompanionAccountSync({ revision, storage, locks: () => navigator.locks, uuid: () => crypto.randomUUID(), enabled: true })
   }, [revision])
   const view = useSyncExternalStore(controller.subscribe, controller.getState)
+  const reminder = useRef<ReturnType<typeof mountAccountReminder> | null>(null)
+  const recordGuestEdit = useCallback(() => {
+    if (!controller.getState().accountId && !peekSession()?.user) reminder.current?.recordChange()
+  }, [controller])
+  const bindReminder = useCallback((host: HTMLElement | null) => {
+    if (!host) return
+    const mounted = mountAccountReminder(host, {
+      title: 'Sync your progress',
+      description: 'Use a free account to sync your progress across devices.',
+      returnTo: '/utilities/idle-slayer-companion/',
+      offered: () => {
+        const account = controller.getState()
+        const session = peekSession()
+        return !!session?.enabled && session.migrationEnabled && !session.user && !account.accountId && !account.unavailable && !!navigator.locks
+      },
+      fallbackFocus: () => document.getElementById('companion-content'),
+    })
+    reminder.current = mounted
+    const unsubscribe = controller.subscribe(mounted.refresh)
+    return () => { unsubscribe(); mounted.dispose(); reminder.current = null }
+  }, [controller])
   const [opened, setOpened] = useState(false), [feedback, setFeedback] = useState('')
   const previousAccountCopy = !!view.accountId && view.session !== null && view.accountId !== view.session.user?.id
   useEffect(() => setOpened(false), [view.mount])
@@ -69,5 +91,5 @@ export function AccountSyncBoundary({ revision, children }: { revision: string; 
     </div></Dialog>}
   </section>
   if (view.loading) return <main className="loading"><h1>Idle Slayer Companion</h1><p role="status">Opening saved account data… Browser originals are kept.</p></main>
-  return <AccountPersistenceContext.Provider key={view.mount} value={controller.getPersistence()}>{children(controls)}</AccountPersistenceContext.Provider>
+  return <AccountPersistenceContext.Provider key={view.mount} value={controller.getPersistence()}>{children(controls, <aside ref={bindReminder} id="companion-account-reminder" hidden />, view.accountId ? undefined : recordGuestEdit)}</AccountPersistenceContext.Provider>
 }

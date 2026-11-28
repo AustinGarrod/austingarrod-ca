@@ -48,6 +48,8 @@ Daily/weekly quests, Armory, Minions, SP-balance simulation, Stone allocation, c
 
 ## Optional website account sync
 
+On the portfolio site, a signed-out visitor can see an account reminder after a second saved change. The reminder is shared with the Binder and Radius Map and appears at most once per browser tab session. **Keep working** closes it and leaves the existing guest saves available.
+
 Account & sync uses the site's shared email-code/Google login. Guest operation, offline files, existing transfer formats, and original local keys remain available. Connecting requires a per-document choice when browser and account copies differ. Progress, intentions, checkpoints and underlying saved comparison connect together only after staged server commit and validated readback. Layout and tracking preferences remain device-local.
 
 Before connecting or resolving a conflict, the browser writes and verifies an exact raw recovery snapshot in IndexedDB. Original guest localStorage keys are never deleted or rewritten by connection. Account data, acknowledged revisions, client identity and pending mutations share one atomic, account-specific IndexedDB record; migration journals and recovery snapshots are separate records in the same database. This avoids multiplying large supported documents inside the origin's small Web Storage quota. Edits use one account write lock and reload the latest durable account record before checking baselines. Network requests use a client bound to that immutable account ID. Signing out or switching accounts invalidates late responses and mounts separate domain sessions. A failed save, unavailable storage, or changed migration source prevents activation and leaves originals exportable.

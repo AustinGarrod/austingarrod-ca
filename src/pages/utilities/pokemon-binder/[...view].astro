@@ -44,6 +44,7 @@ const bindersTitle = utility.title + " | Austin Garrod";
       <a id="settings-open" href={binderViewPaths.settings} data-binder-view="settings" aria-current={settings ? "page" : undefined}><Settings2 size={16} aria-hidden="true" /> Settings</a>
     </nav>
     <div id="binders-workspace" hidden={!binding}>
+    <aside id="binder-account-reminder" hidden></aside>
     <header id="binder-bar" class="dex-appbar">
       <button id="binder-back" type="button" class="dex-back" aria-label="All binders" hidden><ArrowLeft size={18} aria-hidden="true" /><span>All binders</span></button>
       <div class="dex-appbar-title">

@@ -68,6 +68,10 @@ body.radius-map-page > #main {
   border: 1px solid var(--line);
 }
 
+#radius-account-reminder {
+  margin: 8px 20px 0;
+}
+
 .control-panel:focus {
   outline: none;
 }
@@ -1270,6 +1274,14 @@ body.radius-map-page .leaflet-container {
 
   .status-slot {
     padding: 8px 16px 0;
+  }
+
+  #radius-account-reminder {
+    margin-inline: 16px;
+  }
+
+  .control-panel:has(#radius-account-reminder:not([hidden])) #panel-intro {
+    display: none;
   }
 
   .panel-content {

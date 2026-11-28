@@ -18,7 +18,7 @@ export interface ComparisonState {
 type Storage = DocumentStorage
 
 /** Separate bounded reference storage. No profile access, native rules or telemetry. */
-export function createComparisonSession(dependencies: { storage: () => Storage; locks: () => ProfileLocks | undefined }) {
+export function createComparisonSession(dependencies: { onSavedChange?: () => void; storage: () => Storage; locks: () => ProfileLocks | undefined }) {
   let state: ComparisonState = { list: emptyComparison(), version: 0, loaded: false, pending: false, dirty: false, conflict: false, error: '', saved: false, canUseSaved: false, savedList: null }
   let baseline: Snapshot = null, observed: Snapshot = null, generation = 0
   let preservePrevious = false
@@ -66,6 +66,7 @@ export function createComparisonSession(dependencies: { storage: () => Storage; 
         preservePrevious = false
         baseline = observed = { text, list }
         publish({ pending: false, dirty: false, saved: true, conflict: false, error: '', canUseSaved: true })
+        if (dependencies.onSavedChange && (!snapshot.list || exportComparison(snapshot.list) !== text)) dependencies.onSavedChange()
         return true
       })
     } catch {

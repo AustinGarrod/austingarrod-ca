@@ -7,7 +7,8 @@ import { validateMaster } from "../lib/master";
 import { cardStatus, defaultState, exportBackup, hasNationalData, nationalEnabled, nationalRows, importBackup, locationFor, pageCount, pageSlots, record, searchSpecies, sameState, type BinderState, type CardStatus, type Species } from "../lib/model";
 import { type BinderSnapshot } from "../lib/sync";
 import { combineMigrationSources, createUnifiedBinderController, type BinderAccountState, type MigrationPreview } from "../lib/accounts";
-import { accountHref, binderSettingsPath, signOut } from "../../../../packages/accounts/client";
+import { accountHref, binderSettingsPath, peekSession, signOut } from "../../../../packages/accounts/client";
+import { mountAccountReminder } from "../../../../packages/accounts/reminder";
 import { createRetailerPreferences, enabledRetailers } from "../lib/retailer-preferences";
 import type { BuyingStore } from "../lib/buying-offers";
 import { retailerSettingsForm } from "./retailer-settings";
@@ -52,6 +53,22 @@ async function initialize() {
   for (const count of document.querySelectorAll("[data-species-count]")) count.textContent = species.length.toLocaleString("en-CA");
   const controller = createUnifiedBinderController({ species });
   let account: BinderAccountState = controller.accountState();
+  const guest = () => account.mode === "guest" && !account.user && !account.retainedAccount && !peekSession()?.user;
+  const reminder = mountAccountReminder(el("binder-account-reminder"), {
+    title: "Sync your collection",
+    description: "Use a free account to sync your binders across devices.",
+    returnTo: "/utilities/pokemon-binder/",
+    offered: () => guest() && account.enabled && account.migrationEnabled && !!navigator.locks
+      && !el("binders-workspace").hidden,
+    fallbackFocus: () => el("binder-view-title"),
+  });
+  function guestEditSaved() {
+    if (guest()) reminder.recordChange();
+  }
+  async function recordEdit(run: () => Promise<boolean>): Promise<void> {
+    const startedAsGuest = guest();
+    if (await run() && startedAsGuest) guestEditSaved();
+  }
   let migrationPreview: MigrationPreview | null = null;
   let snapshot: BinderSnapshot = { state: defaultState(), status: "loading", error: null, storageWarning: null, connected: false, key: null, layoutConflict: null };
   let currentPage = 1, selected: number | null = null, printingQuery = "";
@@ -112,7 +129,7 @@ async function initialize() {
   function closeScanner() { scanner?.close(); }
   function openScanner(target?: SetScan) {
     try {
-      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => tracked(() => controller.setOwned(id, true)) });
+      scanner ??= createCardScanner({ species, getSnapshot: () => snapshot, markOwned: id => tracked(() => recordEdit(() => controller.setOwned(id, true))) });
       scanner.open(target);
     } catch {
       scanDialog.dataset.phase = "load-error";
@@ -125,6 +142,7 @@ async function initialize() {
     openPrinting(target) { pricing.openPrinting(target); },
     bindersChanged() { dashboard.bindersChanged(); },
     binderChanged() { sharing.contextChanged(); },
+    guestEditSaved,
     confirm: confirmAction,
     deleted() {
       const target = ["set-overview-title", "first-set"].map(id => document.getElementById(id)).find(node => node?.getClientRects().length);
@@ -191,6 +209,7 @@ async function initialize() {
   }
   let enteredView = false;
   navigation.subscribe((selected, fromBinders) => {
+    reminder.refresh();
     if (enteredView || selected !== "binders") {
       closeScanner();
       for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog[open]")) dialog.close();
@@ -257,7 +276,11 @@ async function initialize() {
       if (targetId === "national") {
         const ids = (await speciesIndex())(match);
         if (!ids.length || !nationalEnabled(snapshot.state)) throw new Error("The National Pokédex can't hold this card.");
-        for (const id of ids) await controller.setStatus(id, "owned");
+        await recordEdit(async () => {
+          let changed = false;
+          for (const id of ids) if (await controller.setStatus(id, "owned")) changed = true;
+          return changed;
+        });
         return `Marked ${label} collected in the National Pokédex.`;
       }
       let name = "";
@@ -294,7 +317,7 @@ async function initialize() {
     },
     async saveDex(ids, expected, current) {
       if (account.pendingMigration || account.retainedAccount) throw new Error("Finish reviewing the account connection before importing.");
-      await tracked(() => controller.importSpecies(ids, expected, current));
+      await tracked(() => recordEdit(() => controller.importSpecies(ids, expected, current)));
       if (current()) await master.showNational();
     },
     selected: () => master.currentId(),
@@ -606,7 +629,9 @@ async function initialize() {
       pricing.scopeChanged();
       dashboard.scopeChanged();
     }
-    account = value; sharing.contextChanged(); master.account(value); stockAlerts.account(value); renderSync();
+    account = value;
+    reminder.refresh();
+    sharing.contextChanged(); master.account(value); stockAlerts.account(value); renderSync();
     if (preferencesReady) setPreferenceScope();
     if (changed && !el("binder-settings").hidden) refreshBackupActions();
     if (changed) dashboard.bindersChanged();
@@ -692,10 +717,10 @@ async function initialize() {
   document.addEventListener("change", event => {
     const input = event.target as HTMLInputElement;
     if (input.matches("[data-dex-status]")) {
-      if (input.checked) void action(() => controller.setStatus(Number(input.dataset.dexStatus), input.value as CardStatus));
+      if (input.checked) void action(() => recordEdit(() => controller.setStatus(Number(input.dataset.dexStatus), input.value as CardStatus)));
       return;
     }
-    if (input.matches("[data-owned]")) void action(() => controller.setOwned(Number(input.dataset.owned), input.checked));
+    if (input.matches("[data-owned]")) void action(() => recordEdit(() => controller.setOwned(Number(input.dataset.owned), input.checked)));
   });
   details.addEventListener("input", event => { if ((event.target as HTMLElement).id === "printing-search") { printingQuery = (event.target as HTMLInputElement).value; renderPrintings(); } });
   details.addEventListener("click", event => {
@@ -724,12 +749,12 @@ async function initialize() {
     el("layout-error").textContent = ""; el<HTMLDialogElement>("layout-dialog").showModal();
   });
   for (const id of ["first-dex", "national-add"]) el(id).addEventListener("click", event => void action(async () => {
-    await controller.setEnabled(true);
+    await recordEdit(() => controller.setEnabled(true));
     await master.showNational();
     el("binder-view-title").focus();
   }, event.currentTarget as HTMLButtonElement));
   el("national-hide").addEventListener("click", event => void action(async () => {
-    await controller.setEnabled(false);
+    await recordEdit(() => controller.setEnabled(false));
     el<HTMLDialogElement>("layout-dialog").close();
     if (!nationalEnabled(snapshot.state)) await master.goHome();
     el(nationalEnabled(snapshot.state) ? "binder-view-title" : el("binder-onboarding").hidden ? "set-overview-title" : "first-dex").focus();
@@ -746,7 +771,7 @@ async function initialize() {
   el("layout-form").addEventListener("submit", event => {
     event.preventDefault(); const data = new FormData(event.target as HTMLFormElement);
     void action(async () => {
-      await controller.setSettings({ columns: Number(data.get("columns")), rows: Number(data.get("rows")), useBackSides: data.get("useBackSides") === "true", leadingBlankPockets: Number(data.get("leadingBlankPockets")) });
+      await recordEdit(() => controller.setSettings({ columns: Number(data.get("columns")), rows: Number(data.get("rows")), useBackSides: data.get("useBackSides") === "true", leadingBlankPockets: Number(data.get("leadingBlankPockets")) }));
       el<HTMLDialogElement>("layout-dialog").close();
     });
   });
@@ -804,7 +829,10 @@ async function initialize() {
       if (await confirmAction("Restore this backup?", "Replace your current collection and layout with this backup. If connected, the restored collection will also sync to your other devices. Download your current backup first if needed.", "Restore backup")) {
         if(scope!==controller.restoreScope()) throw new Error("The active account changed. Review the backup again.");
         state.enabled ??= nationalEnabled(state);
-        if(sets) { await controller.restoreCollections(state,sets,scope);await master.restored(); } else await controller.replaceState(state);
+        if (sets) {
+          await recordEdit(() => controller.restoreCollections(state, sets, scope));
+          await master.restored();
+        } else await recordEdit(() => controller.replaceState(state));
         refreshBackupActions();
       }
     } finally { input.value = ""; }

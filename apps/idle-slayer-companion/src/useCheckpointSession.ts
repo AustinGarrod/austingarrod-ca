@@ -4,9 +4,9 @@ import { CHECKPOINT_STORAGE_KEY } from './domain/checkpoints'
 import { diagnosticStorage } from './reporting-storage'
 import { useAccountPersistence } from './AccountPersistenceContext'
 
-export function useCheckpointSession(revision: string) {
+export function useCheckpointSession(revision: string, onSavedChange?: () => void) {
   const persistence = useAccountPersistence()
-  const session = useMemo(() => createCheckpointSession({ revision, storage: diagnosticStorage('checkpoints', persistence.storage), locks: persistence.locks, id: () => window.crypto.randomUUID() }), [revision, persistence])
+  const session = useMemo(() => createCheckpointSession({ revision, storage: diagnosticStorage('checkpoints', persistence.storage), locks: persistence.locks, id: () => window.crypto.randomUUID(), onSavedChange }), [revision, persistence, onSavedChange])
   const [state, setState] = useState(session.getState)
   useEffect(() => persistence.registerVisit('checkpoints', () => session.getState().vault), [persistence, session])
   useEffect(() => {
